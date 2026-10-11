@@ -323,6 +323,10 @@ Under the chart: the histograms' count scale. **Log** compresses tall peaks so t
 
 R, G and B triangles in the top corners: **top-left** for crushed shadows, **top-right** for blown highlights, once a channel passes 0.5% of the frame. One channel alone is a cast, not an exposure problem.
 
+#### Clipping Overlay
+
+The half-circle icon in the Analysis header marks on the photo every pixel with a channel at paper black or paper white (the same end bins the triangles and the **Clipping** row count), shadows and highlights in the two **Color vision** colors.
+
 #### Zone shading and zone ticks
 
 The warm wash (left) and cool wash (right) mark the toe and shoulder, where separation is lost; their colors follow **Color vision** in Preferences. The ticks on the left edge are Adams zones I to IX on the print-tone axis, on the same scale as the zone strip; V is the longer one.
@@ -338,6 +342,8 @@ Ten cells on the Adams scale (**0** paper black, **V** 18% mid-gray); opacity sh
 Click a cell, then a spot on the photo, to place that tone (see Zone placement); Esc cancels. On a slide or a Positive frame the strip reads **Disabled for Slides/Reversal Film**.
 
 Double-click the strip to turn the canvas **Zone Overlay** on or off (also `Shift+Z` and the canvas toolbar's grid icon): every region of the print is outlined and labeled with its zone.
+
+Hover a cell to light up the pixels that print in that zone on the photo, in the first color of the **Color vision** pair (Preferences).
 
 #### Probe
 

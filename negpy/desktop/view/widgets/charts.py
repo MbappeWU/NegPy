@@ -697,10 +697,12 @@ class ZoneStripWidget(QWidget):
     Also the zone-placement control: clicking a cell asks for that zone, and the
     next click on the photo places a tone there. A double-click toggles the canvas
     Zone Overlay instead, so a single click waits out the double-click interval.
+    Hovering a cell names it (zone_hovered), and leaving names None.
     """
 
     zone_clicked = pyqtSignal(int)
     zone_double_clicked = pyqtSignal()
+    zone_hovered = pyqtSignal(object)
 
     _LABELS = ("0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
 
@@ -715,6 +717,7 @@ class ZoneStripWidget(QWidget):
         self._placement_enabled = True
         self._overlay_hint = ""
         self._pending: int | None = None
+        self._hovered: int | None = None
         self._click_timer = QTimer(self)
         self._click_timer.setSingleShot(True)
         self._click_timer.setInterval(QApplication.doubleClickInterval())
@@ -766,9 +769,19 @@ class ZoneStripWidget(QWidget):
             cell, self._pending = self._pending, None
             self.zone_clicked.emit(cell)
 
+    def _set_hovered(self, cell: int | None) -> None:
+        if cell != self._hovered:
+            self._hovered = cell
+            self.zone_hovered.emit(cell)
+
+    def leaveEvent(self, event) -> None:
+        self._set_hovered(None)
+        super().leaveEvent(event)
+
     def mouseMoveEvent(self, event) -> None:
         if self._occ is not None and self.width() > 0:
             cell = self._cell_at(event.position().x())
+            self._set_hovered(cell)
             text = f"Zone {self._LABELS[cell]} — {float(self._occ[cell]) * 100:.1f}%"
             if self._placement_enabled:
                 text += " · click to place a tone here"

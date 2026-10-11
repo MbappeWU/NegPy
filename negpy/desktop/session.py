@@ -226,6 +226,10 @@ class AppState:
 
     # Adams-zone box overlay on the canvas: display-only and session-only, never persisted.
     zones_overlay: bool = False
+    # Clipping Overlay (paper black and paper white marked on the frame) and the zone the
+    # zone strip's hover lights up. Display-only, session-only.
+    clipping_overlay: bool = False
+    zone_highlight: Optional[int] = None
 
     # Grain focuser: a near-1:1 loupe following the cursor. Display-only, session-only.
     grain_focuser: bool = False

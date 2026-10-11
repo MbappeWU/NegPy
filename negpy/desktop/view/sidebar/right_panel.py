@@ -179,7 +179,6 @@ class RightPanel(QWidget):
         self.curve_widget = PhotometricCurveWidget()
         self.step_wedge = StepWedgeWidget()
         self.zone_strip = ZoneStripWidget()
-        self._refresh_zone_strip_hint()
         self.probe_row = DensitometerRow()
         self.zone_placement = ZonePlacementRows()
         self.stats_widget = NegativeStatsWidget()
@@ -213,6 +212,10 @@ class RightPanel(QWidget):
         self.analysis_section = make_section(
             repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", THEME.sidebar_expanded_defaults["analysis"]
         )
+        self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
+        self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
+        self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
+        self._refresh_zone_strip_hint()
         analysis_expanded = self.analysis_section.toggle_button.isChecked()
 
         # Tab content widgets
@@ -498,6 +501,11 @@ class RightPanel(QWidget):
         self.gear_panel.apply_shortcut_tooltips()
         self.scanlight_sidebar.lv_window.apply_shortcut_tooltips()
 
+    def _sync_clipping_btn(self, on: bool) -> None:
+        self.clipping_btn.blockSignals(True)
+        self.clipping_btn.setChecked(on)
+        self.clipping_btn.blockSignals(False)
+
     def _on_histogram_scale(self, index: int) -> None:
         self.curve_widget.set_log_scale(index == 1)
         self.controller.session.repo.save_global_setting("histogram_log_scale", index == 1)
@@ -507,6 +515,12 @@ class RightPanel(QWidget):
 
     def _refresh_zone_strip_hint(self) -> None:
         self.zone_strip.set_overlay_hint(tooltip_with_shortcut("Double-click: Zone Overlay on or off", "toggle_zones"))
+        self.clipping_btn.setToolTip(
+            tooltip_with_shortcut(
+                "Clipping Overlay: mark the pixels that print as paper black or paper white, in the Color vision pair (Preferences)",
+                "toggle_clipping_overlay",
+            )
+        )
 
     def _connect_signals(self) -> None:
         self.controller.image_updated.connect(self._update_analysis)
@@ -516,6 +530,8 @@ class RightPanel(QWidget):
         self.zone_strip.zone_clicked.connect(lambda zone: self.controller.arm_zone_target(float(zone)))
         self.controller.zone_arm_changed.connect(lambda zone: self.zone_strip.set_armed(None if zone is None else int(zone)))
         self.zone_strip.zone_double_clicked.connect(self.controller.toggle_zones_overlay)
+        self.zone_strip.zone_hovered.connect(self.controller.set_zone_highlight)
+        self.controller.clipping_overlay_changed.connect(self._sync_clipping_btn)
         self.zone_placement.target_changed.connect(self.controller.set_zone_pin_target)
         self.zone_placement.apply_clicked.connect(self.controller.apply_zone_placement)
         self.zone_placement.remove_clicked.connect(self.controller.remove_zone_pin)

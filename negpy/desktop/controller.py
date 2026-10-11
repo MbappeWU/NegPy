@@ -464,6 +464,8 @@ class AppController(QObject):
     crop_guide_changed = pyqtSignal()
     dust_overlay_changed = pyqtSignal()
     zones_overlay_changed = pyqtSignal(bool)
+    clipping_overlay_changed = pyqtSignal(bool)
+    zone_highlight_changed = pyqtSignal()
     grain_focuser_changed = pyqtSignal(bool)
     printing_notes_changed = pyqtSignal(bool)
     printing_notes_requested = pyqtSignal()  # the canvas holds the annotated pixels
@@ -3115,6 +3117,17 @@ class AppController(QObject):
         the canvas already holds, so no re-render is needed."""
         self.state.zones_overlay = (not self.state.zones_overlay) if force is None else bool(force)
         self.zones_overlay_changed.emit(self.state.zones_overlay)
+
+    def toggle_clipping_overlay(self, force: Optional[bool] = None) -> None:
+        """Marks paper black and paper white on the frame. Repaint only."""
+        self.state.clipping_overlay = (not self.state.clipping_overlay) if force is None else bool(force)
+        self.clipping_overlay_changed.emit(self.state.clipping_overlay)
+
+    def set_zone_highlight(self, zone: Optional[int]) -> None:
+        """Lights up one zone-strip cell's pixels on the frame; None clears. Repaint only."""
+        if zone != self.state.zone_highlight:
+            self.state.zone_highlight = zone
+            self.zone_highlight_changed.emit()
 
     def toggle_grain_focuser(self, force: Optional[bool] = None) -> None:
         """Grain focuser loupe. Repaint only — it magnifies the frame the canvas already

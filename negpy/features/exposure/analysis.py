@@ -136,6 +136,36 @@ def zone_warnings(occ: np.ndarray) -> Tuple[bool, bool]:
     return shadow, highlight
 
 
+MASK_MAX_EDGE = 1024  # canvas masks are drawn scaled to the view, so finer adds nothing
+
+
+def _mask_preview(rgb: Any, max_edge: int) -> Optional[np.ndarray]:
+    rgb = np.asarray(rgb)
+    if rgb.ndim != 3 or rgb.shape[-1] < 3 or min(rgb.shape[:2]) < 1:
+        return None
+    step = max(1, -(-max(rgb.shape[:2]) // max_edge))
+    return np.ascontiguousarray(rgb[::step, ::step, :3], dtype=np.float32)
+
+
+def zone_mask(rgb: Any, zone: int, max_edge: int = MASK_MAX_EDGE) -> Optional[np.ndarray]:
+    """Pixels in one zone-strip cell (IX also holds X), on a strided preview of an encoded frame."""
+    small = _mask_preview(rgb, max_edge)
+    if small is None:
+        return None
+    cells = np.minimum(np.nan_to_num(zone_of_encoded(get_luminance(small))).astype(np.int32), ZONE_COUNT - 1)
+    return cells == int(zone)
+
+
+def clip_masks(rgb: Any, max_edge: int = MASK_MAX_EDGE) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """(shadow, highlight): pixels with any channel in the output histogram's black or white
+    bin, the bins the Clipping row and the chart's clip marks count."""
+    small = _mask_preview(rgb, max_edge)
+    if small is None:
+        return None
+    edge = 1.0 / OUTPUT_HIST_BINS
+    return np.any(small < edge, axis=-1), np.any(small >= 1.0 - edge, axis=-1)
+
+
 ZONE_GRID_CELLS = 24  # cells along the frame's long edge
 
 

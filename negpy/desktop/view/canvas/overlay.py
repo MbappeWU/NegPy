@@ -27,6 +27,7 @@ from negpy.features.exposure.analysis import (
     STRIP_DENSITIES,
     STRIP_GRADES,
     STRIP_GRID,
+    clip_masks,
     loupe_acutance,
     proof_grid,
     ring_cc,
@@ -36,6 +37,7 @@ from negpy.features.exposure.analysis import (
     strip_cell_at,
     strip_nearest_cell,
     zone_grid,
+    zone_mask,
     zone_region_labels,
 )
 from negpy.features.exposure.densitometer import zone_roman
@@ -87,6 +89,19 @@ _SHAPE_FOR_TOOL = {
 _LOCAL_TOOLS = (ToolMode.NONE, *_SHAPE_FOR_TOOL)
 
 _IR_CORRECTED_ALPHA = 55  # dim wash over repaired regions
+_CLIP_WASH_ALPHA = 200  # clipped pixels must read as marks over any print
+_ZONE_HIGHLIGHT_ALPHA = 150
+
+
+def _tint_qimage(layers: List[Tuple[np.ndarray, QColor]], alpha: int) -> QImage:
+    """Premultiplied wash: each boolean mask in its color, later layers over earlier ones."""
+    gh, gw = layers[0][0].shape[:2]
+    buf = np.zeros((gh, gw, 4), dtype=np.uint8)
+    a = alpha / 255.0
+    for mask, color in layers:
+        buf[mask] = (int(color.red() * a), int(color.green() * a), int(color.blue() * a), alpha)
+    return QImage(buf.data, gw, gh, gw * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
+
 
 _ZONE_LINE_ALPHA = 150
 _ZONE_LINE_SHADOW_ALPHA = 110  # dark underlay so the white edges hold over blown highlights
@@ -386,6 +401,8 @@ class CanvasOverlay(QWidget):
         self._host_qimage_cache: Optional[Tuple[tuple, QImage]] = None
         self._zone_cells: Optional[np.ndarray] = None
         self._zone_labels: List[Tuple[int, int, int]] = []
+        # Clipping Overlay and zone-highlight washes for the displayed frame, keyed by what they mark.
+        self._frame_washes: Dict[tuple, Optional[QImage]] = {}
 
         # Test strip mosaic, converted once and keyed by the buffer it came from.
         self._strip_cache: Optional[Tuple[tuple, QImage]] = None
@@ -679,6 +696,7 @@ class CanvasOverlay(QWidget):
         self._gpu_texture = gpu_texture
         self._host_qimage_cache = None
         self._zone_cells = None  # rebuilt lazily on the next zones paint
+        self._frame_washes = {}
         # Kept so a strip mosaic gets the same display transform as this buffer did.
         self._display_cs = color_space
         self._monitor_icc_bytes = monitor_icc_bytes
@@ -1120,6 +1138,12 @@ class CanvasOverlay(QWidget):
         elif self.state.zones_overlay and content_aligned:
             self._draw_zone_grid(painter)
 
+        if content_aligned and not self.state.test_strip:
+            if self.state.clipping_overlay:
+                self._draw_clipping_overlay(painter)
+            if self.state.zone_highlight is not None:
+                self._draw_zone_highlight(painter)
+
         # Pins are content-anchored, so they hide with the strip (whose mosaic
         # replaces the frame) and in the uncropped tool views.
         if self.state.zone_pins and content_aligned and not self.state.test_strip:
@@ -1519,6 +1543,48 @@ class CanvasOverlay(QWidget):
         painter.drawEllipse(p2, 3.0, 3.0)
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
+    def _content_host_buffer(self) -> Optional[np.ndarray]:
+        """The displayed frame's image content as NumPy, border padding cut away."""
+        src = self._host_buffer()
+        if src is not None and self._content_rect is not None:
+            ox, oy, cw, ch = self._content_rect
+            src = src[oy : oy + ch, ox : ox + cw]
+        return src
+
+    def _frame_wash(self, key: tuple, build) -> Optional[QImage]:
+        if key not in self._frame_washes:
+            src = self._content_host_buffer()
+            self._frame_washes[key] = None if src is None else build(src)
+        return self._frame_washes[key]
+
+    def _draw_clipping_overlay(self, painter: QPainter) -> None:
+        """Pixels at paper black and paper white, in the Color vision pair."""
+        shadow, highlight = palette_for(self.state.color_vision).pair
+
+        def build(src: np.ndarray) -> Optional[QImage]:
+            masks = clip_masks(src)
+            if masks is None:
+                return None
+            low, high = masks
+            return _tint_qimage([(low, QColor(shadow)), (high, QColor(highlight))], _CLIP_WASH_ALPHA)
+
+        img = self._frame_wash(("clip", shadow, highlight), build)
+        if img is not None:
+            painter.drawImage(self._content_view_rect(), img)
+
+    def _draw_zone_highlight(self, painter: QPainter) -> None:
+        """The zone the strip's hover names, washed over the pixels that print in it."""
+        zone = int(self.state.zone_highlight)
+        color = palette_for(self.state.color_vision).pair[0]
+
+        def build(src: np.ndarray) -> Optional[QImage]:
+            mask = zone_mask(src, zone)
+            return None if mask is None else _tint_qimage([(mask, QColor(color))], _ZONE_HIGHLIGHT_ALPHA)
+
+        img = self._frame_wash(("zone", zone, color), build)
+        if img is not None:
+            painter.drawImage(self._content_view_rect(), img)
+
     def _draw_zone_grid(self, painter: QPainter) -> None:
         """Adams-zone map over the image content: a fixed grid whose internal edges are
         drawn only where the zone changes, so neighbouring cells of the same zone merge
@@ -1529,12 +1595,9 @@ class CanvasOverlay(QWidget):
         instead of reflowing under the cursor while panning; zoom deep enough and you're
         inside one cell. Rebuild from the visible sub-rect if that ever matters."""
         if self._zone_cells is None:
-            src = self._host_buffer()
+            src = self._content_host_buffer()
             if src is None:
                 return
-            if self._content_rect is not None:
-                ox, oy, cw, ch = self._content_rect
-                src = src[oy : oy + ch, ox : ox + cw]
             self._zone_cells = zone_grid(src)
             if self._zone_cells is None:
                 return
@@ -2027,14 +2090,7 @@ class CanvasOverlay(QWidget):
         map_x = (uv_grid[..., 0] * (w_m - 1)).astype(np.float32)
         map_y = (uv_grid[..., 1] * (h_m - 1)).astype(np.float32)
         remapped = cv2.remap(np.ascontiguousarray(mask, dtype=np.float32), map_x, map_y, interpolation=cv2.INTER_NEAREST)
-        gh, gw = remapped.shape[:2]
-        af = (remapped > 0.5).astype(np.float32) * (_IR_CORRECTED_ALPHA / 255.0)
-        buf = np.empty((gh, gw, 4), dtype=np.uint8)
-        buf[..., 0] = (color.red() * af).astype(np.uint8)
-        buf[..., 1] = (color.green() * af).astype(np.uint8)
-        buf[..., 2] = (color.blue() * af).astype(np.uint8)
-        buf[..., 3] = (af * 255.0).astype(np.uint8)
-        img = QImage(buf.data, gw, gh, gw * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
+        img = _tint_qimage([(remapped > 0.5, color)], _IR_CORRECTED_ALPHA)
         if len(self._wash_cache) > 8:  # drop stale ids from prior frames
             self._wash_cache.clear()
         self._wash_cache[id(mask)] = (key, img)
