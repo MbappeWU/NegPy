@@ -16,6 +16,7 @@ from negpy.desktop.controller import AppController
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
+from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import roll_revert_icon
 from negpy.desktop.view.styles.templates import EditedDot, default_button_height, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
@@ -39,23 +40,17 @@ class ToolbarItem:
 # and the separators, so a reordered row still gets dividers where the kinds change.
 TOOLBAR_ITEMS: tuple[ToolbarItem, ...] = (
     ToolbarItem("prev", "Navigation", "Previous"),
+    ToolbarItem("position", "Navigation", "Frame Counter"),
     ToolbarItem("next", "Navigation", "Next"),
-    ToolbarItem("zoom_label", "Zoom", "Zoom Readout"),
-    ToolbarItem("zoom_fit", "Zoom", "Fit to Window"),
-    ToolbarItem("zoom_original", "Zoom", "Original Size (1:1)"),
-    ToolbarItem("hq", "Zoom", "HQ Preview"),
+    ToolbarItem("zoom", "Zoom", "Zoom"),
     ToolbarItem("rot_l", "Geometry", "Rotate CCW"),
     ToolbarItem("rot_r", "Geometry", "Rotate CW"),
     ToolbarItem("flip_h", "Geometry", "Flip Horizontal"),
     ToolbarItem("flip_v", "Geometry", "Flip Vertical"),
-    ToolbarItem("undo", "View", "Undo"),
-    ToolbarItem("redo", "View", "Redo"),
-    ToolbarItem("compare", "View", "Before / After"),
-    ToolbarItem("flat_peek", "View", "Peek Flat Scan"),
-    ToolbarItem("negative_peek", "View", "Peek Negative"),
-    ToolbarItem("zones", "View", "Zone Overlay"),
-    ToolbarItem("loupe", "View", "Grain Focuser"),
-    ToolbarItem("embedded_peek", "View", "Peek Embedded Preview"),
+    ToolbarItem("undo", "Edit", "Undo"),
+    ToolbarItem("redo", "Edit", "Redo"),
+    ToolbarItem("source", "View", "Print or Peek"),
+    ToolbarItem("overlays", "View", "Overlays"),
     ToolbarItem("reference", "View", "Reference View"),
     ToolbarItem("light_table", "View", "Light Table"),
     ToolbarItem("copy", "Settings", "Copy Settings"),
@@ -74,24 +69,100 @@ TOOLBAR_ITEM_BY_ID = {item.id: item for item in TOOLBAR_ITEMS}
 
 DEFAULT_TOOLBAR_IDS: tuple[str, ...] = (
     "prev",
+    "position",
     "next",
-    "zoom_label",
-    "zoom_fit",
-    "zoom_original",
-    "hq",
+    "zoom",
     "rot_l",
     "rot_r",
     "flip_h",
     "flip_v",
     "undo",
     "redo",
-    "compare",
-    "negative_peek",
-    "zones",
-    "loupe",
+    "source",
+    "overlays",
 )
 
+# Buttons folded into one menu control, so a stored row keeps what it showed.
+_RETIRED_IDS = {
+    "zoom_label": "zoom",
+    "zoom_fit": "zoom",
+    "zoom_original": "zoom",
+    "hq": "zoom",
+    "compare": "source",
+    "flat_peek": "source",
+    "negative_peek": "source",
+    "embedded_peek": "source",
+    "zones": "overlays",
+    "loupe": "overlays",
+}
+
 _TOOLBAR_SETTING_KEY = "toolbar_items"
+
+# A narrow canvas hides these first to last; items not listed (menu actions put on the row) go
+# before them, from the end of the user's order.
+_COLLAPSE_ORDER = (
+    "flip_v",
+    "flip_h",
+    "rot_r",
+    "rot_l",
+    "light_table",
+    "reference",
+    "overlays",
+    "redo",
+    "undo",
+    "source",
+    "zoom",
+    "position",
+    "next",
+    "prev",
+)
+
+_ZOOM_PRESETS = (25, 50, 100, 200, 400)
+
+# (state flag, icon, label, shortcut id, tooltip); index 0 is the edit itself.
+_VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
+    ("", "fa5s.image", "Print", "", "The edit, as it prints"),
+    ("compare_mode", "fa5s.adjust", "Before / After", "toggle_compare", "Split against the auto baseline; drag the divider"),
+    (
+        "negative_peek",
+        "fa5s.film",
+        "Negative",
+        "toggle_negative_peek",
+        "The source as it was loaded, un-inverted and unedited, at your crop and rotation (no color management)",
+    ),
+    ("flat_peek", "fa5s.eye", "Flat Scan", "toggle_flat_peek", "The flat master. Turn on Flat output in the Export tab to use it."),
+    (
+        "embedded_peek",
+        "fa5s.camera",
+        "Embedded Preview",
+        "toggle_embedded_peek",
+        "The camera's own JPEG of this capture, as a reference for what the scan looks like",
+    ),
+    (
+        "flatfield_peek",
+        "fa5s.lightbulb",
+        "Flat Field Check",
+        "toggle_flatfield_peek",
+        "How well the Flat Field profile corrects its own reference. Choose a profile in the Flat Field card to use it.",
+    ),
+)
+
+_SOURCE_INDEX = {flag: i for i, (flag, *_rest) in enumerate(_VIEW_SOURCES)}
+
+
+def frame_position(model, actual_idx: int) -> str:
+    """n / total in the Film Strip's order and filter, the one Next and Previous follow."""
+    total = model.rowCount()
+    row = model.actual_to_display(actual_idx)
+    return f"{row + 1} / {total}" if total > 1 and row >= 0 else ""
+
+
+def _migrate_retired(stored: list[str]) -> list[str]:
+    out: list[str] = []
+    for item_id in stored:
+        new_ids = [_RETIRED_IDS.get(item_id, item_id)] + (["position"] if item_id == "prev" else [])
+        out.extend(new_id for new_id in new_ids if new_id not in out)
+    return out
 
 
 def load_toolbar_items(repo) -> list[str]:
@@ -99,6 +170,10 @@ def load_toolbar_items(repo) -> list[str]:
     stored = repo.get_global_setting(_TOOLBAR_SETTING_KEY)
     if not isinstance(stored, list):
         return list(DEFAULT_TOOLBAR_IDS)
+    # Saved back at once, so the frame counter a migration adds is not re-added after a removal.
+    if any(item_id in _RETIRED_IDS for item_id in stored):
+        stored = _migrate_retired(stored)
+        repo.save_global_setting(_TOOLBAR_SETTING_KEY, stored)
     return [item_id for item_id in stored if item_id in TOOLBAR_ITEM_BY_ID]
 
 
@@ -114,6 +189,7 @@ class ActionToolbar(QWidget):
 
         self._init_ui()
         self._connect_signals()
+        self._update_ui_state()
 
     def _create_separator(self) -> QFrame:
         line = QFrame()
@@ -187,77 +263,82 @@ class ActionToolbar(QWidget):
         self.btn_flip_v.setIcon(qta.icon("fa5s.arrows-alt-v", color=icon_color))
         self._tip(self.btn_flip_v, "Flip Vertical", "flip_v")
 
-        # 3. Zoom: a read-only percent readout, since users zoom directly on the canvas. Match the
-        # button height and centre both axes so it sits on the same line as the icons rather than
-        # floating, a touch larger and bolder than a caption.
-        self.zoom_label = QLabel("100%")
-        self.zoom_label.setFixedSize(48, btn_height)
-        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.zoom_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_header}px; font-weight: 600;")
+        self.position_label = QLabel()
+        self.position_label.setFixedHeight(btn_height)
+        self.position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.position_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_base}px; padding: 0 2px;")
+        self.position_label.setToolTip("This frame's place in the Film Strip's order and filter")
 
-        self.btn_zoom_fit = QToolButton()
-        self.btn_zoom_fit.setIcon(qta.icon("fa5s.expand", color=icon_color))
-        self._tip(self.btn_zoom_fit, "Fit to Window", "fit_view")
-        self.btn_zoom_original = QToolButton()
-        self.btn_zoom_original.setText("1:1")
-        # Checked state is a readout of the current zoom, not a mode the click toggles:
-        # _on_zoom_changed owns it, and every zoom path emits that signal.
-        self.btn_zoom_original.setCheckable(True)
-        self._tip(
-            self.btn_zoom_original,
-            "Original size (100%) — one scan pixel per screen pixel. Below HQ the preview is scaled up to it, "
-            "so the framing is right and the detail is not.",
-            "zoom_100",
+        # 3. Zoom: the readout opens the presets, since users zoom directly on the canvas.
+        self.btn_zoom = MenuButton("Zoom — the true pixel zoom, 100% being one scan pixel per screen pixel. Pick a preset or HQ Preview.")
+        zoom_menu = self.btn_zoom.choice_menu
+        self._zoom_fit_action = zoom_menu.addAction("Fit to Window")
+        self._zoom_fit_action.triggered.connect(self._on_fit_clicked)
+        self._label(self._zoom_fit_action, "Fit to Window", "fit_view")
+        zoom_menu.addSeparator()
+        for percent in _ZOOM_PRESETS:
+            action = zoom_menu.addAction(f"{percent}%")
+            action.triggered.connect(lambda _checked=False, p=percent: self._on_zoom_preset(p))
+            if percent == 100:
+                self._label(action, "100%", "zoom_100")
+                action.setToolTip("Below HQ the preview is scaled up to it, so the framing is right and the detail is not.")
+        zoom_menu.addSeparator()
+        self._zoom_hq_action = zoom_menu.addAction("HQ Preview")
+        self._zoom_hq_action.setCheckable(True)
+        self._zoom_hq_action.setToolTip("Render the full-resolution scan instead of a downscaled preview")
+        self._zoom_hq_action.triggered.connect(self.controller.toggle_hq_preview)
+        self._label(self._zoom_hq_action, "HQ Preview", "toggle_hq")
+        # Sized for the common readouts, so zooming up to 1:1 does not move the row.
+        self.btn_zoom.setText("100%")
+        self._zoom_min_width = self.btn_zoom.sizeHint().width()
+        self.btn_zoom.setMinimumWidth(self._zoom_min_width)
+
+        # Every source here takes the whole canvas, and the controller keeps them exclusive.
+        self.source_choice = ChoiceButton(
+            tuple((icon, label) for _flag, icon, label, _key, _tip in _VIEW_SOURCES),
+            "What the canvas shows: the print, a before/after split, or a peek that leaves your edit alone",
         )
+        for i, (_flag, _icon, label, key, tip) in enumerate(_VIEW_SOURCES):
+            if key:
+                self._label(self.source_choice.choice_action(i), label, key)
+            self.source_choice.set_choice_tooltip(i, tip)
 
-        self.btn_hq = QToolButton()
-        self.btn_hq.setText("HQ")
-        self.btn_hq.setCheckable(True)
-        self._tip(self.btn_hq, "Toggle high-quality (full-resolution) preview", "toggle_hq")
-
-        self.btn_compare = QToolButton()
-        self.btn_compare.setCheckable(True)
-        self.btn_compare.setIcon(qta.icon("fa5s.adjust", color=icon_color))
-        self._tip(self.btn_compare, "Before / After — split against the auto baseline, drag the divider", "toggle_compare")
-
-        # Overflow-only (kept as a state holder so the checked-state mirror still works).
-        self.btn_flat_peek = QToolButton()
-        self.btn_flat_peek.setCheckable(True)
-        self.btn_flat_peek.setIcon(qta.icon("fa5s.eye", color=icon_color))
-        self._tip(self.btn_flat_peek, "Peek flat scan — temporarily show the flat master (does not change your edit)", "toggle_flat_peek")
-
-        self.btn_negative_peek = QToolButton()
-        self.btn_negative_peek.setCheckable(True)
-        self.btn_negative_peek.setIcon(qta.icon("fa5s.film", color=icon_color))
-        self._tip(
-            self.btn_negative_peek,
-            "Peek negative — show the source as it was loaded, un-inverted and unedited, at your crop and rotation (no color management)",
-            "toggle_negative_peek",
-        )
-
-        self.btn_zones = QToolButton()
-        self.btn_zones.setCheckable(True)
-        self.btn_zones.setIcon(qta.icon("mdi.grid", color=icon_color))
-        self._tip(self.btn_zones, "Zone overlay — label each region of the print with its Adams zone", "toggle_zones")
-
-        self.btn_loupe = QToolButton()
-        self.btn_loupe.setCheckable(True)
-        self.btn_loupe.setIcon(qta.icon("fa5s.search-plus", color=icon_color))
-        self._tip(
-            self.btn_loupe,
-            "Grain focuser — a loupe at the cursor showing the frame's own pixels, with an "
-            "acutance figure for comparing sharpness across the frame (reads true on HQ)",
-            "toggle_grain_focuser",
-        )
-
-        self.btn_embedded_peek = QToolButton()
-        self.btn_embedded_peek.setCheckable(True)
-        self.btn_embedded_peek.setIcon(qta.icon("fa5s.camera", color=icon_color))
-        self._tip(
-            self.btn_embedded_peek,
-            "Peek embedded preview — the camera's own JPEG of this capture, as a reference for what the scan looks like",
-            "toggle_embedded_peek",
-        )
+        self.overlays_menu = ToggleMenuButton("fa5s.layer-group", "Overlays", "Marks drawn over the frame; none of them changes the edit")
+        self._overlay_actions = {}
+        for flag, label, key, tip, toggle in (
+            (
+                "zones_overlay",
+                "Zone Overlay",
+                "toggle_zones",
+                "Label each region of the print with its Adams zone",
+                self.controller.toggle_zones_overlay,
+            ),
+            (
+                "clipping_overlay",
+                "Clipping Overlay",
+                "toggle_clipping_overlay",
+                "Mark paper black and paper white on the frame",
+                self.controller.toggle_clipping_overlay,
+            ),
+            (
+                "printing_notes",
+                "Printing Notes",
+                "toggle_printing_notes",
+                "The dodge and burn map and the print recipe",
+                self.controller.toggle_printing_notes,
+            ),
+            (
+                "grain_focuser",
+                "Grain Focuser",
+                "toggle_grain_focuser",
+                "A loupe at the cursor showing the frame's own pixels, with an acutance figure for comparing sharpness across the frame (reads true on HQ)",
+                self.controller.toggle_grain_focuser,
+            ),
+        ):
+            action = self.overlays_menu.add_toggle(label, tip)
+            self._label(action, label, key)
+            action.triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
+            self._overlay_actions[flag] = action
 
         # One-shot actions that otherwise live only in the ⋯ menu.
         self.btn_reference = self._action_button(
@@ -403,6 +484,12 @@ class ActionToolbar(QWidget):
             "acutance figure for comparing sharpness across the frame (reads true on HQ)",
             "toggle_grain_focuser",
         )
+        self._ov_clipping_action = overflow_menu.addAction("Clipping Overlay")
+        self._ov_clipping_action.setCheckable(True)
+        self._menu_tip(self._ov_clipping_action, "Mark paper black and paper white on the frame", "toggle_clipping_overlay")
+        self._ov_notes_action = overflow_menu.addAction("Printing Notes")
+        self._ov_notes_action.setCheckable(True)
+        self._menu_tip(self._ov_notes_action, "The dodge and burn map and the print recipe", "toggle_printing_notes")
         self._ov_undo_action = overflow_menu.addAction(qta.icon("mdi.undo", color=icon_color), "Undo")
         self._menu_tip(self._ov_undo_action, "Undo", "undo")
         self._ov_redo_action = overflow_menu.addAction(qta.icon("mdi.redo", color=icon_color), "Redo")
@@ -488,15 +575,6 @@ class ActionToolbar(QWidget):
             self.btn_flip_v,
             self.btn_undo,
             self.btn_redo,
-            self.btn_zoom_fit,
-            self.btn_zoom_original,
-            self.btn_hq,
-            self.btn_compare,
-            self.btn_flat_peek,
-            self.btn_negative_peek,
-            self.btn_zones,
-            self.btn_loupe,
-            self.btn_embedded_peek,
             self.btn_reference,
             self.btn_light_table,
             self.btn_copy,
@@ -526,27 +604,23 @@ class ActionToolbar(QWidget):
             btn.setFixedHeight(btn_height)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setToolTip(wrap_tooltip(btn.toolTip()))
+        for btn in (self.btn_zoom, self.source_choice, self.overlays_menu):
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._row_layout = row_layout
         self._row_widgets: dict[str, QWidget] = {
             "prev": self.btn_prev,
+            "position": self.position_label,
             "next": self.btn_next,
-            "zoom_label": self.zoom_label,
-            "zoom_fit": self.btn_zoom_fit,
-            "zoom_original": self.btn_zoom_original,
-            "hq": self.btn_hq,
+            "zoom": self.btn_zoom,
             "rot_l": self.btn_rot_l,
             "rot_r": self.btn_rot_r,
             "flip_h": self.btn_flip_h,
             "flip_v": self.btn_flip_v,
             "undo": self.btn_undo,
             "redo": self.btn_redo,
-            "compare": self.btn_compare,
-            "flat_peek": self.btn_flat_peek,
-            "negative_peek": self.btn_negative_peek,
-            "zones": self.btn_zones,
-            "loupe": self.btn_loupe,
-            "embedded_peek": self.btn_embedded_peek,
+            "source": self.source_choice,
+            "overlays": self.overlays_menu,
             "reference": self.btn_reference,
             "light_table": self.btn_light_table,
             "copy": self.btn_copy,
@@ -562,43 +636,45 @@ class ActionToolbar(QWidget):
         }
         self._row_sequence: list[tuple[QWidget, bool]] = []
         self._available_width = 0
+        self._zoom_percent = 100
         self._item_ids = load_toolbar_items(self.session.repo)
         self._rebuild_row()
 
         # Size the pill to its controls; don't stretch it across the canvas.
         main_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignCenter)
 
-    def _on_zones_changed(self, active: bool) -> None:
-        for widget in (self.btn_zones, self._ov_zones_action):
-            widget.blockSignals(True)
-            widget.setChecked(active)
-            widget.blockSignals(False)
+    def _sync_view_state(self, *_args) -> None:
+        """Mirror the canvas source and the overlays from state, which the controller sets before it signals."""
+        state = self.session.state
+        active = next((i for i, (flag, *_rest) in enumerate(_VIEW_SOURCES) if flag and getattr(state, flag)), 0)
+        self.source_choice.blockSignals(True)
+        self.source_choice.setCurrentIndex(active)
+        self.source_choice.blockSignals(False)
+        flat_ok = bool(state.flat_output)
+        self.source_choice.set_choice_enabled(_SOURCE_INDEX["flat_peek"], flat_ok)
+        self._ov_flat_peek_action.setEnabled(flat_ok)
+        self.source_choice.set_choice_enabled(_SOURCE_INDEX["flatfield_peek"], bool(state.config.flatfield.profile_id))
+        for flag, action in self._overlay_actions.items():
+            action.setChecked(bool(getattr(state, flag)))
+        for flag, action in self._ov_view_actions.items():
+            action.setChecked(bool(getattr(state, flag)))
 
-    def _on_grain_focuser_changed(self, active: bool) -> None:
-        for widget in (self.btn_loupe, self._ov_loupe_action):
-            widget.blockSignals(True)
-            widget.setChecked(active)
-            widget.blockSignals(False)
-
-    def _on_flat_peek_changed(self, active: bool) -> None:
-        self.btn_flat_peek.blockSignals(True)
-        self.btn_flat_peek.setChecked(active)
-        self.btn_flat_peek.blockSignals(False)
-        self._ov_flat_peek_action.blockSignals(True)
-        self._ov_flat_peek_action.setChecked(active)
-        self._ov_flat_peek_action.blockSignals(False)
-
-    def _on_negative_peek_changed(self, active: bool) -> None:
-        for widget in (self.btn_negative_peek, self._ov_negative_peek_action):
-            widget.blockSignals(True)
-            widget.setChecked(active)
-            widget.blockSignals(False)
-
-    def _on_embedded_peek_changed(self, active: bool) -> None:
-        for widget in (self.btn_embedded_peek, self._ov_embedded_peek_action):
-            widget.blockSignals(True)
-            widget.setChecked(active)
-            widget.blockSignals(False)
+    def _on_source_chosen(self, index: int) -> None:
+        state = self.session.state
+        flag = _VIEW_SOURCES[index][0]
+        if flag == "compare_mode":
+            if not state.compare_mode:
+                self.controller.toggle_compare()
+        elif flag:
+            self._peek_toggles[flag](force=True)
+        else:
+            if state.compare_mode:
+                self.controller.exit_compare()
+            for peek, toggle in self._peek_toggles.items():
+                if getattr(state, peek):
+                    toggle(force=False)
+        # The controller can refuse (no frame, no embedded preview) and says why in a toast.
+        self._sync_view_state()
 
     def _connect_signals(self) -> None:
         self.btn_prev.clicked.connect(self.session.prev_file)
@@ -613,42 +689,62 @@ class ActionToolbar(QWidget):
         self.btn_undo.clicked.connect(lambda: _context_undo(self.controller))
         self.btn_redo.clicked.connect(self.session.redo)
 
-        self.btn_zoom_fit.clicked.connect(self._on_fit_clicked)
-        self.btn_zoom_original.clicked.connect(self._on_original_clicked)
-        self.btn_hq.clicked.connect(self.controller.toggle_hq_preview)
-        self.btn_compare.clicked.connect(self.controller.toggle_compare)
-        self.controller.compare_changed.connect(self.btn_compare.setChecked)
-        self.controller.compare_changed.connect(self._ov_compare_action.setChecked)
-        self.btn_flat_peek.toggled.connect(lambda checked: self.controller.toggle_flat_peek(force=checked))
-        self.controller.flat_peek_changed.connect(self._on_flat_peek_changed)
-        self.btn_negative_peek.toggled.connect(lambda checked: self.controller.toggle_negative_peek(force=checked))
-        self._ov_negative_peek_action.triggered.connect(lambda checked: self.controller.toggle_negative_peek(force=checked))
-        self.controller.negative_peek_changed.connect(self._on_negative_peek_changed)
-        self.btn_embedded_peek.toggled.connect(lambda checked: self.controller.toggle_embedded_peek(force=checked))
-        self._ov_embedded_peek_action.triggered.connect(lambda checked: self.controller.toggle_embedded_peek(force=checked))
-        self.controller.embedded_peek_changed.connect(self._on_embedded_peek_changed)
-        self.btn_zones.toggled.connect(lambda checked: self.controller.toggle_zones_overlay(force=checked))
-        self._ov_zones_action.triggered.connect(lambda checked: self.controller.toggle_zones_overlay(force=checked))
-        self.controller.zones_overlay_changed.connect(self._on_zones_changed)
-        self.btn_loupe.toggled.connect(lambda checked: self.controller.toggle_grain_focuser(force=checked))
-        self._ov_loupe_action.triggered.connect(lambda checked: self.controller.toggle_grain_focuser(force=checked))
-        self.controller.grain_focuser_changed.connect(self._on_grain_focuser_changed)
-        self.controller.zoom_changed.connect(self._on_zoom_changed)
+        controller = self.controller
+        self._peek_toggles = {
+            "negative_peek": controller.toggle_negative_peek,
+            "flat_peek": controller.toggle_flat_peek,
+            "embedded_peek": controller.toggle_embedded_peek,
+            "flatfield_peek": controller.toggle_flatfield_peek,
+        }
+        self._ov_view_actions = {
+            "compare_mode": self._ov_compare_action,
+            "flat_peek": self._ov_flat_peek_action,
+            "negative_peek": self._ov_negative_peek_action,
+            "embedded_peek": self._ov_embedded_peek_action,
+            "zones_overlay": self._ov_zones_action,
+            "grain_focuser": self._ov_loupe_action,
+            "clipping_overlay": self._ov_clipping_action,
+            "printing_notes": self._ov_notes_action,
+        }
+        self.source_choice.currentChanged.connect(self._on_source_chosen)
+        for signal in (
+            controller.compare_changed,
+            controller.flat_peek_changed,
+            controller.negative_peek_changed,
+            controller.embedded_peek_changed,
+            controller.flatfield_peek_changed,
+            controller.flat_output_changed,
+            controller.zones_overlay_changed,
+            controller.clipping_overlay_changed,
+            controller.printing_notes_changed,
+            controller.grain_focuser_changed,
+        ):
+            signal.connect(self._sync_view_state)
+        controller.zoom_changed.connect(self._on_zoom_changed)
 
         self.session.state_changed.connect(self._update_ui_state)
         self.session.asset_model.layoutChanged.connect(self._update_ui_state)
 
         # Overflow menu action connections
-        self._ov_hq_action.triggered.connect(self.controller.toggle_hq_preview)
+        self._ov_hq_action.triggered.connect(controller.toggle_hq_preview)
         self._ov_rot_l_action.triggered.connect(lambda: self.rotate(1))
         self._ov_rot_r_action.triggered.connect(lambda: self.rotate(-1))
         self._ov_flip_h_action.triggered.connect(lambda: self.flip("horizontal"))
         self._ov_flip_v_action.triggered.connect(lambda: self.flip("vertical"))
         self._ov_fit_action.triggered.connect(self._on_fit_clicked)
         self._ov_original_action.triggered.connect(self._on_original_clicked)
-        self._ov_compare_action.triggered.connect(self.controller.toggle_compare)
-        self._ov_flat_peek_action.triggered.connect(lambda checked: self.controller.toggle_flat_peek(force=checked))
-        self._ov_undo_action.triggered.connect(lambda: _context_undo(self.controller))
+        self._ov_compare_action.triggered.connect(controller.toggle_compare)
+        for flag, toggle in (
+            ("flat_peek", controller.toggle_flat_peek),
+            ("negative_peek", controller.toggle_negative_peek),
+            ("embedded_peek", controller.toggle_embedded_peek),
+            ("zones_overlay", self.controller.toggle_zones_overlay),
+            ("grain_focuser", controller.toggle_grain_focuser),
+            ("clipping_overlay", controller.toggle_clipping_overlay),
+            ("printing_notes", self.controller.toggle_printing_notes),
+        ):
+            self._ov_view_actions[flag].triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
+        self._ov_undo_action.triggered.connect(lambda: _context_undo(controller))
         self._ov_redo_action.triggered.connect(self.session.redo)
 
     def _on_overflow_unload(self) -> None:
@@ -660,13 +756,28 @@ class ActionToolbar(QWidget):
             self.session.remove_current_file()
 
     def _on_zoom_changed(self, zoom: float) -> None:
-        # The label shows the true pixel zoom (zoom_level x fit_scale), which is what the user
-        # cares about. zoom_level itself is fit-relative.
+        # The readout is the true pixel zoom (zoom_level x fit_scale); zoom_level itself is fit-relative.
         canvas = getattr(self.controller, "canvas", None)
-        pct = canvas.current_zoom_percent() if canvas is not None else int(round(max(0.0, zoom) * 100.0))
-        self.zoom_label.setText(f"{pct}%")
-        self.btn_zoom_original.setChecked(pct == 100)
-        self._ov_original_action.setChecked(pct == 100)
+        self._zoom_percent = canvas.current_zoom_percent() if canvas is not None else int(round(max(0.0, zoom) * 100.0))
+        self._ov_original_action.setChecked(self._zoom_percent == 100)
+        self._refresh_zoom_readout()
+
+    def _refresh_zoom_readout(self) -> None:
+        hq = " HQ" if self.session.state.hq_preview else ""
+        self.btn_zoom.setText(f"{self._zoom_percent}%{hq}")
+        # The pill is laid out from minimum widths and the canvas fixes its size, so a longer readout
+        # raises the minimum and asks for a new layout, or it clips under the chevron.
+        width = max(self._zoom_min_width, self.btn_zoom.sizeHint().width())
+        if width != self.btn_zoom.minimumWidth():
+            self.btn_zoom.setMinimumWidth(width)
+            canvas = self.parentWidget()
+            if hasattr(canvas, "relayout_floating_widgets"):
+                canvas.relayout_floating_widgets()
+
+    def _on_zoom_preset(self, percent: int) -> None:
+        canvas = getattr(self.controller, "canvas", None)
+        if canvas is not None:
+            canvas.zoom_to_percent(percent)
 
     def _on_fit_clicked(self) -> None:
         canvas = getattr(self.controller, "canvas", None)
@@ -676,8 +787,8 @@ class ActionToolbar(QWidget):
     def _on_original_clicked(self) -> None:
         canvas = getattr(self.controller, "canvas", None)
         if canvas is None:
-            # Nothing will emit zoom_changed to correct the click's own toggle.
-            self.btn_zoom_original.setChecked(False)
+            # Nothing will emit zoom_changed to correct the click's own check.
+            self._ov_original_action.setChecked(False)
             return
         canvas.zoom_to_original()
 
@@ -811,15 +922,11 @@ class ActionToolbar(QWidget):
         display_idx = model.actual_to_display(state.selected_file_idx)
         self.btn_prev.setEnabled(display_idx > 0)
         self.btn_next.setEnabled(0 <= display_idx < model.rowCount() - 1)
-        self.btn_hq.setChecked(state.hq_preview)
+        self.position_label.setText(frame_position(model, state.selected_file_idx))
         self._ov_hq_action.setChecked(state.hq_preview)
-        self.btn_compare.setChecked(state.compare_mode)
-        self._ov_compare_action.setChecked(state.compare_mode)
-        self.btn_flat_peek.setChecked(state.flat_peek)
-        self._ov_flat_peek_action.setChecked(state.flat_peek)
-        self._on_negative_peek_changed(state.negative_peek)
-        self._on_zones_changed(state.zones_overlay)
-        self._on_grain_focuser_changed(state.grain_focuser)
+        self._zoom_hq_action.setChecked(state.hq_preview)
+        self._refresh_zoom_readout()
+        self._sync_view_state()
 
         geo = state.config.geometry
         self.btn_flip_h.setChecked(geo.flip_horizontal)
@@ -953,7 +1060,7 @@ class ActionToolbar(QWidget):
             self._item_ids,
             title="Edit Toolbar",
             chosen_header="TOOLBAR",
-            hint="Drag to reorder. Whatever does not fit the canvas width collapses from the right. The ⋯ menu always holds every action, whichever ones the row shows.",
+            hint="Drag to reorder. Whatever does not fit the canvas width hides, geometry first and navigation last. The ⋯ menu always holds every action, whichever ones the row shows.",
             defaults=list(DEFAULT_TOOLBAR_IDS),
             repo=self.session.repo,
         )
@@ -972,10 +1079,8 @@ class ActionToolbar(QWidget):
     def set_available_width(self, w: int) -> None:
         """Show as many of the chosen controls as fit the canvas width.
 
-        Hiding runs from the end of the user's order inward, so the items they put first are
-        the ones that survive a narrow canvas. The overflow menu is not touched here — it
-        always carries the full action set (see _init_ui), so a control leaving the row never
-        changes what the menu contains."""
+        The overflow menu is not touched here — it always carries the full action set (see
+        _init_ui), so a control leaving the row never changes what the menu contains."""
         self._available_width = w
         budget = self._toolbar_width_budget(w)
 
@@ -984,10 +1089,11 @@ class ActionToolbar(QWidget):
             widget.setVisible(True)
         self._sync_separators()
 
-        for widget in reversed(widgets):
+        extras = [item_id for item_id in reversed(self._item_ids) if item_id not in _COLLAPSE_ORDER]
+        for item_id in extras + [item_id for item_id in _COLLAPSE_ORDER if item_id in self._item_ids]:
             if self._pill_width() <= budget:
                 break
-            widget.setVisible(False)
+            self._row_widgets[item_id].setVisible(False)
             self._sync_separators()
 
         self._activate_layout()

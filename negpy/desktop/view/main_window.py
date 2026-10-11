@@ -68,13 +68,6 @@ def _clamp_geometry(
     return x, y, w, h
 
 
-def frame_position(model, actual_idx: int) -> str:
-    """n / total in the Film Strip's order and filter, the one Next and Previous follow."""
-    total = model.rowCount()
-    row = model.actual_to_display(actual_idx)
-    return f"{row + 1} / {total}" if total > 1 and row >= 0 else ""
-
-
 def _read_screen_icc(screen: object) -> Optional[bytes]:
     """Monitor ICC profile bytes for a QScreen, or None (treat the display as sRGB).
 
@@ -745,7 +738,7 @@ class MainWindow(QMainWindow):
         """Updates the canvas HUD corner pills."""
         if not self.state.current_file_path:
             self.canvas.hud.set_zoom_note("")
-            self.canvas.hud.update_info("", "", "", "", "", "")
+            self.canvas.hud.update_info("", "", "", "", "")
             return
 
         filename = os.path.basename(self.state.current_file_path)
@@ -756,9 +749,8 @@ class MainWindow(QMainWindow):
         edits_str = f"Edits: {self.state.undo_index}"
 
         tool_label = self.TOOL_LABELS.get(self.state.active_tool, "")
-        file_pos = frame_position(self.controller.session.asset_model, self.state.selected_file_idx)
 
-        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str, tool_label, file_pos)
+        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str, tool_label)
 
     def _on_zoom_info_changed(self, zoom: float) -> None:
         self.canvas.hud.set_zoom_note(self.canvas.zoom_note())

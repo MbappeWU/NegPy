@@ -15,7 +15,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 ### Screen layout
 
 *   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
-*   **Center, the canvas**: the live preview, where most tools act. Scroll or pinch to zoom, drag to pan. The bottom toolbar holds Fit/**1:1** zoom (one scan pixel per screen pixel; with **HQ** off, a **preview res · HQ off** pill marks a scaled-up preview), undo/redo, rotate/flip (on every selected frame) and more. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…** (put any menu item on the toolbar). Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Center, the canvas**: the live preview, where most tools act. Scroll or pinch to zoom, drag to pan. The bottom toolbar holds Previous/Next with the frame counter, the zoom readout (click it for **Fit to Window**, 25–400% and **HQ Preview**; 100% is one scan pixel per screen pixel, and with HQ off a **preview res · HQ off** pill marks a scaled-up preview), rotate/flip (on every selected frame), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser). A narrow canvas hides geometry first and navigation last. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…** (put any menu item on the toolbar). Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Frame** has a pinned **Analysis** readout and its own row of tabs below it. Roll and Frame change the render; the other tabs do not.
 
 With nothing open, the canvas offers **Load Scans…** (import a folder as a roll, add files, or open the Scan tab) and **Take the Tour**.
@@ -32,7 +32,7 @@ Drag a panel by its top edge (the strip above Session, or the margin around the 
 
 ### Before / After
 
-**◑** on the toolbar (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. Drag the divider. The split stays up while you edit; `\`, `Esc`, a frame change, a peek or the test strip closes it.
+**Before / After** in the toolbar's **Print** menu (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. Drag the divider. The split stays up while you edit; `\`, `Esc`, a frame change, a peek or the test strip closes it.
 
 ### Reference view
 
@@ -40,13 +40,13 @@ Drag a panel by its top edge (the strip above Session, or the margin around the 
 
 ### Peek Negative
 
-The toolbar's film button (or `N`) shows the scan as loaded: not inverted, not metered, no edits; crop, rotation and flip still apply. Use it to check density, mask color and scanner clipping. It is scaled to its brightest tone, so read density from the density histogram, not the brightness. It stays up while you drag a crop or rotation handle or the Fine Rotation slider, and through Export and Metadata settings. Releasing the handle or slider closes it, and so do a rotate, flip, straighten or keystone, any other edit and a frame change.
+**Negative** in the toolbar's **Print** menu (or `N`) shows the scan as loaded: not inverted, not metered, no edits; crop, rotation and flip still apply. Use it to check density, mask color and scanner clipping. It is scaled to its brightest tone, so read density from the density histogram, not the brightness. It stays up while you drag a crop or rotation handle or the Fine Rotation slider, and through Export and Metadata settings. Releasing the handle or slider closes it, and so do a rotate, flip, straighten or keystone, any other edit and a frame change.
 
 ### Peek Embedded Preview
 
-**Peek Embedded Preview** (**⋯** menu, or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Files without one (scanner TIFFs, most converter DNGs) disable the item. It closes the same way as Peek Negative.
+**Embedded Preview** in the **Print** menu (or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Files without one (scanner TIFFs, most converter DNGs) say so and stay on the print. It closes the same way as Peek Negative.
 
-A peek shows a **NEGATIVE**, **EMBEDDED** or **FLAT SCAN** badge. `Esc` closes any peek, the split or a test strip.
+A peek shows a **NEGATIVE**, **EMBEDDED** or **FLAT SCAN** badge, and the **Print** menu shows its name. `Esc` closes any peek, the split or a test strip.
 
 ### The workflow
 
@@ -349,7 +349,7 @@ Ten cells on the Adams scale (**0** paper black, **V** 18% mid-gray); opacity sh
 
 Click a cell, then a spot on the photo, to place that tone (see Zone placement); Esc cancels. On a slide or a Positive frame the strip reads **Disabled for Slides/Reversal Film**.
 
-Double-click the strip to turn the canvas **Zone Overlay** on or off (also `Shift+Z` and the canvas toolbar's grid icon): every region of the print is outlined and labeled with its zone.
+Double-click the strip to turn the canvas **Zone Overlay** on or off (also `Shift+Z` and **Overlays** on the canvas toolbar): every region of the print is outlined and labeled with its zone.
 
 Hover a cell to light up the pixels that print in that zone on the photo, in magenta (a reddish purple or white under the other **Color vision** choices in Preferences), a color clear of foliage and sky.
 

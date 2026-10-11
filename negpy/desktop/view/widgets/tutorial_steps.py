@@ -499,8 +499,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         step(
             SEEING,
             "Before and After",
-            "Split the canvas between this print and the default conversion. Drag the divider to move it.",
-            lambda w: w.toolbar.btn_compare,
+            "Split the canvas between this print and the default conversion. Drag the divider to move it. "
+            "The toolbar's <b>Print</b> menu holds it, with the peeks.",
+            lambda w: w.toolbar.source_choice,
             task=f"Press {_k('toggle_compare')} for the split. Press it again to close it.",
             watch=lambda w: w.state.compare_mode,
             offer=_DEMO,
@@ -511,8 +512,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             f"Hold {_k('toggle_negative_peek')} for the scan as captured, {_k('toggle_flat_peek')} for "
             f"the flat master, {_k('toggle_embedded_peek')} for the camera's preview. "
             f"{_k('toggle_reference')} pins a frame beside the canvas, to match a roll by eye. "
-            f"{_k('toggle_grain_focuser')} is a grain loupe; {_k('toggle_zones')} shows Adams zones.",
-            lambda w: w.toolbar.btn_negative_peek,
+            f"{_k('toggle_grain_focuser')} is a grain loupe and {_k('toggle_zones')} shows Adams zones, "
+            "both under <b>Overlays</b> on the toolbar.",
+            lambda w: w.toolbar.source_choice,
             task=f"Hold {_k('toggle_negative_peek')} to see the negative.",
             watch=lambda w: w.state.negative_peek,
             offer=_DEMO,
