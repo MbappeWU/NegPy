@@ -506,7 +506,7 @@ Pick **None / Lith / Cyanotype / Sabattier**; only that process's controls show.
 
 #### Lith
 
-Heavily over-exposed lith paper in dilute developer, snatched part-way: creamy warm highlights and an abrupt drop into sooty blacks. The Exposure tab's paper sets the color: *Neutral* and the Ilford papers are almost colorless, Fomatone gives peach and olive. In Toning only Selenium and Gold stay (§6.3).
+Heavily over-exposed lith paper in dilute developer, snatched part-way: creamy warm highlights and an abrupt drop into sooty blacks. The Exposure tab's paper sets the color: *Neutral*, the Ilford and the Kodak papers are almost colorless, Fomatone gives peach and olive. In Toning only Selenium and Gold stay (§6.3).
 
 *   **Exposure** (0 to 5 stops, default 2): over-exposure; real lith uses two to four stops. More gives warmer, more colorful highlights and softer gradation.
 *   **Snatch Point** (0.0 to 1.0, default 0.55): time in the developer. Higher gives deeper, colder blacks; lower stays high-key and warm with weak blacks.
