@@ -468,10 +468,8 @@ class WorkspaceConfig:
 
         def _build_mask(m: Dict[str, Any]) -> LocalMask:
             verts = tuple(tuple(v) for v in m.get("vertices", []))
-            # A mask's exposure was brightness-signed (`strength`, positive = dodge) before it became
-            # exposure-signed stops (positive = burn), the same flip vignette_strength made. Nested
-            # in local_masks, so it cannot live in MIGRATIONS' flat rewrites. Keyed on the legacy
-            # name, which only a pre-flip save carries.
+            # Legacy `strength` is brightness-signed (positive = dodge), `stops` exposure-signed
+            # (positive = burn). Nested in local_masks, so no flat migration can rewrite it.
             stops = -float(m["strength"]) if "strength" in m else float(m.get("stops", 0.0))
             return LocalMask(
                 vertices=verts,

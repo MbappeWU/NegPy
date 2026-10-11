@@ -335,7 +335,6 @@ def test_a_grayed_tool_shortcut_shows_its_tab_without_arming(qapp):
 
 
 def test_a_shortcut_puts_down_an_armed_tool_on_a_grayed_page(qapp):
-    """A read-only page grays an armed tool's button; its shortcut must still put the tool down."""
     window = MagicMock()
     button = QPushButton("Heal")
     button.setCheckable(True)

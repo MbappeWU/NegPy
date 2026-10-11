@@ -156,8 +156,7 @@ def test_invalidate_drops_cache(gain_store):
 
 
 def test_a_half_frame_takes_its_own_half_of_the_gain(gain_store):
-    """The preview flat-fields one half after slicing; it must match the export, which
-    flat-fields the whole scan and slices after."""
+    """The preview flat-fields after slicing and the export before; both must match."""
     from dataclasses import replace
 
     from negpy.domain.models import WorkspaceConfig

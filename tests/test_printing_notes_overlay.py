@@ -167,8 +167,7 @@ def test_the_card_sits_inside_the_picture() -> None:
 
 
 def test_the_sheet_draws_the_burn_in_the_color_vision_burn_color() -> None:
-    """Tritanopia's burn is bluish green, Standard's is blue: the hatch, blended over gray,
-    leans green over red only under the first."""
+    """Tritanopia's burn is bluish green and Standard's is blue, so the hatch leans green only under the first."""
     frame = QImage(W, H, QImage.Format.Format_RGB32)
     frame.fill(0x00808080)
 

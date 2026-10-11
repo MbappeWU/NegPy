@@ -1,9 +1,7 @@
 """Calibrate the sensor-crosstalk matrix from three bare-light exposures.
 
-Red-only / green-only / blue-only captures (no film in the holder, same light
-and camera settings as scanning) measure the sensor's response to each band;
-the inverted mix is saved as a named sensor profile the Calibration panel selects.
-The exposures are picked as files, or shot by the tethered camera under the Scanlight.
+Red, green and blue captures with no film, at the scanning light and camera settings, measure
+each band; the inverted mix is saved as a named sensor profile. Files, or a tethered capture.
 """
 
 import numpy as np

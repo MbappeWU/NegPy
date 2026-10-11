@@ -33,21 +33,9 @@ class Baked(NamedTuple):
 
 
 class FlatFieldProfiles:
-    """
-    npz I/O for flat-field reference profiles (illumination-falloff gain maps).
-
-    One file per profile in ``APP_CONFIG.flatfield_dir``, named ``<uuid>.npz`` and
-    holding the baked per-channel gain map plus rig metadata: the distortion ``k1``,
-    a display name and the provenance path, and a small copy of the reference with
-    its self-check, so Check Flat Field needs no source. The reference image is decoded
-    once, at save time; nothing outside this directory is needed to apply or check the
-    correction afterward, so moving or deleting the original reference is harmless.
-
-    Keyed by an opaque id rather than the name — the per-image edit references a
-    profile by id, so a rename (or a name collision across machines) never breaks
-    the reference. Disk I/O happens on dropdown build, selection and save, never per
-    render (the render path resolves gains through the logic-layer provider cache).
-    """
+    """npz I/O for flat-field gain-map profiles: one ``<uuid>.npz`` per profile in ``APP_CONFIG.flatfield_dir``, with rig
+    metadata and a small reference copy with its self-check, so applying or checking never needs the source. Keyed by id, not
+    name, so a rename never breaks an edit's reference. Disk I/O never runs per render (the logic-layer provider caches gains)."""
 
     @staticmethod
     def _path_for_id(profile_id: str) -> str:

@@ -232,7 +232,7 @@ class AppState:
     # zone strip's hover lights up. Display-only, session-only.
     clipping_overlay: bool = False
     zone_highlight: Optional[int] = None
-    # Whether hovering the zone strip lights up its zone on the frame; a persisted preference.
+    # A persisted preference.
     zone_hover_highlight: bool = True
 
     # Grain focuser: a near-1:1 loupe following the cursor. Display-only, session-only.
@@ -312,9 +312,8 @@ class AppState:
     embedded_peek: bool = False
     # Transient: preview is showing the selected Flat Field profile's self-check.
     flatfield_peek: bool = False
-    # The canvas keys a painted peek (negative, embedded, Check Flat Field) put on screen. Kept
-    # out of last_metrics, which holds the print for the thumbnail, the memo and every
-    # measurement. It stays until the print is painted again, not until the peek flag drops.
+    # A painted peek's canvas keys (negative, embedded, Check Flat Field), apart from last_metrics,
+    # which holds the print. Stays until the print is painted again, not until the peek flag drops.
     peek_frame: Optional[Dict[str, Any]] = None
 
     # Linear Output: export the loader's raw decoded buffer as an untagged 16-bit TIFF.
@@ -1541,10 +1540,9 @@ class DesktopSessionManager(QObject):
         finish: Optional[Callable[[WorkspaceConfig], WorkspaceConfig]] = None,
         label: str = "Preset applied",
     ) -> int:
-        """Overlay a preset's chosen rows onto the current frame, the selection, or
-        the whole (visible) roll. Unlike sync_selected_settings the source is the
-        preset itself, so the active frame is a target too. `finish` runs on each
-        overlaid config, for fields outside the catalog. Returns frames changed."""
+        """Overlay a preset's rows onto the current frame, the selection or the visible roll; the
+        active frame is a target too. `finish` runs on each overlaid config, for fields outside
+        the catalog. Returns frames changed."""
         rows = list(rows)
         if not (rows or finish) or self.state.selected_file_idx == -1:
             return 0
@@ -1755,12 +1753,8 @@ class DesktopSessionManager(QObject):
             self.state_changed.emit()
 
     def persist_active_batch_config(self, config: WorkspaceConfig) -> None:
-        """Persist Auto-crop all frames before exposing it as active in-memory state.
-
-        Non-active Auto-crop all frames results are written directly. This companion path
-        preserves that behavior while ensuring a storage error cannot leave an
-        unrendered crop live in memory.
-        """
+        """Persist the active frame's Auto-crop all frames result before it goes live in memory,
+        so a storage error never leaves an unsaved crop live."""
         if not self.state.current_file_hash:
             raise RuntimeError("Cannot persist batch settings without an active file")
         self.repo.save_file_settings(
@@ -1790,11 +1784,9 @@ class DesktopSessionManager(QObject):
             self.state.stale_thumbnails.add(asset_thumbnail_key(asset))
 
     def _relock_diverged_cards(self) -> None:
-        """Lock each roll card on which the active frame's restored config differs from the
-        roll's defaults. History, a work print and a paste restore a config but not its
-        locks, and an unlocked card takes the roll's values on the next load. Never unlocks:
-        a card pinned at the roll's own value stays pinned. The one exception is Auto Crop on
-        a hand-drawn frame, which is never locked (rolls.holds_own_crop)."""
+        """Lock each roll card on which the restored config differs from the roll's: history, a work
+        print and a paste restore no locks, and an unlocked card takes the roll's values on load.
+        Never unlocks, except Auto Crop on a hand-drawn frame (rolls.holds_own_crop)."""
         idx = self.state.selected_file_idx
         if not self.state.current_file_hash or not (0 <= idx < len(self.state.uploaded_files)):
             return
@@ -2019,14 +2011,9 @@ class DesktopSessionManager(QObject):
         self.copy_settings(include_bounds=True)
 
     def apply_pasted_fields(self, rows, include_bounds: bool = True) -> None:
-        """Overlay the picked clipboard settings onto the active frame, or onto every
-        selected frame when the selection holds more than one.
-
-        The per-frame bounds ride along when the clipboard holds them (only a copy
-        with bounds does; copy_settings strips them otherwise) and the paste picker
-        keeps its bounds row ticked. They are written after the rows because a
-        pasted bounds-input field invalidates them.
-        """
+        """Overlay the picked clipboard settings onto the active frame, or onto each selected frame.
+        The per-frame bounds come along when the clipboard holds them and their row is ticked,
+        written after the rows because a pasted bounds-input field invalidates them."""
         rows = list(rows)
         clip = self.state.clipboard
         if clip is None or not self.state.current_file_hash:

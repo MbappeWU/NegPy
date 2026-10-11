@@ -32,8 +32,7 @@ class TestAnalysisCacheKey(unittest.TestCase):
             self.assertEqual(k0, _analysis_cache_key(cfg, "src"))
 
     def test_geometry_warps_change_key(self):
-        """Fine rotation, keystone, distortion and crop-to-valid move which pixels land in
-        the metered region, so a drag must re-meter as the CPU engine does."""
+        """Warps move which pixels land in the metered region, so a drag re-meters as the CPU engine does."""
         k0 = _analysis_cache_key(self.cfg, "src")
         for cfg in (
             replace(self.cfg, geometry=replace(self.cfg.geometry, fine_rotation=2.0)),

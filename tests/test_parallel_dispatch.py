@@ -27,9 +27,8 @@ def _double(arr):
 
 
 def test_serial_and_parallel_variants_never_share_a_cache_file():
-    # Numba's disk cache is keyed by qualname and source line. Sharing one file, a "serial"
-    # call could load the PARALLEL binary and defeat the failsafe, so the serial variant
-    # caches under its own qualname.
+    # Numba's disk cache keys on qualname and source line, so the serial variant takes its own
+    # qualname: a shared one could load the parallel binary and defeat the failsafe.
     from negpy.features.exposure.logic import _apply_print_curve_kernel
     from negpy.infrastructure.display.icc_lut import _apply_lut_f32_jit
 

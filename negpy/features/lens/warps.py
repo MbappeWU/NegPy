@@ -110,9 +110,8 @@ class PanasonicWarp:
         channel: int,
         corrections: LensCorrections = LensCorrections(True, True),
     ) -> tuple[np.ndarray, np.ndarray]:
-        # The model follows darktable's embedded-metadata reader (GPL-3.0+) and
-        # https://github.com/trou/panasonic-rw2: Ru = Rd + scale*(a*Rd^3 + b*Rd^5 + c*Rd^7),
-        # with Rd (source) and Ru (corrected) both normalised to the half-diagonal.
+        # Model from darktable's embedded-metadata reader (GPL-3.0+) and https://github.com/trou/panasonic-rw2:
+        # Ru = Rd + scale*(a*Rd^3 + b*Rd^5 + c*Rd^7), Rd (source) and Ru (corrected) normalized to the half-diagonal.
         h, w = shape[:2]
         x = (np.arange(w, dtype=np.float32)[None, :] - w * 0.5) * lens.fill_scale
         y = (np.arange(start, stop, dtype=np.float32)[:, None] - h * 0.5) * lens.fill_scale

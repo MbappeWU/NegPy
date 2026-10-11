@@ -69,8 +69,7 @@ class PaperSidebar(BaseSidebar):
         self.paper_label = paper_row.itemAt(0).widget()
         self.layout.addLayout(paper_row)
 
-        # Density-domain saturation, composed into the same dye_mix slot as the paper's real dye
-        # crosstalk, rather than a post-hoc Lab-space a*/b*
+        # Density-domain saturation in the same dye_mix slot as the paper's real dye crosstalk, not a Lab a*/b* step.
         self.dye_separation_slider = CompactSlider("Dye Separation", 0.5, 1.5, conf.dye_separation, has_neutral=True)
         self.dye_separation_trim_slider = CompactSlider("Dye Separation", -0.4, 0.4, 0.0, has_neutral=True)
         self.dye_separation_trim_slider.setToolTip(
@@ -113,7 +112,7 @@ class PaperSidebar(BaseSidebar):
 
         self.layout.addStretch()
 
-        # Global-only controls, greyed while a channel page is active.
+        # Global-only controls, grayed while a channel page is active.
         self._global_only = (self.paper_dmin_btn, self.paper_black_btn, self.paper_combo)
 
     def _channel_index(self) -> int:
@@ -269,8 +268,8 @@ class PaperSidebar(BaseSidebar):
             self.sh_w_slider.setValue(conf.shoulder_width)
             self.dye_separation_slider.setValue(conf.dye_separation)
             self.separation_damping_slider.setValue(conf.separation_damping)
-            # It redistributes Dye Separation's push and does nothing on its own, so at 1.0
-            # separation on every channel it is dead — a per-channel trim also arms it.
+            # It redistributes Dye Separation's push and does nothing on its own, so it is dead at 1.0
+            # separation on every channel. A per-channel trim also arms it.
             sep_k3 = per_channel_dye_separation(
                 conf.dye_separation,
                 (conf.dye_separation_trim_red, conf.dye_separation_trim_green, conf.dye_separation_trim_blue),

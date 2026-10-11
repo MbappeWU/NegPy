@@ -486,11 +486,8 @@ class ScanlightSidebar(QWidget):
             # white LED an RGB-only body lacks. White stays off: the Scanlight cannot mix both.
             r, g, b = (int(slider.value()) for slider in (self.r_slider, self.g_slider, self.b_slider))
             if not self._manual_mode and self._preset_selected() and not self._settings.single_capture:
-                # A stored triplet preset frames by its own mix, but dimmed (issue #573): all three
-                # channels burn at once against a single-channel scan exposure, so full levels
-                # blow the live view out. The scan never reads this, since capture levels come
-                # from the preset. Manual building keeps full levels for the operator, and a
-                # single-capture preset frames under its own scan light.
+                # A triplet preset frames by its own mix, dimmed: all three channels burn at once
+                # against a single-channel exposure. The scan takes its levels from the preset.
                 r, g, b = framing_levels(r, g, b)
             self.controller.set_scanlight_color(r, g, b, 0, self._settings.port)
         self._update_settings_from_ui()
@@ -798,10 +795,9 @@ class ScanlightSidebar(QWidget):
             self._apply_gating()
 
     def _available_shutters(self, info: dict | None = None, scanlight: bool = True) -> tuple[str, ...]:
-        """The camera's writable shutter labels (from the live-view settings JSON, or `info`,
-        that JSON's shutter entry) as the ladder calibration solves on, so it solves on this
-        body's own speeds. `scanlight` keeps it inside the span a PWM-lit capture meters on;
-        without the Scanlight it is the body's whole ladder."""
+        """The body's writable shutter labels (from the live-view settings JSON, or `info`, its
+        shutter entry): the ladder calibration solves on. `scanlight` keeps it inside the span a
+        PWM-lit capture meters on; without it, the body's whole ladder."""
         if info is None:
             info = self._settings_json().get("shutter") or {}
         if not info.get("writable", True):  # absent = unknown, so only an explicit read-only blocks
@@ -1146,10 +1142,9 @@ class ScanlightSidebar(QWidget):
         )
 
     def _current_raw_clip(self, rgb: np.ndarray) -> "_RawClip | None":
-        """The Meter probe's RAW clipping, while it still describes the frame on screen: the same
-        exposure and the same picture. The picture is the first preview at the metered exposure,
-        compared by rank correlation, so a film advance, a reframe or the focus magnifier
-        hands the zebras back to the preview; a brighter preview of the same frame does not."""
+        """The Meter probe's RAW clipping, while the frame on screen has the same exposure and the
+        same picture (rank correlation against the first preview at the metered exposure). A film
+        advance, reframe or magnifier hands the zebras back to the preview; a brighter one does not."""
         clip = self._raw_clip
         if clip is None or self._magnifier_on:
             return None
@@ -1420,7 +1415,6 @@ class ScanlightSidebar(QWidget):
                     profile_note = " and its sensor profile"
                 else:
                     profile_note = ", with no sensor profile: the probe exposures were too dim to measure one"
-            # persist + reload + select + re-gate (bakes settings.iso/aperture)
             self._save_current_as_preset(name, sensor_profile)
             self._lv_target = self.lv_image
             self.calib_window.hide()
@@ -1568,9 +1562,8 @@ class ScanlightSidebar(QWidget):
         )
         self.set_scanning(True)
         if rgb and not req.white_mode and not single:
-            # Triplet progress arrives only after each channel, so show the bar at 0% right away
-            # and the click has immediate feedback. Single-exposure captures emit no progress
-            # events, so a bar there would sit at 0%. Skip it.
+            # Triplet progress arrives only after each channel, so the bar shows at 0% at once.
+            # A single-exposure capture emits no progress, so it gets no bar.
             self.lv_window.set_progress(0.0)
         self.controller.start_capture(req)
 

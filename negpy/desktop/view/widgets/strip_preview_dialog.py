@@ -52,9 +52,8 @@ _TILE_H_MIN, _TILE_H_MAX = 90, 340  # what the size slider spans
 _GRID_MARGIN = 36  # dialog width the strip grid does not get: frame, scrollbar, padding
 _TILE_SLIDER_H = 18  # the per-frame offset slider under each tile
 _TILES_PER_ROW = 6  # columns assumed before the grid has a width to measure
-# A transport that measures the strip reports its frame count only as previews arrive, so ask
-# for a roll's worth and keep the tiles it answers with. Half frames on a 40-exposure roll are 80.
-# ponytail: fixed ceiling; ask the session for its measured count if a longer strip appears.
+# A measuring transport reports its frame count only as previews arrive, so ask for a roll's
+# worth (80 half frames on a 40-exposure roll) and keep the tiles it answers with.
 _DISCOVERY_SLOTS = 100
 # Pause after an offset moves before its tiles are re-cut, so one drag makes one request.
 _RECUT_DELAY_MS = 250

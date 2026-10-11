@@ -681,25 +681,9 @@ _IR_ALIGN_MAX_SHIFT_FRAC = 0.02
 
 
 def _align_ir_to_rgb(rgb: np.ndarray, ir: np.ndarray) -> np.ndarray:
-    """Register a separately-scanned IR plane onto the RGB frame by a whole-pixel shift.
-
-    Only the 'source' IR strategy (a second full mechanical pass — e.g. Plustek, or
-    genesys's "Transparency Adapter Infrared") needs this: the carriage re-homes
-    between the two scans and is not perfectly repeatable, so IR can land a few
-    pixels off the visible frame. Inline RGBI/coolscan3 IR shares one photosite
-    read per line with RGB, so no carriage re-home separates them and it is not
-    registered here; a small optical offset between IR and RGB can remain.
-
-    Whole pixels only, no sub-pixel interpolation: a dust defect is a *minimum* in
-    the IR ratio, and resampling softens that dip — downsample_ir documents the same
-    failure mode for INTER_AREA (a thin hair's dip shallowed 0.22 -> 0.31 and
-    shattered). This runs on raw sensor counts, upstream of every noise-calibrated
-    landmark in ir_ratio_and_gain (_ir_normalize_ratio's per-frame MAD sigma), so
-    blurring it here would bias those measurements on exactly the low-native-sigma
-    hardware (Plustek/SilverFast, σ ~0.005 per #715) this strategy exists for. A
-    carriage-repeatability offset is whole pixels anyway — nothing is lost by not
-    going sub-pixel.
-    """
+    """Register a separately scanned IR plane onto the RGB frame by a whole-pixel shift. Only the 'source' IR strategy needs
+    it: its second mechanical pass re-homes the carriage, which is not repeatable. Never sub-pixel: resampling softens a dust
+    defect's dip in the IR ratio and biases the noise-calibrated stats in ir_ratio_and_gain."""
     if ir.size == 0 or rgb.shape[:2] != ir.shape[:2]:
         return ir
     ref = rgb.astype(np.float32)

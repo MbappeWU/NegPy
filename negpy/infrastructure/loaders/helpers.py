@@ -175,11 +175,8 @@ def identify_color_space_from_icc(icc_bytes: Optional[bytes]) -> Optional[str]:
 
 
 def _tiff_preview_page(file_path: str) -> Optional[Image.Image]:
-    """Reduced-resolution preview page of a TIFF-based raw or scan, or None.
-
-    Page 0 holds the preview only when the full-res data sits in SubIFDs, which is how
-    DNG writers lay it out. Scanner DNGs write that page 16-bit, so both depths count.
-    A later top-level page counts only when it is marked reduced or Nikon Scan wrote it.
+    """Reduced-resolution preview page of a TIFF-based raw or scan, or None. Page 0 (8- or 16-bit) counts only when the
+    full-res data sits in SubIFDs, as DNG lays it out; a later top-level page only when it is marked reduced or Nikon Scan wrote it.
     """
     try:
         import tifffile
@@ -215,11 +212,8 @@ def _is_nikon_scan(page: Any) -> bool:
 
 
 def _reduced_top_level_page(tif: Any) -> Optional[Any]:
-    """8-bit RGB reduced copy of page 0 stored as a later top-level page, or None.
-
-    Nikon Scan writes one as IFD1 without the NewSubfileType reduced flag, so its
-    Software tag stands in for the flag. The aspect check rejects unrelated pages.
-    """
+    """8-bit RGB reduced copy of page 0 stored as a later top-level page, or None. Nikon Scan writes one as IFD1
+    without the NewSubfileType reduced flag, so its Software tag stands in for the flag."""
     if len(tif.pages) < 2:
         return None
     main = tif.pages[0]

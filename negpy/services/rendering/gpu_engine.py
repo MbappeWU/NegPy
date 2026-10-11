@@ -119,11 +119,8 @@ TILE_HALO = 32
 # Above this pixel count, tiling bounds the complete working set.
 TILING_THRESHOLD_PX = 12_000_000
 HISTOGRAM_BINS = 256
-# Metrics buffer layout in u32 words: RGBL output histogram (metrics.wgsl), the RGBL
-# density histogram (density_hist.wgsl), the joint RGB histogram (color_hist.wgsl), the luma
-# waveform (waveform.wgsl), the a*b* vectorscope (vectorscope.wgsl), then the waveform's
-# per-cell R, G, B sums (waveform.wgsl).
-# 256 B-aligned offsets, mirrored as WGSL array lengths. Append-only.
+# Metrics buffer in u32 words: RGBL output and density histograms, joint RGB histogram, luma waveform, a*b* vectorscope,
+# waveform RGB sums. 256 B-aligned offsets, mirrored as WGSL array lengths. Append-only.
 _METRICS_HIST_WORDS = HISTOGRAM_BINS * 4
 _METRICS_DENSITY_BASE = 1024
 _METRICS_DENSITY_WORDS = DENSITY_HIST_BINS * 4  # R, G, B, Luma
@@ -158,13 +155,9 @@ def _build_analysis_source(
     tiling_mode: bool,
     max_size: int,
 ) -> Tuple[np.ndarray, float]:
-    """The shared meter grid's own buffer: oriented, downsampled, warped and sliced once
-    for every meter reading it.
-
-    The whole frame is warped before the ROI is cut, as the CPU engine and the print
-    stage do: a crop rotated about its own centre is a different region. Downsampled
-    first, since only a meter reads the result.
-    """
+    """The shared meter grid's own buffer: oriented, downsampled (only a meter reads it), warped and sliced once for every
+    meter reading it. The whole frame is warped before the ROI is cut, as on the CPU and in the print stage: a crop rotated
+    about its own center is a different region."""
     analysis_source = img
     if geometry.rotation != 0:
         analysis_source = np.rot90(analysis_source, k=geometry.rotation)
@@ -213,13 +206,9 @@ def _keystone_inverse_bytes(converge_v: float, converge_h: float) -> bytes:
 
 
 def _analysis_cache_key(settings: WorkspaceConfig, analysis_source_hash: str) -> tuple:
-    """Identity of the auto-exposure analysis: only the fields the meter reads.
-    White/black point offsets and trims apply downstream as uniforms and must
-    not invalidate it.
-
-    Every geometry field that moves which pixels land in the metered region: the
-    orientation, the warps and the crop.
-    """
+    """Identity of the auto-exposure analysis: only the fields the meter reads, including every geometry field that moves
+    which pixels land in the metered region. White/black point offsets and trims apply downstream as uniforms and must not
+    invalidate it."""
     e = settings.exposure
     p = settings.process
     g = settings.geometry
@@ -491,10 +480,9 @@ class GPUEngine:
         return self._tex_cache[key]
 
     def evict_stale_textures(self, destroy: bool = True) -> None:
-        """Drop pool textures untouched by the previous render. Bounds VRAM: a
-        same-dimensions roll keeps its chain, a dimension change frees the old one a
-        render later. A preview passes destroy=False, since the canvas may still sample
-        an evicted texture; it is then freed when its last reference goes."""
+        """Drop pool textures untouched by the previous render. Bounds VRAM: a same-dimensions roll keeps its chain, a
+        dimension change frees the old one a render later. A preview passes destroy=False, since the canvas may still
+        sample an evicted texture; it is freed with its last reference."""
         self._render_gen += 1
         stale = [k for k, gen in self._tex_gen.items() if gen < self._render_gen - 1]
         if not stale:
@@ -758,9 +746,8 @@ class GPUEngine:
         _roll_color = settings.process.use_color_average and settings.process.is_locked_initialized
         needs_bounds_analysis = not (bounds_override or (_roll_luma and _roll_color) or settings.process.is_local_initialized)
         transfer = render_path(settings.process) is not RenderPath.PRINT
-        # Measure the anchor for every render that reads it: Auto Density, and on the
-        # transfer path Auto Grade's Shadow Reach, which reads it whatever Auto Density
-        # says. Previews also measure it for the Analysis-panel stats.
+        # Auto Density reads the anchor, and so does Auto Grade's Shadow Reach on the transfer
+        # path whatever Auto Density says. Previews also measure it for the Analysis-panel stats.
         anchor_used = settings.exposure.auto_exposure or (transfer and settings.exposure.auto_normalize_contrast)
         needs_anchor = metered_anchor_override is None and not tiling_mode and (anchor_used or readback_metrics)
         needs_textural = textural_range_override is None and not tiling_mode and settings.exposure.auto_normalize_contrast
@@ -979,9 +966,8 @@ class GPUEngine:
                     float(mask_rect[3]),
                 )
 
-        # The Diffusion plane shares the mask texture (its gba lanes) and the mask rect. Built
-        # in the print's own normalization, trims included, so the shader mixes it with the
-        # pixel as light. Print path only: the transfer pass binds no plane.
+        # The Diffusion plane shares the mask texture (gba) and rect. It is built in the print's own
+        # normalization, trims included, so the shader mixes it as light. Print path only.
         diff_plane = None
         diff_key = None
         diff_rect = None
@@ -1229,9 +1215,8 @@ class GPUEngine:
                     if local_maps is None:
                         local_maps = np.zeros((h_rot, w_rot, 3), dtype=np.float32)
                     ev_plane = local_maps[:, :, 0]
-                    # r = dodge/burn EV, g = the masks' flash, b = local grade ISO-R deltas, which
-                    # tone-limited masks add their grade to. One texture, so neither map costs a
-                    # bind slot.
+                    # r = dodge/burn EV, g = the masks' flash, b = local grade ISO-R deltas (tone-limited
+                    # masks add their grade here). One texture, so neither map costs a bind slot.
                     tex_local_ev.upload(np.dstack([ev_plane, local_maps[:, :, 2], local_maps[:, :, 1]]))
                     if local_maps.shape[2] > 3:
                         planes = np.zeros((*ev_plane.shape, MAX_KEYED_MASKS), dtype=np.float32)
@@ -1309,9 +1294,8 @@ class GPUEngine:
         if start_stage <= 2:
             self._sharpen_state_key = None
         if start_stage <= 4:
-            # Sharpen state (USM blur, or RL deconvolution) feeds the lab pass. A 1x1 dummy
-            # keeps binding 3 valid when sharpening is off. The blur reads only its input,
-            # the radius and the kernel, so a lab-only change reuses the last one.
+            # Sharpen state (USM blur or RL deconvolution) feeds the lab pass; a 1x1 dummy keeps binding 3 valid when it is
+            # off. The blur reads only its input, radius and kernel, so a lab-only change reuses the last one.
             usage = wgpu.TextureUsage.STORAGE_BINDING | wgpu.TextureUsage.TEXTURE_BINDING
             lab_u = self._get_uniform_binding("lab")
             sharpen_key = (settings.lab.sharpen_method, float(settings.lab.sharpen_radius), w_rot, h_rot)
@@ -1360,9 +1344,7 @@ class GPUEngine:
 
         tex_pre_toning = tex_lab
 
-        # --- Alternative processes (lith / cyanotype / sabattier) ---
-        # Mutually exclusive, and no pass at all when none is picked. Toning then reads
-        # tex_lab directly.
+        # Alternative processes are mutually exclusive, with no pass when none is picked: toning then reads tex_lab.
         alt = settings.altproc.alt_process
         if alt != AltProcess.NONE and settings.process.process_mode == ProcessMode.BW:
             usage_alt = wgpu.TextureUsage.STORAGE_BINDING | wgpu.TextureUsage.TEXTURE_BINDING | wgpu.TextureUsage.COPY_SRC
@@ -2102,9 +2084,8 @@ class GPUEngine:
                 max(exp.preflash, 0.0),
                 *preflash_params(exp.grade, d_min, paper),
             )
-            # Contrast Mask: stops per unit of plane (0 = off), then the printed frame's
-            # origin and span in rotated pixels, shared with the Diffusion plane; w = the
-            # diffusion mix (0 = off). The shader does the upscale.
+            # Contrast Mask: stops per plane unit (0 = off), then the printed frame's origin and span in rotated pixels, shared
+            # with the Diffusion plane; w = the diffusion mix (0 = off). The shader does the upscale.
             + struct.pack("ffff", contrast_mask_scale_v, plane_rect_v[0], plane_rect_v[1], diffusion_mix)
             + struct.pack("ffff", plane_rect_v[2], plane_rect_v[3], 0.0, 0.0)
             + key_rows.tobytes()
@@ -2203,9 +2184,8 @@ class GPUEngine:
             + b"\x00" * 4
         )
 
-        # The Mackie-line taps are gaussian_kernel_1d's, as the CPU convolves with, uploaded
-        # to sabattier_k; the shaders take the half-width from the array itself. A zero
-        # sigma leaves the key None, which also skips the mask and blur passes.
+        # Mackie-line taps from gaussian_kernel_1d, as on the CPU; the shaders read the half-width
+        # from the array. A zero sigma leaves the key None and skips the mask and blur passes.
         sc = SABATTIER_CONSTANTS
         sab_sigma = max(float(sabattier_sigma), 0.0)
         sab_radius = 0

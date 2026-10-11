@@ -51,9 +51,8 @@ struct ExposureUniforms {
     // Hue Trim: x = rotation in radians; yzw = preflash fraction (0 = off), threshold
     // value and paper gamma (preflash_params). Costs no slot; 288B already spanned two.
     hue: vec4<f32>,
-    // Contrast Mask: x = stops per unit of plane (contrast_mask_scale; 0 gates the
-    // mask off), yz = the printed frame's origin in rotated pixels, w = the Diffusion
-    // mix (0 gates it off).
+    // x = Contrast Mask stops per unit of plane (0 = off), yz = the printed frame's origin
+    // in rotated pixels, w = the Diffusion mix (0 = off).
     mask: vec4<f32>,
     // The printed frame's span in rotated pixels in xy, shared by both planes; zw pad.
     mask_span: vec4<f32>,
@@ -70,16 +69,13 @@ struct ExposureUniforms {
 @group(0) @binding(2) var<uniform> params: ExposureUniforms;
 // Per-pixel dodge/burn EV map, rasterised on the CPU (shared with the CPU path).
 @group(0) @binding(3) var ev_tex: texture_2d<f32>;
-// The analysis-grid planes: r = the Contrast Mask plane, gba = the Diffusion plane's
-// channels. Upscaled here rather than uploaded at render size, so a slider costs a
-// uniform write and no transfer.
+// Analysis-grid planes: r = Contrast Mask, gba = Diffusion. Upscaled here, not uploaded at
+// render size, so a slider costs a uniform write and no transfer.
 @group(0) @binding(4) var mask_tex: texture_2d<f32>;
 // Shape alpha of each tone-limited mask, one per channel (planes 2+ of compute_local_maps).
 @group(0) @binding(5) var key_tex: texture_2d<f32>;
 
-// The planes at this pixel. Mirrors plane_taps in exposure/logic.py: OpenCV's
-// half-pixel bilinear, taps clamped, which is the edge replication outside the
-// printed frame.
+// The planes at this pixel. Mirrors plane_taps in exposure/logic.py.
 fn plane_sample(coords: vec2<i32>) -> vec4<f32> {
     let dims = vec2<f32>(textureDimensions(mask_tex));
     let p = (vec2<f32>(coords) + vec2<f32>(0.5) - params.mask.yz) * dims / params.mask_span.xy - vec2<f32>(0.5);
@@ -149,9 +145,8 @@ fn oetf_encode(t: f32) -> f32 {
     return pow(x, 0.45470693);
 }
 
-// Copied verbatim from lab.wgsl's rgb_to_lab/lab_to_rgb (WGSL has no includes):
-// Adobe RGB 1998 primaries, D65, scene-linear both ways. A primaries or
-// white-point change must update every copy (lab.wgsl, exposure.wgsl, transfer.wgsl).
+// Copy of lab.wgsl's rgb_to_lab/lab_to_rgb (Adobe RGB 1998, D65, scene-linear); WGSL has no includes,
+// so a primaries or white-point change updates lab.wgsl, exposure.wgsl and transfer.wgsl.
 fn hue_rgb_to_lab(rgb: vec3<f32>) -> vec3<f32> {
     let r = max(rgb.r, 0.0);
     let g = max(rgb.g, 0.0);
@@ -233,9 +228,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let d_max_base = select(vec3<f32>(params.d_max) - toe3 * params.toe_height, vec3<f32>(params.d_max), toe_neg);
     let d_max_eff = max(d_max_base, d_min_eff + vec3<f32>(0.1));
 
-    // Dodge/burn print exposure (stops, positive = burn; same domain as cmy_offsets) in .r,
-    // the masks' flash fraction in .g, the local grade's ISO-R deltas in .b, turned into a
-    // slope multiplier here as local_grade_factor_map does, so a Grade change re-uploads nothing.
+    // .r = dodge/burn stops (positive = burn), .g = flash fraction, .b = ISO-R deltas, turned into a
+    // slope multiplier here (local_grade_factor_map) so a Grade change re-uploads nothing.
     var ev = 0.0;
     var gfac = 1.0;
     var flash = params.hue.y;

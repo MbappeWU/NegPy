@@ -261,18 +261,9 @@ def remap_point(x: float, y: float, half: int, old_geom: HalfGeometry, new_geom:
 
 
 def remap_workspace_config(config: "WorkspaceConfig", half: int, old_geom: HalfGeometry, new_geom: HalfGeometry) -> "WorkspaceConfig":
-    """Re-anchor every position-based manual edit in a half's saved config, so a
-    heal stroke, dust spot, scratch line or dodge/burn mask stays on the same
-    physical film location after that half's crop/split changes.
-
-    ``geometry.crop_rect`` and ``process.analysis_rect`` are cleared instead: unlike these, they live in
-    transformed-image space (after rotation/flip/keystone/distortion), not raw
-    space, so the same point-remap does not apply to it, and a rect drawn
-    against the old half's frame boundary has no correct position in the new
-    one. Clearing (not remapping) leaves an auto-detected crop armed to
-    re-detect against the new boundary, and drops a manual one back to none —
-    either beats silently keeping a crop that no longer lines up with the frame.
-    """
+    """Re-anchor every position-based manual edit in a half's saved config (heal, dust, scratch, dodge/burn) to the same
+    film location after the half's crop/split changes. ``geometry.crop_rect`` and ``process.analysis_rect`` live in
+    transformed-image space and have no place on the new boundary, so they are cleared: an auto crop re-detects, a manual one drops."""
     if old_geom == new_geom:
         return config
 

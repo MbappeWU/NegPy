@@ -20,7 +20,7 @@ _DRAG_SLOP_PX = 4
 # Panning requests tiles faster than they arrive. Cap the requests so stale ones cannot pile up.
 _MAX_PENDING_TILES = 24
 # Fetches run on daemon threads that nothing joins: a lookup stalled in DNS can outlive the
-# view and the app, and a join on it froze the GUI with the GIL held.
+# view and the app, and a join on it would freeze the GUI with the GIL held.
 _TILE_SLOTS = threading.Semaphore(4)
 # One mouse notch is 120 units. A trackpad sends many smaller deltas, so the wheel must sum
 # to a notch instead of taking a zoom level per event.

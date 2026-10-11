@@ -12,6 +12,6 @@ def test_a_lens_faster_than_f1_still_dumps_its_exif():
     )
     exif = _build_custom_exif(payload)
 
-    assert piexif.dump(exif)  # a negative APEX rational raised here and dropped every field
+    assert piexif.dump(exif)
     assert piexif.ExifIFD.MaxApertureValue not in exif["Exif"]
     assert exif["Exif"][piexif.ExifIFD.FNumber]

@@ -56,10 +56,8 @@ def restore_maps(repo: Any) -> tuple:
 
 
 def composite_entry(asset: dict) -> Optional[dict]:
-    """The storable record of an asset's composite membership, or None when it is a
-    plain frame. Settings that ride on the asset (align, render exposure) are part of
-    the record: they are the composite's, not the edit's. The hash is the shared one, as a
-    roll fork belongs to the roll that made it."""
+    """The storable record of an asset's composite membership, or None for a plain frame. Settings on the asset (align,
+    render exposure) are the composite's, not the edit's. The hash is the shared one, as a roll fork belongs to its roll."""
     if asset.get("stitch_paths"):
         return {
             "kind": "stitch",

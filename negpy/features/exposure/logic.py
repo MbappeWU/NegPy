@@ -88,10 +88,8 @@ def separation_damping_gain_np(k: float, damping: float, chroma: Any, ref_spread
 
 @njit(inline="always")
 def plane_taps(gh: int, gw: int, x: int, y: int, rect_x: float, rect_y: float, rect_w: float, rect_h: float):
-    """Where render pixel (x, y) falls on a gh×gw analysis-grid plane that covers the printed
-    frame `rect` in render pixels: the four tap indices and the two blend weights of
-    OpenCV's half-pixel bilinear, taps clamped, which is the edge replication outside the
-    frame. exposure.wgsl mirrors it."""
+    """Taps and weights of render pixel (x, y) on a gh×gw analysis-grid plane covering `rect`: OpenCV's half-pixel
+    bilinear, taps clamped (edge replication outside the frame). exposure.wgsl mirrors this."""
     px = (x + 0.5 - rect_x) * gw / rect_w - 0.5
     py = (y + 0.5 - rect_y) * gh / rect_h - 0.5
     lx = min(max(np.floor(px), 0.0), gw - 1.0)
@@ -948,13 +946,9 @@ def _grade_trim_mult(grade: float, trim: float, c: Dict[str, Any]) -> float:
 
 
 def local_grade_factor_map(grade_deltas: np.ndarray, grade: float) -> np.ndarray:
-    """
-    Per-pixel slope multiplier for the local-grade map: the same R/(R+ΔR) ratio
-    _grade_trim_mult gives a per-layer trim, so a masked region prints at its own
-    grade on the same ladder. Rotation happens about the channel pivot in the
-    kernel, which is what keeps a grade-only mask from shifting its own midtone.
-    Single source for the CPU kernel; exposure.wgsl mirrors it.
-    """
+    """Per-pixel slope multiplier for the local-grade map, the ratio _grade_trim_mult gives
+    a per-layer trim. The kernel rotates about the channel pivot, so a grade-only mask keeps
+    its midtone. exposure.wgsl mirrors this."""
     from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 
     c = EXPOSURE_CONSTANTS
@@ -1135,12 +1129,9 @@ def shadow_hold_offset(
     d_min: float = 0.0,
     paper: Optional[PaperProfile] = None,
 ) -> float:
-    """
-    Auto Grade's shadow lift, the shadow-side partner of highlight_hold_offset: a negative
-    shadow_density term, shadow_hold_strength of the straight-line run of the textured dark tail
-    past Shadow Reach's line plus shadow_hold_overshoot, capped at shadow_hold_max. The tail
-    normally prints past paper black, so it is a partial correction, not a landing. Never burns.
-    """
+    """Auto Grade's shadow lift (a negative shadow_density), the partner of
+    highlight_hold_offset, on the textured dark tail past Shadow Reach's line. A partial
+    correction: the tail still prints past paper black. Never burns."""
     c = effective_constants(paper)
     strength = float(c["shadow_hold_strength"])
     if strength <= 0.0:

@@ -251,7 +251,7 @@ def test_a_probe_that_cannot_be_metered_reports_without_dropping_the_session(tmp
     worker.run_exposure_probe(ExposureProbeRequest(shutter="Bulb"))
 
     assert len(failures) == 1 and errors == []
-    assert worker._camera is not None  # the session stands; only the maths failed
+    assert worker._camera is not None  # the session stands; only the math failed
 
 
 class ClaimedCamera:
@@ -566,7 +566,6 @@ def test_presence_poll_reports_a_missing_scanlight(monkeypatch):
 
 
 def test_a_probe_that_cannot_be_decoded_keeps_the_session(tmp_path, monkeypatch):
-    """A RAW LibRaw rejects is the decoder's failure, not the camera's: the stream stays up."""
     import negpy.infrastructure.capture.raw_demosaic as demosaic_module
     from negpy.desktop.workers.capture_worker import ExposureProbeRequest
 

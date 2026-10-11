@@ -112,8 +112,7 @@ def test_ir_layer_none_without_ir_or_uv():
 
 
 def test_repaired_masks_wash_in_their_source_color():
-    """Every defect source arrives as a mask now, so color is what tells them apart:
-    under Standard, green for optically detected specks, magenta for IR and inpainted defects."""
+    """Every defect source arrives as a mask, so color tells them apart."""
     from negpy.desktop.view.styles.color_vision import palette_for
 
     luma_color, ir_color = (QColor(c) for c in palette_for("standard").pair)

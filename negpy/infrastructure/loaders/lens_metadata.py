@@ -128,12 +128,8 @@ def _read_dng(page: Any) -> LensMetadata:
 
 
 def _read_panasonic(file_path: str) -> LensMetadata:
-    """Read Panasonic RW2's embedded distortion polynomial from its non-TIFF IFD0.
-
-    The reader follows darktable's Panasonic model (GPL-3.0+) and
-    https://github.com/trou/panasonic-rw2: Ru = Rd + scale*(a*Rd^3 + b*Rd^5 + c*Rd^7),
-    with Rd and Ru normalised to the half-diagonal of the decoded image.
-    """
+    """Read Panasonic RW2's embedded distortion polynomial from its non-TIFF IFD0. Follows darktable's Panasonic
+    model (GPL-3.0+) and https://github.com/trou/panasonic-rw2; radii are normalized to the decoded image's half-diagonal."""
     with open(file_path, "rb") as f:
         data = f.read()
     if len(data) < 10 or data[:2] != b"II" or data[2:4] != b"\x55\x00":

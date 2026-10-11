@@ -697,13 +697,9 @@ class ImageProcessor:
         cache_stages: bool = True,
         gain_slices: tuple = (),
     ) -> Tuple[Any, Dict[str, Any]]:
-        """
-        Executes rendering pipeline. Returns result (ndarray/GPUTexture) and metrics.
-
-        ``skip_flatfield``: the export CPU fallbacks pass an already-flat-fielded buffer.
-        ``gain_slices``: the ``slice_half`` cuts that took *img* out of the decoded frame,
-        such as one half-frame; the flat-field gain takes the same cuts.
-        """
+        """Executes rendering pipeline. Returns result (ndarray/GPUTexture) and metrics. ``skip_flatfield``: the export CPU
+        fallbacks pass an already flat-fielded buffer. ``gain_slices``: the ``slice_half`` cuts that took *img* out of the
+        decoded frame; the flat-field gain takes the same cuts."""
         # Flat-field is a source pre-correction, before geometry and crop. Folding its token
         # into source_hash invalidates the engine cache when it changes. Stitch buffers arrive
         # per-part flat-fielded, because correcting the composite canvas as one frame would
@@ -995,15 +991,9 @@ class ImageProcessor:
     def _load_source_f32(
         self, file_path: str, params: WorkspaceConfig, fast_decode: bool = False, unmix: bool = True
     ) -> Tuple[np.ndarray, Optional[np.ndarray], str]:
-        """Decode a source file to a flatfield-corrected, EXIF-oriented float32 buffer.
-
-        A stitch composite decodes every part and assembles them by replaying the
-        registration stored in ``params.stitch``, each part against its own rgbscan
-        config rather than the primary's. ``unmix=False`` leaves out the sensor unmix that
-        `_unmix_source` applies to the whole buffer.
-
-        Returns (f32_buffer, ir_buffer, source_color_space).
-        """
+        """Decode a source file to a flatfield-corrected, EXIF-oriented float32 buffer → (f32, ir, source color space). A
+        stitch replays the registration in ``params.stitch``, each part with its own rgbscan config. ``unmix=False`` leaves
+        out the sensor unmix that `_unmix_source` applies to the whole buffer."""
         is_triplet = is_rgb_triplet(params.rgbscan) or stitch_has_triplets(params.stitch)
         # Narrowband triplet channels don't survive half_size CFA binning.
         fast_decode = fast_decode and not is_triplet
@@ -2233,12 +2223,8 @@ class ImageProcessor:
             )
             if result is None:
                 return pil_img
-            # Output-to-display transform, so the proof is shown in display space instead
-            # of being reinterpreted by the viewer. Always runs, not only when a monitor
-            # profile is known: without it the proof leaks output-space numbers to the
-            # screen and shifts per output space (issue #243). A GRAY result goes through
-            # it too, from "L", since its TRC matches only an sRGB-TRC display. A display
-            # profile lcms cannot target keeps the output-space result, not the unproofed source.
+            # Output-to-display transform, always, or the proof leaks output-space numbers to the screen. A GRAY result goes
+            # through it from "L" (its TRC fits only an sRGB-TRC display); a display profile lcms cannot target keeps the output-space result.
             try:
                 proofed = ImageCms.profileToProfile(
                     result,

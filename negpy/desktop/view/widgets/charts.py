@@ -37,11 +37,8 @@ def _draw_hover_ring(painter: QPainter, at: QPointF) -> None:
 
 
 class PhotometricCurveWidget(QWidget):
-    """
-    The Analysis chart: H&D curve over one bottom band holding the negative's density
-    histogram and the print's RGB+L histogram, plus pivot, zone shading/ticks, clip marks,
-    hover marker + curve dot.
-    """
+    """The Analysis chart: H&D curve over a bottom band that holds the negative's density
+    histogram and the print's RGB+L histogram."""
 
     # Data coordinate ranges
     _X_MIN, _X_MAX = -0.1, 1.1  # plt_x domain
@@ -699,9 +696,9 @@ class PhotometricCurveWidget(QWidget):
 
 
 class WaveformWidget(QWidget):
-    """Print luma across the frame: x is the image column, y the print tone, brightness how
-    many pixels sit there, each cell drawn in its pixels' mean color. Zone lines III, V and VII on the zone ruler; columns that reach
-    paper black or paper white are marked on the bottom and top edges."""
+    """Print luma across the frame: x is the image column, y the print tone, brightness the pixel
+    count, each cell in its pixels' mean color. Columns that reach paper black or paper white are
+    marked on the bottom and top edges."""
 
     _GUIDE_ZONES = ((3, "III"), (5, "V"), (7, "VII"))
 
@@ -806,10 +803,9 @@ class WaveformWidget(QWidget):
 
 
 class VectorscopeWidget(QWidget):
-    """The print's CIELAB a*b* plane: +a right, +b up, neutral at the center cross. Brightness
-    is how many pixels sit at a hue and chroma, each drawn in its own hue. Dashed rings mark
-    chroma 5, 20 and 40; rim ticks mark the working-space primaries and secondaries. The log
-    chroma scale opens up the near-neutral center, where a toner or a cast lives."""
+    """The print's CIELAB a*b* plane, +a right and +b up; brightness is the pixel count at a hue
+    and chroma. Rim ticks mark the working-space primaries and secondaries. The log chroma scale
+    opens up the near-neutral center, where a toner or a cast lives."""
 
     _SIZE = 160
     _RINGS = (5.0, 20.0, 40.0)
@@ -948,16 +944,9 @@ class VectorscopeWidget(QWidget):
 
 
 class ZoneStripWidget(QWidget):
-    """
-    10-cell print-zone occupancy strip (0–IX): cell tone = zone brightness,
-    opacity = occupancy (√-scaled so small-but-real mass reads). Extreme cells
-    tint red on blocked shadows / blown highlights.
-
-    Also the zone-placement control: clicking a cell asks for that zone, and the
-    next click on the photo places a tone there. A double-click toggles the canvas
-    Zone Overlay instead, so a single click waits out the double-click interval.
-    Hovering a cell names it (zone_hovered), and leaving names None.
-    """
+    """Print-zone occupancy strip (0 to IX), opacity square-root scaled so a small mass reads.
+    A cell click asks for that zone and the next photo click places a tone there. A double-click
+    toggles the Zone Overlay, so a single click waits out the double-click interval."""
 
     zone_clicked = pyqtSignal(int)
     zone_double_clicked = pyqtSignal()
@@ -1092,13 +1081,9 @@ class ZoneStripWidget(QWidget):
 
 
 class StepWedgeWidget(QWidget):
-    """
-    Stouffer T2115-style 21-step transmission wedge printed through the frame's current
-    print settings: the curve the chart above plots, then the alternative process and toning.
-    Steps run paper black (left) to paper white (right), matching the chart's x axis. The
-    usable span is bracketed where neighbouring steps still separate, and labels are wedge
-    density in this scan's own D units.
-    """
+    """21-step transmission wedge printed through the frame's curve, alternative process and
+    toning, paper black left to paper white right. The usable span is bracketed where neighboring
+    steps still separate; labels are wedge density in this scan's own D units."""
 
     # Label every tenth step, so a sidebar-width strip still gets an axis. At sidebar width
     # the 21 patches are far too narrow to label individually.
@@ -1115,11 +1100,9 @@ class StepWedgeWidget(QWidget):
         self._colors: list = []
 
     def update_data(self, enc: Any, step_density: float, color_space: str, monitor_icc_bytes: Any = None, proof: Any = None) -> None:
-        """`enc` is the 21 display-encoded patches, gray (21,) or toned (21, 3). The patches go
-        through the same display transform the canvas used — including the soft proof, which
-        rides the display LUT rather than being baked into the buffer — so wedge and frame can't
-        disagree. The usable span and label contrast read the patches' luminance.
-        """
+        """`enc` is the 21 display-encoded patches, gray (21,) or toned (21, 3). They go through the
+        canvas's display transform, soft proof included (it rides the display LUT, not the buffer),
+        so wedge and frame agree. The usable span and label contrast read the patches' luminance."""
         from negpy.desktop.converters import ImageConverter
         from negpy.features.lab.logic import LUM_B, LUM_G, LUM_R
         from negpy.kernel.image.logic import working_oetf_decode, working_oetf_encode

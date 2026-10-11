@@ -23,7 +23,7 @@ class LibrarySearchTask:
 
     roots: list[str]
     query: str
-    # Read on the worker thread: parsing every saved edit takes seconds on a large library.
+    # Read on the worker thread: parsing every saved edit is slow on a large library.
     load_configs: Callable[[], dict[str, Any]] = dict
     load_marks: Callable[[], dict[str, str]] = dict
     rewalk: bool = False  # drop the cached traversal first (folders changed on disk)

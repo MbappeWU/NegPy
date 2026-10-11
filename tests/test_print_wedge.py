@@ -72,8 +72,7 @@ def test_the_render_runs_the_wedges_print_stages() -> None:
 
 
 def test_the_wedge_strip_stays_on_the_serial_kernels() -> None:
-    """The wedge runs on the GUI thread: a strip at or over SERIAL_MAX_ELEMENTS would take the
-    parallel kernels' lock and wait behind the render thread's full-frame kernels."""
+    """The wedge runs on the GUI thread, where the parallel kernels' lock would make it wait behind a render."""
     from negpy.features.exposure.analysis import WEDGE_STEPS
     from negpy.kernel.system.parallel import SERIAL_MAX_ELEMENTS
 

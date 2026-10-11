@@ -243,13 +243,9 @@ def transfer_auto_terms(
     shadow_point: Optional[float],
     highlight_point: Optional[float],
 ) -> Tuple[float, float, float, float]:
-    """
-    (exposure_offset, contrast, highlight_density_auto, shadow_density_auto) with Auto
-    Density/Auto Grade folded onto the manual values -- single source for CPU and GPU. Mirrors
-    the paper path's own anchor placement, effective_grade_range, Shadow Reach, Highlight
-    Hold and Shadow Hold, restated on this curve's plain density-linear model instead of the paper's
-    toe/shoulder one. A toggle off, or a None meter, leaves its terms at their manual values.
-    """
+    """(exposure_offset, contrast, highlight_density_auto, shadow_density_auto) with the autos folded onto the
+    manual values, for CPU and GPU. The paper path's autos restated on this density-linear curve; a toggle off
+    or a None meter leaves its terms manual."""
     c = TRANSFER_CONSTANTS
     pivot = float(c["transfer_contrast_pivot"])
     R = TRANSFER_DENSITY_RANGE

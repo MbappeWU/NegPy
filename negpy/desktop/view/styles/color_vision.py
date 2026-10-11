@@ -17,9 +17,8 @@ class VisionPalette:
     spot: str  # one mark over the picture itself, clear of foliage greens and sky blues
 
 
-# Standard's pair is neon: a mark has to read over any film. The color-blind colors are
-# Okabe–Ito (Color Universal Design) colors on an axis that vision keeps. A pair keeps clear of
-# the amber exclusion band on the same overlay, and every color reads as text on the dark panel.
+# Standard is neon to read over any film; the others are Okabe-Ito colors on an axis that vision
+# keeps. A pair keeps clear of the amber exclusion band, and every color reads as text on the panel.
 PALETTES: tuple[VisionPalette, ...] = (
     VisionPalette("standard", "Standard", ("#39FF14", "#FF00FF"), (THEME.dodge, THEME.burn), "#FF00FF"),
     VisionPalette("protan_deutan", "Protanopia / deuteranopia (red-green)", ("#56B4E9", "#D55E00"), ("#E69F00", "#56B4E9"), "#CC79A7"),

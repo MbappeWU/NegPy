@@ -37,8 +37,6 @@ from negpy.services.assets.rolls import card_fields
 from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
 
-# ControlsPanel sections built into the Roll tab (_build_roll_page), not a Frame sub-tab --
-# reveal_section routes these to the Roll group instead of Frame's inner tab switcher.
 # The Roll tab's cards that own settings, for its header's Apply picker.
 _ROLL_TAB_CARDS = (
     "film",
@@ -53,6 +51,7 @@ _ROLL_TAB_CARDS = (
     "flatfield",
 )
 
+# ControlsPanel sections built into the Roll tab (_build_roll_page): reveal_section routes them to the Roll group.
 _ROLL_SECTION_ATTRS = frozenset(
     {
         "assembly_section",

@@ -206,14 +206,9 @@ def _usm_sharpening_block(
     radius: float = 1.0,
     masking: float = 0.0,
 ) -> ImageBuffer:
-    """
-    L-channel unsharp mask; mirrors lab_sharpen_h/v.wgsl + the lab.wgsl sharpen
-    block. Soft-gated USM with an overshoot clamp to the local 3x3 range (halo
-    suppression) and an optional edge mask (boxed |∇L|) protecting flat areas.
-
-    Radius is in pixels of the buffer it runs on, ahead of any export resize, so
-    the preview under-represents full-size acutance; judge sharpening at 1:1.
-    """
+    """L-channel soft-gated USM, its overshoot clamped to the local 3x3 range, with an optional edge mask for flat
+    areas. Radius is in pixels of this buffer, before any export resize; judge sharpening at 1:1.
+    lab_sharpen_h/v.wgsl and lab.wgsl mirror this."""
     if amount <= 0:
         return img
 
@@ -249,14 +244,9 @@ def apply_rl_sharpening(
     radius: float = 1.0,
     masking: float = 0.0,
 ) -> ImageBuffer:
-    """
-    Richardson-Lucy deconvolution on linear luminance Y (Gaussian PSF), applied
-    as an RGB ratio so chroma is preserved. Mirrors rl_*.wgsl. Iterations are
-    fixed by radius (rl_iterations); no per-pixel early stop or damping — the
-    edge mask governs grain, matching RawTherapee's shipped configuration.
-
-    Radius is the PSF width in output pixels — see apply_usm_sharpening.
-    """
+    """Richardson-Lucy deconvolution of linear Y (Gaussian PSF of width radius), applied as an RGB ratio so chroma
+    holds. Iterations are fixed by radius and the edge mask governs grain, so there is no damping.
+    rl_*.wgsl mirrors this."""
     if amount <= 0:
         return img
 

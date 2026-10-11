@@ -21,21 +21,19 @@ OUTPUT_HIST_BINS = 256
 # which is what the marginal RGBL histogram cannot answer.
 COLOR_HIST_BINS = 32
 
-# Waveform: print luma per image column, (bins, cols) with row 0 = black. Mirrored as the
-# array length and constants in waveform.wgsl.
+# Waveform: print luma per image column, (bins, cols) with row 0 = black. waveform.wgsl mirrors this.
 WAVEFORM_COLS = 256
 WAVEFORM_BINS = 128
 # Per-cell R, G, B sums are fixed point (u32 atomics on the GPU): encoded value x this scale.
 WAVEFORM_COLOR_SCALE = 1023
 
-# Vectorscope: the print's CIELAB a*b* in polar bins, hue x chroma, with chroma on a log
-# axis so the linear and the log display both read one histogram. The last chroma bin holds
-# everything past SCOPE_MAX_CHROMA. Mirrored in vectorscope.wgsl.
+# Vectorscope: CIELAB a*b* in hue x log-chroma bins, so linear and log displays read one
+# histogram; the last chroma bin holds all past SCOPE_MAX_CHROMA. vectorscope.wgsl mirrors this.
 SCOPE_HUE_BINS = 180
 SCOPE_CHROMA_BINS = 64
 SCOPE_MAX_CHROMA = 60.0
 SCOPE_LOG_KNEE = 4.0  # chroma where the log axis turns from linear to compressed
-# The scope reads a distribution, so the CPU twin bins a strided sample (its Lab and trig are the slow part).
+# The scope reads a distribution, so the CPU twin bins a strided sample.
 _SCOPE_MAX_SAMPLES = 262_144
 
 # Full-res exports run through the same normalization stage, so cap the cost.
@@ -56,7 +54,7 @@ def output_histogram(buffer: Any) -> Optional[np.ndarray]:
         buffer = buffer[::step, ::step]
     if buffer.dtype == np.uint8:
         # An 8-bit frame (the camera live view) bins by value: the same bins as the float
-        # path's floor(v / 255 * 256), at a fraction of np.histogram's cost per frame.
+        # path's floor(v / 255 * 256).
         rows = [np.bincount(buffer[..., c].ravel(), minlength=OUTPUT_HIST_BINS) for c in range(3)]
         lum = get_luminance(np.ascontiguousarray(buffer.astype(np.float32) / 255.0))
         rows.append(

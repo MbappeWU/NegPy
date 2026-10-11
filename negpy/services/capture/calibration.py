@@ -1,38 +1,7 @@
-"""Per-channel ETTR exposure auto-calibration for RGB narrowband film scanning.
+"""Per-channel ETTR exposure calibration for RGB narrowband scanning on a linear model: Signal_c = k_c · Level_c · t.
 
-The film base is metered inside a user ROI and each of R/G/B is exposed just below clipping
-("expose to the right"). The key idea is a **linear model**:
-
-    Signal_c = k_c · Level_c · t
-
-where `k_c` (the channel response) is *measured*, never assumed, so any sensor (Sony, Fuji
-X-Trans, …) is handled automatically. With one **shared** shutter `t` and three per-channel LED
-levels there are 4 knobs and 3 targets, leaving one degree of freedom (the shutter). It is fixed
-uniquely by putting the **dimmest** channel near PWM_MAX_SAFE (fastest shutter + highest levels at
-once — no quality/speed trade-off; the gap to PWM_MAX is the verify trim's headroom). Everything
-is then solved in one shot instead of searched.
-
-A single-capture preset lights R, G and B together for one exposure, so each sensor channel also
-reads the neighboring LEDs:
-
-    Signal_c = t · Σ_j M_cj · Level_j
-
-`M` is measured one LED at a time, like `k`, and the levels come from solving that system for one
-target on all three channels. The highest level takes the place of the dimmest channel in the
-shutter pick.
-
-Two representations of a shutter coexist deliberately. Labels are rounded display names for a
-geometric ladder ("1/3" exposes 0.315 s, not 0.333 s): ordering/snapping read the label literally
-(`shutter_seconds`), anything multiplied into the physics uses the rung's true time
-(`true_seconds`). The model above only holds in the second representation.
-
-No dark frame: rawpy already subtracts the sensor bias, so `black = 0` (and the injected demosaic
-must scale by the camera's white level, never per-frame — see `linear_demosaic`). An exposure
-target that is unreachable at the hardware limits raises `CalibrationExposureError` ("over"/
-"under", carrying the aperture advice) as early as the probe can prove it — a preset that misses
-its target is worthless, so none is saved (rig decision). Hardware-free: light, camera and a
-`demosaic` callable are injected.
-"""
+k_c (a mixing matrix M for a single capture) is measured, never assumed. The shared shutter puts the dimmest channel near
+PWM_MAX_SAFE. The injected demosaic scales by the camera's white level, never per frame."""
 
 from __future__ import annotations
 
@@ -65,9 +34,8 @@ CLIP_CEILING = 65535
 SATURATION_VALUE = int(CLIP_CEILING * 0.998)  # ≈ 65404
 PWM_MIN = 40
 PWM_MAX = 255
-# A single-capture solve seats its highest level near PWM_MAX_SAFE and the other two fall where
-# the mixing puts them, often under PWM_MIN. Below 10 one count moves the exposure by more
-# than the verify tolerance.
+# A single-capture solve puts its two lower levels where the mixing sends them, often under
+# PWM_MIN. Below 10, one count moves the exposure by more than the verify tolerance.
 PWM_MIN_SINGLE = 10
 # Aim the dimmest channel here, not at 255: this is the phase-4 trim's headroom, not an
 # LED limit. The LEDs are gently concave, so `k` measured at the probe level over-states
@@ -403,10 +371,9 @@ def nearest_shutter(label: str, candidates: tuple[str, ...]) -> str:
 
 
 def scan_ladder(labels) -> tuple[str, ...]:
-    """A body's shutter labels as the ladder a run solves on: parseable, fastest first, and
-    inside the built-in ladder's span. The slow end keeps the under-exposure cure reachable
-    for a closed-down aperture. The fast end keeps the PWM-lit LED out of banding: a short
-    exposure integrates too few pulses and meters noise."""
+    """A body's shutter labels as the ladder a run solves on: parseable, fastest first, inside the built-in span. The slow
+    end keeps the under-exposure cure reachable for a closed-down aperture; the fast end keeps the PWM-lit LED out of
+    banding (a short exposure integrates too few pulses)."""
     floor, ceiling = shutter_seconds(SHUTTER_CANDIDATES[0]), shutter_seconds(SHUTTER_CANDIDATES[-1])
     return tuple(label for label in usable_ladder(tuple(str(v).strip() for v in labels)) if floor <= shutter_seconds(label) <= ceiling)
 
@@ -572,12 +539,9 @@ class CalibrationService:
         progress: Optional[ProgressCb] = None,
         cancel=None,
     ) -> np.ndarray:
-        """The sensor's response to each LED alone: `out[c][j]` is sensor channel c's ROI mean
-        under LED j. A probe that lands dim is shot again nearer the target, so the neighboring
-        channels stand clear of the black level.
-
-        Raises CalibrationExposureError("over") when minimum exposure still clips, and
-        RuntimeError when a probe stays under MIN_PROFILE_SIGNAL."""
+        """The sensor's response to each LED alone: `out[c][j]` is sensor channel c's ROI mean under LED j. A dim probe is
+        shot again nearer the target, so the neighboring channels clear the black level. Raises CalibrationExposureError("over")
+        when minimum exposure still clips, RuntimeError when a probe stays under MIN_PROFILE_SIGNAL."""
         candidates, start_shutter, report, check_cancel = _run_setup(candidates, start_shutter, progress, cancel)
         T = target_signal(TARGET_FRACTION)
         response = np.zeros((3, 3))
@@ -620,10 +584,9 @@ class CalibrationService:
         return signals, linearity, plateau, means
 
     def _verify_single(self, levels, shutter, T, m, candidates, roi, scratch_path, check_cancel) -> dict[str, ChannelCalibration]:
-        """Capture with all three LEDs at the solved levels, then alternate two corrections until
-        the shot is in budget and on target. A clip guard dims the three together. A trim through
-        the mixing matrix moves each channel to target, and holds a channel the guard dimmed at
-        the signal it has, so the trim cannot raise it back into clipping."""
+        """Capture with all three LEDs at the solved levels, then alternate a clip guard (dims all three) and a trim through
+        the mixing matrix until the shot is in budget and on target. The trim holds a dimmed channel at its signal, so it
+        cannot raise it back into clipping."""
         levels = np.array(levels, dtype=float)
         secs = true_seconds(shutter, candidates)
         held = np.zeros(3, dtype=bool)
@@ -862,10 +825,9 @@ def _raise_exposure(level: int, shutter: str, gain: float, candidates: tuple[str
 
 
 def _sensor_matrix(mean_response: np.ndarray) -> Optional[tuple[float, ...]]:
-    """The sensor unmix from the single-capture probes. `mean_response[c][j]` is sensor channel
-    c's ROI mean under LED j alone. The mean, not the p99.9 the exposure solve meters: a
-    percentile reads the weak neighboring channels high. None when a probe is too dim to
-    measure them, or the three are not independent."""
+    """The sensor unmix from the single-capture probes' ROI means (`mean_response[c][j]`: sensor channel c under LED j).
+    The mean, not the p99.9 the exposure solve meters, which reads the weak neighboring channels high. None when a probe is
+    too dim or the three are not independent."""
     if np.diag(mean_response).min() < MIN_PROFILE_SIGNAL:
         return None
     try:
@@ -875,13 +837,9 @@ def _sensor_matrix(mean_response: np.ndarray) -> Optional[tuple[float, ...]]:
 
 
 def _solve_single(m: np.ndarray, T: int, candidates: tuple[str, ...]) -> tuple[str, tuple[int, int, int]]:
-    """Single-capture solve. `m[c][j]` is sensor channel c's response to LED j, so the levels
-    that put all three channels on T at exposure t are T·M⁻¹·1 / t. The shutter is the fastest
-    one that keeps the highest level at ≤ PWM_MAX_SAFE.
-
-    Raises CalibrationExposureError("under") when even PWM_MAX at the slowest shutter stays
-    materially below target, and RuntimeError when no levels inside the LED range balance the
-    channels."""
+    """`m[c][j]` is sensor channel c's response to LED j, so the levels are T·M⁻¹·1 / t at the fastest shutter that keeps the
+    highest level ≤ PWM_MAX_SAFE. Raises CalibrationExposureError("under") when PWM_MAX at the slowest shutter stays below
+    target, RuntimeError when no levels in the LED range balance the channels."""
     try:
         weights = np.linalg.solve(m, np.ones(3))  # level·seconds per count of target, per LED
     except np.linalg.LinAlgError:

@@ -75,7 +75,7 @@ class _FrameOption:
 
 
 def test_a_single_frame_adapter_is_not_a_strip() -> None:
-    """coolscan3 reports frame 1..1 for a mount adapter (MA-21, SF-210)."""
+    """coolscan3 reports frame 1..1 for a mount adapter."""
     from negpy.infrastructure.scanners.sane_backend import _detect_adapter_frame_capacity
 
     assert _detect_adapter_frame_capacity({"frame": _FrameOption((1, 1, 1))}) is None

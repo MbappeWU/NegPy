@@ -202,7 +202,6 @@ def test_the_top_hit_is_highlighted_for_the_next_return(monkeypatch) -> None:
 
 
 def test_closing_never_waits_on_a_stalled_lookup(monkeypatch) -> None:
-    """A lookup stuck in DNS outlives the dialog; closing it must not join that thread."""
     import threading
     import time
 

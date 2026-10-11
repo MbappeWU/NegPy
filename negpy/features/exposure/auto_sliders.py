@@ -1,8 +1,7 @@
 """Auto Density and Auto Grade on their sliders.
 
-The stored value stays an offset on the meter; the slider shows meter + offset in the
-slider's own units, and an edit converts back. A toggle flips only the flag, so the
-slider gains or drops the meter's share.
+The stored value is an offset on the meter; the slider shows meter + offset, and an edit
+converts back. A toggle flips only the flag.
 """
 
 from typing import Any, Dict, Mapping, Optional, Tuple

@@ -152,8 +152,8 @@ class ToneSidebar(BaseSidebar):
         self.diffusion_slider = CompactSlider("Diffusion", 0.0, 1.0, conf.diffusion)
         self.diffusion_slider.setToolTip(
             "Diffusion: a diffuser under the enlarger lens, a Softar or a stocking. The value is how much "
-            "light it scatters: a stronger diffuser, or more of the exposure given through it. Shadows "
-            "bleed into highlights and edges soften; flat areas print as before. 0 is off."
+            "light it scatters. Shadows bleed into highlights and edges soften; flat areas print as before. "
+            "0 is off."
         )
         self.layout.addWidget(self.preflash_slider)
         self.layout.addWidget(self.diffusion_slider)

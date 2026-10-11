@@ -1,9 +1,6 @@
-"""Dot-prefixed files never become assets.
-
-`.DS_Store` and a macOS `._frame.dng` AppleDouble fork both carry the source's extension,
-so an extension-only filter lets them through. The fork is readable, so it hashes as a
-valid asset and only fails later at decode, as "Unsupported file format or not RAW file".
-"""
+"""Dot-prefixed files never become assets. `.DS_Store` and a macOS `._frame.dng` AppleDouble
+fork carry the source's extension, so an extension-only filter lets them through, and the
+readable fork hashes as a valid asset that fails only at decode."""
 
 from __future__ import annotations
 

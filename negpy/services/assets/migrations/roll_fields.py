@@ -156,10 +156,8 @@ def migrate_paper_card_split(repo) -> None:
 
 
 def migrate_auto_crop_roll_locks(repo) -> None:
-    """Auto Crop became a roll default (the ``auto_crop`` card). Locks that card on every
-    frame saved with Auto Crop on, so the first Roll push of it off does not clear their
-    crops. A hand-drawn crop needs no lock (rolls.holds_own_crop). Same guards as
-    migrate_new_roll_field_locks."""
+    """Auto Crop is a roll default (the ``auto_crop`` card). Locks that card on every frame saved with Auto Crop on, so the
+    first Roll push of it off does not clear their crops. A hand-drawn crop needs no lock (rolls.holds_own_crop)."""
     if repo.get_global_setting(_AUTO_CROP_FLAG):
         return
     try:

@@ -1649,11 +1649,8 @@ _WARP_TILE = 8192
 
 
 def _remap_tiled(img: ImageBuffer, source_of: Callable[[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]) -> ImageBuffer:
-    """Same-size bilinear warp with replicated edges, one output tile at a time.
-
-    ``source_of(xs, ys)`` maps output pixel coords to source coords. Each tile reads only the
-    source box its samples fall in, so every remap stays under OpenCV's size limit.
-    """
+    """Same-size bilinear warp with replicated edges, one output tile at a time. ``source_of(xs, ys)`` maps output
+    to source coords; each tile reads only its source box, so every remap stays under OpenCV's size limit."""
     h, w = img.shape[:2]
     out = np.empty_like(img)
     for y0 in range(0, h, _WARP_TILE):
@@ -2248,7 +2245,7 @@ def autocrop_detection_key(geometry: GeometryConfig) -> str:
             geometry.autocrop_ratio,
             geometry.autocrop_mode,
             round(geometry.autocrop_rebate_trim, 4),
-            # Only when set, so rects frozen before distortion was keyed stay valid.
+            # Only when set: a frozen rect with no distortion keeps its key.
             *((round(geometry.distortion_k1, 4),) if geometry.distortion_k1 else ()),
         )
     )
@@ -2259,17 +2256,9 @@ def resolve_autocrop_rect(
     geometry: GeometryConfig,
     preview_size: float,
 ) -> Optional[Tuple[float, float, float, float]]:
-    """Detect the auto crop and return a normalized rect in transformed-image space, as
-    GeometryConfig.crop_rect stores it and the canvas overlay draws it.
-
-    The only border detection a render reaches; the caller freezes the result, so every
-    later render of the edit crops identically at any resolution. Runs on a copy normalized
-    to AUTOCROP_DETECT_RES, replaying the GeometryProcessor transform order
-    (rot90 -> flips -> fine rotation -> distortion -> keystone).
-
-    The rect excludes Crop Offset, which get_manual_rect_coords adds back on every render;
-    only the 2 px baseline margin is baked in. None when the buffer is too small.
-    """
+    """The auto crop as a normalized rect in transformed-image space; the caller freezes it, so later renders crop
+    the same at any resolution. Runs at AUTOCROP_DETECT_RES in GeometryProcessor order (rot90 -> flips -> fine
+    rotation -> distortion -> keystone). Excludes Crop Offset, which get_manual_rect_coords adds per render; None when too small."""
     h, w = img.shape[:2]
     det_s = min(1.0, AUTOCROP_DETECT_RES / max(h, w))
     if det_s < 1.0:
