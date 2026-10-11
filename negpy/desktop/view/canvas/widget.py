@@ -239,6 +239,7 @@ class ImageCanvas(QWidget):
             x = max(inset, min(x, self.width() - tw - inset))
             y = max(inset, self.height() - th - inset)
             tb.setGeometry(x, y, tw, th)
+            self.hud.set_bottom_clearance(th + inset)
         self._raise_floating_widgets()
 
     def _raise_floating_widgets(self) -> None:

@@ -43,14 +43,11 @@ class _MenuButton(QPushButton):
         self._swallow_next_click = False
 
 
-class ChoiceButton(_MenuButton):
-    """One choice out of a few, as a button that opens a menu of them. A choice is
-    (icon, label) or (icon, label, icon color); an empty icon name shows none. The button's dot marks the current choice as
-    edited; the menu marks every edited choice."""
+class MenuButton(_MenuButton):
+    """The ChoiceButton look for a menu of actions: the owner sets the text and fills
+    `choice_menu`."""
 
-    currentChanged = pyqtSignal(int)
-
-    def __init__(self, choices: tuple[tuple[str, ...], ...], tooltip: str, parent=None, data: tuple | None = None):
+    def __init__(self, tooltip: str, parent=None):
         super().__init__(tooltip, parent)
         self._chevron = qta.icon("fa5s.chevron-down", color=THEME.text_secondary, color_disabled=THEME.text_muted)
         self._chevron_size = THEME.font_size_small
@@ -61,6 +58,24 @@ class ChoiceButton(_MenuButton):
             f" padding: 6px {self._chevron_inset + self._chevron_size + THEME.space_md}px 6px {THEME.space_xl}px;"
             " text-align: left;}"
         )
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        s = self._chevron_size
+        mode = self._chevron.Mode.Normal if self.isEnabled() else self._chevron.Mode.Disabled
+        pix = self._chevron.pixmap(s, s, mode)
+        QPainter(self).drawPixmap(QPoint(self.width() - self._chevron_inset - s, (self.height() - s) // 2), pix)
+
+
+class ChoiceButton(MenuButton):
+    """One choice out of a few, as a button that opens a menu of them. A choice is
+    (icon, label) or (icon, label, icon color); an empty icon name shows none. The button's dot marks the current choice as
+    edited; the menu marks every edited choice."""
+
+    currentChanged = pyqtSignal(int)
+
+    def __init__(self, choices: tuple[tuple[str, ...], ...], tooltip: str, parent=None, data: tuple | None = None):
+        super().__init__(tooltip, parent)
         self._group = QActionGroup(self)
         self._group.setExclusive(True)
         self._choices: tuple[tuple[str, ...], ...] = ()
@@ -133,12 +148,8 @@ class ChoiceButton(_MenuButton):
         self._actions[index].setText(f"{label}\t•" if edited else label)
         self.edited_dot.set_active(self._edited[self._index])
 
-    def paintEvent(self, event) -> None:  # noqa: N802
-        super().paintEvent(event)
-        s = self._chevron_size
-        mode = self._chevron.Mode.Normal if self.isEnabled() else self._chevron.Mode.Disabled
-        pix = self._chevron.pixmap(s, s, mode)
-        QPainter(self).drawPixmap(QPoint(self.width() - self._chevron_inset - s, (self.height() - s) // 2), pix)
+    def choice_action(self, index: int) -> QAction:
+        return self._actions[index]
 
     def _show(self, index: int) -> None:
         self._index = index

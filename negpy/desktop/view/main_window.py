@@ -68,13 +68,6 @@ def _clamp_geometry(
     return x, y, w, h
 
 
-def frame_position(model, actual_idx: int) -> str:
-    """n / total in the Film Strip's order and filter, the one Next and Previous follow."""
-    total = model.rowCount()
-    row = model.actual_to_display(actual_idx)
-    return f"{row + 1} / {total}" if total > 1 and row >= 0 else ""
-
-
 def _read_screen_icc(screen: object) -> Optional[bytes]:
     """Monitor ICC profile bytes for a QScreen, or None (treat the display as sRGB).
 
@@ -442,7 +435,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.drawer.setVisible(right_visible)
         self.session_dock.setVisible(True)
-        self.toolbar.btn_toggle_left.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_left_visible", True)
 
     def dock_controls_panel(self) -> None:
@@ -450,7 +442,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.session_dock.setVisible(left_visible)
         self.drawer.setVisible(True)
-        self.toolbar.btn_toggle_right.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
 
     def toggle_session_dock(self) -> None:
@@ -545,8 +536,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.session_dock.setVisible(True)
         self.drawer.setVisible(True)
-        self.toolbar.btn_toggle_left.setChecked(True)
-        self.toolbar.btn_toggle_right.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_left_visible", True)
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
         self.canvas.hud.showMessage("Panel layout reset", timeout=1500)
@@ -564,10 +553,6 @@ class MainWindow(QMainWindow):
         # persist in the toggle methods instead and the saved state survives exit.
         self.toolbar.btn_toggle_left.clicked.connect(self.toggle_session_dock)
         self.toolbar.btn_toggle_right.clicked.connect(self.toggle_controls_dock)
-        self.session_dock.visibilityChanged.connect(self.toolbar.btn_toggle_left.setChecked)
-        self.drawer.visibilityChanged.connect(self.toolbar.btn_toggle_right.setChecked)
-        self.toolbar.btn_toggle_left.setChecked(self.session_dock.isVisible())
-        self.toolbar.btn_toggle_right.setChecked(self.drawer.isVisible())
         self.controller.image_updated.connect(self._on_image_updated)
         self.controller.preview_loaded.connect(self._refresh_image_info)
         self.controller.loading_started.connect(self._on_loading_started)
@@ -753,7 +738,7 @@ class MainWindow(QMainWindow):
         """Updates the canvas HUD corner pills."""
         if not self.state.current_file_path:
             self.canvas.hud.set_zoom_note("")
-            self.canvas.hud.update_info("", "", "", "", "", "")
+            self.canvas.hud.update_info("", "", "", "")
             return
 
         filename = os.path.basename(self.state.current_file_path)
@@ -763,10 +748,7 @@ class MainWindow(QMainWindow):
         mode_str = str(self.state.config.process.process_mode)
         edits_str = f"Edits: {self.state.undo_index}"
 
-        tool_label = self.TOOL_LABELS.get(self.state.active_tool, "")
-        file_pos = frame_position(self.controller.session.asset_model, self.state.selected_file_idx)
-
-        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str, tool_label, file_pos)
+        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str)
 
     def _on_zoom_info_changed(self, zoom: float) -> None:
         self.canvas.hud.set_zoom_note(self.canvas.zoom_note())
@@ -816,7 +798,6 @@ class MainWindow(QMainWindow):
         self.controls_panel.retouch_sidebar.clone_btn.setChecked(mode == ToolMode.CLONE)
 
         self._update_title()
-        self._refresh_image_info()
 
     def dragEnterEvent(self, event) -> None:
         if event.mimeData().hasUrls():
