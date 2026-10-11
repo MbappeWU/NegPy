@@ -17,8 +17,8 @@ from negpy.desktop.view.styles.templates import wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 
 
-def _alpha(hex_color: str, alpha: int) -> QColor:
-    c = QColor(hex_color)
+def _alpha(color: str, alpha: int) -> QColor:
+    c = QColor(color)
     c.setAlpha(alpha)
     return c
 
@@ -28,20 +28,17 @@ _CLIP_THRESH = 0.005  # fraction of pixels considered "clipping"
 
 class PhotometricCurveWidget(QWidget):
     """
-    The Analysis chart: H&D curve with the negative's density histogram on the
-    exposure axis and the print's RGB+L histogram behind the curve, plus pivot,
-    zone shading/ticks, clip marks, hover marker + curve dot, LIN/LOG toggle.
+    The Analysis chart: H&D curve over one bottom band holding the negative's density
+    histogram and the print's RGB+L histogram, plus pivot, zone shading/ticks, clip marks,
+    hover marker + curve dot.
     """
 
     # Data coordinate ranges
     _X_MIN, _X_MAX = -0.1, 1.1  # plt_x domain
     _Y_MIN, _Y_MAX = -0.05, 1.05  # output domain
 
-    # Fraction of the widget height the density histogram may occupy.
+    # Fraction of the widget height the bottom histogram band may occupy.
     _DENSITY_HIST_FRAC = 0.35
-
-    # Emitted when the user flips the in-widget LIN/LOG toggle (True == log).
-    scale_changed = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -65,9 +62,8 @@ class PhotometricCurveWidget(QWidget):
         self._clip_low: dict[int, bool] = {}
         self._clip_high: dict[int, bool] = {}
         self._marker: tuple[int, int, int] | None = None
-        # Hit rectangles for the LIN/LOG toggle, recomputed each paint.
-        self._lin_rect = QRect()
-        self._log_rect = QRect()
+        # Toe and shoulder tints: Color vision's warm/cool pair.
+        self._zone_colors: tuple[str, str] = (THEME.dodge, THEME.burn)
         self._toe_mask: list[float] = []
         self._shoulder_mask: list[float] = []
         self._toe_strength: float = 0.0
@@ -81,7 +77,6 @@ class PhotometricCurveWidget(QWidget):
         self._ghost_pivot: tuple[float, float] | None = None
         # Spot-densitometer tracking dot: hovered pixel's val (None = hidden).
         self._tracking_val: float | None = None
-        self.setMouseTracking(True)
 
     def log_scale(self) -> bool:
         return self._log_scale
@@ -109,6 +104,10 @@ class PhotometricCurveWidget(QWidget):
         if visible == self._show_print:
             return
         self._show_print = visible
+        self.update()
+
+    def set_zone_colors(self, warm: str, cool: str) -> None:
+        self._zone_colors = (warm, cool)
         self.update()
 
     def set_marker(self, rgb: tuple | None) -> None:
@@ -405,17 +404,16 @@ class PhotometricCurveWidget(QWidget):
             for px, py in self._curve_pts[1:]:
                 curve_path.lineTo(self._wx(px, w), self._wy(py, h))
 
-            # P4: toe zone shading. Warm amber, right side, dense silver = shadows
-            self._draw_zone_shading(painter, w, h, self._toe_mask, self._toe_strength, QColor(255, 140, 50))
-
-            # P4: shoulder zone shading. Cool blue, left side, thin silver = highlights
-            self._draw_zone_shading(painter, w, h, self._shoulder_mask, self._shoulder_strength, QColor(60, 130, 255))
+            # Toe tint is warm (dense silver = shadows), shoulder tint cool (thin silver = highlights).
+            warm, cool = QColor(self._zone_colors[0]), QColor(self._zone_colors[1])
+            self._draw_zone_shading(painter, w, h, self._toe_mask, self._toe_strength, warm)
+            self._draw_zone_shading(painter, w, h, self._shoulder_mask, self._shoulder_strength, cool)
 
             # Glow the dragged slider's zone at fixed strength, so it reads at zero and negative values
             if self._active_param in ("toe", "toe_width"):
-                self._draw_zone_shading(painter, w, h, self._toe_mask, 0.5, QColor(255, 140, 50))
+                self._draw_zone_shading(painter, w, h, self._toe_mask, 0.5, warm)
             elif self._active_param in ("shoulder", "shoulder_width"):
-                self._draw_zone_shading(painter, w, h, self._shoulder_mask, 0.5, QColor(60, 130, 255))
+                self._draw_zone_shading(painter, w, h, self._shoulder_mask, 0.5, cool)
 
             # P2: Gradient luminance fill under the curve
             fill_path = QPainterPath(curve_path)
@@ -425,17 +423,13 @@ class PhotometricCurveWidget(QWidget):
             fill_path.closeSubpath()
 
             gradient = QLinearGradient(0.0, 0.0, float(w), 0.0)
-            gradient.setColorAt(0.0, QColor(0, 0, 0, 55))
-            gradient.setColorAt(1.0, QColor(255, 255, 255, 55))
+            gradient.setColorAt(0.0, _alpha(THEME.canvas_bg_black, 55))
+            gradient.setColorAt(1.0, _alpha(THEME.text_on_accent, 55))
             painter.setBrush(QBrush(gradient))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawPath(fill_path)
 
-            # P5: zone tick marks along the bottom (Adams Zone I to IX)
-            painter.setPen(QPen(QColor(THEME.border_hover), 1))
-            for i in range(1, 10):
-                zx = int(self._wx(i * 0.1, w))
-                painter.drawLine(zx, h - 5, zx, h - 1)
+            self._draw_zone_ticks(painter, h)
 
             self._draw_mask_band(painter, w, h)
 
@@ -446,10 +440,10 @@ class PhotometricCurveWidget(QWidget):
                 for px, py in self._ghost_pts[1:]:
                     ghost_path.lineTo(self._wx(px, w), self._wy(py, h))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(QColor(200, 200, 200, 90), 1, Qt.PenStyle.DashLine))
+                painter.setPen(QPen(_alpha(THEME.text_secondary, 90), 1, Qt.PenStyle.DashLine))
                 painter.drawPath(ghost_path)
                 if self._ghost_pivot:
-                    painter.setBrush(QBrush(QColor(200, 200, 200, 90)))
+                    painter.setBrush(QBrush(_alpha(THEME.text_secondary, 90)))
                     painter.setPen(Qt.PenStyle.NoPen)
                     painter.drawEllipse(QPointF(self._wx(self._ghost_pivot[0], w), self._wy(self._ghost_pivot[1], h)), 2.5, 2.5)
 
@@ -474,7 +468,7 @@ class PhotometricCurveWidget(QWidget):
 
                 # Grade and Density act about the pivot, so brighten its crosshair while dragged.
                 cross_alpha = 110 if self._active_param in ("grade", "density") else 45
-                painter.setPen(QPen(QColor(200, 200, 200, cross_alpha), 1, Qt.PenStyle.DotLine))
+                painter.setPen(QPen(_alpha(THEME.text_secondary, cross_alpha), 1, Qt.PenStyle.DotLine))
                 painter.drawLine(int(wpx), 0, int(wpx), h)
                 painter.drawLine(0, int(wpy), w, int(wpy))
 
@@ -489,21 +483,17 @@ class PhotometricCurveWidget(QWidget):
                 idx = max(0, min(len(self._curve_pts) - 1, idx))
                 tx, ty = self._curve_pts[idx]
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(QColor(255, 255, 255, 220), 1.5))
+                painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1.5))
                 painter.drawEllipse(QPointF(self._wx(tx, w), self._wy(ty, h)), 4.0, 4.0)
 
-            # Hovered-pixel marker lines
+            # Hovered-pixel marker lines, on the print histogram's tone scale
             if self._marker is not None:
                 for value, color_hex in zip(self._marker, (THEME.channel_red, THEME.channel_green, THEME.channel_blue)):
-                    c = QColor(color_hex)
-                    c.setAlpha(220)
-                    painter.setPen(QPen(c, 1, Qt.PenStyle.DashLine))
-                    mx = int(value / 255 * (w - 1))
+                    painter.setPen(QPen(_alpha(color_hex, 220), 1, Qt.PenStyle.DashLine))
+                    mx = int(self._wx(value / 255, w))
                     painter.drawLine(mx, 0, mx, h)
 
             self._draw_clip_indicators(painter, w, h)
-
-        self._draw_scale_toggle(painter, w, h)
 
     def _draw_mask_band(self, painter: QPainter, w: int, h: int) -> None:
         """The Contrast Mask's reach: filled between the base curve and the curve a flat
@@ -520,7 +510,7 @@ class PhotometricCurveWidget(QWidget):
         band.closeSubpath()
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(QColor(175, 140, 255, 38)))
+        painter.setBrush(QBrush(_alpha(THEME.chart_mask, 38)))
         painter.drawPath(band)
 
         edge = QPainterPath()
@@ -528,11 +518,12 @@ class PhotometricCurveWidget(QWidget):
         for px, py in self._mask_pts[1:]:
             edge.lineTo(self._wx(px, w), self._wy(py, h))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(QColor(185, 155, 255, 165), 1, Qt.PenStyle.DashLine))
+        painter.setPen(QPen(_alpha(THEME.chart_mask, 165), 1, Qt.PenStyle.DashLine))
         painter.drawPath(edge)
 
     def _draw_output_histogram(self, painter: QPainter, w: int, h: int) -> None:
-        """Output tones, black left → white right — same direction the curve rises."""
+        """Print tones, black left → white right across the plot's 0..1, in the density
+        histogram's bottom band."""
         if self._output_counts is None:
             return
         specs = (
@@ -541,35 +532,43 @@ class PhotometricCurveWidget(QWidget):
             (1, THEME.channel_green, 55, 160),
             (2, THEME.channel_blue, 55, 160),
         )
+        bot = self._wy(self._Y_MIN, h)
+        scale = self._DENSITY_HIST_FRAC * h
         for row, color_hex, alpha_fill, alpha_line in specs:
             data = self._hist_display(row)
             if data is None:
                 continue
-            step = w / (data.size - 1)
+            n = data.size
+            xs = [self._wx((i + 0.5) / n, w) for i in range(n)]
             values = data.tolist()
 
             path = QPainterPath()
-            path.moveTo(0, h)
-            for i, v in enumerate(values):
-                path.lineTo(i * step, h - v * h)
-            path.lineTo(w, h)
+            path.moveTo(xs[0], bot)
+            for x, v in zip(xs, values):
+                path.lineTo(x, bot - v * scale)
+            path.lineTo(xs[-1], bot)
             path.closeSubpath()
-            c_fill = QColor(color_hex)
-            c_fill.setAlpha(alpha_fill)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(c_fill))
+            painter.setBrush(QBrush(_alpha(color_hex, alpha_fill)))
             painter.drawPath(path)
 
             # Open polyline for the outline so the closing edges don't stroke.
             path_line = QPainterPath()
-            path_line.moveTo(0, h - values[0] * h)
-            for i, v in enumerate(values):
-                path_line.lineTo(i * step, h - v * h)
-            c_line = QColor(color_hex)
-            c_line.setAlpha(alpha_line)
+            path_line.moveTo(xs[0], bot - values[0] * scale)
+            for x, v in zip(xs, values):
+                path_line.lineTo(x, bot - v * scale)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(c_line, 1.0))
+            painter.setPen(QPen(_alpha(color_hex, alpha_line), 1.0))
             painter.drawPath(path_line)
+
+    def _draw_zone_ticks(self, painter: QPainter, h: int) -> None:
+        """Zones I–IX on the print axis, on the ruler the zone strip and probe read; V is longer."""
+        from negpy.features.exposure.analysis import encoded_of_zone
+
+        painter.setPen(QPen(QColor(THEME.border_hover), 1))
+        for zone in range(1, 10):
+            zy = int(self._wy(encoded_of_zone(zone), h))
+            painter.drawLine(0, zy, 8 if zone == 5 else 4, zy)
 
     def _draw_clip_indicators(self, painter: QPainter, w: int, h: int) -> None:
         channels = ((0, THEME.channel_red), (1, THEME.channel_green), (2, THEME.channel_blue))
@@ -598,60 +597,6 @@ class PhotometricCurveWidget(QWidget):
                 tri.lineTo(float(w - 3 - size), float(y + size / 2))
                 tri.closeSubpath()
                 painter.fillPath(tri, QBrush(c))
-
-    def _draw_scale_toggle(self, painter: QPainter, w: int, h: int) -> None:
-        seg_w, seg_h = 24, 13
-        margin = 5
-        x0 = w - seg_w * 2 - margin
-        y0 = h - seg_h - margin
-        self._lin_rect = QRect(x0, y0, seg_w, seg_h)
-        self._log_rect = QRect(x0 + seg_w, y0, seg_w, seg_h)
-        outer = QRect(x0, y0, seg_w * 2, seg_h)
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(QColor(10, 10, 10, 200)))
-        painter.drawRoundedRect(outer, 3, 3)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(QColor(THEME.border_color), 1))
-        painter.drawRoundedRect(outer, 3, 3)
-
-        font = QFont()
-        font.setPixelSize(THEME.font_size_micro)
-        font.setBold(True)
-        painter.setFont(font)
-
-        active = QColor(THEME.text_primary)
-        inactive = QColor(THEME.text_muted)
-        highlight = QColor(60, 130, 255, 70)
-
-        if not self._log_scale:
-            painter.fillRect(self._lin_rect.adjusted(1, 1, -1, -1), QBrush(highlight))
-        else:
-            painter.fillRect(self._log_rect.adjusted(1, 1, -1, -1), QBrush(highlight))
-
-        painter.setPen(QPen(active if not self._log_scale else inactive))
-        painter.drawText(self._lin_rect, Qt.AlignmentFlag.AlignCenter, "LIN")
-        painter.setPen(QPen(active if self._log_scale else inactive))
-        painter.drawText(self._log_rect, Qt.AlignmentFlag.AlignCenter, "LOG")
-
-    def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            pos = event.position().toPoint()
-            if self._lin_rect.contains(pos) and self._log_scale:
-                self.set_log_scale(False)
-                self.scale_changed.emit(False)
-                return
-            if self._log_rect.contains(pos) and not self._log_scale:
-                self.set_log_scale(True)
-                self.scale_changed.emit(True)
-                return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event) -> None:
-        pos = event.position().toPoint()
-        over = self._lin_rect.contains(pos) or self._log_rect.contains(pos)
-        self.setCursor(Qt.CursorShape.PointingHandCursor if over else Qt.CursorShape.ArrowCursor)
-        super().mouseMoveEvent(event)
 
     def _draw_density_histogram(self, painter: QPainter, w: int, h: int) -> None:
         """Luma-only merged trace normally; while Peek Negative is up (`_channel_density`),
@@ -846,7 +791,7 @@ class ZoneStripWidget(QWidget):
 
         if self._occ is not None:
             n = len(self._LABELS)
-            font = QFont()
+            font = QFont(self.font())
             font.setPixelSize(THEME.font_size_micro)
             painter.setFont(font)
             shadow_warn, highlight_warn = self._warn
@@ -860,7 +805,7 @@ class ZoneStripWidget(QWidget):
                 if (shadow_warn and i <= 1) or (highlight_warn and i == n - 1):
                     painter.fillRect(x0, 0, x1 - x0, h, _alpha(THEME.clip_warning, 90))
                 armed = i == self._armed
-                painter.setPen(QPen(QColor(THEME.accent_primary) if armed else QColor(130, 130, 130, 160)))
+                painter.setPen(QPen(QColor(THEME.accent_primary) if armed else _alpha(THEME.text_hint, 160)))
                 painter.drawText(QRect(x0, 0, x1 - x0, h), Qt.AlignmentFlag.AlignCenter, self._LABELS[i])
                 if armed:
                     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -961,7 +906,7 @@ class StepWedgeWidget(QWidget):
 
         labelled = range(0, len(self._enc), self._LABEL_EVERY)
         if self.width() / len(labelled) >= self._LABEL_MIN_PX:
-            font = QFont()
+            font = QFont(self.font())
             font.setPixelSize(THEME.font_size_micro)
             painter.setFont(font)
             last = labelled[-1]
@@ -983,7 +928,7 @@ class StepWedgeWidget(QWidget):
                 else:
                     flags |= Qt.AlignmentFlag.AlignHCenter
                 # Flip against the patch: a light label vanishes on paper white, a dark one on black.
-                painter.setPen(QColor(0, 0, 0, 220) if float(self._enc[i]) > 0.5 else QColor(255, 255, 255, 235))
+                painter.setPen(_alpha(THEME.canvas_bg_black, 220) if float(self._enc[i]) > 0.5 else _alpha(THEME.text_on_accent, 235))
                 painter.drawText(box, flags, text)
 
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
@@ -1052,8 +997,7 @@ class MiniHistogramWidget(QWidget):
         if not self._clip_strips:
             return
         if self._clip_low:
-            shadow_color = QColor(80, 140, 220, 180)
-            painter.setBrush(QBrush(shadow_color))
+            painter.setBrush(QBrush(_alpha(THEME.clip_shadow, 180)))
             painter.drawRect(0, 0, 3, h)
         if self._clip_high:
             highlight_color = _alpha(THEME.clip_warning, 180)

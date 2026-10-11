@@ -309,13 +309,15 @@ The crosshair marks the **pivot** that contrast rotates around. A faint **ghost*
 
 #### The two histograms
 
-Behind the curve is the **output histogram** (print tones); along the bottom, the **negative density histogram** (the scan). Contrast cannot separate data on the flat toe: move the exposure onto the steep middle.
+Along the bottom, one band holds both: the gray **negative density histogram** (the scan, on the curve's horizontal axis) and the colored **output histogram** (the print, black left to white right). Contrast cannot separate data on the flat toe: move the exposure onto the steep middle.
+
+Hovering the image draws the pixel's R, G and B print values as dashed lines on the output histogram's scale.
 
 In Peek Negative the density histogram splits into R, G, B and luminance: a spike at an edge is that channel clipping, a trace apart from the others a strong cast.
 
-#### LIN / LOG toggle
+#### Lin / Log
 
-Bottom-right of the chart: the histogram's height axis. **LOG** compresses tall peaks so thin tails show (to find clipping); **LIN** shows the bulk of the frame.
+Under the chart: the histograms' count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame.
 
 #### Clipping triangles
 
@@ -323,7 +325,7 @@ R, G and B triangles in the top corners: **top-left** for crushed shadows, **top
 
 #### Zone shading and zone ticks
 
-The amber wash (left) and blue wash (right) mark the toe and shoulder, where separation is lost. The bottom ticks are Adams zones I to IX.
+The warm wash (left) and cool wash (right) mark the toe and shoulder, where separation is lost; their colors follow **Color vision** in Preferences. The ticks on the left edge are Adams zones I to IX on the print-tone axis, on the same scale as the zone strip; V is the longer one.
 
 #### Step wedge
 
@@ -361,10 +363,10 @@ Rows that measure the scan, not your edit; hover for details. A row with nothing
 
 *   **Negative**: relative density range (luminance) and development character: flat (≈N−1), normal, contrasty (≈N+1). Comparable across a roll; estimated from the normalized bounds, not a densitometer reading.
 *   **Exposure**: midtone in stops from neutral, approximate; positive is high-key, negative low-key.
-*   **Clipping**: share of pixels crushed to black or blown to white, worst channel. Red above 1%.
-*   **Scan clip**: share of source pixels at or above sensor white, per channel. On a negative no edit can recover it: expose the scan lower. Red above 1%.
-*   **Repair**: share of the scan rewritten by IR Restore, dust detection and heals. A large value means the threshold is redrawing the picture. Red above 5%.
-*   **Gamut**: share of the frame the proof profile cannot print, while proofing to one. Zero is normal. Red above 2%.
+*   **Clipping**: share of pixels crushed to black or blown to white, worst channel. Amber above 1%.
+*   **Scan clip**: share of source pixels at or above sensor white, per channel. On a negative no edit can recover it: expose the scan lower. Amber above 1%.
+*   **Repair**: share of the scan rewritten by IR Restore, dust detection and heals. A large value means the threshold is redrawing the picture. Amber above 5%.
+*   **Gamut**: share of the frame the proof profile cannot print, while proofing to one. Zero is normal. Amber above 2%.
 
 ---
 

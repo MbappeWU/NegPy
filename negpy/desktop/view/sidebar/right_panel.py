@@ -5,6 +5,7 @@ from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QApplication,
+    QHBoxLayout,
     QPushButton,
     QScrollArea,
     QSplitter,
@@ -20,6 +21,7 @@ from negpy.desktop.view.sidebar.export import ExportSidebar
 from negpy.desktop.view.sidebar.favourites import FavouritesSidebar
 from negpy.desktop.view.sidebar.history import HistoryPanel
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.fonts import ui_font_family
 from negpy.desktop.view.styles.templates import EditedDot
 from negpy.desktop.view.styles.theme import THEME
@@ -171,7 +173,8 @@ class RightPanel(QWidget):
 
         analysis_content = QWidget()
         analysis_layout = QVBoxLayout(analysis_content)
-        analysis_layout.setContentsMargins(5, 5, 5, 5)
+        analysis_layout.setContentsMargins(0, THEME.space_sm, 0, THEME.space_sm)
+        analysis_layout.setSpacing(THEME.space_sm)
 
         self.curve_widget = PhotometricCurveWidget()
         self.step_wedge = StepWedgeWidget()
@@ -183,10 +186,23 @@ class RightPanel(QWidget):
         self._clip_fracs: tuple = (None, None)
 
         repo = self.controller.session.repo
-        self.curve_widget.set_log_scale(bool(repo.get_global_setting("histogram_log_scale")))
-        self.curve_widget.scale_changed.connect(lambda enabled: repo.save_global_setting("histogram_log_scale", bool(enabled)))
+        self.scale_btn = SegmentedChoice(
+            (("", "Lin"), ("", "Log")),
+            "Histogram count scale. Log lifts small counts so thin tails and clipped ends read.",
+        )
+        self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
+        self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
+        self.scale_btn.currentChanged.connect(self._on_histogram_scale)
+        self._sync_chart_colors()
+        self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
+
+        chart_row = QHBoxLayout()
+        chart_row.setContentsMargins(0, 0, 0, 0)
+        chart_row.addStretch(1)
+        chart_row.addWidget(self.scale_btn)
 
         analysis_layout.addWidget(self.curve_widget, 1)
+        analysis_layout.addLayout(chart_row)
         analysis_layout.addWidget(self.step_wedge, 0)
         analysis_layout.addWidget(self.zone_strip, 0)
         analysis_layout.addWidget(self.probe_row, 0)
@@ -481,6 +497,13 @@ class RightPanel(QWidget):
         self.export_sidebar.apply_shortcut_tooltips()
         self.gear_panel.apply_shortcut_tooltips()
         self.scanlight_sidebar.lv_window.apply_shortcut_tooltips()
+
+    def _on_histogram_scale(self, index: int) -> None:
+        self.curve_widget.set_log_scale(index == 1)
+        self.controller.session.repo.save_global_setting("histogram_log_scale", index == 1)
+
+    def _sync_chart_colors(self) -> None:
+        self.curve_widget.set_zone_colors(*palette_for(self.controller.state.color_vision).dodge_burn)
 
     def _refresh_zone_strip_hint(self) -> None:
         self.zone_strip.set_overlay_hint(tooltip_with_shortcut("Double-click: Zone Overlay on or off", "toggle_zones"))

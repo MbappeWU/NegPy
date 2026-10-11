@@ -483,7 +483,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             SEEING,
             "The Analysis Readout",
             "The densitometer above the tabs: an <b>H&amp;D chart</b> with this frame on the paper curve, "
-            "histograms with clip marks, and a strip of Zones 0 to X. <b>Probe</b> reads the density "
+            "histograms with clip marks, and a strip of print zones. <b>Probe</b> reads the density "
             "under the cursor.",
             lambda w: rp(w).analysis_section,
             guide=("analysis", "Analysis"),
