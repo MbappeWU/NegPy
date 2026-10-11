@@ -251,6 +251,9 @@ class RightPanel(QWidget):
         self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
         self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
         self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
+        self.zone_highlight_btn = self.analysis_section.add_header_toggle("fa5s.highlighter", "Zone Highlight")
+        self.zone_highlight_btn.setChecked(self.controller.state.zone_hover_highlight)
+        self.zone_highlight_btn.toggled.connect(self.controller.toggle_zone_hover_highlight)
         self._refresh_zone_strip_hint()
         analysis_expanded = self.analysis_section.toggle_button.isChecked()
 
@@ -542,6 +545,11 @@ class RightPanel(QWidget):
         self.clipping_btn.setChecked(on)
         self.clipping_btn.blockSignals(False)
 
+    def _sync_zone_highlight_btn(self, on: bool) -> None:
+        self.zone_highlight_btn.blockSignals(True)
+        self.zone_highlight_btn.setChecked(on)
+        self.zone_highlight_btn.blockSignals(False)
+
     def _on_pixel_readout(self, readout) -> None:
         """Marks the hovered pixel on the waveform (its column and tone) and the vectorscope (its a*b*)."""
         if readout is None:
@@ -605,6 +613,11 @@ class RightPanel(QWidget):
                 "toggle_clipping_overlay",
             )
         )
+        self.zone_highlight_btn.setToolTip(
+            tooltip_with_shortcut(
+                "Zone Highlight: hover a zone strip cell to light up its pixels on the frame", "toggle_zone_hover_highlight"
+            )
+        )
 
     def _connect_signals(self) -> None:
         self.controller.image_updated.connect(self._update_analysis)
@@ -617,6 +630,7 @@ class RightPanel(QWidget):
         self.zone_strip.zone_double_clicked.connect(self.controller.toggle_zones_overlay)
         self.zone_strip.zone_hovered.connect(self.controller.set_zone_highlight)
         self.controller.clipping_overlay_changed.connect(self._sync_clipping_btn)
+        self.controller.zone_hover_highlight_changed.connect(self._sync_zone_highlight_btn)
         self.zone_placement.target_changed.connect(self.controller.set_zone_pin_target)
         self.zone_placement.apply_clicked.connect(self.controller.apply_zone_placement)
         self.zone_placement.remove_clicked.connect(self.controller.remove_zone_pin)
