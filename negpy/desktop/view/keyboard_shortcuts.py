@@ -493,6 +493,7 @@ class ShortcutManager:
             "toggle_zones": controller.toggle_zones_overlay,
             "toggle_clipping_overlay": controller.toggle_clipping_overlay,
             "toggle_zone_hover_highlight": controller.toggle_zone_hover_highlight,
+            "toggle_parade_overlay": lambda: right.parade_overlay_btn.toggle(),
             "toggle_test_strip": controller.toggle_test_strip,
             "toggle_pick_better": controller.toggle_pick_better,
             "finish_pick_better": controller.pick_better_finish,
