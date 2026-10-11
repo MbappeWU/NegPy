@@ -315,9 +315,13 @@ Hovering the image draws the pixel's R, G and B print values as dashed lines on 
 
 In Peek Negative the density histogram splits into R, G, B and luminance: a spike at an edge is that channel clipping, a trace apart from the others a strong cast.
 
+#### Curve / Waveform
+
+Under the chart, left: which chart fills the space. **Curve** is the paper curve with its histograms, described above. **Waveform** plots the print's tones across the frame: left to right is the picture's width, height is print tone, and brightness is how many pixels of that column print there. Dashed lines mark zones III, V and VII; a red tick on the bottom or top edge marks a column that reaches paper black or paper white.
+
 #### Lin / Log
 
-Under the chart: the histograms' count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame.
+Under the chart, right: the histograms' and the waveform's count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame.
 
 #### Clipping triangles
 

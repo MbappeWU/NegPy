@@ -21,6 +21,11 @@ OUTPUT_HIST_BINS = 256
 # which is what the marginal RGBL histogram cannot answer.
 COLOR_HIST_BINS = 32
 
+# Waveform: print luma per image column, (bins, cols) with row 0 = black. Mirrored as the
+# array length and constants in waveform.wgsl.
+WAVEFORM_COLS = 256
+WAVEFORM_BINS = 128
+
 # Full-res exports run through the same normalization stage, so cap the cost.
 _MAX_HIST_SAMPLES = 2_000_000
 
@@ -78,6 +83,25 @@ def gamut_fraction(color_hist: Any, out_of_gamut: Any) -> Optional[float]:
         return None
     total = float(hist.sum())
     return float(hist[mask].sum() / total) if total > 0 else None
+
+
+def waveform(buffer: Any) -> Optional[np.ndarray]:
+    """(WAVEFORM_BINS, WAVEFORM_COLS) luma counts per image column of an H×W×3 encoded
+    buffer. CPU counterpart of waveform.wgsl."""
+    if buffer is None:
+        return None
+    buffer = np.asarray(buffer)
+    if buffer.ndim != 3 or buffer.shape[-1] < 3 or min(buffer.shape[:2]) < 1:
+        return None
+    step = max(1, round(np.sqrt(buffer.shape[0] * buffer.shape[1] / _MAX_HIST_SAMPLES)))
+    if step > 1:
+        buffer = buffer[::step, ::step]
+    lum = get_luminance(np.ascontiguousarray(buffer[..., :3], dtype=np.float32))
+    h, w = lum.shape
+    cols = np.minimum(np.arange(w) * WAVEFORM_COLS // w, WAVEFORM_COLS - 1)
+    bins = np.clip((np.nan_to_num(lum) * WAVEFORM_BINS).astype(np.int32), 0, WAVEFORM_BINS - 1)
+    flat = bins * WAVEFORM_COLS + cols[None, :]
+    return np.bincount(flat.ravel(), minlength=WAVEFORM_BINS * WAVEFORM_COLS).reshape(WAVEFORM_BINS, WAVEFORM_COLS).astype(float)
 
 
 def output_clip_fractions(bins: np.ndarray) -> Tuple[float, float]:

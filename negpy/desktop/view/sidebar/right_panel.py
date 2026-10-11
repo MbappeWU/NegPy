@@ -26,7 +26,7 @@ from negpy.desktop.view.styles.fonts import ui_font_family
 from negpy.desktop.view.styles.templates import EditedDot
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
-from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, ZoneStripWidget
+from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, WaveformWidget, ZoneStripWidget
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
@@ -177,6 +177,7 @@ class RightPanel(QWidget):
         analysis_layout.setSpacing(THEME.space_sm)
 
         self.curve_widget = PhotometricCurveWidget()
+        self.waveform_widget = WaveformWidget()
         self.step_wedge = StepWedgeWidget()
         self.zone_strip = ZoneStripWidget()
         self.probe_row = DensitometerRow()
@@ -191,16 +192,32 @@ class RightPanel(QWidget):
         )
         self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
         self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
+        self.waveform_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
         self.scale_btn.currentChanged.connect(self._on_histogram_scale)
         self._sync_chart_colors()
         self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
 
+        self.chart_stack = QStackedWidget()
+        self.chart_stack.addWidget(self.curve_widget)
+        self.chart_stack.addWidget(self.waveform_widget)
+        self.view_btn = SegmentedChoice(
+            (("", "Curve"), ("", "Waveform")),
+            "Analysis chart",
+            data=("curve", "waveform"),
+        )
+        self.view_btn.set_choice_tooltip(0, "The paper curve over the scan's and the print's histograms")
+        self.view_btn.set_choice_tooltip(1, "The print's tones across the frame, column by column, on the zone scale")
+        self.view_btn.currentChanged.connect(self._on_analysis_view)
+        saved_view = self.view_btn.findData(repo.get_global_setting("analysis_view", "curve"))
+        self.view_btn.setCurrentIndex(max(0, saved_view))
+
         chart_row = QHBoxLayout()
         chart_row.setContentsMargins(0, 0, 0, 0)
+        chart_row.addWidget(self.view_btn)
         chart_row.addStretch(1)
         chart_row.addWidget(self.scale_btn)
 
-        analysis_layout.addWidget(self.curve_widget, 1)
+        analysis_layout.addWidget(self.chart_stack, 1)
         analysis_layout.addLayout(chart_row)
         analysis_layout.addWidget(self.step_wedge, 0)
         analysis_layout.addWidget(self.zone_strip, 0)
@@ -506,8 +523,16 @@ class RightPanel(QWidget):
         self.clipping_btn.setChecked(on)
         self.clipping_btn.blockSignals(False)
 
+    def _on_analysis_view(self, index: int) -> None:
+        self.chart_stack.setCurrentIndex(index)
+        self.controller.session.repo.save_global_setting("analysis_view", self.view_btn.currentData())
+
+    def set_analysis_view(self, key: str) -> None:
+        self.view_btn.setCurrentIndex(max(0, self.view_btn.findData(key)))
+
     def _on_histogram_scale(self, index: int) -> None:
         self.curve_widget.set_log_scale(index == 1)
+        self.waveform_widget.set_log_scale(index == 1)
         self.controller.session.repo.save_global_setting("histogram_log_scale", index == 1)
 
     def _sync_chart_colors(self) -> None:
@@ -684,6 +709,9 @@ class RightPanel(QWidget):
         )
 
         self.curve_widget.set_density_histogram(metrics.get("histogram_density"))
+        # A peek renders without metrics, so the last print's waveform would describe the wrong image.
+        peeking = self.controller.state.negative_peek or self.controller.state.flat_peek
+        self.waveform_widget.set_data(None if peeking else metrics.get("waveform"))
 
         # Peek Negative applied no curve, so the print histogram, curve and zone strip
         # would describe a print that was never made. Density is unaffected: it reads

@@ -6,6 +6,7 @@ from PyQt6.QtGui import (
     QBrush,
     QColor,
     QFont,
+    QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
@@ -686,6 +687,83 @@ class PhotometricCurveWidget(QWidget):
             c = QColor(color)
             c.setAlpha(alpha)
             painter.fillPath(strip, QBrush(c))
+
+
+class WaveformWidget(QWidget):
+    """Print luma across the frame: x is the image column, y the print tone, brightness how
+    many pixels sit there. Zone lines III, V and VII on the zone ruler; columns that reach
+    paper black or paper white are marked on the bottom and top edges."""
+
+    _GUIDE_ZONES = ((3, "III"), (5, "V"), (7, "VII"))
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMinimumHeight(40)
+        self._counts: np.ndarray | None = None
+        self._log_scale = False
+        self._image: QImage | None = None
+
+    def set_log_scale(self, enabled: bool) -> None:
+        if bool(enabled) != self._log_scale:
+            self._log_scale = bool(enabled)
+            self._image = None
+            self.update()
+
+    def set_data(self, counts: Any) -> None:
+        """(bins, cols) counts, bin 0 = black; None clears."""
+        if counts is not None:
+            counts = np.asarray(counts, dtype=float)
+            if counts.ndim != 2 or float(counts.max()) <= 0.0:
+                counts = None
+        if counts is None and self._counts is None:
+            return
+        self._counts = counts
+        self._image = None
+        self.update()
+
+    def _trace_image(self) -> QImage | None:
+        if self._image is None and self._counts is not None:
+            vals = np.log1p(self._counts) if self._log_scale else self._counts
+            # A flat area piles into a few bins; scaling by their peak would leave every other trace black.
+            ref = float(np.percentile(vals[vals > 0], 99))
+            gray = np.ascontiguousarray(np.flipud(np.clip(vals / ref, 0.0, 1.0) * 255.0).astype(np.uint8))
+            h, w = gray.shape
+            self._image = QImage(gray.data, w, h, w, QImage.Format.Format_Grayscale8).copy()
+        return self._image
+
+    def paintEvent(self, event) -> None:
+        from negpy.features.exposure.analysis import encoded_of_zone
+
+        painter = QPainter(self)
+        w, h = self.width(), self.height()
+        painter.fillRect(self.rect(), QColor(THEME.canvas_bg_black))
+
+        image = self._trace_image()
+        counts = self._counts
+        if image is not None and counts is not None:
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            painter.drawImage(QRect(0, 0, w, h), image)
+
+            cols = counts.shape[1]
+            painter.setPen(QPen(QColor(THEME.clip_warning), 2))
+            for row, y in ((0, h - 3), (-1, 2)):
+                for c in np.flatnonzero(counts[row]).tolist():
+                    painter.drawLine(int(c * w / cols), y, int((c + 1) * w / cols), y)
+
+        font = QFont(self.font())
+        font.setPixelSize(THEME.font_size_micro)
+        painter.setFont(font)
+        for zone, label in self._GUIDE_ZONES:
+            y = int(h - encoded_of_zone(zone) * h)
+            painter.setPen(QPen(_alpha(THEME.border_hover, 200), 1, Qt.PenStyle.DashLine))
+            painter.drawLine(0, y, w, y)
+            painter.setPen(_alpha(THEME.text_hint, 200))
+            painter.drawText(QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label)
+
+        painter.setPen(QPen(QColor(THEME.border_primary), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
 
 class ZoneStripWidget(QWidget):
