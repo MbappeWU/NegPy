@@ -513,6 +513,7 @@ class AppController(QObject):
     batch_progress = pyqtSignal(int, int, str)  # current, total, label
     batch_finished = pyqtSignal()
     pixel_readout_rgb = pyqtSignal(object)  # (r255, g255, b255) tuple or None
+    pixel_readout = pyqtSignal(object)  # (nx, ny, (r, g, b)) content-normalized, display-encoded 0..1; or None
     densitometer_readout = pyqtSignal(object)  # DensitometerReading or None
     tone_drag_changed = pyqtSignal(str)  # exposure field being slider-dragged; "" = drag ended
     local_drag_changed = pyqtSignal(bool)  # a selected-mask slider is under the mouse
@@ -813,6 +814,7 @@ class AppController(QObject):
         self._pending_cursor_nx = None
         self._pending_cursor_ny = None
         self.pixel_readout_rgb.emit(None)
+        self.pixel_readout.emit(None)
         self.densitometer_readout.emit(None)
 
     def _emit_pixel_readout(self) -> None:
@@ -827,6 +829,7 @@ class AppController(QObject):
         g255 = int(round(max(0.0, min(1.0, g)) * 255))
         b255 = int(round(max(0.0, min(1.0, b)) * 255))
         self.pixel_readout_rgb.emit((r255, g255, b255))
+        self.pixel_readout.emit((nx, ny, (r, g, b)))
         self.densitometer_readout.emit(self._compute_densitometer_reading(nx, ny, rgb))
 
     def _compute_densitometer_reading(self, nx: float, ny: float, display_rgb: tuple) -> Optional[Any]:

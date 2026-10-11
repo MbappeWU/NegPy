@@ -531,6 +531,19 @@ class RightPanel(QWidget):
         self.clipping_btn.setChecked(on)
         self.clipping_btn.blockSignals(False)
 
+    def _on_pixel_readout(self, readout) -> None:
+        """Marks the hovered pixel on the waveform (its column and tone) and the vectorscope (its a*b*)."""
+        if readout is None:
+            self.waveform_widget.set_marker(None)
+            self.vectorscope_widget.set_marker(None)
+            return
+        from negpy.features.exposure.analysis import scope_point
+
+        nx, _ny, rgb = readout
+        luma, a, b = scope_point(rgb)
+        self.waveform_widget.set_marker((min(max(nx, 0.0), 1.0), luma))
+        self.vectorscope_widget.set_marker((a, b))
+
     def _on_analysis_view(self, index: int) -> None:
         self.chart_stack.setCurrentIndex(index)
         self.controller.session.repo.save_global_setting("analysis_view", self.view_btn.currentData())
@@ -585,6 +598,7 @@ class RightPanel(QWidget):
     def _connect_signals(self) -> None:
         self.controller.image_updated.connect(self._update_analysis)
         self.controller.pixel_readout_rgb.connect(self.curve_widget.set_marker)
+        self.controller.pixel_readout.connect(self._on_pixel_readout)
         self.controller.densitometer_readout.connect(self._on_densitometer)
         self.controller.zone_pins_changed.connect(self._refresh_zone_placement)
         self.zone_strip.zone_clicked.connect(lambda zone: self.controller.arm_zone_target(float(zone)))

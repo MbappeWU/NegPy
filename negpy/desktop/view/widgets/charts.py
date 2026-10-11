@@ -27,6 +27,15 @@ def _alpha(color: str, alpha: int) -> QColor:
 _CLIP_THRESH = 0.005  # fraction of pixels considered "clipping"
 
 
+def _draw_hover_ring(painter: QPainter, at: QPointF) -> None:
+    """The hovered pixel's mark on a scope: the curve's tracking ring over a dark halo, so it holds over a bright trace."""
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.setPen(QPen(_alpha(THEME.canvas_bg_black, 200), 3.5))
+    painter.drawEllipse(at, 4.0, 4.0)
+    painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1.5))
+    painter.drawEllipse(at, 4.0, 4.0)
+
+
 class PhotometricCurveWidget(QWidget):
     """
     The Analysis chart: H&D curve over one bottom band holding the negative's density
@@ -703,11 +712,18 @@ class WaveformWidget(QWidget):
         self._counts: np.ndarray | None = None
         self._log_scale = False
         self._image: QImage | None = None
+        self._marker: tuple[float, float] | None = None
 
     def set_log_scale(self, enabled: bool) -> None:
         if bool(enabled) != self._log_scale:
             self._log_scale = bool(enabled)
             self._image = None
+            self.update()
+
+    def set_marker(self, point: tuple[float, float] | None) -> None:
+        """The hovered pixel as (column 0..1 across the frame, print luma 0..1); None hides."""
+        if point != self._marker:
+            self._marker = point
             self.update()
 
     def set_data(self, counts: Any) -> None:
@@ -761,6 +777,14 @@ class WaveformWidget(QWidget):
             painter.setPen(_alpha(THEME.text_hint, 200))
             painter.drawText(QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label)
 
+        if self._marker is not None and counts is not None:
+            # Kept a ring's width inside the frame, so an edge column's mark is not cut in half.
+            mx = min(max(self._marker[0] * w, 5.0), w - 5.0)
+            my = min(max(h - self._marker[1] * h, 5.0), h - 5.0)
+            painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
+            painter.drawLine(QPointF(mx, 0), QPointF(mx, h))
+            _draw_hover_ring(painter, QPointF(mx, my))
+
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
@@ -785,6 +809,13 @@ class VectorscopeWidget(QWidget):
         self._image: QImage | None = None
         self._hues: dict[bool, np.ndarray] = {}
         self._ticks: list[tuple[str, float]] = []
+        self._marker: tuple[float, float] | None = None
+
+    def set_marker(self, ab: tuple[float, float] | None) -> None:
+        """The hovered pixel's (a*, b*); None hides."""
+        if ab != self._marker:
+            self._marker = ab
+            self.update()
 
     def set_log_scale(self, enabled: bool) -> None:
         if bool(enabled) != self._log_scale:
@@ -886,6 +917,15 @@ class VectorscopeWidget(QWidget):
             )
             lx, ly = center.x() + cos * (rim + 8), center.y() - sin * (rim + 8)
             painter.drawText(QRectF(lx - 6, ly - 6, 12, 12), Qt.AlignmentFlag.AlignCenter, label)
+
+        if self._marker is not None and self._counts is not None:
+            a, b = self._marker
+            r = min(float(scope_radius(float(np.hypot(a, b)), self._log_scale)), 1.0) * rim
+            angle = float(np.arctan2(b, a))
+            spot = QPointF(center.x() + np.cos(angle) * r, center.y() - np.sin(angle) * r)
+            painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
+            painter.drawLine(center, spot)
+            _draw_hover_ring(painter, spot)
 
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)

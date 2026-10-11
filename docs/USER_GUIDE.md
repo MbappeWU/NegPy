@@ -321,6 +321,8 @@ Under the chart, left: which chart fills the space. **Curve** is the paper curve
 
 **Vectorscope** plots the print's colors on the CIELAB a\*b\* plane: neutral at the center cross, chroma growing outward, each spot drawn in its own hue and brighter where more pixels sit. Dashed rings mark chroma 5, 20 and 40; rim letters mark the R, Y, G, C, B and M directions. On a color frame, a cluster off the center is a cast. On a toned B&W print, a toner draws one arm toward its hue, and a split tone two.
 
+Hovering the image rings the pixel under the cursor on both: its column and print tone on the Waveform, its color on the Vectorscope.
+
 #### Lin / Log
 
 Under the chart, right: the histograms' and the waveform's count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame. On the Vectorscope it is the chroma scale instead, remembered separately for B&W and color frames: **Log** (the B&W default) opens up the near-neutral center where a toner sits, **Lin** (the color default) keeps a color frame's spread in proportion.

@@ -155,6 +155,14 @@ def vectorscope_histogram(buffer: Any) -> Optional[np.ndarray]:
     return counts.reshape(SCOPE_HUE_BINS, SCOPE_CHROMA_BINS).astype(float)
 
 
+def scope_point(rgb: Sequence[float]) -> Tuple[float, float, float]:
+    """(luma, a*, b*) of one display-encoded pixel: where it lands on the waveform and the vectorscope."""
+    encoded = np.clip(np.asarray([rgb], dtype=np.float32), 0.0, 1.0)
+    luma = float(get_luminance(encoded)[0])
+    lab = rgb_to_lab_working(np.asarray(working_oetf_decode(encoded)))[0]
+    return luma, float(lab[1]), float(lab[2])
+
+
 @lru_cache(maxsize=4)
 def _scope_lookup(size: int, log: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Polar bin of each display pixel (-1 outside the disc), each bin's pixel count, and for
