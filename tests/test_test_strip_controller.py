@@ -454,6 +454,22 @@ class TestStripLifecycle(unittest.TestCase):
         self.controller.request_render()
         self.assertTrue(self.controller.state.grain_focuser)
 
+    def test_the_clipping_overlay_and_zone_highlight_never_render(self):
+        clip: list = []
+        highlight: list = []
+        self.controller.clipping_overlay_changed.connect(clip.append)
+        self.controller.zone_highlight_changed.connect(lambda: highlight.append(self.controller.state.zone_highlight))
+
+        self.controller.toggle_clipping_overlay()
+        self.controller.toggle_clipping_overlay(force=True)
+        self.controller.set_zone_highlight(4)
+        self.controller.set_zone_highlight(4)  # same zone: no repaint
+        self.controller.set_zone_highlight(None)
+
+        self.assertEqual(clip, [True, True])
+        self.assertEqual(highlight, [4, None])
+        self.assertEqual(self.strip_tasks, [])
+
 
 if __name__ == "__main__":
     unittest.main()

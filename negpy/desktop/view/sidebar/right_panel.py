@@ -5,6 +5,7 @@ from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QApplication,
+    QHBoxLayout,
     QPushButton,
     QScrollArea,
     QSplitter,
@@ -20,16 +21,18 @@ from negpy.desktop.view.sidebar.export import ExportSidebar
 from negpy.desktop.view.sidebar.favourites import FavouritesSidebar
 from negpy.desktop.view.sidebar.history import HistoryPanel
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.fonts import ui_font_family
 from negpy.desktop.view.styles.templates import EditedDot
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
-from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, ZoneStripWidget
+from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
 from negpy.desktop.view.widgets.tab_header import TabHeader
 from negpy.desktop.settings_catalog import rows_for_fields
+from negpy.features.process.models import ProcessMode
 from negpy.services.assets.rolls import card_fields
 from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
@@ -182,22 +185,59 @@ class RightPanel(QWidget):
 
         analysis_content = QWidget()
         analysis_layout = QVBoxLayout(analysis_content)
-        analysis_layout.setContentsMargins(5, 5, 5, 5)
+        analysis_layout.setContentsMargins(0, THEME.space_sm, 0, THEME.space_sm)
+        analysis_layout.setSpacing(THEME.space_sm)
 
         self.curve_widget = PhotometricCurveWidget()
+        self.waveform_widget = WaveformWidget()
+        self.vectorscope_widget = VectorscopeWidget()
         self.step_wedge = StepWedgeWidget()
         self.zone_strip = ZoneStripWidget()
-        self._refresh_zone_strip_hint()
         self.probe_row = DensitometerRow()
         self.zone_placement = ZonePlacementRows()
         self.stats_widget = NegativeStatsWidget()
         self._clip_fracs: tuple = (None, None)
 
         repo = self.controller.session.repo
-        self.curve_widget.set_log_scale(bool(repo.get_global_setting("histogram_log_scale")))
-        self.curve_widget.scale_changed.connect(lambda enabled: repo.save_global_setting("histogram_log_scale", bool(enabled)))
+        self.scale_btn = SegmentedChoice(
+            (("", "Lin"), ("", "Log")),
+            "Histogram and waveform count scale: Log lifts small counts so thin tails and clipped ends "
+            "read. On the Vectorscope it is the chroma scale, kept apart for B&W and color frames: Log "
+            "opens up the near-neutral center, where a toner lives.",
+        )
+        self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
+        self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
+        self.waveform_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
+        self.scale_btn.currentChanged.connect(self._on_histogram_scale)
+        self._sync_chart_colors()
+        self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
 
-        analysis_layout.addWidget(self.curve_widget, 1)
+        self.chart_stack = QStackedWidget()
+        self.chart_stack.addWidget(self.curve_widget)
+        self.chart_stack.addWidget(self.waveform_widget)
+        self.chart_stack.addWidget(self.vectorscope_widget)
+        self.view_btn = SegmentedChoice(
+            (("", "Curve"), ("", "Waveform"), ("", "Vectorscope")),
+            "Analysis chart",
+            data=("curve", "waveform", "vectorscope"),
+        )
+        self.view_btn.set_choice_tooltip(0, "The paper curve over the scan's and the print's histograms")
+        self.view_btn.set_choice_tooltip(1, "The print's tones across the frame, column by column, on the zone scale")
+        self.view_btn.set_choice_tooltip(2, "The print's colors on the a*b* plane: a cast, a toner, a split tone")
+        self.view_btn.currentChanged.connect(self._on_analysis_view)
+        saved_view = self.view_btn.findData(repo.get_global_setting("analysis_view", "curve"))
+        self.view_btn.setCurrentIndex(max(0, saved_view))
+        self.chart_stack.setCurrentIndex(self.view_btn.currentIndex())
+        self._sync_scale_btn()
+
+        chart_row = QHBoxLayout()
+        chart_row.setContentsMargins(0, 0, 0, 0)
+        chart_row.addWidget(self.view_btn)
+        chart_row.addStretch(1)
+        chart_row.addWidget(self.scale_btn)
+
+        analysis_layout.addWidget(self.chart_stack, 1)
+        analysis_layout.addLayout(chart_row)
         analysis_layout.addWidget(self.step_wedge, 0)
         analysis_layout.addWidget(self.zone_strip, 0)
         analysis_layout.addWidget(self.probe_row, 0)
@@ -208,6 +248,10 @@ class RightPanel(QWidget):
         self.analysis_section = make_section(
             repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", THEME.sidebar_expanded_defaults["analysis"]
         )
+        self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
+        self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
+        self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
+        self._refresh_zone_strip_hint()
         analysis_expanded = self.analysis_section.toggle_button.isChecked()
 
         # Tab content widgets
@@ -493,17 +537,86 @@ class RightPanel(QWidget):
         self.gear_panel.apply_shortcut_tooltips()
         self.scanlight_sidebar.lv_window.apply_shortcut_tooltips()
 
+    def _sync_clipping_btn(self, on: bool) -> None:
+        self.clipping_btn.blockSignals(True)
+        self.clipping_btn.setChecked(on)
+        self.clipping_btn.blockSignals(False)
+
+    def _on_pixel_readout(self, readout) -> None:
+        """Marks the hovered pixel on the waveform (its column and tone) and the vectorscope (its a*b*)."""
+        if readout is None:
+            self.waveform_widget.set_marker(None)
+            self.vectorscope_widget.set_marker(None)
+            return
+        from negpy.features.exposure.analysis import scope_point
+
+        nx, _ny, rgb = readout
+        luma, a, b = scope_point(rgb)
+        self.waveform_widget.set_marker((min(max(nx, 0.0), 1.0), luma))
+        self.vectorscope_widget.set_marker((a, b))
+
+    def _on_analysis_view(self, index: int) -> None:
+        self.chart_stack.setCurrentIndex(index)
+        self.controller.session.repo.save_global_setting("analysis_view", self.view_btn.currentData())
+        self._sync_scale_btn()
+
+    def _scope_scale_key(self) -> str:
+        bw = self.controller.state.config.process.process_mode == ProcessMode.BW
+        return "vectorscope_log_bw" if bw else "vectorscope_log_color"
+
+    def _scope_log(self) -> bool:
+        # Toned B&W sits within a few units of neutral, color frames spread far past it.
+        key = self._scope_scale_key()
+        return bool(self.controller.session.repo.get_global_setting(key, key == "vectorscope_log_bw"))
+
+    def _sync_scale_btn(self) -> None:
+        """Lin/Log shows the visible chart's own scale: the histograms' one, or the vectorscope's for this film mode."""
+        scope_log = self._scope_log()
+        self.vectorscope_widget.set_log_scale(scope_log)
+        if self.view_btn.currentData() == "vectorscope":
+            log = scope_log
+        else:
+            log = bool(self.controller.session.repo.get_global_setting("histogram_log_scale"))
+        self.scale_btn.blockSignals(True)
+        self.scale_btn.setCurrentIndex(1 if log else 0)
+        self.scale_btn.blockSignals(False)
+
+    def set_analysis_view(self, key: str) -> None:
+        self.view_btn.setCurrentIndex(max(0, self.view_btn.findData(key)))
+
+    def _on_histogram_scale(self, index: int) -> None:
+        log = index == 1
+        if self.view_btn.currentData() == "vectorscope":
+            self.vectorscope_widget.set_log_scale(log)
+            self.controller.session.repo.save_global_setting(self._scope_scale_key(), log)
+            return
+        self.curve_widget.set_log_scale(log)
+        self.waveform_widget.set_log_scale(log)
+        self.controller.session.repo.save_global_setting("histogram_log_scale", log)
+
+    def _sync_chart_colors(self) -> None:
+        self.curve_widget.set_zone_colors(*palette_for(self.controller.state.color_vision).dodge_burn)
+
     def _refresh_zone_strip_hint(self) -> None:
         self.zone_strip.set_overlay_hint(tooltip_with_shortcut("Double-click: Zone Overlay on or off", "toggle_zones"))
+        self.clipping_btn.setToolTip(
+            tooltip_with_shortcut(
+                "Clipping Overlay: mark the pixels that print as paper black or paper white, in the Color vision pair (Preferences)",
+                "toggle_clipping_overlay",
+            )
+        )
 
     def _connect_signals(self) -> None:
         self.controller.image_updated.connect(self._update_analysis)
         self.controller.pixel_readout_rgb.connect(self.curve_widget.set_marker)
+        self.controller.pixel_readout.connect(self._on_pixel_readout)
         self.controller.densitometer_readout.connect(self._on_densitometer)
         self.controller.zone_pins_changed.connect(self._refresh_zone_placement)
         self.zone_strip.zone_clicked.connect(lambda zone: self.controller.arm_zone_target(float(zone)))
         self.controller.zone_arm_changed.connect(lambda zone: self.zone_strip.set_armed(None if zone is None else int(zone)))
         self.zone_strip.zone_double_clicked.connect(self.controller.toggle_zones_overlay)
+        self.zone_strip.zone_hovered.connect(self.controller.set_zone_highlight)
+        self.controller.clipping_overlay_changed.connect(self._sync_clipping_btn)
         self.zone_placement.target_changed.connect(self.controller.set_zone_pin_target)
         self.zone_placement.apply_clicked.connect(self.controller.apply_zone_placement)
         self.zone_placement.remove_clicked.connect(self.controller.remove_zone_pin)
@@ -656,6 +769,10 @@ class RightPanel(QWidget):
         )
 
         self.curve_widget.set_density_histogram(metrics.get("histogram_density"))
+        # A peek renders without metrics, so the last print's waveform would describe the wrong image.
+        peeking = self.controller.state.negative_peek or self.controller.state.flat_peek
+        self.waveform_widget.set_data(None if peeking else metrics.get("waveform"))
+        self.vectorscope_widget.set_data(None if peeking else metrics.get("vectorscope"))
 
         # Peek Negative applied no curve, so the print histogram, curve and zone strip
         # would describe a print that was never made. Density is unaffected: it reads
@@ -706,6 +823,8 @@ class RightPanel(QWidget):
         # Mid-gesture frames carry no metrics; the settle frame refreshes all of this.
         if self.controller.session.state.canvas_value("interactive"):
             return
+        # The film mode picks the vectorscope's scale, and it can change with the frame.
+        self._sync_scale_btn()
 
         # The only histogram refresh: a peek paint emits image_updated without
         # metrics_available, so this path must cover it.

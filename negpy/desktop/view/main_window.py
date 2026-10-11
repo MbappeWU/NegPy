@@ -620,6 +620,8 @@ class MainWindow(QMainWindow):
         self.controller.crop_guide_changed.connect(self.canvas.overlay.update)
         self.controller.dust_overlay_changed.connect(self.canvas.overlay.update)
         self.controller.zones_overlay_changed.connect(lambda _on: self.canvas.overlay.update())
+        self.controller.clipping_overlay_changed.connect(lambda _on: self.canvas.overlay.update())
+        self.controller.zone_highlight_changed.connect(self.canvas.overlay.update)
         self.controller.grain_focuser_changed.connect(lambda _on: self.canvas.overlay.update())
         self.controller.printing_notes_changed.connect(lambda _on: self.canvas.overlay.update())
         self.controller.printing_notes_requested.connect(self._save_printing_notes)

@@ -368,6 +368,7 @@ class ShortcutManager:
             "toggle_embedded_peek": controller.toggle_embedded_peek,
             "toggle_flatfield_peek": controller.toggle_flatfield_peek,
             "toggle_zones": controller.toggle_zones_overlay,
+            "toggle_clipping_overlay": controller.toggle_clipping_overlay,
             "toggle_test_strip": controller.toggle_test_strip,
             "toggle_ring_around": controller.toggle_ring_around,
             "toggle_grain_focuser": controller.toggle_grain_focuser,

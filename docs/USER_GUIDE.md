@@ -309,21 +309,35 @@ The crosshair marks the **pivot** that contrast rotates around. A faint **ghost*
 
 #### The two histograms
 
-Behind the curve is the **output histogram** (print tones); along the bottom, the **negative density histogram** (the scan). Contrast cannot separate data on the flat toe: move the exposure onto the steep middle.
+Along the bottom, one band holds both: the gray **negative density histogram** (the scan, on the curve's horizontal axis) and the colored **output histogram** (the print, black left to white right). Contrast cannot separate data on the flat toe: move the exposure onto the steep middle.
+
+Hovering the image draws the pixel's R, G and B print values as dashed lines on the output histogram's scale.
 
 In Peek Negative the density histogram splits into R, G, B and luminance: a spike at an edge is that channel clipping, a trace apart from the others a strong cast.
 
-#### LIN / LOG toggle
+#### Curve / Waveform / Vectorscope
 
-Bottom-right of the chart: the histogram's height axis. **LOG** compresses tall peaks so thin tails show (to find clipping); **LIN** shows the bulk of the frame.
+Under the chart, left: which chart fills the space. **Curve** is the paper curve with its histograms, described above. **Waveform** plots the print's tones across the frame: left to right is the picture's width, height is print tone, and brightness is how many pixels of that column print there. Dashed lines mark zones III, V and VII; a red tick on the bottom or top edge marks a column that reaches paper black or paper white.
+
+**Vectorscope** plots the print's colors on the CIELAB a\*b\* plane: neutral at the center cross, chroma growing outward, each spot drawn in its own hue and brighter where more pixels sit. Dashed rings mark chroma 5, 20 and 40; rim letters mark the R, Y, G, C, B and M directions. On a color frame, a cluster off the center is a cast. On a toned B&W print, a toner draws one arm toward its hue, and a split tone two.
+
+Hovering the image rings the pixel under the cursor on both: its column and print tone on the Waveform, its color on the Vectorscope.
+
+#### Lin / Log
+
+Under the chart, right: the histograms' and the waveform's count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame. On the Vectorscope it is the chroma scale instead, remembered separately for B&W and color frames: **Log** (the B&W default) opens up the near-neutral center where a toner sits, **Lin** (the color default) keeps a color frame's spread in proportion.
 
 #### Clipping triangles
 
 R, G and B triangles in the top corners: **top-left** for crushed shadows, **top-right** for blown highlights, once a channel passes 0.5% of the frame. One channel alone is a cast, not an exposure problem.
 
+#### Clipping Overlay
+
+The half-circle icon in the Analysis header marks on the photo every pixel with a channel at paper black or paper white (the same end bins the triangles and the **Clipping** row count), shadows and highlights in the two **Color vision** colors.
+
 #### Zone shading and zone ticks
 
-The amber wash (left) and blue wash (right) mark the toe and shoulder, where separation is lost. The bottom ticks are Adams zones I to IX.
+The warm wash (left) and cool wash (right) mark the toe and shoulder, where separation is lost; their colors follow **Color vision** in Preferences. The ticks on the left edge are Adams zones I to IX on the print-tone axis, on the same scale as the zone strip; V is the longer one.
 
 #### Step wedge
 
@@ -336,6 +350,8 @@ Ten cells on the Adams scale (**0** paper black, **V** 18% mid-gray); opacity sh
 Click a cell, then a spot on the photo, to place that tone (see Zone placement); Esc cancels. On a slide or a Positive frame the strip reads **Disabled for Slides/Reversal Film**.
 
 Double-click the strip to turn the canvas **Zone Overlay** on or off (also `Shift+Z` and the canvas toolbar's grid icon): every region of the print is outlined and labeled with its zone.
+
+Hover a cell to light up the pixels that print in that zone on the photo, in magenta (a reddish purple or white under the other **Color vision** choices in Preferences), a color clear of foliage and sky.
 
 #### Probe
 
@@ -361,10 +377,10 @@ Rows that measure the scan, not your edit; hover for details. A row with nothing
 
 *   **Negative**: relative density range (luminance) and development character: flat (≈N−1), normal, contrasty (≈N+1). Comparable across a roll; estimated from the normalized bounds, not a densitometer reading.
 *   **Exposure**: midtone in stops from neutral, approximate; positive is high-key, negative low-key.
-*   **Clipping**: share of pixels crushed to black or blown to white, worst channel. Red above 1%.
-*   **Scan clip**: share of source pixels at or above sensor white, per channel. On a negative no edit can recover it: expose the scan lower. Red above 1%.
-*   **Repair**: share of the scan rewritten by IR Restore, dust detection and heals. A large value means the threshold is redrawing the picture. Red above 5%.
-*   **Gamut**: share of the frame the proof profile cannot print, while proofing to one. Zero is normal. Red above 2%.
+*   **Clipping**: share of pixels crushed to black or blown to white, worst channel. Amber above 1%.
+*   **Scan clip**: share of source pixels at or above sensor white, per channel. On a negative no edit can recover it: expose the scan lower. Amber above 1%.
+*   **Repair**: share of the scan rewritten by IR Restore, dust detection and heals. A large value means the threshold is redrawing the picture. Amber above 5%.
+*   **Gamut**: share of the frame the proof profile cannot print, while proofing to one. Zero is normal. Amber above 2%.
 
 ---
 

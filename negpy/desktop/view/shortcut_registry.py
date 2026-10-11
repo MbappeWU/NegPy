@@ -77,6 +77,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_negative_peek": ShortcutEntry("N", "Peek negative (source as loaded)", "Tools"),
     "toggle_embedded_peek": ShortcutEntry("P", "Peek the camera's embedded preview", "Tools"),
     "toggle_zones": ShortcutEntry("Shift+Z", "Adams zone overlay", "Tools"),
+    "toggle_clipping_overlay": ShortcutEntry("", "Clipping Overlay: paper black and paper white on the frame", "Tools"),
     "toggle_hq": ShortcutEntry("", "Toggle high-quality (full-resolution) preview", "View"),
     "toggle_optical_removal": ShortcutEntry("", "Toggle Optical Removal", "Retouch"),
     "toggle_right_click_excludes": ShortcutEntry("", "Toggle right-click excludes from Optical Removal", "Retouch"),
