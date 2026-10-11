@@ -6,7 +6,7 @@ from typing import Any, List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 
-from negpy.kernel.image.logic import get_luminance, working_oetf_encode
+from negpy.kernel.image.logic import get_luminance, rgb_to_lab_working, working_oetf_decode, working_oetf_encode
 
 # Mirrored by the chart's x-range (PhotometricCurveWidget._X_MIN/_X_MAX) and the WGSL
 # literals in shaders/density_hist.wgsl. Keep them in lock step.
@@ -25,6 +25,16 @@ COLOR_HIST_BINS = 32
 # array length and constants in waveform.wgsl.
 WAVEFORM_COLS = 256
 WAVEFORM_BINS = 128
+
+# Vectorscope: the print's CIELAB a*b* in polar bins, hue x chroma, with chroma on a log
+# axis so the linear and the log display both read one histogram. The last chroma bin holds
+# everything past SCOPE_MAX_CHROMA. Mirrored in vectorscope.wgsl.
+SCOPE_HUE_BINS = 180
+SCOPE_CHROMA_BINS = 64
+SCOPE_MAX_CHROMA = 60.0
+SCOPE_LOG_KNEE = 4.0  # chroma where the log axis turns from linear to compressed
+# The scope reads a distribution, so the CPU twin bins a strided sample (its Lab and trig are the slow part).
+_SCOPE_MAX_SAMPLES = 262_144
 
 # Full-res exports run through the same normalization stage, so cap the cost.
 _MAX_HIST_SAMPLES = 2_000_000
@@ -102,6 +112,82 @@ def waveform(buffer: Any) -> Optional[np.ndarray]:
     bins = np.clip((np.nan_to_num(lum) * WAVEFORM_BINS).astype(np.int32), 0, WAVEFORM_BINS - 1)
     flat = bins * WAVEFORM_COLS + cols[None, :]
     return np.bincount(flat.ravel(), minlength=WAVEFORM_BINS * WAVEFORM_COLS).reshape(WAVEFORM_BINS, WAVEFORM_COLS).astype(float)
+
+
+def scope_radius(chroma: Any, log: bool) -> Any:
+    """Chroma -> 0..1 of the scope's radius (unclipped)."""
+    c = np.asarray(chroma, dtype=np.float64)
+    if log:
+        return np.log1p(c / SCOPE_LOG_KNEE) / np.log1p(SCOPE_MAX_CHROMA / SCOPE_LOG_KNEE)
+    return c / SCOPE_MAX_CHROMA
+
+
+def scope_chroma(radius: Any, log: bool) -> Any:
+    """Exact inverse of scope_radius."""
+    r = np.asarray(radius, dtype=np.float64)
+    if log:
+        return np.expm1(r * np.log1p(SCOPE_MAX_CHROMA / SCOPE_LOG_KNEE)) * SCOPE_LOG_KNEE
+    return r * SCOPE_MAX_CHROMA
+
+
+def _scope_bins(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    hue = np.floor((np.arctan2(b, a) + np.pi) / (2 * np.pi) * SCOPE_HUE_BINS).astype(np.int64) % SCOPE_HUE_BINS
+    radius = scope_radius(np.hypot(a, b), log=True)
+    chroma = np.clip(np.floor(radius * SCOPE_CHROMA_BINS), 0, SCOPE_CHROMA_BINS - 1).astype(np.int64)
+    return hue * SCOPE_CHROMA_BINS + chroma
+
+
+def vectorscope_histogram(buffer: Any) -> Optional[np.ndarray]:
+    """(SCOPE_HUE_BINS, SCOPE_CHROMA_BINS) a*b* counts of an H×W×3 encoded buffer. CPU
+    counterpart of vectorscope.wgsl."""
+    if buffer is None:
+        return None
+    buffer = np.asarray(buffer)
+    if buffer.ndim != 3 or buffer.shape[-1] < 3 or min(buffer.shape[:2]) < 1:
+        return None
+    step = max(1, round(np.sqrt(buffer.shape[0] * buffer.shape[1] / _SCOPE_MAX_SAMPLES)))
+    if step > 1:
+        buffer = buffer[::step, ::step]
+    encoded = np.clip(np.nan_to_num(np.asarray(buffer[..., :3], dtype=np.float32)), 0.0, 1.0)
+    lab = rgb_to_lab_working(np.asarray(working_oetf_decode(encoded)))
+    flat = _scope_bins(lab[..., 1].ravel().astype(np.float64), lab[..., 2].ravel().astype(np.float64))
+    counts = np.bincount(flat, minlength=SCOPE_HUE_BINS * SCOPE_CHROMA_BINS)
+    return counts.reshape(SCOPE_HUE_BINS, SCOPE_CHROMA_BINS).astype(float)
+
+
+@lru_cache(maxsize=4)
+def _scope_lookup(size: int, log: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Polar bin of each display pixel (-1 outside the disc), each bin's pixel count, and for
+    the bins no pixel samples (near neutral, finer than a pixel) the flat pixel they fold into."""
+    u = (np.arange(size) + 0.5) / size * 2.0 - 1.0
+    x, y = np.meshgrid(u, u[::-1])
+    radius = np.hypot(x, y)
+    chroma = scope_chroma(np.minimum(radius, 1.0), log)
+    hue = np.arctan2(y, x)
+    idx = _scope_bins(chroma * np.cos(hue), chroma * np.sin(hue))
+    idx[radius > 1.0] = -1
+    area = np.bincount(idx[idx >= 0], minlength=SCOPE_HUE_BINS * SCOPE_CHROMA_BINS).astype(float)
+
+    orphans = np.flatnonzero(area == 0)
+    centre_hue = ((orphans // SCOPE_CHROMA_BINS) + 0.5) / SCOPE_HUE_BINS * 2 * np.pi - np.pi
+    centre_c = scope_chroma(((orphans % SCOPE_CHROMA_BINS) + 0.5) / SCOPE_CHROMA_BINS, log=True)
+    r = np.minimum(scope_radius(centre_c, log), 1.0)
+    col = np.clip(((r * np.cos(centre_hue) + 1.0) / 2.0 * size).astype(np.int64), 0, size - 1)
+    row = np.clip(((1.0 - r * np.sin(centre_hue)) / 2.0 * size).astype(np.int64), 0, size - 1)
+    return idx, area, orphans, row * size + col
+
+
+def vectorscope_density(counts: Any, size: int, log: bool) -> np.ndarray:
+    """(size, size) pixels per display pixel, +a right and +b up. Each polar bin's count is
+    spread over the display pixels it covers, so a bin's on-screen area does not change its brightness."""
+    idx, area, orphans, orphan_px = _scope_lookup(size, log)
+    flat = np.asarray(counts, dtype=float).ravel()
+    out = np.zeros(idx.shape)
+    inside = idx >= 0
+    picked = idx[inside]
+    out[inside] = flat[picked] / np.maximum(area[picked], 1.0)
+    np.add.at(out.reshape(-1), orphan_px, flat[orphans])
+    return out
 
 
 def output_clip_fractions(bins: np.ndarray) -> Tuple[float, float]:

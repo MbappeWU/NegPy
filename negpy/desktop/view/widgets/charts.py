@@ -1,7 +1,7 @@
 from typing import Any
 
 import numpy as np
-from PyQt6.QtCore import QPointF, QRect, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QPointF, QRect, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QColor,
@@ -760,6 +760,132 @@ class WaveformWidget(QWidget):
             painter.drawLine(0, y, w, y)
             painter.setPen(_alpha(THEME.text_hint, 200))
             painter.drawText(QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label)
+
+        painter.setPen(QPen(QColor(THEME.border_primary), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+
+class VectorscopeWidget(QWidget):
+    """The print's CIELAB a*b* plane: +a right, +b up, neutral at the center cross. Brightness
+    is how many pixels sit at a hue and chroma, each drawn in its own hue. Dashed rings mark
+    chroma 5, 20 and 40; rim ticks mark the working-space primaries and secondaries. The log
+    chroma scale opens up the near-neutral center, where a toner or a cast lives."""
+
+    _SIZE = 160
+    _RINGS = (5.0, 20.0, 40.0)
+    _LABEL_ROOM = 28  # the hue letters sit outside the rim
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMinimumHeight(40)
+        self._counts: np.ndarray | None = None
+        self._log_scale = False
+        self._image: QImage | None = None
+        self._hues: dict[bool, np.ndarray] = {}
+        self._ticks: list[tuple[str, float]] = []
+
+    def set_log_scale(self, enabled: bool) -> None:
+        if bool(enabled) != self._log_scale:
+            self._log_scale = bool(enabled)
+            self._image = None
+            self.update()
+
+    def set_data(self, counts: Any) -> None:
+        """(hue, chroma) polar counts; None clears."""
+        if counts is not None:
+            counts = np.asarray(counts, dtype=float)
+            if counts.ndim != 2 or float(counts.max()) <= 0.0:
+                counts = None
+        if counts is None and self._counts is None:
+            return
+        self._counts = counts
+        self._image = None
+        self.update()
+
+    def _hue_colors(self) -> np.ndarray:
+        """(size, size, 3) uint8: each display pixel's own hue at a chroma that reads, so a
+        near-neutral toner lobe still shows its color."""
+        if self._log_scale not in self._hues:
+            from negpy.features.exposure.analysis import scope_chroma
+            from negpy.kernel.image.logic import lab_to_rgb_working, working_oetf_encode
+
+            n = self._SIZE
+            u = (np.arange(n) + 0.5) / n * 2.0 - 1.0
+            x, y = np.meshgrid(u, u[::-1])
+            shown = np.maximum(scope_chroma(np.minimum(np.hypot(x, y), 1.0), self._log_scale), 25.0)
+            hue = np.arctan2(y, x)
+            lab = np.stack([np.full_like(x, 65.0), shown * np.cos(hue), shown * np.sin(hue)], axis=-1).astype(np.float32)
+            rgb = np.asarray(working_oetf_encode(np.clip(lab_to_rgb_working(lab), 0.0, 1.0)))
+            self._hues[self._log_scale] = (np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
+        return self._hues[self._log_scale]
+
+    def _trace_image(self) -> QImage | None:
+        if self._image is None and self._counts is not None:
+            from negpy.features.exposure.analysis import vectorscope_density
+
+            density = np.log1p(vectorscope_density(self._counts, self._SIZE, self._log_scale))
+            lit = density[density > 0]
+            if lit.size == 0:
+                return None
+            # The neutral core piles into a few pixels; scaling by its peak would hide every lobe.
+            alpha = np.sqrt(np.clip(density / float(np.percentile(lit, 99)), 0.0, 1.0))
+            rgba = np.zeros((self._SIZE, self._SIZE, 4), dtype=np.uint8)
+            rgba[..., :3] = (self._hue_colors() * alpha[..., None]).astype(np.uint8)
+            rgba[..., 3] = (alpha * 255.0).astype(np.uint8)
+            rgba = np.ascontiguousarray(rgba)
+            self._image = QImage(rgba.data, self._SIZE, self._SIZE, self._SIZE * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
+        return self._image
+
+    def _hue_ticks(self) -> list[tuple[str, float]]:
+        if not self._ticks:
+            from negpy.kernel.image.logic import rgb_to_lab_working
+
+            primaries = (("R", (1, 0, 0)), ("Y", (1, 1, 0)), ("G", (0, 1, 0)), ("C", (0, 1, 1)), ("B", (0, 0, 1)), ("M", (1, 0, 1)))
+            lab = rgb_to_lab_working(np.array([rgb for _l, rgb in primaries], dtype=np.float32))
+            self._ticks = [(label, float(np.arctan2(lab[i, 2], lab[i, 1]))) for i, (label, _rgb) in enumerate(primaries)]
+        return self._ticks
+
+    def paintEvent(self, event) -> None:
+        from negpy.features.exposure.analysis import scope_radius
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(THEME.canvas_bg_black))
+        side = max(8.0, min(self.width(), self.height()) - float(self._LABEL_ROOM))
+        rim = side / 2.0
+        center = QPointF(self.width() / 2.0, self.height() / 2.0)
+
+        font = QFont(self.font())
+        font.setPixelSize(THEME.font_size_micro)
+        painter.setFont(font)
+        guide = _alpha(THEME.border_hover, 160)
+        for chroma in self._RINGS:
+            r = float(scope_radius(chroma, self._log_scale)) * rim
+            painter.setPen(QPen(guide, 1, Qt.PenStyle.DashLine))
+            painter.drawEllipse(center, r, r)
+            painter.setPen(QColor(THEME.text_hint))
+            painter.drawText(QPointF(center.x() + r * 0.71 + 2, center.y() + r * 0.71 + 8), f"{chroma:.0f}")
+        painter.setPen(QPen(guide, 1))
+        painter.drawEllipse(center, rim, rim)
+        painter.drawLine(QPointF(center.x() - 6, center.y()), QPointF(center.x() + 6, center.y()))
+        painter.drawLine(QPointF(center.x(), center.y() - 6), QPointF(center.x(), center.y() + 6))
+
+        image = self._trace_image()
+        if image is not None:
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            painter.drawImage(QRectF(center.x() - rim, center.y() - rim, side, side), image)
+
+        hint = QColor(THEME.text_hint)
+        for label, angle in self._hue_ticks():
+            cos, sin = float(np.cos(angle)), float(np.sin(angle))
+            painter.setPen(QPen(hint, 1.5))
+            painter.drawLine(
+                QPointF(center.x() + cos * rim, center.y() - sin * rim), QPointF(center.x() + cos * (rim - 5), center.y() - sin * (rim - 5))
+            )
+            lx, ly = center.x() + cos * (rim + 8), center.y() - sin * (rim + 8)
+            painter.drawText(QRectF(lx - 6, ly - 6, 12, 12), Qt.AlignmentFlag.AlignCenter, label)
 
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)

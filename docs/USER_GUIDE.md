@@ -315,13 +315,15 @@ Hovering the image draws the pixel's R, G and B print values as dashed lines on 
 
 In Peek Negative the density histogram splits into R, G, B and luminance: a spike at an edge is that channel clipping, a trace apart from the others a strong cast.
 
-#### Curve / Waveform
+#### Curve / Waveform / Vectorscope
 
 Under the chart, left: which chart fills the space. **Curve** is the paper curve with its histograms, described above. **Waveform** plots the print's tones across the frame: left to right is the picture's width, height is print tone, and brightness is how many pixels of that column print there. Dashed lines mark zones III, V and VII; a red tick on the bottom or top edge marks a column that reaches paper black or paper white.
 
+**Vectorscope** plots the print's colors on the CIELAB a\*b\* plane: neutral at the center cross, chroma growing outward, each spot drawn in its own hue and brighter where more pixels sit. Dashed rings mark chroma 5, 20 and 40; rim letters mark the R, Y, G, C, B and M directions. On a color frame, a cluster off the center is a cast. On a toned B&W print, a toner draws one arm toward its hue, and a split tone two.
+
 #### Lin / Log
 
-Under the chart, right: the histograms' and the waveform's count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame.
+Under the chart, right: the histograms' and the waveform's count scale. **Log** compresses tall peaks so thin tails show (to find clipping); **Lin** shows the bulk of the frame. On the Vectorscope it is the chroma scale instead, remembered separately for B&W and color frames: **Log** (the B&W default) opens up the near-neutral center where a toner sits, **Lin** (the color default) keeps a color frame's spread in proportion.
 
 #### Clipping triangles
 

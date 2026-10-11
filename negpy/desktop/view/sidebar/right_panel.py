@@ -26,12 +26,13 @@ from negpy.desktop.view.styles.fonts import ui_font_family
 from negpy.desktop.view.styles.templates import EditedDot
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
-from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, WaveformWidget, ZoneStripWidget
+from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
 from negpy.desktop.view.widgets.tab_header import TabHeader
 from negpy.desktop.settings_catalog import rows_for_fields
+from negpy.features.process.models import ProcessMode
 from negpy.services.assets.rolls import card_fields
 from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
@@ -178,6 +179,7 @@ class RightPanel(QWidget):
 
         self.curve_widget = PhotometricCurveWidget()
         self.waveform_widget = WaveformWidget()
+        self.vectorscope_widget = VectorscopeWidget()
         self.step_wedge = StepWedgeWidget()
         self.zone_strip = ZoneStripWidget()
         self.probe_row = DensitometerRow()
@@ -188,7 +190,9 @@ class RightPanel(QWidget):
         repo = self.controller.session.repo
         self.scale_btn = SegmentedChoice(
             (("", "Lin"), ("", "Log")),
-            "Histogram count scale. Log lifts small counts so thin tails and clipped ends read.",
+            "Histogram and waveform count scale: Log lifts small counts so thin tails and clipped ends "
+            "read. On the Vectorscope it is the chroma scale, kept apart for B&W and color frames: Log "
+            "opens up the near-neutral center, where a toner lives.",
         )
         self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
         self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
@@ -200,16 +204,20 @@ class RightPanel(QWidget):
         self.chart_stack = QStackedWidget()
         self.chart_stack.addWidget(self.curve_widget)
         self.chart_stack.addWidget(self.waveform_widget)
+        self.chart_stack.addWidget(self.vectorscope_widget)
         self.view_btn = SegmentedChoice(
-            (("", "Curve"), ("", "Waveform")),
+            (("", "Curve"), ("", "Waveform"), ("", "Vectorscope")),
             "Analysis chart",
-            data=("curve", "waveform"),
+            data=("curve", "waveform", "vectorscope"),
         )
         self.view_btn.set_choice_tooltip(0, "The paper curve over the scan's and the print's histograms")
         self.view_btn.set_choice_tooltip(1, "The print's tones across the frame, column by column, on the zone scale")
+        self.view_btn.set_choice_tooltip(2, "The print's colors on the a*b* plane: a cast, a toner, a split tone")
         self.view_btn.currentChanged.connect(self._on_analysis_view)
         saved_view = self.view_btn.findData(repo.get_global_setting("analysis_view", "curve"))
         self.view_btn.setCurrentIndex(max(0, saved_view))
+        self.chart_stack.setCurrentIndex(self.view_btn.currentIndex())
+        self._sync_scale_btn()
 
         chart_row = QHBoxLayout()
         chart_row.setContentsMargins(0, 0, 0, 0)
@@ -526,14 +534,41 @@ class RightPanel(QWidget):
     def _on_analysis_view(self, index: int) -> None:
         self.chart_stack.setCurrentIndex(index)
         self.controller.session.repo.save_global_setting("analysis_view", self.view_btn.currentData())
+        self._sync_scale_btn()
+
+    def _scope_scale_key(self) -> str:
+        bw = self.controller.state.config.process.process_mode == ProcessMode.BW
+        return "vectorscope_log_bw" if bw else "vectorscope_log_color"
+
+    def _scope_log(self) -> bool:
+        # Toned B&W sits within a few units of neutral, color frames spread far past it.
+        key = self._scope_scale_key()
+        return bool(self.controller.session.repo.get_global_setting(key, key == "vectorscope_log_bw"))
+
+    def _sync_scale_btn(self) -> None:
+        """Lin/Log shows the visible chart's own scale: the histograms' one, or the vectorscope's for this film mode."""
+        scope_log = self._scope_log()
+        self.vectorscope_widget.set_log_scale(scope_log)
+        if self.view_btn.currentData() == "vectorscope":
+            log = scope_log
+        else:
+            log = bool(self.controller.session.repo.get_global_setting("histogram_log_scale"))
+        self.scale_btn.blockSignals(True)
+        self.scale_btn.setCurrentIndex(1 if log else 0)
+        self.scale_btn.blockSignals(False)
 
     def set_analysis_view(self, key: str) -> None:
         self.view_btn.setCurrentIndex(max(0, self.view_btn.findData(key)))
 
     def _on_histogram_scale(self, index: int) -> None:
-        self.curve_widget.set_log_scale(index == 1)
-        self.waveform_widget.set_log_scale(index == 1)
-        self.controller.session.repo.save_global_setting("histogram_log_scale", index == 1)
+        log = index == 1
+        if self.view_btn.currentData() == "vectorscope":
+            self.vectorscope_widget.set_log_scale(log)
+            self.controller.session.repo.save_global_setting(self._scope_scale_key(), log)
+            return
+        self.curve_widget.set_log_scale(log)
+        self.waveform_widget.set_log_scale(log)
+        self.controller.session.repo.save_global_setting("histogram_log_scale", log)
 
     def _sync_chart_colors(self) -> None:
         self.curve_widget.set_zone_colors(*palette_for(self.controller.state.color_vision).dodge_burn)
@@ -712,6 +747,7 @@ class RightPanel(QWidget):
         # A peek renders without metrics, so the last print's waveform would describe the wrong image.
         peeking = self.controller.state.negative_peek or self.controller.state.flat_peek
         self.waveform_widget.set_data(None if peeking else metrics.get("waveform"))
+        self.vectorscope_widget.set_data(None if peeking else metrics.get("vectorscope"))
 
         # Peek Negative applied no curve, so the print histogram, curve and zone strip
         # would describe a print that was never made. Density is unaffected: it reads
@@ -762,6 +798,8 @@ class RightPanel(QWidget):
         # Mid-gesture frames carry no metrics; the settle frame refreshes all of this.
         if self.controller.session.state.canvas_value("interactive"):
             return
+        # The film mode picks the vectorscope's scale, and it can change with the frame.
+        self._sync_scale_btn()
 
         # The only histogram refresh: a peek paint emits image_updated without
         # metrics_available, so this path must cover it.
