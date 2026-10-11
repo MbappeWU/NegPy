@@ -128,7 +128,6 @@ from negpy.services.assets.half_frame import (
     remap_workspace_config,
     remember_split_scans,
     saved_crop_rect,
-    slice_chain,
     split_scans,
 )
 from negpy.services.export.templating import path_safe, render_export_filename
@@ -160,7 +159,6 @@ from negpy.features.exposure.logic import (
 )
 from negpy.features.altprocess.models import AltProcess
 from negpy.features.finish.models import FinishConfig
-from negpy.features.flatfield.logic import apply_flatfield
 from negpy.features.geometry.logic import (
     apply_fine_rotation,
     autocrop_detection_key,
@@ -212,7 +210,7 @@ from negpy.kernel.system.logging import get_logger
 from negpy.services.rendering.prefetch_policy import MIN_RAM_RESERVE_BYTES
 from negpy.services.rendering.preview_manager import PreviewManager
 from negpy.services.rendering.source_identity import source_token
-from negpy.services.rendering.lens import lens_decode_token, metadata_lens_corrections
+from negpy.services.rendering.lens import flatfield_source, lens_decode_token, metadata_lens_corrections
 from negpy.services.view.coordinate_mapping import CoordinateMapping
 
 logger = get_logger(__name__)
@@ -3664,16 +3662,7 @@ class AppController(QObject):
         config = self.state.config
         geo = config.geometry
         # Every detection path reads the flat-fielded source.
-        if config.stitch.stitch_enabled or metadata_lens_corrections(config):
-            source = raw
-        else:
-            cuts = self._preview_gain_slices(self.active_diptych())
-            source = apply_flatfield(
-                raw,
-                config.flatfield,
-                (lambda g: slice_chain(g, cuts)) if cuts else None,
-                orientation=self.state.preview_orientation,
-            )
+        source = flatfield_source(raw, config, self._preview_gain_slices(self.active_diptych()), orientation=self.state.preview_orientation)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             fit = squared_geometry(source, geo, config.process.process_mode)

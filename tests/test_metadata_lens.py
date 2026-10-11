@@ -18,7 +18,7 @@ from negpy.features.lens.models import LensCorrections, LensMetadata, LensWarp
 from negpy.features.lens.warps import IDENTITY, RectilinearWarp, SonyWarp
 from negpy.infrastructure.loaders.lens_metadata import bind_decode, parse_opcodes, read_lens_metadata
 from negpy.kernel.image.logic import apply_exif_orientation
-from negpy.services.rendering.lens import lens_decode_token, metadata_lens_corrections, prepare_lens_source
+from negpy.services.rendering.lens import flatfield_source, lens_decode_token, metadata_lens_corrections, prepare_lens_source
 from negpy.services.rendering.preview_cache import PreviewCacheKey
 from negpy.services.rendering.source_identity import source_token
 
@@ -315,6 +315,31 @@ def test_bind_decode_checks_coordinate_compatibility():
     assert not bind_decode(lens, raw).available
     cropped_fallback = SimpleNamespace(sizes=SimpleNamespace(raw_width=180, raw_height=90))
     assert not bind_decode(lens, cropped_fallback, fallback=True).available
+
+
+def test_flatfield_source_gates_cuts_and_turns_the_gain(monkeypatch):
+    from negpy.services.rendering import lens as service
+
+    calls = []
+    monkeypatch.setattr(
+        service, "apply_flatfield", lambda img, config, gain_crop=None, *, orientation: calls.append((gain_crop, orientation)) or img + 1
+    )
+    image = np.zeros((40, 30, 3), np.float32)
+    config = WorkspaceConfig()
+
+    np.testing.assert_array_equal(flatfield_source(image, config, orientation=6), 1.0)
+    assert calls == [(None, 6)]
+    calls.clear()
+
+    flatfield_source(image, config, ((2, 0.5, None, 0.0, "x"),), orientation=1)
+    assert calls[0][0](np.zeros((40, 60, 3), np.float32)).shape == (40, 30, 3)
+    calls.clear()
+
+    stitched = replace(config, stitch=replace(config.stitch, stitch_enabled=True))
+    lens = replace(config, geometry=replace(config.geometry, lens_distortion_from_metadata=True))
+    assert flatfield_source(image, stitched, orientation=1) is image
+    assert flatfield_source(image, lens, orientation=1) is image
+    assert calls == []
 
 
 def test_flatfield_is_applied_before_the_lens_warp(monkeypatch):

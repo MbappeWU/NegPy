@@ -40,7 +40,7 @@ from negpy.features.exposure.analysis import COLOR_HIST_BINS
 from negpy.features.exposure.models import RenderIntent
 from negpy.features.flatfield.logic import apply_flatfield, flatfield_token
 from negpy.features.lab.logic import apply_resize_sharpening
-from negpy.services.rendering.lens import lens_decode_token, metadata_lens_corrections, prepare_lens_source
+from negpy.services.rendering.lens import flatfield_source, lens_decode_token, metadata_lens_corrections, prepare_lens_source
 from negpy.features.geometry.logic import autocrop_detection_key, resolve_autocrop_rect
 from negpy.features.geometry.models import squares_on_arm
 from negpy.features.geometry.skew import squared_geometry
@@ -752,15 +752,8 @@ class ImageProcessor:
             img = self._precorrect_value
         else:
             source = img
-            if not skip_flatfield and not settings.stitch.stitch_enabled and not metadata_lens_corrections(settings):
-                from negpy.services.assets.half_frame import slice_chain
-
-                img = apply_flatfield(
-                    img,
-                    settings.flatfield,
-                    (lambda g: slice_chain(g, gain_slices)) if gain_slices else None,
-                    orientation=source_orientation,
-                )
+            if not skip_flatfield:
+                img = flatfield_source(img, settings, gain_slices, orientation=source_orientation)
             # Sensor unmix is a source pre-correction like flat-field. skip_flatfield buffers
             # come from _load_source_f32, which already applied it.
             if not skip_flatfield and preview_takes_unmix(settings):
