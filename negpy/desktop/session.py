@@ -232,6 +232,8 @@ class AppState:
     # zone strip's hover lights up. Display-only, session-only.
     clipping_overlay: bool = False
     zone_highlight: Optional[int] = None
+    # Whether hovering the zone strip lights up its zone on the frame; a persisted preference.
+    zone_hover_highlight: bool = True
 
     # Grain focuser: a near-1:1 loupe following the cursor. Display-only, session-only.
     grain_focuser: bool = False
@@ -865,6 +867,7 @@ class DesktopSessionManager(QObject):
         if saved_bg is not None:
             self.state.canvas_bg_index = int(saved_bg)
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
+        self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
 
         saved_immersive = self.repo.get_global_setting("immersive_canvas")
         if saved_immersive is not None:

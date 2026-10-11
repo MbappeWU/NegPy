@@ -470,6 +470,20 @@ class TestStripLifecycle(unittest.TestCase):
         self.assertEqual(highlight, [4, None])
         self.assertEqual(self.strip_tasks, [])
 
+    def test_zone_hover_highlight_off_clears_and_ignores_hover(self):
+        highlight: list = []
+        self.controller.zone_highlight_changed.connect(lambda: highlight.append(self.controller.state.zone_highlight))
+
+        self.controller.set_zone_highlight(3)
+        self.controller.toggle_zone_hover_highlight(force=False)
+        self.controller.set_zone_highlight(5)
+        self.controller.toggle_zone_hover_highlight()
+        self.controller.set_zone_highlight(5)
+
+        self.assertEqual(highlight, [3, None, 5])
+        self.assertTrue(self.controller.state.zone_hover_highlight)
+        self.assertEqual(self.strip_tasks, [])
+
 
 if __name__ == "__main__":
     unittest.main()

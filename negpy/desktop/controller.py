@@ -471,6 +471,7 @@ class AppController(QObject):
     zones_overlay_changed = pyqtSignal(bool)
     clipping_overlay_changed = pyqtSignal(bool)
     zone_highlight_changed = pyqtSignal()
+    zone_hover_highlight_changed = pyqtSignal(bool)
     grain_focuser_changed = pyqtSignal(bool)
     printing_notes_changed = pyqtSignal(bool)
     printing_notes_requested = pyqtSignal()  # the canvas holds the annotated pixels
@@ -3138,8 +3139,19 @@ class AppController(QObject):
         self.state.clipping_overlay = (not self.state.clipping_overlay) if force is None else bool(force)
         self.clipping_overlay_changed.emit(self.state.clipping_overlay)
 
+    def toggle_zone_hover_highlight(self, force: Optional[bool] = None) -> None:
+        """Turns the zone strip's hover highlight on or off, persisted."""
+        on = (not self.state.zone_hover_highlight) if force is None else bool(force)
+        self.state.zone_hover_highlight = on
+        self.session.repo.save_global_setting("zone_hover_highlight", on)
+        if not on:
+            self.set_zone_highlight(None)
+        self.zone_hover_highlight_changed.emit(on)
+
     def set_zone_highlight(self, zone: Optional[int]) -> None:
         """Lights up one zone-strip cell's pixels on the frame; None clears. Repaint only."""
+        if zone is not None and not self.state.zone_hover_highlight:
+            return
         if zone != self.state.zone_highlight:
             self.state.zone_highlight = zone
             self.zone_highlight_changed.emit()
