@@ -719,6 +719,7 @@ class ImageProcessor:
         camera_wb: Optional[list] = None,
         cache_stages: bool = True,
         gain_slices: tuple = (),
+        source_orientation: int = 1,
     ) -> Tuple[Any, Dict[str, Any]]:
         """
         Executes rendering pipeline. Returns result (ndarray/GPUTexture) and metrics.
@@ -726,6 +727,8 @@ class ImageProcessor:
         ``skip_flatfield``: the export CPU fallbacks pass an already-flat-fielded buffer.
         ``gain_slices``: the ``slice_half`` cuts that took *img* out of the decoded frame,
         such as one half-frame; the flat-field gain takes the same cuts.
+        ``source_orientation``: the EXIF orientation the decode baked into *img*; the sensor-layout
+        flat-field gain takes it first.
         """
         # Flat-field is a source pre-correction, before geometry and crop. Folding its token
         # into source_hash invalidates the engine cache when it changes. Stitch buffers arrive
@@ -737,6 +740,7 @@ class ImageProcessor:
             img.shape,
             skip_flatfield,
             gain_slices,
+            source_orientation,
             metadata_lens_corrections(settings),
             flatfield_token(settings.flatfield),
             sensor_token(settings.process),
@@ -751,7 +755,12 @@ class ImageProcessor:
             if not skip_flatfield and not settings.stitch.stitch_enabled and not metadata_lens_corrections(settings):
                 from negpy.services.assets.half_frame import slice_chain
 
-                img = apply_flatfield(img, settings.flatfield, (lambda g: slice_chain(g, gain_slices)) if gain_slices else None)
+                img = apply_flatfield(
+                    img,
+                    settings.flatfield,
+                    (lambda g: slice_chain(g, gain_slices)) if gain_slices else None,
+                    orientation=source_orientation,
+                )
             # Sensor unmix is a source pre-correction like flat-field. skip_flatfield buffers
             # come from _load_source_f32, which already applied it.
             if not skip_flatfield and preview_takes_unmix(settings):
@@ -1233,7 +1242,7 @@ class ImageProcessor:
         if metadata_lens_corrections(params):
             f32_buffer = prepare_lens_source(f32_buffer, metadata, params.flatfield, metadata_lens_corrections(params))
         else:
-            f32_buffer = apply_flatfield(f32_buffer, params.flatfield)
+            f32_buffer = apply_flatfield(f32_buffer, params.flatfield, orientation=orientation)
         if unmix and not is_triplet:
             f32_buffer = apply_sensor_correction(f32_buffer, effective_sensor_matrix(params.process), params.process.sensor_unmix)
         if ir_full is not None:

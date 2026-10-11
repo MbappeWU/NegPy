@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QMessageBox
 
 from negpy.kernel.system.memory import available_system_memory_bytes
 from negpy.kernel.system.text import count_of, plural
-from negpy.kernel.image.logic import working_oetf_encode
+from negpy.kernel.image.logic import apply_exif_orientation, working_oetf_encode
 from negpy.desktop.auto_sliders import record_meters
 from negpy.desktop.converters import ImageConverter
 from negpy.desktop.render_memo import RenderMemo
@@ -2924,6 +2924,7 @@ class AppController(QObject):
         self.state.preview_raw = raw
         self.state.preview_cam_xyz, self.state.preview_camera_wb = cam_matrix[:2] if cam_matrix else (None, None)
         self.state.preview_lens = cam_matrix[2] if cam_matrix and len(cam_matrix) > 2 else None
+        self.state.preview_orientation = int(cam_matrix[4] or 1) if cam_matrix and len(cam_matrix) > 4 else 1
         self.state.preview_lens_path = file_path
         self.state.preview_lens_token = decoded_lens_token
         self._decoded_source_token = source_token(self.state.config)
@@ -3506,6 +3507,7 @@ class AppController(QObject):
                 detect_buffer=self.state.preview_detect,
                 cam_xyz=cam_xyz,
                 camera_wb=camera_wb,
+                source_orientation=self.state.preview_orientation,
             )
         )
 
@@ -3661,7 +3663,9 @@ class AppController(QObject):
         config = self.state.config
         geo = config.geometry
         # Every detection path reads the flat-fielded source.
-        source = raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield)
+        source = (
+            raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield, orientation=self.state.preview_orientation)
+        )
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             fit = squared_geometry(source, geo, config.process.process_mode)
@@ -6760,6 +6764,7 @@ class AppController(QObject):
             gutter_thickness=dip[0]["gutter_thickness"] if dip is not None else 0.0,
             split_axis=str(dip[0].get("split_axis") or "x") if dip is not None else "x",
             gain_slices=self._preview_gain_slices(dip),
+            source_orientation=self.state.preview_orientation,
         )
 
         self._cancel_neighbor_prefetch()
@@ -7125,8 +7130,9 @@ class AppController(QObject):
 
         The profile's stored reference copy times its gain, each channel over its lit-area
         median, ±EVENNESS_RANGE as black..white, so a good profile shows gray. A profile saved
-        before the copy was stored shows the light its gain corrects instead. Sensor layout:
-        the frame's geometry is not the reference's.
+        before the copy was stored shows the light its gain corrects instead. It sits the way the
+        frame does: a sensor-layout profile takes the frame's EXIF orientation, then the frame's
+        quarter turns and flips. Fine rotation, keystone and crop are left out, so the edges show.
         """
         import cv2
 
@@ -7154,6 +7160,16 @@ class AppController(QObject):
                 f"Flat Field '{name}' was saved before the check: showing the light it corrects, "
                 "darker where there is less light. Save the profile again to check it"
             )
+        if stored.sensor_layout:
+            view = apply_exif_orientation(view, self.state.preview_orientation)
+        # GeometryProcessor's order.
+        geometry = self.state.config.geometry
+        view = np.rot90(view, k=geometry.rotation)
+        if geometry.flip_horizontal:
+            view = np.fliplr(view)
+        if geometry.flip_vertical:
+            view = np.flipud(view)
+        view = np.ascontiguousarray(view)
         h, w = view.shape[:2]
         scale = APP_CONFIG.preview_render_size / max(h, w)
         view = cv2.resize(view, (round(w * scale), round(h * scale)), interpolation=cv2.INTER_LINEAR)

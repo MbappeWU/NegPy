@@ -31,7 +31,7 @@ def prepare_lens_source(
     corrections: LensCorrections = LensCorrections(True, True),
 ) -> ImageBuffer:
     """Flat-field in sensor positions before a lens warp moves the samples."""
-    img = apply_flatfield(img, flatfield)
+    img = apply_flatfield(img, flatfield, orientation=metadata.get("orientation", 1))
     lens = metadata.get("lens_correction")
     if isinstance(lens, LensMetadata) and metadata.get("ir") is None:
         img = apply_lens(img, lens, metadata.get("orientation", 1), corrections)

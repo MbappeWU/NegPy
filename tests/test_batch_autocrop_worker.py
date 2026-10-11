@@ -46,7 +46,7 @@ class _PreviewService:
             }
         )
         raw = np.full((8, 12, 3), 0.5, dtype=np.float32)
-        return raw, (12, 8), {}
+        return raw, (12, 8), {"orientation": 6}
 
     def load_linear_preview_rgb(
         self,
@@ -159,8 +159,9 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
     worker = BatchAutoCropWorker(preview)
     captured: dict = {}
 
-    def _apply_flatfield(image, received_config):
+    def _apply_flatfield(image, received_config, orientation=1):
         captured["flatfield_config"] = received_config
+        captured["orientation"] = orientation
         return image + 1.0
 
     class _GeometryProcessor:
@@ -187,6 +188,7 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
     worker.process(_task(_input("frame", config)))
 
     assert captured["flatfield_config"] == flatfield
+    assert captured["orientation"] == 6
     assert captured["geometry"].crop_rect is None
     assert captured["geometry"].crop_from_auto is False
     assert captured["geometry"].autocrop_offset == 0

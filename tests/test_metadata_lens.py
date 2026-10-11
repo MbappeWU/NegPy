@@ -323,7 +323,7 @@ def test_flatfield_is_applied_before_the_lens_warp(monkeypatch):
     image = np.ones((40, 60, 3), np.float32)
     gain = np.broadcast_to(np.linspace(0.2, 0.8, 60, dtype=np.float32)[None, :, None], image.shape)
     metadata = {"lens_correction": LensMetadata("Sony", (SonyWarp((-1000,) * 16),)), "orientation": 1}
-    monkeypatch.setattr(service, "apply_flatfield", lambda img, config: img * gain)
+    monkeypatch.setattr(service, "apply_flatfield", lambda img, config, orientation=1: img * gain)
     out = prepare_lens_source(image, metadata, FlatFieldConfig())
     np.testing.assert_array_equal(out, apply_lens(image * gain, metadata["lens_correction"]))
     np.testing.assert_array_equal(image, 1.0)

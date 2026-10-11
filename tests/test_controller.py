@@ -2316,6 +2316,19 @@ class TestAppController(unittest.TestCase):
         mock_slot.assert_called_once_with()
         self.controller.request_render.assert_called_once_with()
 
+    def test_the_decode_orientation_reaches_the_render_for_the_flat_field(self):
+        import numpy as np
+
+        emitted = []
+        self.controller.render_requested.connect(emitted.append)
+        self.controller._requested_file_path = "turned.arw"
+        raw = np.zeros((4, 6, 3), dtype=np.float32)
+
+        self.controller._on_preview_loaded("turned.arw", raw, (4, 6), "", None, "", (None, None, None, "", 6))
+
+        self.assertEqual(self.controller.state.preview_orientation, 6)
+        self.assertEqual(emitted[-1].source_orientation, 6)
+
     def test_stale_preview_decode_is_dropped(self):
         """A decode that lands after the user switched files must not be applied —
         accepting it pairs the old buffer with the new file's hash and poisons the
@@ -5425,6 +5438,41 @@ class TestFlatFieldPeek(unittest.TestCase):
         h, w = view.shape[:2]
         self.assertGreater(view[h // 2, w // 2].mean(), view[1, 1].mean())
         self.assertIn("saved before the check", seen[-1])
+
+    def test_it_turns_with_the_frame_orientation_unless_the_profile_is_still_as_baked(self):
+        for sensor_layout, portrait in ((True, True), (False, False)):
+            with self.subTest(sensor_layout=sensor_layout):
+                self.controller.state.flatfield_peek = False
+                self._select(self._stored()._replace(sensor_layout=sensor_layout))
+                self.controller.state.preview_orientation = 6
+                self.controller.toggle_flatfield_peek(force=True)
+
+                h, w = self.controller.state.peek_frame["base_positive"].shape[:2]
+                self.assertEqual(h > w, portrait)
+
+    def test_it_takes_the_frame_quarter_turns_and_flips(self):
+        import numpy as np
+        from dataclasses import replace
+
+        from negpy.services.assets.flatfield import StoredCheck
+
+        yy, xx = np.mgrid[0:32, 0:48].astype(np.float32)
+        lopsided = np.repeat((1.0 + 0.3 * xx / 48 + 0.1 * yy / 32)[..., None], 3, axis=2).astype(np.float32)
+        self._select(StoredCheck(lopsided, None, None))
+        state = self.controller.state
+
+        def view(**geometry):
+            state.flatfield_peek = False
+            settings = {"rotation": 0, "flip_horizontal": False, "flip_vertical": False, **geometry}
+            state.config = replace(state.config, geometry=replace(state.config.geometry, **settings))
+            self.controller.toggle_flatfield_peek(force=True)
+            return state.peek_frame["base_positive"]
+
+        upright = view()
+        h, w = view(rotation=1).shape[:2]
+        self.assertGreater(h, w)
+        np.testing.assert_allclose(view(flip_horizontal=True), np.fliplr(upright), atol=1e-4)
+        np.testing.assert_allclose(view(flip_vertical=True), np.flipud(upright), atol=1e-4)
 
     def test_with_no_profile_it_says_so_and_stays_off(self):
         seen: list = []

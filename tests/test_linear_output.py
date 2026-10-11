@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 import tifffile
 
+from negpy.features.flatfield.logic import GainEntry
 from negpy.features.geometry.models import GeometryConfig
 from negpy.features.lens.models import LensMetadata
 from negpy.features.process.models import ProcessConfig
@@ -2368,7 +2369,7 @@ class TestFlatFieldBeforeUserGeometry:
         first = next(iter(paths))
         with (
             mock.patch("negpy.services.export.linear_output._decode_camera_raw_buffer", side_effect=fake_decode),
-            mock.patch("negpy.features.flatfield.logic._resolve", return_value=(self._gain(), "tok")),
+            mock.patch("negpy.features.flatfield.logic._resolve", return_value=GainEntry(self._gain(), "tok")),
         ):
             rgb, _, _, _ = _decode_linear(
                 first,
@@ -2448,7 +2449,7 @@ class TestLinearLensCorrection:
 
         with (
             mock.patch("negpy.services.export.linear_output._decode_camera_raw_buffer", side_effect=fake_decode),
-            mock.patch("negpy.features.flatfield.logic._resolve", return_value=(self._gain(), "tok")),
+            mock.patch("negpy.features.flatfield.logic._resolve", return_value=GainEntry(self._gain(), "tok")),
         ):
             return _decode_linear(
                 next(iter(bufs)),

@@ -125,6 +125,8 @@ class AppState:
     # None for sources that carry no camera matrix (scanner TIFF, JPEG).
     preview_cam_xyz: Optional[list] = None
     preview_camera_wb: Optional[list] = None
+    # EXIF orientation the decode baked into preview_raw; the flat-field gain takes it.
+    preview_orientation: int = 1
     preview_lens: Optional[LensMetadata] = None
     preview_lens_path: str = ""
     preview_lens_token: str = ""
