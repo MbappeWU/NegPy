@@ -442,7 +442,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.drawer.setVisible(right_visible)
         self.session_dock.setVisible(True)
-        self.toolbar.btn_toggle_left.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_left_visible", True)
 
     def dock_controls_panel(self) -> None:
@@ -450,7 +449,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.session_dock.setVisible(left_visible)
         self.drawer.setVisible(True)
-        self.toolbar.btn_toggle_right.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
 
     def toggle_session_dock(self) -> None:
@@ -545,8 +543,6 @@ class MainWindow(QMainWindow):
         self._restore_default_dock_state()
         self.session_dock.setVisible(True)
         self.drawer.setVisible(True)
-        self.toolbar.btn_toggle_left.setChecked(True)
-        self.toolbar.btn_toggle_right.setChecked(True)
         self.controller.session.repo.save_global_setting("panel_left_visible", True)
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
         self.canvas.hud.showMessage("Panel layout reset", timeout=1500)
@@ -564,10 +560,6 @@ class MainWindow(QMainWindow):
         # persist in the toggle methods instead and the saved state survives exit.
         self.toolbar.btn_toggle_left.clicked.connect(self.toggle_session_dock)
         self.toolbar.btn_toggle_right.clicked.connect(self.toggle_controls_dock)
-        self.session_dock.visibilityChanged.connect(self.toolbar.btn_toggle_left.setChecked)
-        self.drawer.visibilityChanged.connect(self.toolbar.btn_toggle_right.setChecked)
-        self.toolbar.btn_toggle_left.setChecked(self.session_dock.isVisible())
-        self.toolbar.btn_toggle_right.setChecked(self.drawer.isVisible())
         self.controller.image_updated.connect(self._on_image_updated)
         self.controller.preview_loaded.connect(self._refresh_image_info)
         self.controller.loading_started.connect(self._on_loading_started)

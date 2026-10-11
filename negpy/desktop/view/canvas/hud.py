@@ -25,15 +25,12 @@ class CanvasHud(QWidget):
     Fully mouse-transparent so canvas pan/zoom/tools work underneath.
     """
 
-    # Clears the floating toolbar pill anchored to the canvas bottom.
-    _BOTTOM_MARGIN = 72
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         layout = QGridLayout(self)
-        layout.setContentsMargins(THEME.space_xl, THEME.space_xl, THEME.space_xl, self._BOTTOM_MARGIN)
+        layout.setContentsMargins(THEME.space_xl, THEME.space_xl, THEME.space_xl, THEME.space_xl)
 
         self.lbl_top_left = QLabel()
         self.lbl_top_right = QLabel()
@@ -82,6 +79,12 @@ class CanvasHud(QWidget):
         # A cap, not a width: wordWrap only wraps at the widget's width, and without a bound the
         # label grows to the canvas. Short toasts still size to content.
         self.toast.setMaximumWidth(max(_TOAST_MIN_WIDTH, int(self.width() * _TOAST_WIDTH_RATIO)))
+
+    def set_bottom_clearance(self, px: int) -> None:
+        """Keeps the bottom pills above the floating toolbar, whatever height it lays out at."""
+        m = self.layout().contentsMargins()
+        if m.bottom() != px:
+            self.layout().setContentsMargins(m.left(), m.top(), m.right(), px)
 
     @staticmethod
     def _set_pill(lbl: QLabel, text: str) -> None:

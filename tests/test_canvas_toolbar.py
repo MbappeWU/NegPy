@@ -204,6 +204,27 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             if action.isCheckable():
                 self.assertTrue(action.icon().isNull(), f"{action.text()!r} would lose its checkmark to its icon")
 
+    def test_panel_toggles_are_not_checkable(self):
+        """An open panel is the resting state; the accent fill means armed."""
+        tb = _make_toolbar()
+        self.assertFalse(tb.btn_toggle_left.isCheckable())
+        self.assertFalse(tb.btn_toggle_right.isCheckable())
+
+    def test_every_keyed_overflow_item_shows_its_key(self):
+        tb = _make_toolbar()
+        self.assertTrue(tb._ov_fit_action.text().endswith("0"))
+        self.assertTrue(tb._ov_rot_r_action.text().endswith("]"))
+        self.assertTrue(tb._ov_negative_peek_action.text().endswith("N"))
+
+    def test_right_click_offers_edit_toolbar(self):
+        tb = _make_toolbar()
+        seen: list[str] = []
+        with unittest.mock.patch(
+            "negpy.desktop.view.canvas.toolbar.QMenu.exec", lambda menu, *_a: seen.extend(a.text() for a in menu.actions())
+        ):
+            tb.contextMenuEvent(MagicMock())
+        self.assertEqual(seen, ["Edit Toolbar…"])
+
     def test_overflow_menu_always_shows_full_action_set(self):
         """Regression: the overflow menu previously mirrored only whatever the row's
         responsive collapse hid, so a control moving into the row (e.g. a side panel
