@@ -1053,6 +1053,7 @@ Capture film directly into NegPy. The **Scanner** card picks the scanner; the ta
 
 *   **Device**: the scanner; the arrows refresh the list. The eject menu holds **Eject Now** and, on a strip feeder, **Eject When Done** (on by default), which returns the strip after a batch. Off keeps it loaded with its picks and previews. A strip the scanner returns by itself counts as an eject: insert it again, then **Detect frames**. After 9 minutes with no scanner activity NegPy measures the strip again.
 *   **Debug log** (nkscan; Off, Debug, Trace): writes `nkscan.log` in the NegPy folder. For a bug report, set Trace, reproduce the problem and attach the file.
+*   **Sleep**: while a scan runs, NegPy keeps macOS and Windows from going to sleep. On Linux, turn off automatic suspend before a long roll.
 
 **pyOpticfilm (Plustek)**: the **OpticFilm 8200i SE** (`07b3:1825`) and **8100 V2** (`07b3:1824`) scan; for other models try **SANE** on Linux and macOS. **IR** comes in the same pass. On Windows, bind the device to **WinUSB** with Zadig first ([PLUSTEK_WINDOWS.md](PLUSTEK_WINDOWS.md)). From source, install with `uv sync --group plustek` or `pip install negpy[plustek]`.
 

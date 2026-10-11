@@ -163,6 +163,7 @@ class ScanWorker(QObject):
             self._request_prepared = False
             self._scanning = True
 
+        assertion = acquire_unattended_power_assertion("NegPy film scan")
         outcome: tuple[str, str | None] | None = None
         returned: StripReturned | None = None
         try:
@@ -208,6 +209,7 @@ class ScanWorker(QObject):
             logger.exception("Could not initialize scanner service")
             outcome = ("error", str(error))
         finally:
+            assertion.release()
             with self._state_lock:
                 self._scanning = False
 
