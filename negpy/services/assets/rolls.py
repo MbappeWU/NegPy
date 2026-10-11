@@ -558,7 +558,7 @@ ROLL_DEFAULT_FIELDS: Dict[str, tuple] = {
     # is a fact of the film, like its crosstalk. It lives on ExposureConfig, so it is its
     # own card, driven by the Calibration section alongside "sensor".
     "cast_removal": ("exposure", ("cast_removal_strength",)),
-    "autocrop": ("geometry", ("autocrop_mode", "autocrop_offset", "autocrop_rebate_trim", "autocrop_ratio")),
+    "autocrop": ("geometry", ("autocrop_mode", "autocrop_offset", "autocrop_rebate_trim", "autocrop_ratio", "autocrop_square")),
     # Auto Crop's on/off, driven by the Crop section alongside "autocrop". Its own card, so a
     # frame with a hand-drawn crop still takes the roll's shape but not this (holds_own_crop).
     "auto_crop": ("geometry", ("crop_from_auto",)),

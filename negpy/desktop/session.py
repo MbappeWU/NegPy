@@ -22,6 +22,7 @@ from negpy.desktop.sticky import (
     load_sticky_rows,
     migrate_legacy,
     migrate_auto_crop_sticky_row,
+    migrate_square_before_crop_sticky_row,
     migrate_legacy_export_destination,
     sticky_snapshot,
 )
@@ -124,6 +125,8 @@ class AppState:
     # None for sources that carry no camera matrix (scanner TIFF, JPEG).
     preview_cam_xyz: Optional[list] = None
     preview_camera_wb: Optional[list] = None
+    # EXIF orientation the decode baked into preview_raw; the flat-field gain takes it.
+    preview_orientation: int = 1
     preview_lens: Optional[LensMetadata] = None
     preview_lens_path: str = ""
     preview_lens_token: str = ""
@@ -842,6 +845,7 @@ class DesktopSessionManager(QObject):
         migrate_legacy(self.repo)
         migrate_legacy_export_destination(self.repo)
         migrate_auto_crop_sticky_row(self.repo)
+        migrate_square_before_crop_sticky_row(self.repo)
 
         # Load global hardware settings
         saved_gpu = self.repo.get_global_setting("gpu_enabled")

@@ -410,7 +410,7 @@ def _decode_source(
     if hdr is not None and hdr_active(hdr):
         rgb, wb, meta = _decode_hdr(file_path, hdr, expansion=expansion, gamma_key=gamma_key, process=process)
         if apply_flatfield and flatfield is not None:
-            rgb = _apply_flatfield_correction(rgb, flatfield)
+            rgb = _apply_flatfield_correction(rgb, flatfield, orientation=read_orientation(file_path))
         if apply_sensor and process is not None and process.sensor_matrix is not None:
             rgb = apply_sensor_correction(rgb, process.sensor_matrix, process.sensor_unmix)
         if apply_wb and not wb_blocked and wb is not None:
@@ -440,14 +440,14 @@ def _decode_source(
         if rgbscan is not None and is_rgb_triplet(rgbscan):
             rgb, ir, wb, meta = _decode_camera_raw_triplet(file_path, rgbscan, demosaic)
             if apply_flatfield and flatfield is not None:
-                rgb = _apply_flatfield_correction(rgb, flatfield)
+                rgb = _apply_flatfield_correction(rgb, flatfield, orientation=read_orientation(file_path))
             if apply_wb and not wb_blocked and wb is not None:
                 rgb = _apply_white_balance(rgb, wb)
             return rgb, ir, wb, meta
         meta = _read_source_meta_tiff(file_path)
         rgb, wb, decode_meta, lens_meta = _decode_camera_raw_buffer(file_path, demosaic)
         if apply_flatfield and flatfield is not None:
-            rgb = _apply_flatfield_correction(rgb, flatfield)
+            rgb = _apply_flatfield_correction(rgb, flatfield, orientation=read_orientation(file_path))
         warped = bool(lens.distortion and lens_meta.distortion or lens.ca and lens_meta.ca)
         if warped:
             rgb = apply_lens(rgb, lens_meta, read_orientation(file_path), lens)
@@ -793,7 +793,7 @@ def _decode_stitch_part(
         f32, _, wb, meta = _decode_linear(file_path, process=process)
 
     if flatfield is not None:
-        f32 = _apply_flatfield_correction(f32, flatfield)
+        f32 = _apply_flatfield_correction(f32, flatfield, orientation=read_orientation(file_path))
     if unmix and not is_triplet and process is not None and process.sensor_matrix is not None:
         f32 = apply_sensor_correction(f32, process.sensor_matrix, process.sensor_unmix)
     return f32, wb, meta

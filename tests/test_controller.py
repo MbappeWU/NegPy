@@ -18,6 +18,7 @@ from negpy.desktop.controller import AppController
 from negpy.desktop.session import DesktopSessionManager, AppState, ToolMode
 from negpy.desktop.settings_catalog import rows_for_fields
 from negpy.desktop.workers.export import ExportTask, resolve_export_target_path
+from negpy.services.rendering.image_processor import ArmedCrop
 from negpy.features.geometry.logic import autocrop_detection_key
 from negpy.domain.models import (
     ColorSpace,
@@ -140,7 +141,7 @@ class TestAppController(unittest.TestCase):
         self.mock_session_manager.update_config.side_effect = lambda config, **_kwargs: setattr(self.controller.state, "config", config)
         measured = FrameSkew(fine_rotation=-1.25, converge_v=0.8, converge_h=None, confidence=0.9, lines=(), residual=0.0)
 
-        with patch("negpy.desktop.controller.trusted_frame_skew", return_value=measured) as fit:
+        with patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=measured) as fit:
             self.controller.auto_skew_frame()
 
         fitted_on = fit.call_args.args[0]
@@ -163,7 +164,7 @@ class TestAppController(unittest.TestCase):
         self.mock_session_manager.update_config.side_effect = lambda config, **_kwargs: setattr(self.controller.state, "config", config)
         measured = FrameSkew(fine_rotation=-1.25, converge_v=None, converge_h=None, confidence=0.9, lines=(), residual=0.0)
 
-        with patch("negpy.desktop.controller.trusted_frame_skew", return_value=measured):
+        with patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=measured):
             self.controller.auto_skew_frame()
 
         message = self.controller.set_status.call_args.args[0]
@@ -176,7 +177,7 @@ class TestAppController(unittest.TestCase):
         self.controller.request_render = MagicMock()
         self.controller.set_status = MagicMock()
 
-        with patch("negpy.desktop.controller.trusted_frame_skew", return_value=None):
+        with patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None):
             self.controller.auto_skew_frame()
 
         self.mock_session_manager.update_config.assert_not_called()
@@ -193,7 +194,7 @@ class TestAppController(unittest.TestCase):
         self.controller.set_status = MagicMock()
         measured = FrameSkew(fine_rotation=1.01, converge_v=None, converge_h=None, confidence=0.9, lines=(), residual=0.0)
 
-        with patch("negpy.desktop.controller.trusted_frame_skew", return_value=measured):
+        with patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=measured):
             self.controller.auto_skew_frame()
 
         self.mock_session_manager.update_config.assert_not_called()
@@ -210,7 +211,7 @@ class TestAppController(unittest.TestCase):
 
         with (
             patch("negpy.desktop.controller.apply_flatfield", return_value=flattened) as bake,
-            patch("negpy.desktop.controller.trusted_frame_skew", return_value=measured) as fit,
+            patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=measured) as fit,
         ):
             self.controller.auto_skew_frame()
 
@@ -222,7 +223,7 @@ class TestAppController(unittest.TestCase):
         self.controller.request_render = MagicMock()
         self.controller.set_status = MagicMock()
 
-        with patch("negpy.desktop.controller.trusted_frame_skew", side_effect=RuntimeError("no LSD")):
+        with patch("negpy.features.geometry.skew.trusted_frame_skew", side_effect=RuntimeError("no LSD")):
             self.controller.auto_skew_frame()
 
         self.mock_session_manager.update_config.assert_not_called()
@@ -2315,6 +2316,19 @@ class TestAppController(unittest.TestCase):
         mock_slot.assert_called_once_with()
         self.controller.request_render.assert_called_once_with()
 
+    def test_the_decode_orientation_reaches_the_render_for_the_flat_field(self):
+        import numpy as np
+
+        emitted = []
+        self.controller.render_requested.connect(emitted.append)
+        self.controller._requested_file_path = "turned.arw"
+        raw = np.zeros((4, 6, 3), dtype=np.float32)
+
+        self.controller._on_preview_loaded("turned.arw", raw, (4, 6), "", None, "", (None, None, None, "", 6))
+
+        self.assertEqual(self.controller.state.preview_orientation, 6)
+        self.assertEqual(emitted[-1].source_orientation, 6)
+
     def test_stale_preview_decode_is_dropped(self):
         """A decode that lands after the user switched files must not be applied —
         accepting it pairs the old buffer with the new file's hash and poisons the
@@ -2581,14 +2595,14 @@ class TestAppController(unittest.TestCase):
             self.assertEqual(out, [task])
             self.controller._prompt_overwrite_conflicts.assert_not_called()
 
-    def _armed_auto_crop(self):
-        geometry = replace(self.controller.state.config.geometry, crop_from_auto=True, crop_rect=None)
+    def _armed_auto_crop(self, square: bool = True):
+        geometry = replace(self.controller.state.config.geometry, crop_from_auto=True, crop_rect=None, autocrop_square=square)
         self.controller.state.config = replace(self.controller.state.config, geometry=geometry)
         return autocrop_detection_key(geometry)
 
     def test_freeze_stores_the_crop_the_render_detected(self):
         key = self._armed_auto_crop()
-        metrics = {"autocrop_resolved_rect": (0.05, 0.04, 0.99, 0.98), "autocrop_resolved_key": key}
+        metrics = {"autocrop_resolved": ArmedCrop((0.05, 0.04, 0.99, 0.98), key, None, False)}
 
         self.controller._freeze_resolved_auto_crop(metrics)
 
@@ -2600,17 +2614,83 @@ class TestAppController(unittest.TestCase):
     def test_freeze_requests_no_render(self):
         """The rect is what was just painted, so re-rendering it would only cost a frame."""
         key = self._armed_auto_crop()
-        self.controller._freeze_resolved_auto_crop({"autocrop_resolved_rect": (0.1, 0.1, 0.9, 0.9), "autocrop_resolved_key": key})
+        self.controller._freeze_resolved_auto_crop({"autocrop_resolved": ArmedCrop((0.1, 0.1, 0.9, 0.9), key, None, False)})
         self.assertFalse(self.mock_session_manager.update_config.call_args.kwargs["render"])
 
     def test_freeze_drops_a_result_the_user_has_moved_past(self):
         """Ratio changed while the render was in flight: a render under the new one is
         already queued, and storing this rect would file it under the wrong detection."""
         self._armed_auto_crop()
-        metrics = {"autocrop_resolved_rect": (0.05, 0.04, 0.99, 0.98), "autocrop_resolved_key": "stale-key"}
+        metrics = {"autocrop_resolved": ArmedCrop((0.05, 0.04, 0.99, 0.98), "stale-key", None, False)}
 
         self.controller._freeze_resolved_auto_crop(metrics)
 
+        self.mock_session_manager.update_config.assert_not_called()
+
+    def test_freeze_stores_the_squared_angle_with_the_crop(self):
+        """The crop was found on the squared frame: both save together, with no undo step of their own."""
+        self._armed_auto_crop()
+        squared = replace(self.controller.state.config.geometry, fine_rotation=1.2, converge_v=0.8, converge_h=0.0)
+        key = autocrop_detection_key(squared)
+
+        self.controller._freeze_resolved_auto_crop({"autocrop_resolved": ArmedCrop((0.05, 0.04, 0.99, 0.98), key, (1.2, 0.8, 0.0), True)})
+
+        call = self.mock_session_manager.update_config.call_args
+        geometry = call.args[0].geometry
+        self.assertEqual((geometry.fine_rotation, geometry.converge_v, geometry.converge_h), (1.2, 0.8, 0.0))
+        self.assertEqual((geometry.crop_rect, geometry.crop_detect_key), ((0.05, 0.04, 0.99, 0.98), key))
+        self.assertTrue(geometry.autocrop_squared)
+        self.assertFalse(call.kwargs["record_history"])
+
+    def test_freeze_stores_the_squared_angle_when_no_crop_was_found(self):
+        """Saved anyway, so the next render does not pay for the fit again."""
+        self._armed_auto_crop()
+        squared = replace(self.controller.state.config.geometry, fine_rotation=-0.6)
+
+        self.controller._freeze_resolved_auto_crop(
+            {"autocrop_resolved": ArmedCrop(None, autocrop_detection_key(squared), (-0.6, 0.0, 0.0), True)}
+        )
+
+        geometry = self.mock_session_manager.update_config.call_args.args[0].geometry
+        self.assertEqual(geometry.fine_rotation, -0.6)
+        self.assertIsNone(geometry.crop_rect)
+        self.assertTrue(geometry.crop_from_auto)  # still armed for the crop
+
+    def test_freeze_drops_a_squaring_when_the_frame_got_its_own_angle_meanwhile(self):
+        self._armed_auto_crop()
+        hand = replace(self.controller.state.config.geometry, fine_rotation=0.4)
+        self.controller.state.config = replace(self.controller.state.config, geometry=hand)
+        squared = replace(hand, fine_rotation=1.2)
+
+        self.controller._freeze_resolved_auto_crop(
+            {"autocrop_resolved": ArmedCrop((0.1, 0.1, 0.9, 0.9), autocrop_detection_key(squared), (1.2, 0.0, 0.0), False)}
+        )
+
+        self.mock_session_manager.update_config.assert_not_called()
+
+    def test_freeze_marks_a_failed_squaring_so_it_runs_once(self):
+        key = self._armed_auto_crop()
+        self.controller._freeze_resolved_auto_crop({"autocrop_resolved": ArmedCrop(None, key, None, True)})
+        geometry = self.mock_session_manager.update_config.call_args.args[0].geometry
+        self.assertEqual((geometry.crop_rect, geometry.fine_rotation), (None, 0.0))
+        self.assertTrue(geometry.autocrop_squared)
+
+    def test_freeze_drops_a_squaring_once_square_was_turned_off(self):
+        self._armed_auto_crop(square=False)
+        squared = replace(self.controller.state.config.geometry, fine_rotation=1.2)
+        self.controller._freeze_resolved_auto_crop(
+            {"autocrop_resolved": ArmedCrop((0.1, 0.1, 0.9, 0.9), autocrop_detection_key(squared), (1.2, 0.0, 0.0), True)}
+        )
+        self.mock_session_manager.update_config.assert_not_called()
+
+    def test_freeze_drops_a_squaring_once_another_render_squared_the_arm(self):
+        self._armed_auto_crop()
+        done = replace(self.controller.state.config.geometry, autocrop_squared=True)
+        self.controller.state.config = replace(self.controller.state.config, geometry=done)
+        squared = replace(done, fine_rotation=1.2)
+        self.controller._freeze_resolved_auto_crop(
+            {"autocrop_resolved": ArmedCrop((0.1, 0.1, 0.9, 0.9), autocrop_detection_key(squared), (1.2, 0.0, 0.0), True)}
+        )
         self.mock_session_manager.update_config.assert_not_called()
 
     def test_freeze_ignores_a_render_of_a_manual_crop(self):
@@ -2618,7 +2698,7 @@ class TestAppController(unittest.TestCase):
         self.controller.state.config = replace(self.controller.state.config, geometry=geometry)
 
         self.controller._freeze_resolved_auto_crop(
-            {"autocrop_resolved_rect": (0.0, 0.0, 1.0, 1.0), "autocrop_resolved_key": autocrop_detection_key(geometry)}
+            {"autocrop_resolved": ArmedCrop((0.0, 0.0, 1.0, 1.0), autocrop_detection_key(geometry), None, False)}
         )
 
         self.mock_session_manager.update_config.assert_not_called()
@@ -5358,6 +5438,41 @@ class TestFlatFieldPeek(unittest.TestCase):
         self.assertGreater(view[h // 2, w // 2].mean(), view[1, 1].mean())
         self.assertIn("saved before the check", seen[-1])
 
+    def test_it_turns_with_the_frame_orientation_unless_the_profile_is_still_as_baked(self):
+        for sensor_layout, portrait in ((True, True), (False, False)):
+            with self.subTest(sensor_layout=sensor_layout):
+                self.controller.state.flatfield_peek = False
+                self._select(self._stored()._replace(sensor_layout=sensor_layout))
+                self.controller.state.preview_orientation = 6
+                self.controller.toggle_flatfield_peek(force=True)
+
+                h, w = self.controller.state.peek_frame["base_positive"].shape[:2]
+                self.assertEqual(h > w, portrait)
+
+    def test_it_takes_the_frame_quarter_turns_and_flips(self):
+        import numpy as np
+        from dataclasses import replace
+
+        from negpy.services.assets.flatfield import StoredCheck
+
+        yy, xx = np.mgrid[0:32, 0:48].astype(np.float32)
+        lopsided = np.repeat((1.0 + 0.3 * xx / 48 + 0.1 * yy / 32)[..., None], 3, axis=2).astype(np.float32)
+        self._select(StoredCheck(lopsided, None, None))
+        state = self.controller.state
+
+        def view(**geometry):
+            state.flatfield_peek = False
+            settings = {"rotation": 0, "flip_horizontal": False, "flip_vertical": False, **geometry}
+            state.config = replace(state.config, geometry=replace(state.config.geometry, **settings))
+            self.controller.toggle_flatfield_peek(force=True)
+            return state.peek_frame["base_positive"]
+
+        upright = view()
+        h, w = view(rotation=1).shape[:2]
+        self.assertGreater(h, w)
+        np.testing.assert_allclose(view(flip_horizontal=True), np.fliplr(upright), atol=1e-4)
+        np.testing.assert_allclose(view(flip_vertical=True), np.flipud(upright), atol=1e-4)
+
     def test_with_no_profile_it_says_so_and_stays_off(self):
         seen: list = []
         self.controller.flatfield_peek_changed.connect(seen.append)
@@ -5724,7 +5839,7 @@ class TestCompareFlatPeekInteraction(unittest.TestCase):
         geometry = replace(self.controller.state.config.geometry, crop_from_auto=True, crop_rect=None)
         self.controller.state.config = replace(self.controller.state.config, geometry=geometry)
         self.controller.toggle_negative_peek(force=True)
-        metrics = {"autocrop_resolved_rect": (0.05, 0.04, 0.99, 0.98), "autocrop_resolved_key": autocrop_detection_key(geometry)}
+        metrics = {"autocrop_resolved": ArmedCrop((0.05, 0.04, 0.99, 0.98), autocrop_detection_key(geometry), None, False)}
         self.controller._freeze_resolved_auto_crop(metrics)
         with patch.object(self.controller, "_dispatch_pending_render"):
             self.controller.request_render()

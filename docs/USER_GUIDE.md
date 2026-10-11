@@ -768,6 +768,7 @@ The roll-wide crop shape, and what the frame detector looks for. Each frame's re
 *   **Crop Offset** (-5 to 100 px): insets the detected edge; negative bleeds slightly outside.
 *   **Rebate Trim** (0 to 150%, *Image only*): 0% stops at the film edge, 100% at the detected image edge, above 100% cuts into the picture to clear a white border.
 *   **Auto Crop** (magic wand): detects the frame edge and crops to it; off clears the crop. New frames start with the last value set. A hand-drawn crop turns it off for that frame alone. **Roll** asks before it changes the roll's Auto Crop for frames that follow the roll.
+*   **Square Before Crop** (default off): Auto Crop first squares the frame (Fine Rotation, Tilt and Swing, as **Auto Skew**), then crops. It squares once when Auto Crop is set or Square Before Crop is turned on; a frame with its own Fine Rotation, Tilt or Swing keeps them. **Auto-crop all frames** straightens rotation either way; this adds Tilt and Swing.
 *   **Auto-crop all frames** (*Image only*): crops every frame in the Film Strip together, calibrating weak detections from confident ones, and straightens each as **Auto Skew** does. Hand-drawn, Film-edge and ambiguous frames, and frames with their own Auto Crop off, are left alone.
 *   **Mixing scans**: allowed. A frame that reads its own edge keeps its crop; a frame with no edge takes the roll's width and tilt. Frames from one camera, holder and format pool best.
 *   **When auto-crop leaves a frame alone**: the scanner bed must be the brightest thing in the scan. A slide with highlights as bright as the bed, sprocket-exposed film, or a neighbor frame filling more than a tenth of one side stays uncropped. Crop by hand, or use *Film edge* and trim in.
@@ -845,7 +846,7 @@ Corrects uneven light (vignetting, falloff) from a copy-stand or scanner light, 
 
 *   **Profile**: **+** bakes a reference image into a named profile in NegPy's `flatfield` folder; the image can then be deleted. **Trash** asks first; every frame using the profile loses its correction.
 *   **Apply Flat Field**: applies the selected profile to this roll.
-*   **Check Flat Field**: shows how well the selected profile corrects its own reference. A good profile shows an even gray; a band or patch shows where it is off (full white or black is 10% or more). An older profile without check data shows the light it corrects instead; save it again to check it. Saving warns when the reference is clipped or does not correct itself evenly.
+*   **Check Flat Field**: shows how well the selected profile corrects its own reference. A good profile shows an even gray; a band or patch shows where it is off (full white or black is 10% or more). It turns and flips with the open frame, without fine rotation, keystone or crop. An older profile without check data shows the light it corrects instead; save it again to check it. Saving warns when the reference is clipped or does not correct itself evenly.
 
 A newly chosen profile becomes the rig's default for the next roll.
 

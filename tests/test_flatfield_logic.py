@@ -32,19 +32,19 @@ def gain_store():
 
 def test_disabled_is_noop():
     img = np.full((16, 16, 3), 0.5, dtype=np.float32)
-    out = ff.apply_flatfield(img, FlatFieldConfig(apply=False, profile_id="anything"))
+    out = ff.apply_flatfield(img, FlatFieldConfig(apply=False, profile_id="anything"), orientation=1)
     assert out is img
 
 
 def test_empty_profile_is_noop():
     img = np.full((16, 16, 3), 0.5, dtype=np.float32)
-    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id=""))
+    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id=""), orientation=1)
     assert out is img
 
 
 def test_unknown_profile_is_noop(gain_store):
     img = np.full((16, 16, 3), 0.5, dtype=np.float32)
-    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id="ghost"))
+    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id="ghost"), orientation=1)
     assert out is img
     assert ff.flatfield_token(FlatFieldConfig(apply=True, profile_id="ghost")) == ""
 
@@ -56,7 +56,7 @@ def test_correction_flattens_uneven_illumination(gain_store):
 
     # A uniform scene captured under this illumination is just the falloff map.
     captured = falloff.copy()
-    corrected = ff.apply_flatfield(captured, FlatFieldConfig(apply=True, profile_id="rig"))
+    corrected = ff.apply_flatfield(captured, FlatFieldConfig(apply=True, profile_id="rig"), orientation=1)
 
     # Before: clearly uneven. After: near-flat across the field.
     assert captured.std() > 0.05
@@ -129,7 +129,7 @@ def test_gain_resized_to_image(gain_store):
     # Gain baked at one size must resize to a differently-sized working image.
     gain_store("rig", _radial_falloff(64, 64))
     img = np.full((100, 140, 3), 0.5, dtype=np.float32)
-    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id="rig"))
+    out = ff.apply_flatfield(img, FlatFieldConfig(apply=True, profile_id="rig"), orientation=1)
     assert out.shape == img.shape
 
 
@@ -168,10 +168,10 @@ def test_a_half_frame_takes_its_own_half_of_the_gain(gain_store):
     scan = np.full((120, 200, 3), 0.4, np.float32) * _radial_falloff(120, 200)
     cut = ((1, 0.5, None, 0.04, "x"),)
 
-    expected = slice_chain(ff.apply_flatfield(scan, cfg), cut)
+    expected = slice_chain(ff.apply_flatfield(scan, cfg, orientation=1), cut)
 
     half = np.ascontiguousarray(slice_chain(scan, cut))
-    np.testing.assert_allclose(ff.apply_flatfield(half, cfg, lambda g: slice_chain(g, cut)), expected, rtol=0.02)
+    np.testing.assert_allclose(ff.apply_flatfield(half, cfg, lambda g: slice_chain(g, cut), orientation=1), expected, rtol=0.02)
 
     processor = ImageProcessor()
     processor.run_pipeline(
@@ -194,8 +194,8 @@ def test_without_the_cut_the_gain_would_be_stretched(gain_store):
     scan = np.full((120, 200, 3), 0.4, np.float32) * _radial_falloff(120, 200)
     cut = ((1, 0.5, None, 0.04, "x"),)
     half = np.ascontiguousarray(slice_chain(scan, cut))
-    expected = slice_chain(ff.apply_flatfield(scan, cfg), cut)
-    assert not np.allclose(ff.apply_flatfield(half, cfg), expected, rtol=0.02)
+    expected = slice_chain(ff.apply_flatfield(scan, cfg, orientation=1), cut)
+    assert not np.allclose(ff.apply_flatfield(half, cfg, orientation=1), expected, rtol=0.02)
 
 
 def test_thumbnail_ir_planes_are_cut_like_the_buffer():
@@ -275,3 +275,80 @@ def test_a_profile_check_copy_is_finer_than_the_gain():
     assert max(ff.check_copy(reference).shape[:2]) == 512
     assert max(ff.compute_gain(reference).shape[:2]) == 256
     assert ff.check_reference(reference, ff.compute_gain(reference)).spread < ff.UNEVEN_LIMIT
+
+
+def _sensor_falloff(h: int = 120, w: int = 180) -> np.ndarray:
+    """Falloff with no symmetry, so a wrong turn or flip shows."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    light = (0.6 + 0.4 * xx / w) * (1.0 - 0.2 * yy / h)
+    return np.repeat(light[:, :, None], 3, axis=2).astype(np.float32)
+
+
+def _spread(image: np.ndarray) -> float:
+    lum = image.mean(axis=2)
+    return float((lum.max() - lum.min()) / np.median(lum))
+
+
+@pytest.mark.parametrize("orientation", [1, 2, 3, 4, 5, 6, 7, 8])
+def test_to_sensor_layout_undoes_every_exif_orientation(orientation):
+    from negpy.kernel.image.logic import apply_exif_orientation
+
+    sensor = _sensor_falloff(12, 18)
+    np.testing.assert_array_equal(ff.to_sensor_layout(apply_exif_orientation(sensor, orientation), orientation), sensor)
+
+
+@pytest.mark.parametrize("orientation", [1, 2, 3, 4, 5, 6, 7, 8])
+def test_a_frame_of_any_exif_orientation_is_corrected_where_the_light_fell(gain_store, orientation):
+    from negpy.kernel.image.logic import apply_exif_orientation
+
+    light = _sensor_falloff()
+    gain_store("rig", light)
+    frame = apply_exif_orientation(np.full_like(light, 0.5) * light, orientation)
+
+    out = ff.apply_flatfield(frame, FlatFieldConfig(apply=True, profile_id="rig"), orientation=orientation)
+
+    assert out.shape == frame.shape
+    assert _spread(out) < 0.06
+
+
+@pytest.mark.parametrize("orientation", [3, 6, 8])
+def test_a_turned_frame_read_as_upright_is_corrected_worse_than_not_at_all(gain_store, orientation):
+    from negpy.kernel.image.logic import apply_exif_orientation
+
+    light = _sensor_falloff()
+    gain_store("rig", light)
+    frame = apply_exif_orientation(np.full_like(light, 0.5) * light, orientation)
+
+    assert _spread(ff.apply_flatfield(frame, FlatFieldConfig(apply=True, profile_id="rig"), orientation=1)) > _spread(frame)
+
+
+def test_a_turned_half_frame_takes_the_turned_gain_before_its_cut(gain_store):
+    from dataclasses import replace
+
+    from negpy.domain.models import WorkspaceConfig
+    from negpy.kernel.image.logic import apply_exif_orientation
+    from negpy.services.assets.half_frame import slice_chain
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    light = _sensor_falloff(120, 200)
+    gain_store("p", light)
+    cfg = FlatFieldConfig(apply=True, profile_id="p")
+    scan = apply_exif_orientation(np.full_like(light, 0.4) * light, 6)
+    cut = ((1, 0.5, None, 0.04, "y"),)
+    expected = slice_chain(ff.apply_flatfield(scan, cfg, orientation=6), cut)
+
+    half = np.ascontiguousarray(slice_chain(scan, cut))
+    np.testing.assert_allclose(ff.apply_flatfield(half, cfg, lambda g: slice_chain(g, cut), orientation=6), expected, rtol=0.02)
+
+    processor = ImageProcessor()
+    processor.run_pipeline(
+        half,
+        replace(WorkspaceConfig(), flatfield=cfg),
+        "half",
+        render_size_ref=100.0,
+        prefer_gpu=False,
+        readback_metrics=False,
+        gain_slices=cut,
+        source_orientation=6,
+    )
+    np.testing.assert_allclose(processor._precorrect_value, expected, rtol=0.02)

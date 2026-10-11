@@ -159,6 +159,18 @@ def migrate_legacy_export_destination(repo: IRepository) -> None:
 
 
 _AUTO_CROP_ROW_MIGRATED_KEY = "auto_crop_sticky_row_v1"
+_SQUARE_ROW_MIGRATED_KEY = "sticky_rows_square_before_crop_v1"
+
+
+def migrate_square_before_crop_sticky_row(repo: IRepository) -> None:
+    """Add Square Before Crop to a saved row choice, once, as Auto Crop's own row was: it is
+    an Auto Crop setting and travels with it."""
+    if repo.get_global_setting(_SQUARE_ROW_MIGRATED_KEY):
+        return
+    repo.save_global_setting(_SQUARE_ROW_MIGRATED_KEY, True)
+    stored = repo.get_global_setting(STICKY_ROWS_KEY)
+    if isinstance(stored, list):
+        save_sticky_rows(repo, sorted(set(stored) | {"geometry.autocrop_square"}))
 
 
 def migrate_auto_crop_sticky_row(repo: IRepository) -> None:

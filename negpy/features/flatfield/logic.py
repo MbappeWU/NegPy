@@ -6,6 +6,7 @@ import numpy as np
 
 from negpy.domain.types import ImageBuffer
 from negpy.features.flatfield.models import FlatFieldConfig
+from negpy.kernel.image.logic import apply_exif_orientation
 from negpy.kernel.system.logging import get_logger
 
 logger = get_logger(__name__)
@@ -43,12 +44,17 @@ UNEVEN_LIMIT = 0.06
 _CLIP_LEVEL = 0.98
 _CLIP_FRACTION = 0.001
 
-# Resolved gains keyed by profile id: (gain map, content token). A cached ``None`` marks a
-# known-missing profile, so a broken reference does not re-hit the store every render.
-# Populated lazily through the injected provider: the desktop app wires it to the on-disk
-# profile store (services/assets/flatfield.py) at startup, and tests may seed this map
-# directly.
-GainEntry = Tuple[np.ndarray, str]
+
+class GainEntry(NamedTuple):
+    gain: np.ndarray
+    token: str
+    # False for a profile still in its reference's EXIF orientation, whose tag is unknown: it
+    # applies untouched, as it was baked.
+    sensor_layout: bool = True
+
+
+# Gains by profile id, filled lazily through the injected provider. A cached ``None`` marks a
+# missing profile, so a broken reference does not re-hit the store every render.
 _GAIN_CACHE: Dict[str, Optional[GainEntry]] = {}
 _gain_provider: Optional[Callable[[str], Optional[GainEntry]]] = None
 
@@ -71,9 +77,9 @@ def invalidate_gain(profile_id: Optional[str] = None) -> None:
 def _resolve(profile_id: str) -> Optional[GainEntry]:
     if not profile_id:
         return None
-    if profile_id in _GAIN_CACHE:
-        return _GAIN_CACHE[profile_id]
-    entry = _gain_provider(profile_id) if _gain_provider is not None else None
+    entry = _GAIN_CACHE[profile_id] if profile_id in _GAIN_CACHE else _gain_provider(profile_id) if _gain_provider is not None else None
+    if entry is not None and not isinstance(entry, GainEntry):
+        entry = GainEntry(*entry)
     _GAIN_CACHE[profile_id] = entry
     return entry
 
@@ -205,21 +211,32 @@ def flatfield_token(config: FlatFieldConfig) -> str:
     entry = _resolve(config.profile_id)
     if entry is None:
         return ""
-    return f"|ff:{config.profile_id}:{entry[1]}"
+    return f"|ff:{config.profile_id}:{entry.token}" + ("" if entry.sensor_layout else ":ref")
+
+
+def to_sensor_layout(image: np.ndarray, orientation: Optional[int]) -> np.ndarray:
+    """Undo an EXIF orientation that a decode baked into *image*."""
+    return apply_exif_orientation(image, {6: 8, 8: 6}.get(orientation or 1, orientation))
 
 
 def apply_flatfield(
-    image: ImageBuffer, config: FlatFieldConfig, gain_crop: Optional[Callable[[np.ndarray], np.ndarray]] = None
+    image: ImageBuffer,
+    config: FlatFieldConfig,
+    gain_crop: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    *,
+    orientation: Optional[int],
 ) -> ImageBuffer:
     """Multiply the linear source by the reference gain map. No-op when inactive or unresolved.
-    ``gain_crop`` cuts the gain to the part of the frame *image* holds (one half-frame); the gain
-    is then resized to *image*."""
+    The sensor-layout gain takes *image*'s decode ``orientation`` first, then ``gain_crop`` cuts it
+    to the part of the frame *image* holds (one half-frame); the gain is then resized to *image*."""
     if not config.apply or not config.profile_id:
         return image
     entry = _resolve(config.profile_id)
     if entry is None:
         return image
-    gain = entry[0] if gain_crop is None else gain_crop(entry[0])
+    gain = apply_exif_orientation(entry.gain, orientation) if entry.sensor_layout else entry.gain
+    if gain_crop is not None:
+        gain = gain_crop(gain)
     if gain.shape[:2] != image.shape[:2]:
         gain = cv2.resize(gain, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_LINEAR)
     return (image * gain).astype(np.float32)

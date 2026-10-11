@@ -647,3 +647,18 @@ def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(re
 
     assert _kind(session.state.config) == "none"
     assert repo.get_global_setting("sticky_config")["crop_from_auto"] is carried
+
+
+def test_the_roll_run_saves_the_keystone_with_its_own_rotation(ctl):
+    """Tilt and Swing from the fit, rotation from the run's own deskew, and the arm marked squared."""
+    from dataclasses import replace as dc_replace
+
+    started = _cfg("armed", autocrop_square=True)
+    ctl.repo.save_file_settings("h2", started, file_path="/r/h2.tif")
+    result = dc_replace(_result(ctl, "h2", started), correction_angle=0.3, keystone=(0.5, -0.3))
+
+    _finish(ctl, [result])
+
+    geometry = ctl.repo.load_file_settings("h2").geometry
+    assert (round(geometry.fine_rotation, 6), geometry.converge_v, geometry.converge_h) == (0.3, 0.5, -0.3)
+    assert geometry.autocrop_squared and geometry.crop_rect == (0.2, 0.2, 0.8, 0.8)

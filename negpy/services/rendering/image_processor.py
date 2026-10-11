@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dc_replace
 from functools import lru_cache
 from PIL import Image, ImageCms
-from typing import Callable, Tuple, Optional, Any, Dict, List, Sequence
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 from negpy.kernel.system.logging import get_logger
 from negpy.kernel.system.config import APP_CONFIG
 from negpy.domain.types import ImageBuffer
@@ -42,6 +42,8 @@ from negpy.features.flatfield.logic import apply_flatfield, flatfield_token
 from negpy.features.lab.logic import apply_resize_sharpening
 from negpy.services.rendering.lens import lens_decode_token, metadata_lens_corrections, prepare_lens_source
 from negpy.features.geometry.logic import autocrop_detection_key, resolve_autocrop_rect
+from negpy.features.geometry.models import squares_on_arm
+from negpy.features.geometry.skew import squared_geometry
 from negpy.features.retouch.logic import (
     apply_hair_inpaint,
     apply_ir_attenuation,
@@ -178,27 +180,42 @@ _JXL_COLOR = {
 _NEUTRAL_WB = (1.0, 1.0, 1.0, 1.0)
 
 
-def _resolve_armed_autocrop(
-    img: np.ndarray, settings: WorkspaceConfig
-) -> Tuple[WorkspaceConfig, Optional[Tuple[Tuple[float, float, float, float], str]]]:
-    """Turn an armed Auto Crop into a rect, once, before either engine runs.
+class ArmedCrop(NamedTuple):
+    """What an armed Auto Crop resolved, for the controller to freeze."""
 
-    Armed = crop_from_auto with no rect yet, or a rect under a stale key. Returns the
-    settings for this render plus the (rect, key) to freeze, or None if nothing resolved.
+    rect: Optional[Tuple[float, float, float, float]]  # None when no crop was found
+    key: str  # autocrop_detection_key of the geometry the rect was found on
+    skew: Optional[Tuple[float, float, float]]  # Fine Rotation, Tilt, Swing squared to; None if not measured
+    squared: bool  # Square Before Crop ran for this arm
 
-    Detection stays out of the engines: run per render, it reads whatever buffer that
-    render holds, and a preview and a full-res export can find different frame edges.
-    """
+
+def _resolve_armed_autocrop(img: np.ndarray, settings: WorkspaceConfig) -> Tuple[WorkspaceConfig, Optional[ArmedCrop]]:
+    """Turn an armed Auto Crop (no rect yet, or a stale key) into a rect, once, before either
+    engine runs: per render, a preview and a full-res export can find different edges. Returns
+    this render's settings (marked squared when Square Before Crop ran) and what to freeze, or None."""
     geom = settings.geometry
     if not geom.crop_from_auto:
         return settings, None
     key = autocrop_detection_key(geom)
     if geom.crop_rect is not None and geom.crop_detect_key == key:
         return settings, None
+    skew = None
+    tried = squares_on_arm(geom)
+    if tried:
+        fit = squared_geometry(img, geom, settings.process.process_mode)
+        if fit is not None:
+            geom = fit[0]
+            skew = (geom.fine_rotation, geom.converge_v, geom.converge_h)
+            key = autocrop_detection_key(geom)
+        # Marked here too, so a later resolver call on these settings (export, then its own
+        # pipeline) does not fit again.
+        geom = dc_replace(geom, autocrop_squared=True)
     rect = resolve_autocrop_rect(img, geom, APP_CONFIG.preview_render_size)
-    if rect is None:
+    if rect is None and not tried:
         return settings, None
-    return dc_replace(settings, geometry=dc_replace(geom, crop_rect=rect, crop_detect_key=key)), (rect, key)
+    if rect is not None:
+        geom = dc_replace(geom, crop_rect=rect, crop_detect_key=key)
+    return dc_replace(settings, geometry=geom), ArmedCrop(rect, key, skew, tried)
 
 
 def _camera_token(cam_xyz: Optional[list], camera_wb: Optional[list]) -> str:
@@ -696,10 +713,11 @@ class ImageProcessor:
         camera_wb: Optional[list] = None,
         cache_stages: bool = True,
         gain_slices: tuple = (),
+        source_orientation: int = 1,
     ) -> Tuple[Any, Dict[str, Any]]:
         """Executes rendering pipeline. Returns result (ndarray/GPUTexture) and metrics. ``skip_flatfield``: the export CPU
         fallbacks pass an already flat-fielded buffer. ``gain_slices``: the ``slice_half`` cuts that took *img* out of the
-        decoded frame; the flat-field gain takes the same cuts."""
+        decoded frame. ``source_orientation``: the EXIF orientation baked into *img*. The flat-field gain takes both."""
         # Flat-field is a source pre-correction, before geometry and crop. Folding its token
         # into source_hash invalidates the engine cache when it changes. Stitch buffers arrive
         # per-part flat-fielded, because correcting the composite canvas as one frame would
@@ -710,6 +728,7 @@ class ImageProcessor:
             img.shape,
             skip_flatfield,
             gain_slices,
+            source_orientation,
             metadata_lens_corrections(settings),
             flatfield_token(settings.flatfield),
             sensor_token(settings.process),
@@ -724,7 +743,12 @@ class ImageProcessor:
             if not skip_flatfield and not settings.stitch.stitch_enabled and not metadata_lens_corrections(settings):
                 from negpy.services.assets.half_frame import slice_chain
 
-                img = apply_flatfield(img, settings.flatfield, (lambda g: slice_chain(g, gain_slices)) if gain_slices else None)
+                img = apply_flatfield(
+                    img,
+                    settings.flatfield,
+                    (lambda g: slice_chain(g, gain_slices)) if gain_slices else None,
+                    orientation=source_orientation,
+                )
             # Sensor unmix is a source pre-correction like flat-field. skip_flatfield buffers
             # come from _load_source_f32, which already applied it.
             if not skip_flatfield and preview_takes_unmix(settings):
@@ -805,8 +829,7 @@ class ImageProcessor:
         # The crop this render detected, for the controller to freeze into the edit. The key
         # rides along so a freeze that lands after the user moved on is discarded.
         if resolved_crop is not None:
-            context.metrics["autocrop_resolved_rect"] = resolved_crop[0]
-            context.metrics["autocrop_resolved_key"] = resolved_crop[1]
+            context.metrics["autocrop_resolved"] = resolved_crop
         # Overlay data, written even when empty: the controller merges metrics into the last
         # frame's, so an absent key keeps the previous frame's marks.
         dust_mask = detected_dust < 1.0 if detected_dust is not None else None
@@ -1201,7 +1224,7 @@ class ImageProcessor:
         if metadata_lens_corrections(params):
             f32_buffer = prepare_lens_source(f32_buffer, metadata, params.flatfield, metadata_lens_corrections(params))
         else:
-            f32_buffer = apply_flatfield(f32_buffer, params.flatfield)
+            f32_buffer = apply_flatfield(f32_buffer, params.flatfield, orientation=orientation)
         if unmix and not is_triplet:
             f32_buffer = apply_sensor_correction(f32_buffer, effective_sensor_matrix(params.process), params.process.sensor_unmix)
         if ir_full is not None:
