@@ -44,7 +44,7 @@ Drag a panel by its top edge (the strip above Session, or the margin around the 
 
 ### Peek Embedded Preview
 
-**Embedded Preview** in the **Print** menu (or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Files without one (scanner TIFFs, most converter DNGs) say so and stay on the print. It closes the same way as Peek Negative.
+**Embedded** in the **Print** menu (or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Files without one (scanner TIFFs, most converter DNGs) say so and stay on the print. It closes the same way as Peek Negative.
 
 A peek shows a **NEGATIVE**, **EMBEDDED** or **FLAT SCAN** badge, and the **Print** menu shows its name. `Esc` closes any peek, the split or a test strip.
 

@@ -581,13 +581,13 @@ class TestViewChooser(unittest.TestCase):
         tb = _make_toolbar()
         tb.session.state.embedded_peek = True
         tb._sync_view_state()
-        self.assertEqual(tb.source_choice.text().strip(), "Embedded Preview")
+        self.assertEqual(tb.source_choice.text().strip(), "Embedded")
         tb.controller.toggle_embedded_peek.assert_not_called()
 
     def test_a_refused_peek_falls_back_to_print(self):
         """A file with no embedded preview leaves the state off; the chooser must not claim it is on."""
         tb = _make_toolbar()
-        self._choose(tb, "Embedded Preview")
+        self._choose(tb, "Embedded")
         self.assertEqual(tb.source_choice.text().strip(), "Print")
 
     def test_flat_scan_waits_on_flat_output(self):

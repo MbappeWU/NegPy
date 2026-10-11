@@ -135,16 +135,16 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
     (
         "embedded_peek",
         "fa5s.camera",
-        "Embedded Preview",
+        "Embedded",
         "toggle_embedded_peek",
-        "The camera's own JPEG of this capture, as a reference for what the scan looks like",
+        "Embedded preview: the camera's own JPEG of this capture, as a reference for what the scan looks like",
     ),
     (
         "flatfield_peek",
         "fa5s.lightbulb",
-        "Flat Field Check",
+        "Flat Field",
         "toggle_flatfield_peek",
-        "How well the Flat Field profile corrects its own reference. Choose a profile in the Flat Field card to use it.",
+        "Flat Field check: how well the Flat Field profile corrects its own reference. Choose a profile in the Flat Field card to use it.",
     ),
 )
 
