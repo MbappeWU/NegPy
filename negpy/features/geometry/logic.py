@@ -2250,6 +2250,8 @@ def autocrop_detection_key(geometry: GeometryConfig) -> str:
             round(geometry.autocrop_rebate_trim, 4),
             # Only when set, so rects frozen before distortion was keyed stay valid.
             *((round(geometry.distortion_k1, 4),) if geometry.distortion_k1 else ()),
+            # Only when on: turning Square Before Crop on re-detects, and squares, a cropped frame.
+            *(("square",) if geometry.autocrop_square else ()),
         )
     )
 

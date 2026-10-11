@@ -135,6 +135,10 @@ class GeometryConfig:
     # Fraction of the detected rebate to cut: 0.0 = film edge, 1.0 = image edge, above
     # 1.0 bites into the picture. Image mode only.
     autocrop_rebate_trim: float = 1.0
+    # Square Before Crop: Auto Crop squares a freshly armed frame first (_resolve_armed_autocrop).
+    autocrop_square: bool = False
+    # This arm's squaring has run, found an angle or not; a new arm (with_auto_crop) clears it.
+    autocrop_squared: bool = False
 
     # One normalized rect in transformed-image space, auto or manual. `crop_from_auto`
     # doubles as Auto Crop's armed state:
@@ -164,10 +168,22 @@ class GeometryConfig:
             object.__setattr__(self, "autocrop_ratio", AspectRatio.FREE)
 
 
+def holds_own_skew(geometry: GeometryConfig) -> bool:
+    """The frame already has its own Fine Rotation, Tilt or Swing, set by hand, by the Auto
+    Skew button or by an earlier squaring: Auto Crop's squaring leaves it as it is."""
+    return geometry.fine_rotation != 0.0 or geometry.converge_v != 0.0 or geometry.converge_h != 0.0
+
+
+def squares_on_arm(geometry: GeometryConfig) -> bool:
+    """Square Before Crop squares this frame before its next crop detection: on, not yet run
+    for this arm, and no skew of the frame's own."""
+    return geometry.autocrop_square and not geometry.autocrop_squared and not holds_own_skew(geometry)
+
+
 def with_auto_crop(config: "WorkspaceConfig", on: bool) -> "WorkspaceConfig":
     """*config* with Auto Crop on (armed) or off (uncropped). Every path that turns it on or
     off goes through here: a rect kept across the switch would read as the other kind."""
-    geometry = replace(config.geometry, crop_rect=None, crop_from_auto=on, crop_detect_key="")
+    geometry = replace(config.geometry, crop_rect=None, crop_from_auto=on, crop_detect_key="", autocrop_squared=False)
     return replace(config, geometry=geometry, process=replace(config.process, **invalidate_local_bounds(config.process)))
 
 

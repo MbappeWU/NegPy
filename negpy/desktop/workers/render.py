@@ -33,7 +33,9 @@ from negpy.features.process.models import DemosaicMode
 from negpy.infrastructure.loaders.helpers import unsupported_raw_reason
 from negpy.features.rgbscan.models import RgbScanConfig, is_rgb_triplet
 from negpy.features.stitch.models import StitchConfig, stitch_active
+from negpy.features.geometry.models import squares_on_arm
 from negpy.features.geometry.processor import GeometryProcessor
+from negpy.features.geometry.skew import squared_geometry
 from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE
 from negpy.infrastructure.gpu.resources import GPUTexture
 from negpy.kernel.system.config import APP_CONFIG
@@ -213,6 +215,8 @@ class BatchAutoCropResult:
     correction_angle: float
     confidence: float
     calibrated: bool
+    # Tilt and Swing Square Before Crop set before detection; None leaves the frame's own.
+    keystone: Optional[tuple[float, float]] = None
 
 
 @dataclass(frozen=True)
@@ -1607,20 +1611,32 @@ class BatchAutoCropWorker(QObject):
     def _decode(self, frame: BatchAutoCropInput, workspace_color_space: str) -> np.ndarray:
         return decode_asset_preview(self._preview_service, frame.file_info, frame.config, workspace_color_space)
 
-    def _frame_evidence(self, index: int, frame: BatchAutoCropInput, task: BatchAutoCropTask, generation: int) -> Optional[CropEvidence]:
-        """Decode and detect one frame. None when it failed or the run was cancelled."""
+    def _frame_evidence(
+        self, index: int, frame: BatchAutoCropInput, task: BatchAutoCropTask, generation: int
+    ) -> tuple[Optional[CropEvidence], Optional[tuple[float, float]]]:
+        """Decode and detect one frame, with the Tilt and Swing of Square Before Crop applied
+        first. (None, None) when it failed or the run was cancelled.
+
+        Only the keystone: the roll pools rotations, and the run's own deskew sets them."""
         file_info = frame.file_info
         if self._cancel_requested(generation):
-            return None
+            return None, None
         try:
             raw = self._decode(frame, task.workspace_color_space)
             if self._cancel_requested(generation):
-                return None
+                return None, None
 
             config = frame.config
             corrected = raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield)
+            geometry = config.geometry
+            keystone = None
+            if squares_on_arm(geometry):
+                fit = squared_geometry(corrected, geometry, config.process.process_mode)
+                if fit is not None:
+                    keystone = (fit[0].converge_v, fit[0].converge_h)
+                    geometry = replace(geometry, converge_v=keystone[0], converge_h=keystone[1])
             detection_geometry = replace(
-                config.geometry,
+                geometry,
                 crop_rect=None,
                 crop_from_auto=False,
                 autocrop_offset=0,
@@ -1632,18 +1648,19 @@ class BatchAutoCropWorker(QObject):
             )
             transformed = GeometryProcessor(detection_geometry).process(corrected, context)
             if self._cancel_requested(generation):
-                return None
-            return detect_crop_candidate(
+                return None, None
+            evidence = detect_crop_candidate(
                 f"{index}:{file_info.get('hash', '')}",
                 transformed,
                 target_ratio=config.geometry.autocrop_ratio,
                 rebate_trim=config.geometry.autocrop_rebate_trim,
             )
+            return evidence, keystone
         except Exception:
             if self._cancel_requested(generation):
-                return None
+                return None, None
             logger.exception("Auto-crop all frames skipped failed frame %s", file_info.get("name") or file_info.get("path") or index)
-            return None
+            return None, None
 
     @pyqtSlot(BatchAutoCropTask)
     def process(self, task: BatchAutoCropTask) -> None:
@@ -1669,11 +1686,15 @@ class BatchAutoCropWorker(QObject):
             # inside it is already multi-core.
             workers = max(1, min(APP_CONFIG.max_workers // 2, total))
             candidates: list[Optional[CropEvidence]] = [None] * total
+            keystone_by_key: dict[str, tuple[float, float]] = {}
             with ThreadPoolExecutor(max_workers=workers) as ex:
                 futures = {ex.submit(self._frame_evidence, i, frame, task, generation): i for i, frame in enumerate(task.frames)}
                 for done, future in enumerate(as_completed(futures), 1):
                     index = futures[future]
-                    candidates[index] = future.result()
+                    evidence, keystone = future.result()
+                    candidates[index] = evidence
+                    if evidence is not None and keystone is not None:
+                        keystone_by_key[evidence.key] = keystone
                     self.progress.emit(done, total, _name(index))
 
             if self._emit_cancelled_if_requested(generation):
@@ -1698,6 +1719,7 @@ class BatchAutoCropWorker(QObject):
                         correction_angle=crop.correction_angle,
                         confidence=crop.confidence,
                         calibrated=crop.calibrated,
+                        keystone=keystone_by_key.get(crop.key),
                     )
                 )
             self._emit_finished_unless_cancelled(generation, results)

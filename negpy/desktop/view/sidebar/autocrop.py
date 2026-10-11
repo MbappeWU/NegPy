@@ -49,7 +49,14 @@ class AutocropSidebar(BaseSidebar):
         self.auto_crop_all_btn = self._icon_action("fa5s.layer-group", all_tip)
         self.auto_crop_all_btn.plain_tooltip = all_tip
         self.auto_crop_all_btn.setEnabled(conf.autocrop_mode == AutocropMode.IMAGE)
-        self.layout.addLayout(header_row(section_subheader("AUTO CROP"), self.auto_frame_btn, self.auto_crop_all_btn))
+        square_tip = (
+            "Square Before Crop: Auto Crop sets Fine Rotation, Tilt and Swing from the frame's own edges, "
+            "then crops the squared frame. A frame with its own rotation, Tilt or Swing keeps them"
+        )
+        self.square_btn = self._small_toggle("fa5s.ruler-combined", "", conf.autocrop_square, square_tip)
+        self.square_btn.plain_tooltip = square_tip
+        self.square_btn.setFixedWidth(ICON_BUTTON_WIDTH)
+        self.layout.addLayout(header_row(section_subheader("AUTO CROP"), self.square_btn, self.auto_frame_btn, self.auto_crop_all_btn))
 
         mode_row = QHBoxLayout()
         mode_row.addWidget(self._field_label("Mode"))
@@ -95,6 +102,7 @@ class AutocropSidebar(BaseSidebar):
         self.detect_ratio_btn.clicked.connect(self.controller.detect_aspect_ratio)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         self.auto_frame_btn.toggled.connect(self._on_auto_frame_toggled)
+        self.square_btn.toggled.connect(lambda on: self.controller.set_roll_default("autocrop", autocrop_square=bool(on)))
         self.auto_crop_all_btn.clicked.connect(self.controller.request_batch_auto_crop)
 
         self.offset_slider.valueChanged.connect(
@@ -140,6 +148,8 @@ class AutocropSidebar(BaseSidebar):
             self._sync_mode_enabled(conf.autocrop_mode)
             self.auto_frame_btn.setChecked(conf.crop_from_auto)
             self.auto_frame_btn.edited_dot.set_active(conf.crop_from_auto)
+            self.square_btn.setChecked(conf.autocrop_square)
+            self.square_btn.edited_dot.set_active(conf.autocrop_square)
         finally:
             self.block_signals(False)
 
@@ -151,6 +161,7 @@ class AutocropSidebar(BaseSidebar):
             self.offset_slider,
             self.rebate_trim_slider,
             self.auto_frame_btn,
+            self.square_btn,
             self.auto_crop_all_btn,
         ):
             w.blockSignals(blocked)

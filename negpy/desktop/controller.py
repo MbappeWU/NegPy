@@ -161,8 +161,6 @@ from negpy.features.altprocess.models import AltProcess
 from negpy.features.finish.models import FinishConfig
 from negpy.features.flatfield.logic import apply_flatfield
 from negpy.features.geometry.logic import (
-    AUTOCROP_DETECT_RES,
-    _normalize_detection_input,
     apply_fine_rotation,
     autocrop_detection_key,
     detect_closest_aspect_ratio,
@@ -170,9 +168,9 @@ from negpy.features.geometry.logic import (
     has_manual_crop,
     solve_keystone_from_edges,
 )
-from negpy.features.geometry.models import FINE_ROTATION_LIMIT, AutocropMode, with_auto_crop, with_auto_crop_field
+from negpy.features.geometry.models import FINE_ROTATION_LIMIT, AutocropMode, squares_on_arm, with_auto_crop, with_auto_crop_field
+from negpy.features.geometry.skew import squared_geometry
 from negpy.features.geometry.processor import CropProcessor, GeometryProcessor
-from negpy.features.geometry.skew import trusted_frame_skew
 from negpy.domain.interfaces import PipelineContext
 from negpy.features.lab.models import LabConfig
 from negpy.features.local.models import LocalAdjustmentsConfig
@@ -310,6 +308,9 @@ def _autocrop_fingerprint(config: WorkspaceConfig, workspace_color_space: str) -
     return (
         int(geometry.rotation),
         round(float(geometry.fine_rotation), 7),
+        round(float(geometry.converge_v), 7),
+        round(float(geometry.converge_h), 7),
+        bool(geometry.autocrop_square),
         bool(geometry.flip_horizontal),
         bool(geometry.flip_vertical),
         str(geometry.autocrop_mode),
@@ -3661,35 +3662,19 @@ class AppController(QObject):
         geo = config.geometry
         # Every detection path reads the flat-fielded source.
         source = raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield)
-        # Downsample first: the transforms are scale-invariant and the fit resamples anyway.
-        source, _ = _normalize_detection_input(source, AUTOCROP_DETECT_RES)
-        # Zeroed, so the fit returns absolute values.
-        base_geometry = replace(
-            geo, fine_rotation=0.0, converge_v=0.0, converge_h=0.0, crop_rect=None, crop_from_auto=False, autocrop_offset=0
-        )
-        context = PipelineContext(
-            original_size=(source.shape[1], source.shape[0]),
-            scale_factor=1.0,
-            process_mode=config.process.process_mode,
-        )
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            skew = trusted_frame_skew(GeometryProcessor(base_geometry).process(source, context))
+            fit = squared_geometry(source, geo, config.process.process_mode)
         except Exception:
             logger.exception("Auto Skew failed on %s", self.state.current_file_path)
             self.set_status("Auto Skew failed; see the log", 3000, "warning")
             return
         finally:
             QApplication.restoreOverrideCursor()
-        if skew is None:
+        if fit is None:
             self.set_status("Auto Skew could not read the frame edges confidently enough to apply", 3000, "warning")
             return
-        new_geo = replace(
-            geo,
-            fine_rotation=float(np.clip(skew.fine_rotation, -FINE_ROTATION_LIMIT, FINE_ROTATION_LIMIT)),
-            converge_v=geo.converge_v if skew.converge_v is None else float(skew.converge_v),
-            converge_h=geo.converge_h if skew.converge_h is None else float(skew.converge_h),
-        )
+        new_geo, skew = fit
         # Under the sliders' step, the frame is already square.
         if (
             abs(new_geo.fine_rotation - geo.fine_rotation) < 0.05
@@ -3999,12 +3984,17 @@ class AppController(QObject):
                     if len(rect) != 4 or not (0.0 <= rect[0] < rect[2] <= 1.0 and 0.0 <= rect[1] < rect[3] <= 1.0):
                         conflicted += 1
                         continue
-                    fine_rotation = latest.geometry.fine_rotation + result.correction_angle
+                    base_geometry = latest.geometry
+                    if result.keystone is not None:
+                        base_geometry = replace(
+                            base_geometry, converge_v=result.keystone[0], converge_h=result.keystone[1], autocrop_squared=True
+                        )
+                    fine_rotation = base_geometry.fine_rotation + result.correction_angle
                     if not np.isfinite(fine_rotation) or abs(fine_rotation) > FINE_ROTATION_LIMIT:
                         conflicted += 1
                         continue
 
-                    new_geometry = replace(latest.geometry, fine_rotation=float(fine_rotation))
+                    new_geometry = replace(base_geometry, fine_rotation=float(fine_rotation))
                     # Kept auto under the key it was found for, so a later Crop-card change re-detects it.
                     new_geometry = replace(
                         new_geometry,
@@ -8185,15 +8175,30 @@ class AppController(QObject):
         between the render starting and this landing, so a ratio change mid-flight drops
         the result, which a queued render then re-detects.
         """
-        rect = metrics.get("autocrop_resolved_rect")
-        if rect is None:
+        resolved = metrics.get("autocrop_resolved")
+        if resolved is None:
+            return
+        rect, key, skew, squared = resolved
+        if rect is None and not squared:
             return
         geom = self.state.config.geometry
-        if not geom.crop_from_auto or autocrop_detection_key(geom) != metrics.get("autocrop_resolved_key"):
+        if not geom.crop_from_auto:
             return
-        if geom.crop_rect == rect and geom.crop_detect_key == metrics["autocrop_resolved_key"]:
+        if squared:
+            # Square was turned off, the frame got its own angle, or another render squared it.
+            if not squares_on_arm(geom):
+                return
+            if skew is not None:
+                geom = replace(geom, fine_rotation=skew[0], converge_v=skew[1], converge_h=skew[2])
+            geom = replace(geom, autocrop_squared=True)  # the fit runs once per arm, found or not
+        # The key was taken on the squared geometry, so it is checked against that.
+        if autocrop_detection_key(geom) != key:
             return
-        new_geo = replace(geom, crop_rect=tuple(float(v) for v in rect), crop_detect_key=metrics["autocrop_resolved_key"])
+        if rect is not None:
+            geom = replace(geom, crop_rect=tuple(float(v) for v in rect), crop_detect_key=key)
+        if geom == self.state.config.geometry:
+            return
+        new_geo = geom
         # record_history=False: tail of the Auto press, not a second edit to undo past.
         before = self.state.config
         self.session.update_config(replace(self.state.config, geometry=new_geo), persist=True, render=False, record_history=False)

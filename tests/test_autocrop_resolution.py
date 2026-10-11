@@ -73,7 +73,7 @@ def test_resolved_rect_excludes_crop_offset():
     img = _frame_image(1200, 1800)
     _, plain = _resolve_armed_autocrop(img, _armed())
     _, offset = _resolve_armed_autocrop(img, _armed(autocrop_offset=25))
-    assert plain[0] == offset[0]
+    assert plain.rect == offset.rect
 
 
 def test_offset_change_keeps_the_detected_rect():
