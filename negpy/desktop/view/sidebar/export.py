@@ -1268,7 +1268,9 @@ class ExportSidebar(BaseSidebar):
         conf = self.state.config.export
         self.block_signals(True)
         try:
-            self.form.load(self._config_to_form_values())
+            # A pending debounce means the form is newer than the config; the persist re-syncs.
+            if not self.update_timer.isActive():
+                self.form.load(self._config_to_form_values())
             self.form.set_source_space(self.state.source_cs)
             self._sync_proof_controls()
             override = self.state.monitor_profile_override
