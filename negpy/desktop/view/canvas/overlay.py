@@ -1575,7 +1575,7 @@ class CanvasOverlay(QWidget):
     def _draw_zone_highlight(self, painter: QPainter) -> None:
         """The zone the strip's hover names, washed over the pixels that print in it."""
         zone = int(self.state.zone_highlight)
-        color = palette_for(self.state.color_vision).pair[0]
+        color = palette_for(self.state.color_vision).spot
 
         def build(src: np.ndarray) -> Optional[QImage]:
             mask = zone_mask(src, zone)

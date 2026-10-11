@@ -14,16 +14,17 @@ class VisionPalette:
     label: str
     pair: tuple[str, str]  # two kinds of mark that must read apart over any image
     dodge_burn: tuple[str, str]  # Dodge & Burn masks: warm for dodge, cool for burn
+    spot: str  # one mark over the picture itself, clear of foliage greens and sky blues
 
 
 # Standard's pair is neon: a mark has to read over any film. The color-blind colors are
 # Okabe–Ito (Color Universal Design) colors on an axis that vision keeps. A pair keeps clear of
 # the amber exclusion band on the same overlay, and every color reads as text on the dark panel.
 PALETTES: tuple[VisionPalette, ...] = (
-    VisionPalette("standard", "Standard", ("#39FF14", "#FF00FF"), (THEME.dodge, THEME.burn)),
-    VisionPalette("protan_deutan", "Protanopia / deuteranopia (red-green)", ("#56B4E9", "#D55E00"), ("#E69F00", "#56B4E9")),
-    VisionPalette("tritan", "Tritanopia (blue-yellow)", ("#D55E00", "#009E73"), ("#D55E00", "#009E73")),
-    VisionPalette("achromat", "Achromatopsia (no color)", ("#FFFFFF", "#8C8C8C"), ("#FFFFFF", "#8C8C8C")),
+    VisionPalette("standard", "Standard", ("#39FF14", "#FF00FF"), (THEME.dodge, THEME.burn), "#FF00FF"),
+    VisionPalette("protan_deutan", "Protanopia / deuteranopia (red-green)", ("#56B4E9", "#D55E00"), ("#E69F00", "#56B4E9"), "#CC79A7"),
+    VisionPalette("tritan", "Tritanopia (blue-yellow)", ("#D55E00", "#009E73"), ("#D55E00", "#009E73"), "#CC79A7"),
+    VisionPalette("achromat", "Achromatopsia (no color)", ("#FFFFFF", "#8C8C8C"), ("#FFFFFF", "#8C8C8C"), "#FFFFFF"),
 )
 
 

@@ -351,7 +351,7 @@ Click a cell, then a spot on the photo, to place that tone (see Zone placement);
 
 Double-click the strip to turn the canvas **Zone Overlay** on or off (also `Shift+Z` and the canvas toolbar's grid icon): every region of the print is outlined and labeled with its zone.
 
-Hover a cell to light up the pixels that print in that zone on the photo, in the first color of the **Color vision** pair (Preferences).
+Hover a cell to light up the pixels that print in that zone on the photo, in magenta (a reddish purple or white under the other **Color vision** choices in Preferences), a color clear of foliage and sky.
 
 #### Probe
 
