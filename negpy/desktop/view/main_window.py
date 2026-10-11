@@ -738,7 +738,7 @@ class MainWindow(QMainWindow):
         """Updates the canvas HUD corner pills."""
         if not self.state.current_file_path:
             self.canvas.hud.set_zoom_note("")
-            self.canvas.hud.update_info("", "", "", "", "")
+            self.canvas.hud.update_info("", "", "", "")
             return
 
         filename = os.path.basename(self.state.current_file_path)
@@ -748,9 +748,7 @@ class MainWindow(QMainWindow):
         mode_str = str(self.state.config.process.process_mode)
         edits_str = f"Edits: {self.state.undo_index}"
 
-        tool_label = self.TOOL_LABELS.get(self.state.active_tool, "")
-
-        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str, tool_label)
+        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str)
 
     def _on_zoom_info_changed(self, zoom: float) -> None:
         self.canvas.hud.set_zoom_note(self.canvas.zoom_note())
@@ -800,7 +798,6 @@ class MainWindow(QMainWindow):
         self.controls_panel.retouch_sidebar.clone_btn.setChecked(mode == ToolMode.CLONE)
 
         self._update_title()
-        self._refresh_image_info()
 
     def dragEnterEvent(self, event) -> None:
         if event.mimeData().hasUrls():

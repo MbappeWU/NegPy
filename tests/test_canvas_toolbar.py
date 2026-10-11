@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from negpy.desktop.view.canvas.toolbar import DEFAULT_TOOLBAR_IDS, TOOLBAR_ITEM_BY_ID, TOOLBAR_ITEMS, ActionToolbar, load_toolbar_items
+from negpy.desktop.session import ToolMode
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 
@@ -29,6 +30,8 @@ def _make_toolbar() -> ActionToolbar:
     controller.session.state.clipping_overlay = False
     controller.session.state.printing_notes = False
     controller.session.state.grain_focuser = False
+    controller.session.state.active_tool = ToolMode.NONE
+    controller.session.state.clone_picking = False
     controller.session.state.selected_file_idx = 0
     controller.session.state.undo_index = 0
     controller.session.state.max_history_index = 0
@@ -613,3 +616,79 @@ class TestOverlaysMenu(unittest.TestCase):
         tb.session.state.grain_focuser = False
         tb._sync_view_state()
         self.assertFalse(tb.overlays_menu.isChecked())
+
+
+class TestToolRow(unittest.TestCase):
+    def _armed(self, mode: ToolMode) -> ActionToolbar:
+        tb = _make_toolbar()
+        tb.session.state.active_tool = mode
+        tb._sync_tool_row()
+        return tb
+
+    def test_arming_a_tool_swaps_the_rows(self):
+        tb = self._armed(ToolMode.DUST_PICK)
+        self.assertTrue(tb._view_row.isHidden())
+        self.assertFalse(tb._tool_row.isHidden())
+        self.assertEqual(tb.tool_name.text(), "Heal")
+        self.assertIn("dust", tb.tool_hint.text())
+
+    def test_leaving_the_tool_brings_the_view_row_back(self):
+        tb = self._armed(ToolMode.STRAIGHTEN)
+        tb.session.state.active_tool = ToolMode.NONE
+        tb._sync_tool_row()
+        self.assertFalse(tb._view_row.isHidden())
+        self.assertTrue(tb._tool_row.isHidden())
+
+    def test_every_tool_has_a_row(self):
+        from negpy.desktop.view.canvas.toolbar import _TOOL_ROWS
+
+        self.assertEqual(set(_TOOL_ROWS), set(ToolMode) - {ToolMode.NONE})
+
+    def test_clone_asks_for_a_source_first(self):
+        tb = _make_toolbar()
+        tb.session.state.active_tool = ToolMode.CLONE
+        tb.session.state.clone_picking = True
+        tb._sync_tool_row()
+        self.assertIn("pick the area to copy from", tb.tool_hint.text())
+
+    def test_done_finishes_the_draft_then_leaves(self):
+        from PyQt6.QtWidgets import QWidget
+
+        canvas = QWidget()
+        canvas.overlay = MagicMock()
+        tb = self._armed(ToolMode.SCRATCH_PICK)
+        tb.setParent(canvas)
+        tb.btn_tool_done.click()
+        canvas.overlay.finish_in_progress.assert_called_once()
+        tb.controller.cancel_active_tool.assert_called_once()
+
+    def test_the_slider_mirrors_the_sidebar_both_ways(self):
+        from negpy.desktop.view.widgets.sliders import CompactSlider
+
+        source = CompactSlider("Brush Size", 1, 50, 10, step=1)
+        source.setValue(10)
+        tb = _make_toolbar()
+        with unittest.mock.patch.object(tb, "_find_tool_slider", return_value=source):
+            tb.session.state.active_tool = ToolMode.DUST_PICK
+            tb._sync_tool_row()
+        mirror = tb._tool_slider
+        self.assertEqual(mirror.value(), 10)
+
+        source.mirror_value(20, commit=False)
+        self.assertEqual(mirror.value(), 20)
+        mirror.valueChanged.emit(30.0)
+        self.assertEqual(source.value(), 30)
+
+        tb.session.state.active_tool = ToolMode.NONE
+        tb._sync_tool_row()
+        self.assertIsNone(tb._tool_slider)
+        source.mirror_value(25, commit=False)  # a dropped mirror is no longer connected
+
+    def test_a_narrow_canvas_drops_the_hint_before_done(self):
+        tb = self._armed(ToolMode.KEYSTONE_LINES)
+        tb.show()
+        QApplication.processEvents()
+        tb.set_available_width(320)
+        QApplication.processEvents()
+        self.assertTrue(tb.tool_hint.isHidden())
+        self.assertFalse(tb.btn_tool_done.isHidden())

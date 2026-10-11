@@ -88,10 +88,10 @@ class CanvasHud(QWidget):
         lbl.setText(text)
         lbl.setVisible(bool(text))
 
-    def update_info(self, filename: str, res: str, mode: str, edits: str, tool: str) -> None:
+    def update_info(self, filename: str, res: str, mode: str, edits: str) -> None:
         self._set_pill(self.lbl_top_left, " · ".join(s for s in (filename, res) if s))
         self._set_pill(self.lbl_top_right, mode)
-        self._set_pill(self.lbl_bottom_left, " · ".join(s for s in (edits, tool) if s))
+        self._set_pill(self.lbl_bottom_left, edits)
 
     def set_zoom_note(self, note: str) -> None:
         """Qualifier for what the canvas shows at this zoom."""

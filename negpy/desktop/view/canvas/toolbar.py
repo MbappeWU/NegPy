@@ -13,12 +13,13 @@ from PyQt6.QtWidgets import (
 )
 
 from negpy.desktop.controller import AppController
+from negpy.desktop.session import ToolMode
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
 from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import roll_revert_icon
-from negpy.desktop.view.styles.templates import EditedDot, default_button_height, wrap_tooltip
+from negpy.desktop.view.styles.templates import EditedDot, default_button_height, hint_label, labeled_action, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 
 CANVAS_COLORS = [
@@ -149,6 +150,35 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
 
 _SOURCE_INDEX = {flag: i for i, (flag, *_rest) in enumerate(_VIEW_SOURCES)}
 
+_BRUSH_SIZE = "controls_panel.retouch_sidebar.manual_size_slider"
+_FINE_ROTATION = "controls_panel.geometry_sidebar.fine_rot_slider"
+
+# The row an armed canvas tool shows in place of the view row: (name, hint, slider path from MainWindow).
+_TOOL_ROWS: dict[ToolMode, tuple[str, str, str]] = {
+    ToolMode.WB_PICK: ("WB Picker", "Click a neutral gray; the selected region's CMY is solved so it prints neutral", ""),
+    ToolMode.CROP_MANUAL: ("Crop", "Drag a corner or an edge; drag outside the box to redraw it", _FINE_ROTATION),
+    ToolMode.DUST_PICK: ("Heal", "Paint over dust; only the marks inside the brush are repaired", _BRUSH_SIZE),
+    ToolMode.SCRATCH_PICK: ("Scratch", "Click points along the scratch; Backspace deletes the last point", _BRUSH_SIZE),
+    ToolMode.SCRATCH_LINE: (
+        "Transport Line",
+        "Click once on the line; the whole line is traced and repaired",
+        "controls_panel.retouch_sidebar.line_threshold_slider",
+    ),
+    ToolMode.CLONE: ("Clone", "Paint over the defect; the dashed circle marks the source, Alt-click picks a new one", _BRUSH_SIZE),
+    ToolMode.LOCAL_DRAW: ("Draw Mask", "Click to place vertices; a click near the start closes the mask", ""),
+    ToolMode.LOCAL_OVAL: ("Oval Mask", "Drag out an oval", ""),
+    ToolMode.LOCAL_GRADIENT: ("Card Edge", "Drag from the full-exposure edge to where it fades out", ""),
+    ToolMode.ANALYSIS_DRAW: ("Draw Region", "Drag the area the meters read", ""),
+    ToolMode.STRAIGHTEN: ("Straighten", "Draw a line along a horizon or an edge to level the frame", _FINE_ROTATION),
+    ToolMode.KEYSTONE_LINES: (
+        "Keystone Lines",
+        "Drag a line along each converging edge; four lines solve Tilt and Swing",
+        "controls_panel.geometry_sidebar.converge_v_slider",
+    ),
+    ToolMode.ZONE_PLACE: ("Zone Placement", "Click the photo to pin a spot; drag a pin to move it", ""),
+}
+_CLONE_SOURCE_HINT = "Click the photo to pick the area to copy from"
+
 
 def frame_position(model, actual_idx: int) -> str:
     """n / total in the Film Strip's order and filter, the one Next and Previous follow."""
@@ -210,10 +240,12 @@ class ActionToolbar(QWidget):
         v_layout.setContentsMargins(6, 4, 6, 4)
         v_layout.setSpacing(0)
 
-        row_layout = QHBoxLayout()
-        row_layout.setSpacing(6)
         # Controls need a parent before _rebuild_row() applies visibility.
-        v_layout.addLayout(row_layout)
+        self._view_row = QWidget()
+        row_layout = QHBoxLayout(self._view_row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(6)
+        v_layout.addWidget(self._view_row)
 
         icon_color = THEME.text_primary
         icon_size = QSize(16, 16)
@@ -640,8 +672,122 @@ class ActionToolbar(QWidget):
         self._item_ids = load_toolbar_items(self.session.repo)
         self._rebuild_row()
 
+        self._build_tool_row(v_layout, icon_color, icon_size, btn_height)
+
         # Size the pill to its controls; don't stretch it across the canvas.
         main_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignCenter)
+
+    def _build_tool_row(self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, btn_height: int) -> None:
+        """While a canvas tool is armed the pill shows its own row: what the tool is, how to use it,
+        the slider it is sized or tuned by, undo and Done."""
+        self._tool_row = QWidget()
+        self._tool_row.hide()
+        layout = QHBoxLayout(self._tool_row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self._tool_layout = layout
+        self._shown_tool = ToolMode.NONE
+        self._tool_slider = None
+        self._tool_slider_source = None
+
+        self.tool_name = QLabel()
+        self.tool_name.setFixedHeight(btn_height)
+        self.tool_name.setStyleSheet(f"color: {THEME.text_primary}; font-size: {THEME.font_size_base}px; font-weight: 600; padding: 0 4px;")
+        self.tool_hint = hint_label()
+        self.tool_hint.setWordWrap(False)
+        self.btn_tool_undo = QToolButton()
+        self.btn_tool_undo.setIcon(qta.icon("mdi.undo", color=icon_color, color_disabled=THEME.text_muted))
+        self._tip(self.btn_tool_undo, "Undo", "undo")
+        self.btn_tool_undo.clicked.connect(lambda: _context_undo(self.controller))
+        self.btn_tool_redo = QToolButton()
+        self.btn_tool_redo.setIcon(qta.icon("mdi.redo", color=icon_color, color_disabled=THEME.text_muted))
+        self._tip(self.btn_tool_redo, "Redo", "redo")
+        self.btn_tool_redo.clicked.connect(self.session.redo)
+        for btn in (self.btn_tool_undo, self.btn_tool_redo):
+            btn.setIconSize(icon_size)
+            btn.setFixedHeight(btn_height)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_tool_done = labeled_action("fa5s.check", "Done", "", primary=True)
+        self._tip(
+            self.btn_tool_done, "Finish the line or shape in progress and leave the tool. Esc leaves without finishing it.", "cancel_tool"
+        )
+        self.btn_tool_done.setFixedHeight(btn_height)
+        # The pill lays out at minimum widths, which would cut the label down to the icon.
+        self.btn_tool_done.setMinimumWidth(self.btn_tool_done.sizeHint().width())
+        self.btn_tool_done.clicked.connect(self._on_tool_done)
+
+        layout.addWidget(self.tool_name)
+        layout.addWidget(self.tool_hint)
+        self._tool_slider_index = layout.count()
+        layout.addWidget(self._create_separator())
+        layout.addWidget(self.btn_tool_undo)
+        layout.addWidget(self.btn_tool_redo)
+        layout.addWidget(self.btn_tool_done)
+        v_layout.addWidget(self._tool_row)
+
+    def _sync_tool_row(self) -> None:
+        """Re-entrant: a sidebar sync can cancel the tool from inside tool_sync_requested."""
+        state = self.session.state
+        mode = state.active_tool
+        spec = _TOOL_ROWS.get(mode)
+        if spec is not None:
+            name, hint, _path = spec
+            self.tool_name.setText(name)
+            self.tool_hint.setText(_CLONE_SOURCE_HINT if mode == ToolMode.CLONE and state.clone_picking else hint)
+            self.tool_name.setToolTip(self.tool_hint.text())
+            self.btn_tool_undo.setEnabled(state.undo_index > 0)
+            self.btn_tool_redo.setEnabled(state.undo_index < state.max_history_index)
+        # After the texts: the canvas sizes the pill from them.
+        if mode != self._shown_tool:
+            self._shown_tool = mode
+            self._swap_tool_slider(spec[2] if spec else "")
+            self._view_row.setVisible(spec is None)
+            self._tool_row.setVisible(spec is not None)
+            canvas = self.parentWidget()
+            if hasattr(canvas, "relayout_floating_widgets"):
+                canvas.relayout_floating_widgets()
+        if self._tool_slider is not None:
+            self._tool_slider.setEnabled(self._tool_slider_source.isEnabled())
+
+    def _find_tool_slider(self, path: str):
+        from negpy.desktop.view.main_window import MainWindow
+
+        win = self.window()
+        if not path or not isinstance(win, MainWindow):
+            return None
+        target = win
+        for attr in path.split("."):
+            target = getattr(target, attr)
+        return target
+
+    def _swap_tool_slider(self, path: str) -> None:
+        """A mirror of the sidebar's slider, so a drag runs the sidebar's own binding (see clone_slider)."""
+        from negpy.desktop.view.widgets.sliders import clone_slider
+
+        if self._tool_slider is not None:
+            self._tool_slider_source.valueChanged.disconnect(self._tool_slider.setValue)
+            self._tool_slider.setParent(None)
+            self._tool_slider.deleteLater()
+            self._tool_slider = self._tool_slider_source = None
+        source = self._find_tool_slider(path)
+        if source is None:
+            return
+        mirror = clone_slider(source)
+        mirror.setValue(source.value())
+        mirror.setFixedHeight(default_button_height())
+        mirror.setFixedWidth(mirror.sizeHint().width())
+        mirror.valueChanged.connect(lambda v, s=source: s.mirror_value(v, commit=False))
+        mirror.valueCommitted.connect(lambda v, s=source: s.mirror_value(v, commit=True))
+        # setValue does not emit, so the two never echo.
+        source.valueChanged.connect(mirror.setValue)
+        self._tool_layout.insertWidget(self._tool_slider_index, mirror)
+        self._tool_slider, self._tool_slider_source = mirror, source
+
+    def _on_tool_done(self) -> None:
+        overlay = getattr(self.parentWidget(), "overlay", None)
+        if overlay is not None:
+            overlay.finish_in_progress()
+        self.controller.cancel_active_tool()
 
     def _sync_view_state(self, *_args) -> None:
         """Mirror the canvas source and the overlays from state, which the controller sets before it signals."""
@@ -724,6 +870,7 @@ class ActionToolbar(QWidget):
 
         self.session.state_changed.connect(self._update_ui_state)
         self.session.asset_model.layoutChanged.connect(self._update_ui_state)
+        controller.tool_sync_requested.connect(self._sync_tool_row)
 
         # Overflow menu action connections
         self._ov_hq_action.triggered.connect(controller.toggle_hq_preview)
@@ -927,6 +1074,7 @@ class ActionToolbar(QWidget):
         self._zoom_hq_action.setChecked(state.hq_preview)
         self._refresh_zoom_readout()
         self._sync_view_state()
+        self._sync_tool_row()
 
         geo = state.config.geometry
         self.btn_flip_h.setChecked(geo.flip_horizontal)
@@ -950,14 +1098,11 @@ class ActionToolbar(QWidget):
         return max(240, canvas_width - 2 * THEME.space_xl)
 
     def _activate_layout(self) -> None:
-        layout = self.layout()
-        if layout is not None:
-            layout.activate()
-        container = self._toolbar_container
-        if container is not None:
-            inner = container.layout()
-            if inner is not None:
-                inner.activate()
+        # Innermost first: an outer layout reads its rows' size hints as of their last activation.
+        for widget in (self._view_row, self._tool_row, self._toolbar_container, self):
+            layout = widget.layout()
+            if layout is not None:
+                layout.activate()
 
     def _pill_width(self) -> int:
         """Measured pill width after the current visibility set (sizeHint can stay stale)."""
@@ -1083,6 +1228,19 @@ class ActionToolbar(QWidget):
         _init_ui), so a control leaving the row never changes what the menu contains."""
         self._available_width = w
         budget = self._toolbar_width_budget(w)
+
+        if not self._tool_row.isHidden():
+            # The hint goes first, then the slider: the name, undo and Done always stay.
+            optional = [widget for widget in (self.tool_hint, self._tool_slider) if widget is not None]
+            for widget in optional:
+                widget.setVisible(True)
+            for widget in optional:
+                if self._pill_width() <= budget:
+                    break
+                widget.setVisible(False)
+            self._activate_layout()
+            self.adjustSize()
+            return
 
         widgets = [self._row_widgets[item_id] for item_id in self._item_ids]
         for widget in widgets:

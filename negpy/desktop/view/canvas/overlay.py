@@ -3309,6 +3309,10 @@ class CanvasOverlay(QWidget):
         elif self._tool_mode == ToolMode.ZONE_PLACE and self.state.zone_pins:
             self.zone_placement_confirmed.emit()
 
+    def finish_in_progress(self) -> None:
+        """What Enter does: close the scratch, lasso, crop or zone pins being drawn."""
+        self._finish_draw_if_active()
+
     def has_scratch_points(self) -> bool:
         return bool(self._scratch_pts)
 
