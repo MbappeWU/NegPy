@@ -57,6 +57,7 @@ _AUTOCROP_FIELDS = (
     "autocrop_offset",
     "autocrop_rebate_trim",
     "autocrop_ratio",
+    "autocrop_square",
 )
 _LENS_FIELDS = (
     "distortion_k1",
@@ -532,6 +533,7 @@ class ControlsPanel(QWidget):
             (self.flatfield_sidebar.enable_btn, "toggle_flat_field"),
             (self.flatfield_sidebar.check_btn, "toggle_flatfield_peek"),
             (self.autocrop_sidebar.auto_frame_btn, "auto_crop"),
+            (self.autocrop_sidebar.square_btn, "auto_crop_square"),
             (self.geometry_sidebar.auto_crop_btn, "auto_crop"),
             (self.autocrop_sidebar.auto_crop_all_btn, "batch_autocrop"),
             (self.tone_sidebar.auto_density_action, "toggle_auto_density"),

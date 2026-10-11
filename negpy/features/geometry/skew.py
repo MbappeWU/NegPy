@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import cv2
 import numpy as np
 
+from negpy.domain.interfaces import PipelineContext
 from negpy.domain.types import ImageBuffer
 from negpy.features.geometry.logic import (
     AUTOCROP_DETECT_RES,
@@ -18,7 +19,9 @@ from negpy.features.geometry.logic import (
     detect_film_bounds_with_confidence,
     keystone_matrix,
 )
-from negpy.features.geometry.models import FINE_ROTATION_LIMIT
+from negpy.features.geometry.models import FINE_ROTATION_LIMIT, GeometryConfig
+from negpy.features.geometry.processor import GeometryProcessor
+from negpy.features.process.models import ProcessMode
 
 # Holder skew beyond this is a frame put in sideways or a picture edge, not a tilt.
 _MAX_SKEW_DEGREES = 10.0
@@ -484,3 +487,23 @@ def trusted_frame_skew(img: ImageBuffer, fit_keystone: bool = True) -> FrameSkew
     if not skew.from_film_box and not skew.at_canvas_edges:
         return None
     return skew if skew.confidence >= _SKEW_TRUSTED_CONFIDENCE else None
+
+
+def squared_geometry(source: ImageBuffer, geometry: GeometryConfig, process_mode: ProcessMode) -> tuple[GeometryConfig, FrameSkew] | None:
+    """*geometry* with Fine Rotation, and Tilt and Swing where measured, read off the frame's own
+    edges in *source* (the flat-fielded linear frame before geometry), and the fit itself; None
+    when the edges are not trusted. The fit runs on the frame with its skew zeroed, so the
+    values are absolute."""
+    small, _ = _normalize_detection_input(source, AUTOCROP_DETECT_RES)
+    base = replace(geometry, fine_rotation=0.0, converge_v=0.0, converge_h=0.0, crop_rect=None, crop_from_auto=False, autocrop_offset=0)
+    context = PipelineContext(original_size=(small.shape[1], small.shape[0]), scale_factor=1.0, process_mode=process_mode)
+    skew = trusted_frame_skew(GeometryProcessor(base).process(small, context))
+    if skew is None:
+        return None
+    squared = replace(
+        geometry,
+        fine_rotation=float(np.clip(skew.fine_rotation, -FINE_ROTATION_LIMIT, FINE_ROTATION_LIMIT)),
+        converge_v=geometry.converge_v if skew.converge_v is None else float(skew.converge_v),
+        converge_h=geometry.converge_h if skew.converge_h is None else float(skew.converge_h),
+    )
+    return squared, skew

@@ -64,6 +64,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "lens_distortion_from_metadata": ShortcutEntry("", "Embedded Distortion", "Geometry"),
     "lens_ca_from_metadata": ShortcutEntry("", "Embedded CA", "Geometry"),
     "auto_crop": ShortcutEntry("Shift+A", "Toggle Auto Crop", "Geometry"),
+    "auto_crop_square": ShortcutEntry("", "Toggle Square Before Crop", "Geometry"),
     "crop_to_valid": ShortcutEntry("", "Toggle Crop by Default", "Geometry"),
     "pick_dust": ShortcutEntry("Shift+D", "Toggle heal tool", "Tools"),
     "pick_scratch": ShortcutEntry("Shift+S", "Toggle scratch tool", "Tools"),

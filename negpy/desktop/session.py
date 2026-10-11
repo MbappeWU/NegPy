@@ -22,6 +22,7 @@ from negpy.desktop.sticky import (
     load_sticky_rows,
     migrate_legacy,
     migrate_auto_crop_sticky_row,
+    migrate_square_before_crop_sticky_row,
     migrate_legacy_export_destination,
     sticky_snapshot,
 )
@@ -837,6 +838,7 @@ class DesktopSessionManager(QObject):
         migrate_legacy(self.repo)
         migrate_legacy_export_destination(self.repo)
         migrate_auto_crop_sticky_row(self.repo)
+        migrate_square_before_crop_sticky_row(self.repo)
 
         # Load global hardware settings
         saved_gpu = self.repo.get_global_setting("gpu_enabled")
