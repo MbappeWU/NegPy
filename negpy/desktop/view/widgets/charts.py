@@ -700,7 +700,7 @@ class PhotometricCurveWidget(QWidget):
 
 class WaveformWidget(QWidget):
     """Print luma across the frame: x is the image column, y the print tone, brightness how
-    many pixels sit there. Zone lines III, V and VII on the zone ruler; columns that reach
+    many pixels sit there, each cell drawn in its pixels' mean color. Zone lines III, V and VII on the zone ruler; columns that reach
     paper black or paper white are marked on the bottom and top edges."""
 
     _GUIDE_ZONES = ((3, "III"), (5, "V"), (7, "VII"))
@@ -710,6 +710,7 @@ class WaveformWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumHeight(40)
         self._counts: np.ndarray | None = None
+        self._color: np.ndarray | None = None
         self._log_scale = False
         self._image: QImage | None = None
         self._marker: tuple[float, float] | None = None
@@ -726,15 +727,21 @@ class WaveformWidget(QWidget):
             self._marker = point
             self.update()
 
-    def set_data(self, counts: Any) -> None:
-        """(bins, cols) counts, bin 0 = black; None clears."""
+    def set_data(self, counts: Any, color: Any = None) -> None:
+        """(bins, cols) counts, bin 0 = black, and optional (3, bins, cols) R, G, B sums of
+        each cell; None counts clears."""
         if counts is not None:
             counts = np.asarray(counts, dtype=float)
             if counts.ndim != 2 or float(counts.max()) <= 0.0:
                 counts = None
+        if color is not None:
+            color = np.asarray(color, dtype=float)
+            if counts is None or color.shape != (3, *counts.shape):
+                color = None
         if counts is None and self._counts is None:
             return
         self._counts = counts
+        self._color = color
         self._image = None
         self.update()
 
@@ -743,9 +750,17 @@ class WaveformWidget(QWidget):
             vals = np.log1p(self._counts) if self._log_scale else self._counts
             # A flat area piles into a few bins; scaling by their peak would leave every other trace black.
             ref = float(np.percentile(vals[vals > 0], 99))
-            gray = np.ascontiguousarray(np.flipud(np.clip(vals / ref, 0.0, 1.0) * 255.0).astype(np.uint8))
-            h, w = gray.shape
-            self._image = QImage(gray.data, w, h, w, QImage.Format.Format_Grayscale8).copy()
+            level = np.clip(vals / ref, 0.0, 1.0)
+            if self._color is None:
+                tint = np.ones((*level.shape, 3))
+            else:
+                # Each cell's mean color at full brightness; the count sets how bright it draws.
+                mean = np.moveaxis(self._color, 0, -1)
+                peak = mean.max(axis=-1, keepdims=True)
+                tint = np.divide(mean, peak, out=np.ones_like(mean), where=peak > 0)
+            rgb = np.ascontiguousarray(np.flipud(tint * level[..., None] * 255.0).astype(np.uint8))
+            h, w = level.shape
+            self._image = QImage(rgb.data, w, h, w * 3, QImage.Format.Format_RGB888).copy()
         return self._image
 
     def paintEvent(self, event) -> None:
