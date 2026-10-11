@@ -184,7 +184,7 @@ def test_the_roll_run_takes_the_fits_tilt_and_swing_and_leaves_rotation_to_its_o
         return CropEvidence(key=key, canvas_shape=image.shape[:2], roi=None, correction_angle=0.25, confidence=0.9)
 
     with (
-        patch.object(worker, "_decode", return_value=np.zeros((40, 60, 3), np.float32)),
+        patch.object(worker, "_decode", return_value=(np.zeros((40, 60, 3), np.float32), {})),
         patch("negpy.desktop.workers.render.squared_geometry", side_effect=_square(fine=2.0, cv=0.5, ch=-0.3)),
         patch("negpy.desktop.workers.render.GeometryProcessor", Recorder),
         patch("negpy.desktop.workers.render.detect_crop_candidate", side_effect=detect),
@@ -197,7 +197,7 @@ def test_the_roll_run_takes_the_fits_tilt_and_swing_and_leaves_rotation_to_its_o
 
     hand = replace(config, geometry=replace(config.geometry, fine_rotation=0.4))
     with (
-        patch.object(worker, "_decode", return_value=np.zeros((40, 60, 3), np.float32)),
+        patch.object(worker, "_decode", return_value=(np.zeros((40, 60, 3), np.float32), {})),
         patch("negpy.desktop.workers.render.squared_geometry") as fit,
         patch("negpy.desktop.workers.render.detect_crop_candidate", side_effect=detect),
     ):

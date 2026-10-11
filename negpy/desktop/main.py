@@ -18,6 +18,7 @@ from negpy.services.assets.migrations.cast_removal import migrate_legacy_slide_c
 from negpy.services.assets.crosstalk import CrosstalkProfiles
 from negpy.services.assets.flatfield import FlatFieldProfiles
 from negpy.services.assets.migrations.flatfield import migrate_legacy_flatfield_profiles
+from negpy.services.assets.migrations.flatfield_layout import migrate_flatfield_sensor_layout
 from negpy.services.assets.gear import GearProfiles
 from negpy.services.assets.migrations.gear_presets import migrate_gear_presets
 from negpy.services.assets.migrations.normalization_roll import migrate_legacy_normalization_rolls
@@ -296,6 +297,7 @@ def main() -> None:
         # into that store.
         set_gain_provider(FlatFieldProfiles.load_gain)
         migrate_legacy_flatfield_profiles(repo)
+        migrate_flatfield_sensor_layout()
         migrate_gear_presets(repo)
         migrate_legacy_normalization_rolls(repo)
         migrate_auto_meter_for_positive_frames(repo)

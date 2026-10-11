@@ -4,13 +4,16 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 
-from negpy.features.flatfield.logic import Evenness, check_copy, check_reference, compute_gain, gain_token
+from negpy.features.flatfield.logic import Evenness, GainEntry, check_copy, check_reference, compute_gain, gain_token, to_sensor_layout
 from negpy.kernel.system.config import APP_CONFIG
 from negpy.kernel.system.logging import get_logger
 
 logger = get_logger(__name__)
 
 _EXT = ".npz"
+# Marks a profile whose gain and reference are in sensor layout; one without it is in its
+# reference's EXIF orientation (services/assets/migrations/flatfield_layout.py).
+SENSOR_LAYOUT = "sensor"
 
 
 class FlatFieldProfile(NamedTuple):
@@ -24,6 +27,7 @@ class StoredCheck(NamedTuple):
     gain: np.ndarray
     reference: Optional[np.ndarray]  # the reference's check copy; None on a profile baked before checks
     check: Optional[Evenness]
+    sensor_layout: bool = True
 
 
 class Baked(NamedTuple):
@@ -55,13 +59,15 @@ class FlatFieldProfiles:
 
     @staticmethod
     def _bake_gain(reference_path: str) -> Optional[Baked]:
-        """Decode a reference like a negative (no WB, linear); its gain map, self-check and check copy."""
+        """Decode a reference like a negative (no WB, linear); its gain map, self-check and check copy,
+        in sensor layout."""
         if not reference_path or not os.path.exists(reference_path):
             return None
         try:
             from negpy.services.rendering.preview_manager import PreviewManager
 
-            reference, _, _ = PreviewManager().load_linear_preview(reference_path, use_camera_wb=False, full_resolution=False)
+            reference, _, meta = PreviewManager().load_linear_preview(reference_path, use_camera_wb=False, full_resolution=False)
+            reference = to_sensor_layout(reference, meta.get("orientation", 1))
             gain = compute_gain(reference)
             return Baked(gain, check_reference(reference, gain), check_copy(reference))
         except Exception:
@@ -93,6 +99,7 @@ class FlatFieldProfiles:
             name=name,
             k1=float(k1),
             source=source,
+            layout=SENSOR_LAYOUT,
             **extra,
         )
 
@@ -138,7 +145,7 @@ class FlatFieldProfiles:
     @staticmethod
     def load_check(profile_id: str) -> Optional[StoredCheck]:
         """The gain with the stored reference copy and self-check, for Check Flat Field."""
-        data = FlatFieldProfiles._read(profile_id, ("gain", "reference", "check"))
+        data = FlatFieldProfiles._read(profile_id, ("gain", "reference", "check", "layout"))
         if data is None or "gain" not in data:
             return None
         reference = data["reference"].astype(np.float32) if "reference" in data else None
@@ -146,17 +153,17 @@ class FlatFieldProfiles:
         if "check" in data:
             low, high, color, clipped = (float(v) for v in data["check"])
             check = Evenness(low, high, color, bool(clipped))
-        return StoredCheck(np.ascontiguousarray(data["gain"], dtype=np.float32), reference, check)
+        return StoredCheck(np.ascontiguousarray(data["gain"], dtype=np.float32), reference, check, "layout" in data)
 
     @staticmethod
-    def load_gain(profile_id: str) -> Optional[Tuple[np.ndarray, str]]:
-        """(gain map, content token) for the render-path provider; None if missing/unreadable."""
-        data = FlatFieldProfiles._read(profile_id, ("gain", "token"))
+    def load_gain(profile_id: str) -> Optional[GainEntry]:
+        """The gain map, its content token and layout for the render-path provider; None if missing/unreadable."""
+        data = FlatFieldProfiles._read(profile_id, ("gain", "token", "layout"))
         if data is None or "gain" not in data:
             return None
         gain = np.ascontiguousarray(data["gain"], dtype=np.float32)
         token = str(data["token"]) if "token" in data else gain_token(gain)
-        return gain, token
+        return GainEntry(gain, token, "layout" in data)
 
     @staticmethod
     def get(profile_id: str) -> Optional[FlatFieldProfile]:

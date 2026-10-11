@@ -127,6 +127,8 @@ class RenderTask:
     # The slice_half cuts that took `buffer` out of the decoded frame (a half, or a
     # diptych's crop), for the flat-field gain to take too.
     gain_slices: tuple = ()
+    # EXIF orientation the decode baked into `buffer`, for the flat-field gain to take first.
+    source_orientation: int = 1
 
 
 @dataclass(frozen=True)
@@ -148,6 +150,7 @@ class TestStripTask:
     cam_xyz: Optional[list] = None
     # As-shot WB multipliers, needed only when the buffer was decoded without WB.
     camera_wb: Optional[list] = None
+    source_orientation: int = 1
 
 
 @dataclass(frozen=True)
@@ -369,6 +372,7 @@ class RenderWorker(QObject):
                 cam_xyz=task.cam_xyz,
                 camera_wb=task.camera_wb,
                 gain_slices=task.gain_slices + ((n, task.split_x, None, task.gutter_thickness, task.split_axis),),
+                source_orientation=task.source_orientation,
             )
             if isinstance(out, GPUTexture):
                 out = np.ascontiguousarray(out.readback()[:, :, :3])
@@ -408,6 +412,7 @@ class RenderWorker(QObject):
                     cam_xyz=task.cam_xyz,
                     camera_wb=task.camera_wb,
                     gain_slices=task.gain_slices,
+                    source_orientation=task.source_orientation,
                 )
 
             # CPU renders have no in-shader histogram; bin the float output here.
@@ -479,6 +484,7 @@ class RenderWorker(QObject):
                     wants_uv_grid=False,
                     cam_xyz=task.cam_xyz,
                     camera_wb=task.camera_wb,
+                    source_orientation=task.source_orientation,
                 )
                 if isinstance(result, GPUTexture):
                     result = result.readback()
@@ -1266,6 +1272,7 @@ class PreviewLoadWorker(QObject):
                         metadata.get("camera_wb"),
                         metadata.get("lens_correction"),
                         lens_decode_token(task.lens_corrections, task.lens_flatfield),
+                        metadata.get("orientation", 1),
                     ),
                     metadata.get("detect_preview"),
                     task.generation,
@@ -1311,6 +1318,7 @@ class PreviewLoadWorker(QObject):
                         metadata.get("camera_wb"),
                         metadata.get("lens_correction"),
                         lens_decode_token(task.lens_corrections, task.lens_flatfield),
+                        metadata.get("orientation", 1),
                     ),
                     metadata.get("detect_preview"),
                     task.generation,
@@ -1354,6 +1362,7 @@ class PreviewLoadWorker(QObject):
                         metadata.get("camera_wb"),
                         metadata.get("lens_correction"),
                         lens_decode_token(task.lens_corrections, task.lens_flatfield),
+                        metadata.get("orientation", 1),
                     ),
                     metadata.get("detect_preview"),
                     task.generation,
@@ -1424,6 +1433,7 @@ class PreviewLoadWorker(QObject):
                     metadata.get("camera_wb"),
                     metadata.get("lens_correction"),
                     lens_decode_token(task.lens_corrections, task.lens_flatfield),
+                    metadata.get("orientation", 1),
                 ),
                 metadata.get("detect_preview"),
                 task.generation,
@@ -1465,16 +1475,6 @@ class PreviewLoadWorker(QObject):
         except Exception:
             logger.exception(f"Process-mode detection failed: {task.file_path}")
             return ""
-
-
-def decode_asset_preview(
-    preview_service,
-    file_info: dict,
-    config: WorkspaceConfig,
-    workspace_color_space: str,
-) -> np.ndarray:
-    """Decode one asset the way the render path does. See `_decode_asset_preview_with_meta`."""
-    return _decode_asset_preview_with_meta(preview_service, file_info, config, workspace_color_space)[0]
 
 
 def gain_slices_for_asset(file_info: dict) -> tuple:
@@ -1608,8 +1608,8 @@ class BatchAutoCropWorker(QObject):
         if cancelled:
             self.cancelled.emit()
 
-    def _decode(self, frame: BatchAutoCropInput, workspace_color_space: str) -> np.ndarray:
-        return decode_asset_preview(self._preview_service, frame.file_info, frame.config, workspace_color_space)
+    def _decode(self, frame: BatchAutoCropInput, workspace_color_space: str) -> tuple[np.ndarray, dict]:
+        return _decode_asset_preview_with_meta(self._preview_service, frame.file_info, frame.config, workspace_color_space)
 
     def _frame_evidence(
         self, index: int, frame: BatchAutoCropInput, task: BatchAutoCropTask, generation: int
@@ -1622,12 +1622,14 @@ class BatchAutoCropWorker(QObject):
         if self._cancel_requested(generation):
             return None, None
         try:
-            raw = self._decode(frame, task.workspace_color_space)
+            raw, meta = self._decode(frame, task.workspace_color_space)
             if self._cancel_requested(generation):
                 return None, None
 
             config = frame.config
-            corrected = raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield)
+            corrected = (
+                raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield, orientation=meta.get("orientation", 1))
+            )
             geometry = config.geometry
             keystone = None
             if squares_on_arm(geometry):
@@ -1872,6 +1874,7 @@ class ThumbnailRenderWorker(QObject):
                             cam_xyz=cam_xyz,
                             camera_wb=meta.get("camera_wb"),
                             gain_slices=gain_slices_for_asset(frame.file_info),
+                            source_orientation=meta.get("orientation", 1),
                         )
                         render_s = time.perf_counter() - started
                         if isinstance(result, np.ndarray) and not self._cancel_requested(generation):
@@ -1972,13 +1975,13 @@ class NormalizationWorker(QObject):
                     process_mode = params.process.process_mode
                     geometry = params.geometry
 
-                    # to_thread for the blocking load and analysis. decode_asset_preview picks
+                    # to_thread for the blocking load and analysis. The decode picks
                     # the same WB the render path uses (use_camera_wb = not effective linear
                     # RAW): the roll-average bounds are applied to the render-decoded image, so
                     # analyzing in a different WB space shifts the per-channel floors and ceils
                     # and produces a color cast.
-                    raw = await asyncio.to_thread(
-                        decode_asset_preview,
+                    raw, decode_meta = await asyncio.to_thread(
+                        _decode_asset_preview_with_meta,
                         self._preview_service,
                         f_info,
                         params,
@@ -1991,7 +1994,11 @@ class NormalizationWorker(QObject):
 
                         cuts = gain_slices_for_asset(f_info)
                         raw = await asyncio.to_thread(
-                            apply_flatfield, raw, params.flatfield, (lambda g: slice_chain(g, cuts)) if cuts else None
+                            apply_flatfield,
+                            raw,
+                            params.flatfield,
+                            (lambda g: slice_chain(g, cuts)) if cuts else None,
+                            orientation=decode_meta.get("orientation", 1),
                         )
                     # Bounds must be measured on the same channel mix the preview normalizes.
                     sensor_matrix = effective_sensor_matrix(params.process)
