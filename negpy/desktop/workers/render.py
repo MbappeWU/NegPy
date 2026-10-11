@@ -1627,9 +1627,18 @@ class BatchAutoCropWorker(QObject):
                 return None, None
 
             config = frame.config
-            corrected = (
-                raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield, orientation=meta.get("orientation", 1))
-            )
+            if config.stitch.stitch_enabled or metadata_lens_corrections(config):
+                corrected = raw
+            else:
+                from negpy.services.assets.half_frame import slice_chain
+
+                cuts = gain_slices_for_asset(file_info)
+                corrected = apply_flatfield(
+                    raw,
+                    config.flatfield,
+                    (lambda g: slice_chain(g, cuts)) if cuts else None,
+                    orientation=meta.get("orientation", 1),
+                )
             geometry = config.geometry
             keystone = None
             if squares_on_arm(geometry):

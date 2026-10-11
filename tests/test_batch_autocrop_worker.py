@@ -159,8 +159,9 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
     worker = BatchAutoCropWorker(preview)
     captured: dict = {}
 
-    def _apply_flatfield(image, received_config, orientation=1):
+    def _apply_flatfield(image, received_config, gain_crop=None, orientation=1):
         captured["flatfield_config"] = received_config
+        captured["gain_crop"] = gain_crop
         captured["orientation"] = orientation
         return image + 1.0
 
@@ -189,6 +190,7 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
 
     assert captured["flatfield_config"] == flatfield
     assert captured["orientation"] == 6
+    assert captured["gain_crop"] is None
     assert captured["geometry"].crop_rect is None
     assert captured["geometry"].crop_from_auto is False
     assert captured["geometry"].autocrop_offset == 0
@@ -202,6 +204,36 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
     assert captured["rebate_trim"] == 1.25
     assert captured["context"].original_size == (12, 8)
     assert captured["context"].scale_factor == 1.0
+
+
+def _flatfield_config() -> WorkspaceConfig:
+    base = WorkspaceConfig()
+    return replace(base, flatfield=replace(base.flatfield, apply=True, profile_id="rig-1"))
+
+
+def test_batch_autocrop_cuts_the_flatfield_gain_to_the_half(qapp, monkeypatch) -> None:
+    _stub_detection(monkeypatch)
+    crops: list = []
+    monkeypatch.setattr(render_workers, "apply_flatfield", lambda image, _config, gain_crop=None, **_kw: crops.append(gain_crop) or image)
+    frame = _input("frame", _flatfield_config())
+    frame.file_info.update(half=2, split_x=0.5, gutter_thickness=0.0)
+
+    BatchAutoCropWorker(_PreviewService()).process(_task(frame))
+
+    assert crops[0] is not None
+    assert crops[0](np.zeros((8, 12, 3), dtype=np.float32)).shape == (8, 6, 3)
+
+
+def test_batch_autocrop_skips_the_flatfield_on_a_stitch(qapp, monkeypatch) -> None:
+    _stub_detection(monkeypatch)
+    calls: list = []
+    monkeypatch.setattr(render_workers, "apply_flatfield", lambda image, *_args, **_kwargs: calls.append(1) or image)
+    config = _flatfield_config()
+    config = replace(config, stitch=replace(config.stitch, stitch_enabled=True))
+
+    BatchAutoCropWorker(_PreviewService()).process(_task(_input("frame", config)))
+
+    assert calls == []
 
 
 def test_batch_autocrop_per_file_failure_does_not_abort_roll(qapp, monkeypatch) -> None:

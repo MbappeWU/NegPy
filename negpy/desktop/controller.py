@@ -128,6 +128,7 @@ from negpy.services.assets.half_frame import (
     remap_workspace_config,
     remember_split_scans,
     saved_crop_rect,
+    slice_chain,
     split_scans,
 )
 from negpy.services.export.templating import path_safe, render_export_filename
@@ -3663,9 +3664,16 @@ class AppController(QObject):
         config = self.state.config
         geo = config.geometry
         # Every detection path reads the flat-fielded source.
-        source = (
-            raw if metadata_lens_corrections(config) else apply_flatfield(raw, config.flatfield, orientation=self.state.preview_orientation)
-        )
+        if config.stitch.stitch_enabled or metadata_lens_corrections(config):
+            source = raw
+        else:
+            cuts = self._preview_gain_slices(self.active_diptych())
+            source = apply_flatfield(
+                raw,
+                config.flatfield,
+                (lambda g: slice_chain(g, cuts)) if cuts else None,
+                orientation=self.state.preview_orientation,
+            )
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             fit = squared_geometry(source, geo, config.process.process_mode)
