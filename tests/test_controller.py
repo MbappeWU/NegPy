@@ -210,7 +210,7 @@ class TestAppController(unittest.TestCase):
         measured = FrameSkew(fine_rotation=-1.0, converge_v=None, converge_h=None, confidence=0.9, lines=(), residual=0.0)
 
         with (
-            patch("negpy.desktop.controller.apply_flatfield", return_value=flattened) as bake,
+            patch("negpy.services.rendering.lens.apply_flatfield", return_value=flattened) as bake,
             patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=measured) as fit,
         ):
             self.controller.auto_skew_frame()
@@ -227,7 +227,7 @@ class TestAppController(unittest.TestCase):
         with (
             patch.object(self.controller, "active_diptych", return_value=None),
             patch.object(self.controller, "_active_half", return_value=half),
-            patch("negpy.desktop.controller.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
+            patch("negpy.services.rendering.lens.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
             patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
         ):
             self.controller.auto_skew_frame()
@@ -243,7 +243,7 @@ class TestAppController(unittest.TestCase):
 
         with (
             patch.object(self.controller, "active_diptych", return_value=dip),
-            patch("negpy.desktop.controller.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
+            patch("negpy.services.rendering.lens.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
             patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
         ):
             self.controller.auto_skew_frame()
@@ -259,7 +259,7 @@ class TestAppController(unittest.TestCase):
         self.controller.set_status = MagicMock()
 
         with (
-            patch("negpy.desktop.controller.apply_flatfield") as bake,
+            patch("negpy.services.rendering.lens.apply_flatfield") as bake,
             patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
         ):
             self.controller.auto_skew_frame()

@@ -5,6 +5,7 @@ import numpy as np
 from negpy.features.lens.models import LensCorrections
 
 import negpy.desktop.workers.render as render_workers
+import negpy.services.rendering.lens as lens_module
 from negpy.desktop.workers.render import (
     BatchAutoCropInput,
     BatchAutoCropResult,
@@ -181,7 +182,7 @@ def test_batch_autocrop_applies_flatfield_and_crop_free_geometry(qapp, monkeypat
         captured["rebate_trim"] = rebate_trim
         return SimpleNamespace(key=key)
 
-    monkeypatch.setattr(render_workers, "apply_flatfield", _apply_flatfield)
+    monkeypatch.setattr(lens_module, "apply_flatfield", _apply_flatfield)
     monkeypatch.setattr(render_workers, "GeometryProcessor", _GeometryProcessor)
     monkeypatch.setattr(render_workers, "detect_crop_candidate", _detect)
     monkeypatch.setattr(render_workers, "resolve_roll_crops", lambda _evidence: [])
@@ -214,7 +215,7 @@ def _flatfield_config() -> WorkspaceConfig:
 def test_batch_autocrop_cuts_the_flatfield_gain_to_the_half(qapp, monkeypatch) -> None:
     _stub_detection(monkeypatch)
     crops: list = []
-    monkeypatch.setattr(render_workers, "apply_flatfield", lambda image, _config, gain_crop=None, **_kw: crops.append(gain_crop) or image)
+    monkeypatch.setattr(lens_module, "apply_flatfield", lambda image, _config, gain_crop=None, **_kw: crops.append(gain_crop) or image)
     frame = _input("frame", _flatfield_config())
     frame.file_info.update(half=2, split_x=0.5, gutter_thickness=0.0)
 
@@ -227,7 +228,7 @@ def test_batch_autocrop_cuts_the_flatfield_gain_to_the_half(qapp, monkeypatch) -
 def test_batch_autocrop_skips_the_flatfield_on_a_stitch(qapp, monkeypatch) -> None:
     _stub_detection(monkeypatch)
     calls: list = []
-    monkeypatch.setattr(render_workers, "apply_flatfield", lambda image, *_args, **_kwargs: calls.append(1) or image)
+    monkeypatch.setattr(lens_module, "apply_flatfield", lambda image, *_args, **_kwargs: calls.append(1) or image)
     config = _flatfield_config()
     config = replace(config, stitch=replace(config.stitch, stitch_enabled=True))
 

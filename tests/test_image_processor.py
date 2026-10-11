@@ -414,13 +414,13 @@ def test_repair_falls_back_to_a_whole_frame_pass_when_defects_swarm() -> None:
 def test_run_pipeline_skip_flatfield(monkeypatch) -> None:
     """The export/contact-sheet CPU fallback passes an already-flat-fielded buffer;
     skip_flatfield must prevent a second apply_flatfield (the latent double-apply)."""
-    import negpy.services.rendering.image_processor as ip
+    import negpy.services.rendering.lens as lens
 
     service = ImageProcessor()
     monkeypatch.setattr(service.engine_cpu, "process", lambda img, s, sh, ctx: img)
     calls = []
-    real = ip.apply_flatfield
-    monkeypatch.setattr(ip, "apply_flatfield", lambda img, ff, *a, **kw: (calls.append(1), real(img, ff, *a, **kw))[1])
+    real = lens.apply_flatfield
+    monkeypatch.setattr(lens, "apply_flatfield", lambda img, ff, *a, **kw: (calls.append(1), real(img, ff, *a, **kw))[1])
 
     img = np.full((64, 64, 3), 0.5, dtype=np.float32)
     service.run_pipeline(img, WorkspaceConfig(), "h", render_size_ref=512, prefer_gpu=False, readback_metrics=False)

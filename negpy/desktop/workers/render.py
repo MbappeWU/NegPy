@@ -20,10 +20,9 @@ from negpy.features.exposure.analysis import (
     waveform,
     waveform_color,
 )
-from negpy.features.flatfield.logic import apply_flatfield
 from negpy.features.flatfield.models import FlatFieldConfig
 from negpy.features.lens.models import LensCorrections
-from negpy.services.rendering.lens import lens_decode_token, metadata_lens_corrections
+from negpy.services.rendering.lens import flatfield_source, lens_decode_token, metadata_lens_corrections
 from negpy.features.hdr.models import HdrConfig, hdr_active
 from negpy.features.geometry.batch_autocrop import CropEvidence, detect_crop_candidate, resolve_roll_crops
 from negpy.features.process.capture_color import wb_only_cam_xyz
@@ -1627,18 +1626,7 @@ class BatchAutoCropWorker(QObject):
                 return None, None
 
             config = frame.config
-            if config.stitch.stitch_enabled or metadata_lens_corrections(config):
-                corrected = raw
-            else:
-                from negpy.services.assets.half_frame import slice_chain
-
-                cuts = gain_slices_for_asset(file_info)
-                corrected = apply_flatfield(
-                    raw,
-                    config.flatfield,
-                    (lambda g: slice_chain(g, cuts)) if cuts else None,
-                    orientation=meta.get("orientation", 1),
-                )
+            corrected = flatfield_source(raw, config, gain_slices_for_asset(file_info), orientation=meta.get("orientation", 1))
             geometry = config.geometry
             keystone = None
             if squares_on_arm(geometry):
@@ -1993,19 +1981,14 @@ class NormalizationWorker(QObject):
                         params,
                         task.workspace_color_space,
                     )
-                    # The flat field the render applies, behind the same gate run_pipeline uses.
-                    if not params.stitch.stitch_enabled and not metadata_lens_corrections(params):
-                        from negpy.features.flatfield.logic import apply_flatfield
-                        from negpy.services.assets.half_frame import slice_chain
-
-                        cuts = gain_slices_for_asset(f_info)
-                        raw = await asyncio.to_thread(
-                            apply_flatfield,
-                            raw,
-                            params.flatfield,
-                            (lambda g: slice_chain(g, cuts)) if cuts else None,
-                            orientation=decode_meta.get("orientation", 1),
-                        )
+                    # The flat field the render applies.
+                    raw = await asyncio.to_thread(
+                        flatfield_source,
+                        raw,
+                        params,
+                        gain_slices_for_asset(f_info),
+                        orientation=decode_meta.get("orientation", 1),
+                    )
                     # Bounds must be measured on the same channel mix the preview normalizes.
                     sensor_matrix = effective_sensor_matrix(params.process)
                     if sensor_matrix is not None and preview_takes_unmix(params):
