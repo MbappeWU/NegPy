@@ -785,7 +785,7 @@ class RightPanel(QWidget):
         self.curve_widget.set_density_histogram(metrics.get("histogram_density"))
         # A peek renders without metrics, so the last print's waveform would describe the wrong image.
         peeking = self.controller.state.negative_peek or self.controller.state.flat_peek
-        self.waveform_widget.set_data(None if peeking else metrics.get("waveform"))
+        self.waveform_widget.set_data(None if peeking else metrics.get("waveform"), metrics.get("waveform_color"))
         self.vectorscope_widget.set_data(None if peeking else metrics.get("vectorscope"))
 
         # Peek Negative applied no curve, so the print histogram, curve and zone strip

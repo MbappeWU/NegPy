@@ -121,7 +121,8 @@ TILING_THRESHOLD_PX = 12_000_000
 HISTOGRAM_BINS = 256
 # Metrics buffer layout in u32 words: RGBL output histogram (metrics.wgsl), the RGBL
 # density histogram (density_hist.wgsl), the joint RGB histogram (color_hist.wgsl), the luma
-# waveform (waveform.wgsl), then the a*b* vectorscope (vectorscope.wgsl).
+# waveform (waveform.wgsl), the a*b* vectorscope (vectorscope.wgsl), then the waveform's
+# per-cell R, G, B sums (waveform.wgsl).
 # 256 B-aligned offsets, mirrored as WGSL array lengths. Append-only.
 _METRICS_HIST_WORDS = HISTOGRAM_BINS * 4
 _METRICS_DENSITY_BASE = 1024
@@ -132,7 +133,9 @@ _METRICS_WAVE_BASE = _METRICS_COLOR_BASE + _METRICS_COLOR_WORDS
 _METRICS_WAVE_WORDS = WAVEFORM_BINS * WAVEFORM_COLS
 _METRICS_SCOPE_BASE = _METRICS_WAVE_BASE + _METRICS_WAVE_WORDS
 _METRICS_SCOPE_WORDS = SCOPE_HUE_BINS * SCOPE_CHROMA_BINS
-METRICS_BUFFER_SIZE = (_METRICS_SCOPE_BASE + _METRICS_SCOPE_WORDS) * 4
+_METRICS_WAVE_RGB_BASE = _METRICS_SCOPE_BASE + _METRICS_SCOPE_WORDS
+_METRICS_WAVE_RGB_WORDS = 3 * WAVEFORM_BINS * WAVEFORM_COLS
+METRICS_BUFFER_SIZE = (_METRICS_WAVE_RGB_BASE + _METRICS_WAVE_RGB_WORDS) * 4
 
 # Per-frame metrics clear; write_buffer copies at call time, so sharing is safe.
 _METRICS_ZEROS = np.zeros(METRICS_BUFFER_SIZE // 4, dtype=np.uint32)
@@ -1527,6 +1530,14 @@ class GPUEngine:
                             "size": _METRICS_WAVE_WORDS * 4,
                         },
                     ),
+                    (
+                        2,
+                        {
+                            "buffer": self._buffers["metrics"].buffer,
+                            "offset": _METRICS_WAVE_RGB_BASE * 4,
+                            "size": _METRICS_WAVE_RGB_WORDS * 4,
+                        },
+                    ),
                 ],
                 crop_w,
                 crop_h,
@@ -1605,6 +1616,11 @@ class GPUEngine:
             metrics["waveform"] = (
                 raw_metrics[_METRICS_WAVE_BASE : _METRICS_WAVE_BASE + _METRICS_WAVE_WORDS]
                 .reshape((WAVEFORM_BINS, WAVEFORM_COLS))
+                .astype(np.float64)
+            )
+            metrics["waveform_color"] = (
+                raw_metrics[_METRICS_WAVE_RGB_BASE : _METRICS_WAVE_RGB_BASE + _METRICS_WAVE_RGB_WORDS]
+                .reshape((3, WAVEFORM_BINS, WAVEFORM_COLS))
                 .astype(np.float64)
             )
             metrics["vectorscope"] = (
