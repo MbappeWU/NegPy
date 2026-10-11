@@ -58,7 +58,6 @@ def test_an_inside_point_still_round_trips(case) -> None:
 
 
 def test_a_click_in_the_fine_rotation_wedge_maps_off_frame_not_to_the_corner() -> None:
-    """The corners of a fine-rotated frame hold no source; a click there lies just past the edge."""
     grid = _grid(fine_rot=6.0)
     rx, ry = CoordinateMapping.map_click_to_raw(0.005, 0.005, grid)
     assert (rx, ry) != pytest.approx((0.0, 0.0), abs=1e-3)

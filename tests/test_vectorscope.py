@@ -62,7 +62,6 @@ def test_the_display_keeps_every_pixel_and_puts_neutral_at_the_center() -> None:
 @unittest.skipUnless(GPUDevice.get().is_available, "GPU not available")
 class TestVectorscopeParity(unittest.TestCase):
     def test_wgsl_bins_match_the_cpu(self):
-        """vectorscope.wgsl and vectorscope_histogram() bin the same frame, so the scope does not change with the engine."""
         from negpy.services.rendering.image_processor import ImageProcessor
 
         rng = np.random.default_rng(5)

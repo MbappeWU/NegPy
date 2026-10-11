@@ -19,15 +19,9 @@ class Sensitizer(StrEnum):
 
 @dataclass(frozen=True)
 class AltProcessConfig:
-    """
-    The Alternative Processes panel. One config for every process because they
-    are mutually exclusive — you cannot lith-develop a cyanotype — so the state
-    is one enum rather than booleans that could all be set.
-
-    Lith takes its color from the Exposure panel's paper profile; cyanotype is
-    on rag paper and takes its color from the sensitizer; a Sabattier print is
-    neutral silver.
-    """
+    """The Alternative Processes panel. The processes are mutually exclusive, so the state
+    is one enum. Lith takes its color from the paper profile, cyanotype from the sensitizer;
+    a Sabattier print is neutral silver."""
 
     alt_process: AltProcess = AltProcess.NONE
     lith_exposure: float = 2.0
@@ -38,9 +32,8 @@ class AltProcessConfig:
     cyano_scale: float = 1.4
     cyano_bleach: float = 0.0
     cyano_tannin: float = 0.0
-    # Sabattier: how far the light tones reverse (1 flattens them to the fold, above 1 they
-    # reverse), where the fold sits (a fraction of the paper's Dmax) and the tray's agitation
-    # after the flash (0 still, wide Mackie lines; 1 constant, none).
+    # Sabattier: strength 1 flattens the light tones to the fold, above 1 reverses them; the fold
+    # sits at reexposure x paper Dmax; agitation 0 draws wide Mackie lines, 1 none.
     sabattier_strength: float = 1.3
     sabattier_reexposure: float = 0.45
     sabattier_agitation: float = 0.7

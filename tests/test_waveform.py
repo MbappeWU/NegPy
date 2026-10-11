@@ -52,7 +52,6 @@ def test_each_cell_sums_the_color_of_its_pixels() -> None:
 @unittest.skipUnless(GPUDevice.get().is_available, "GPU not available")
 class TestWaveformParity(unittest.TestCase):
     def test_wgsl_bins_match_the_cpu(self):
-        """waveform.wgsl and waveform() bin the same frame, so the chart does not change with the engine."""
         from negpy.domain.models import WorkspaceConfig
         from negpy.services.rendering.image_processor import ImageProcessor
 

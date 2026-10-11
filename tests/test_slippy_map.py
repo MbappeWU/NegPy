@@ -162,7 +162,7 @@ def test_shutdown_stops_queued_fetches(monkeypatch) -> None:
 
 
 def test_shutdown_never_waits_on_a_running_fetch(monkeypatch) -> None:
-    """A fetch stalled in DNS outlives the view; a join on it froze the GUI with the GIL held."""
+    """A fetch stalled in DNS outlives the view; a join on it freezes the GUI with the GIL held."""
     import threading
     import time
 

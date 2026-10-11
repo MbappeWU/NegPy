@@ -365,9 +365,8 @@ def rows_for_section(section: str) -> list[SettingRow]:
     return [r for r in all_rows() if r.section == section]
 
 
-# Exposure field partitions: the Filtration, Tone and Paper Response sections split
-# ExposureConfig, for both per-section modified counts and scoped resets. render_intent is
-# in none, since it is flat-master output, nor is cast_removal_strength, the Calibration card's.
+# Filtration, Tone and Paper Response split ExposureConfig for modified counts and scoped resets.
+# render_intent (flat-master output) and cast_removal_strength (the Calibration card's) are in none.
 COLOR_FIELDS = (
     "wb_cyan",
     "wb_magenta",

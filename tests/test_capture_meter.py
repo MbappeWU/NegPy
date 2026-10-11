@@ -92,8 +92,7 @@ def test_fine_clipped_highlights_count_at_the_probe_resolution():
 
 
 def test_a_saturated_p999_is_never_metered_as_a_level():
-    """A saturated p99.9 is a lower bound: the probe steps down and asks again instead of
-    nudging a third of a stop."""
+    """A saturated p99.9 is a lower bound, so the probe steps down and asks again."""
     img = _frame(border=0.02, picture=0.3, h=600, w=900, orange=False)
     img[120:200, 200:700] = CLIP_CEILING  # about 9% of the picture blown
     reading = meter_frame(img, "1/30", medium="positive")
@@ -138,8 +137,7 @@ def test_the_peak_map_keeps_a_clip_narrower_than_a_block():
 
 
 def test_the_raw_clip_mask_predicts_the_metered_shutter():
-    """The RAW is linear: a probe pixel at half saturation clips one stop slower, not at the
-    probe's own shutter."""
+    """The RAW is linear: a probe pixel at half saturation clips one stop slower."""
     from dataclasses import replace
 
     from negpy.services.capture.meter import raw_clip_mask
@@ -200,7 +198,6 @@ def test_the_framing_check_refuses_another_aspect_and_another_picture():
 
 
 def test_a_clipped_probe_past_the_fastest_rung_still_steps_to_it():
-    """Two stops down passes the ladder's end, but the fastest rung is still a step down."""
     img = _frame(border=0.02, picture=0.3, h=600, w=900, orange=False)
     img[120:200, 200:700] = CLIP_CEILING
     ladder = ("1/250", "1/125", "1/60")

@@ -1,8 +1,4 @@
-"""The Auto Crop state table: one test per row the other suites do not already cover.
-
-Row ids (R, E, H, A) match the state table in the Auto Crop plan; the rules they check
-are the Roll/Frame invariants P1–P11.
-"""
+"""The Auto Crop state table: one test per row the other suites do not already cover."""
 
 import gc
 from dataclasses import replace
@@ -558,7 +554,6 @@ def test_E19_a_preset_settles_the_active_frames_lock_too(repo):
 
 
 def test_E19_with_no_roll_open_a_copy_settles_in_the_frames_own_roll(repo):
-    """Search results: no active roll, but each frame still resolves through its own."""
     session, roll = _session_with_roll(repo, roll_auto=False)
     session.state.active_roll_id = None
     session.state.config = _cfg("auto")
@@ -614,8 +609,7 @@ def test_D35_with_no_roll_open_the_run_records_each_frames_own_roll(ctl):
 
 
 def test_E19_a_copy_into_a_roll_with_no_auto_crop_value_locks_nothing(repo):
-    """The restore rule: a roll with no Auto Crop value applies nothing, so a later Roll
-    push still reaches the copied frames."""
+    """A roll with no Auto Crop value applies nothing, so a later Roll push still reaches the copied frames."""
     session = DesktopSessionManager(repo)
     roll = rolls.create_virtual_roll(repo, "Roll", ["/r/h1.tif", "/r/h2.tif"])
     state = session.state
@@ -635,7 +629,6 @@ def test_E19_a_copy_into_a_roll_with_no_auto_crop_value_locks_nothing(repo):
 
 @pytest.mark.parametrize("crop, carried", [("hand-drawn", True), ("auto", False)])
 def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(repo, tmp_path, crop, carried):
-    """Clearing a hand-drawn crop is one frame's placement; clearing an auto crop turns auto-crop off."""
     session = DesktopSessionManager(repo)
     session.state.uploaded_files = [{"name": "a.tif", "path": str(tmp_path / "a.tif"), "hash": "ha"}]
     session.select_file(0)
@@ -657,8 +650,7 @@ def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(re
 
 
 def test_the_roll_run_saves_the_keystone_with_its_own_rotation(ctl):
-    """Square Before Crop in the roll run: Tilt and Swing from the fit, rotation from the run's
-    own deskew (the frame's own plus the residual), and the arm marked squared."""
+    """Tilt and Swing from the fit, rotation from the run's own deskew, and the arm marked squared."""
     from dataclasses import replace as dc_replace
 
     started = _cfg("armed", autocrop_square=True)

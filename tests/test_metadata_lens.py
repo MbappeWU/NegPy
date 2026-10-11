@@ -252,7 +252,7 @@ def test_panasonic_reader_flows_through_the_shared_render_path(tmp_path):
     assert result.shape == image.shape
     assert result.dtype == np.float32
     assert not np.array_equal(result, image)  # the warp moved the pixels
-    assert np.abs(result[60, 45] - image[60, 45]).max() == pytest.approx(0.0, abs=1e-6)  # the centre is fixed
+    assert np.abs(result[60, 45] - image[60, 45]).max() == pytest.approx(0.0, abs=1e-6)  # the center is fixed
 
 
 def test_metadata_cache_tracks_file_revision(tmp_path):

@@ -1,11 +1,7 @@
-"""Large pop-out window for the Scanlight live view.
+"""Pop-out window for the Scanlight live view: frame, focus, meter and scan a whole roll here.
 
-Hosts a `RoiImageLabel` plus an inline toolbar (Scan, Retake, Meter and the histogram and
-zebra toggles), a capture progress bar and a status line, so a whole roll can be framed,
-focused, metered and scanned without switching back to the side panel. The live image
-carries a magnifier cursor: a click aims the camera focus magnifier at that spot, a
-double-click returns to full frame. The buttons emit signals; `ScanlightSidebar` wires them
-and mirrors scanning state + status.
+A click aims the camera focus magnifier at that spot, a double-click returns to full frame.
+The buttons emit signals; `ScanlightSidebar` wires them and mirrors scanning state and status.
 """
 
 import time

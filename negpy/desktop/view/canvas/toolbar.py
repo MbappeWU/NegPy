@@ -1205,7 +1205,7 @@ class ActionToolbar(QWidget):
             self._item_ids,
             title="Edit Toolbar",
             chosen_header="TOOLBAR",
-            hint="Drag to reorder. Whatever does not fit the canvas width hides, geometry first and navigation last. The ⋯ menu always holds every action, whichever ones the row shows.",
+            hint="Drag to reorder. What does not fit the canvas width hides, geometry first and navigation last; the ⋯ menu holds every action.",
             defaults=list(DEFAULT_TOOLBAR_IDS),
             repo=self.session.repo,
         )
@@ -1222,10 +1222,8 @@ class ActionToolbar(QWidget):
             self.set_available_width(self._available_width or self.width())
 
     def set_available_width(self, w: int) -> None:
-        """Show as many of the chosen controls as fit the canvas width.
-
-        The overflow menu is not touched here — it always carries the full action set (see
-        _init_ui), so a control leaving the row never changes what the menu contains."""
+        """Show as many of the chosen controls as fit the canvas width. The overflow menu always
+        carries the full action set (see _init_ui), so the menu does not follow the row."""
         self._available_width = w
         budget = self._toolbar_width_budget(w)
 

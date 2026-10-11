@@ -28,20 +28,9 @@ def apply_sabattier(
     reexposure: float = 0.45,
     line_sigma_px: float = 0.0,
 ) -> ImageBuffer:
-    """
-    Sabattier effect on a linear-reflectance print: white light part-way through
-    development. Where silver has developed the re-exposure finds little fresh halide, so
-    dense tones hold; the lighter the tone, the more fresh halide develops after the flash,
-    so the scale folds at the re-exposure density R = reexposure * d_max: a tone D below it
-    prints at D + strength (R - D), paper white at strength * R. Strength 1 flattens the
-    light tones onto the fold; above 1 they reverse, the lighter the darker.
-
-    Bromide released by the developing dense areas diffuses into the adjoining light ones
-    and restrains their re-development, which leaves a light line along every edge between
-    dark and light: the Mackie line. `line_sigma_px` is the bromide's reach in render
-    pixels; 0 draws no lines. The blur's taps are `gaussian_kernel_1d`'s, the same array
-    the shaders read, so both engines draw the same line. The result is neutral silver.
-    """
+    """Sabattier on a linear-reflectance print: developed silver leaves little fresh halide, so the scale folds at
+    R = reexposure * d_max and lighter tones reverse past strength 1. Bromide from dense areas leaves a light Mackie
+    line along each edge, `line_sigma_px` wide (0: none). The shaders read the same `gaussian_kernel_1d` taps."""
     if not enabled:
         return img
 

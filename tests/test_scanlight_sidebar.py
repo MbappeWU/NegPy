@@ -422,9 +422,8 @@ def test_reset_magnifier_clears_state():
 
 
 def test_the_body_changing_its_magnifier_restarts_the_focus_peak(tmp_path, monkeypatch):
-    # MF Assist zooms in when the ring turns and the body's timeout zooms back out, with no
-    # click here. Each switch changes the sharpness scale, so the peak restarts and the click
-    # toggle follows the body.
+    # The body zooms in on a ring turn and out on its timeout, with no click here. Each switch
+    # changes the sharpness scale, so the peak restarts and the click toggle follows the body.
     import json
 
     import numpy as np
@@ -1903,9 +1902,6 @@ def test_live_view_window_shows_the_focus_reading():
     assert w.lv_window.focus_label.text() == "Focus meter: at peak"
     w.lv_window.set_focus(None)
     assert w.lv_window.focus_label.text() == "Focus meter: no reading"
-
-
-# ── single-capture presets ────────────────────────────────────────
 
 
 def _select_stored(w, monkeypatch, preset):

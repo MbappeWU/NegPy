@@ -48,7 +48,7 @@ def test_a_zoom_mid_drag_keeps_the_exclusion_stroke_and_the_rotate_handle_on_the
 
     overlay = CanvasOverlay(AppState())
     old = QRectF(0, 0, 200, 100)
-    overlay._view_rect = QRectF(-100, -50, 400, 200)  # zoomed 2x about the centre
+    overlay._view_rect = QRectF(-100, -50, 400, 200)  # zoomed 2x about the center
     overlay._exclude_drag_pts = [QPointF(50, 25)]
     overlay._rotate_center = QPointF(100, 50)
     overlay._rotate_press = QPointF(150, 50)

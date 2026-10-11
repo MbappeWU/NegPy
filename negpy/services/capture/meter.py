@@ -1,10 +1,6 @@
 """Exposure meter for a white-light or camera-only scan: one RAW probe sets the shutter.
-
-The medium decides what must not clip. On a negative the clear base becomes the print's black
-point, so the base, read in the rebate around the picture, is placed at the target. On a
-positive the picture's brightest highlights are. A capture with no rebate meters the picture's
-highlights either way: nothing brighter is in the frame. The medium is the preset's, or the
-import's own classifier on the probe. Hardware-free: the caller shoots and decodes the probe.
+A negative places its clear base (read in the rebate) at the target, since it becomes the print's black point. A positive,
+or a capture with no rebate, places its brightest highlights. The medium is the preset's, else the import classifier's.
 """
 
 from __future__ import annotations

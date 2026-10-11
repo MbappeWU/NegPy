@@ -152,10 +152,8 @@ class ToningSidebar(BaseSidebar):
             self.copper_slider.setVisible(is_bw)
             self.vanadium_slider.setVisible(is_bw)
 
-            # Only selenium and gold do anything distinctive on a lith print, and a cyanotype holds no
-            # silver for any bath to react with; a Sabattier print is plain silver. Disabled rather than
-            # hidden, so the values stay live and come back afterwards. Tooltips stay put:
-            # apply_shortcut_tooltips owns some of these.
+            # Only selenium and gold act on a lith print, and a cyanotype holds no silver. Disabled,
+            # not hidden, so the values come back; apply_shortcut_tooltips owns some tooltips.
             alt = self.state.config.altproc.alt_process if is_bw else AltProcess.NONE
             cyano_on = alt == AltProcess.CYANOTYPE
             for w in (self.sepia_slider, self.blue_slider, self.copper_slider, self.vanadium_slider):

@@ -1,10 +1,7 @@
 """Rewrite flat-field profiles baked in their reference's EXIF orientation into sensor layout.
 
-A profile without the layout marker holds its gain and check copy as the reference decoded,
-EXIF orientation applied. That orientation is worked out from the reference file and undone.
-A profile whose reference cannot be read, or whose bake orientation cannot be told, stays
-unmarked and applies as baked; it is tried again on every launch. Nothing raises into app
-startup.
+A profile whose bake orientation cannot be told stays unmarked, applies as baked and is retried
+every launch. Nothing raises into app startup.
 """
 
 import os
@@ -28,10 +25,8 @@ _TIFF_MARKERS = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
 
 def _baked_orientation(source: str, gain: np.ndarray) -> Optional[int]:
     """The EXIF orientation the bake applied to *source*, or None when it cannot be told.
-
-    The JXL decode applies none. A tag only LibRaw reads (CR3, RAF) was read as 1 by earlier
-    builds, so the gain's aspect against the sensor's tells whether the bake made the quarter
-    turn; a half turn or a mirror leaves no trace in the aspect."""
+    A LibRaw-only tag (CR3, RAF) baked as 1, so the gain's aspect tells a quarter turn; a half
+    turn or a mirror leaves no trace."""
     if os.path.splitext(source)[1].lower() in SUPPORTED_JXL_EXTENSIONS:
         return 1
     with open(source, "rb") as fh:

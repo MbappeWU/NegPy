@@ -19,15 +19,14 @@ _GAIN_MAX = 4.0
 # and the blur kernel stays tiny.
 _GAIN_WORK_SIZE = 256
 # Blur sigma as a fraction of the long side: small enough to follow the light source's own
-# pattern, which repeats from shot to shot. A wider blur leaves it in the corrected frame.
+# pattern, which repeats from shot to shot.
 _BLUR_DIVISOR = 64.0
 # A profile stores the reference at this size for Check Flat Field: twice the gain's, so dust
 # and the carrier edge stay sharp on the canvas.
 _CHECK_COPY_SIZE = 512
 
-# A reference pixel below _LIT_FRACTION of the bright level (_LIT_PERCENTILE of luminance)
-# is carrier, not falloff. A percentile, not the median, so a carrier that fills most of the
-# frame still reads dark. Under _MIN_LIT_FRACTION lit pixels the whole frame is used.
+# Below _LIT_FRACTION of the _LIT_PERCENTILE luminance is carrier (a percentile, so a carrier that fills
+# most of the frame still reads dark). Under _MIN_LIT_FRACTION lit pixels the whole frame is used.
 _LIT_PERCENTILE = 95.0
 _LIT_FRACTION = 0.2
 _MIN_LIT_FRACTION = 0.02
@@ -35,11 +34,8 @@ _MIN_LIT_FRACTION = 0.02
 # to hold, and takes the value of the nearest pixel that is not.
 _MIN_LIT_WEIGHT = 0.05
 
-# The Check Flat Field view maps ±EVENNESS_RANGE about the median to black..white, and a
-# profile with no stored reference shows its gain over ±GAIN_VIEW_RANGE instead. A reference
-# that self-corrects to a wider spread than UNEVEN_LIMIT gets a warning at bake.
-# The limit sits above the shortfall a smooth gain leaves at the frame edge on a steep
-# falloff, so a good flat does not warn.
+# Check Flat Field shows ±EVENNESS_RANGE about the median, or ±GAIN_VIEW_RANGE of gain with no reference.
+# UNEVEN_LIMIT warns at bake; it sits above the edge shortfall a smooth gain leaves on a steep falloff.
 EVENNESS_RANGE = 0.10
 GAIN_VIEW_RANGE = 0.15
 UNEVEN_LIMIT = 0.06
@@ -57,10 +53,8 @@ class GainEntry(NamedTuple):
     sensor_layout: bool = True
 
 
-# Resolved gains keyed by profile id. A cached ``None`` marks a known-missing profile, so a
-# broken reference does not re-hit the store every render. Populated lazily through the
-# injected provider: the desktop app wires it to the on-disk profile store
-# (services/assets/flatfield.py) at startup, and tests may seed this map directly.
+# Gains by profile id, filled lazily through the injected provider. A cached ``None`` marks a
+# missing profile, so a broken reference does not re-hit the store every render.
 _GAIN_CACHE: Dict[str, Optional[GainEntry]] = {}
 _gain_provider: Optional[Callable[[str], Optional[GainEntry]]] = None
 
@@ -182,7 +176,6 @@ def check_reference(reference: ImageBuffer, gain: np.ndarray) -> Evenness:
 
 
 def self_corrected(reference: np.ndarray, gain: np.ndarray) -> np.ndarray:
-    """A reference multiplied by a gain, resized to the reference."""
     if gain.shape[:2] != reference.shape[:2]:
         gain = cv2.resize(gain, (reference.shape[1], reference.shape[0]), interpolation=cv2.INTER_LINEAR)
     return reference.astype(np.float32) * gain
@@ -234,11 +227,8 @@ def apply_flatfield(
     orientation: Optional[int],
 ) -> ImageBuffer:
     """Multiply the linear source by the reference gain map. No-op when inactive or unresolved.
-
-    The gain is stored in sensor layout and takes *image*'s decode ``orientation`` first, so a
-    frame tagged differently from the reference is still corrected where the light fell.
-    ``gain_crop`` then cuts it to the part of the frame *image* holds, such as one half-frame;
-    the gain is then resized to *image*."""
+    The sensor-layout gain takes *image*'s decode ``orientation`` first, then ``gain_crop`` cuts it
+    to the part of the frame *image* holds (one half-frame); the gain is then resized to *image*."""
     if not config.apply or not config.profile_id:
         return image
     entry = _resolve(config.profile_id)

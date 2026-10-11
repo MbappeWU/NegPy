@@ -447,9 +447,8 @@ class TestLabParity:
         assert np.allclose(cpu_result, gpu_result, atol=0.5, rtol=0.2), f"Max diff: {np.max(np.abs(cpu_result - gpu_result)):.6f}"
 
     def test_chroma_denoise(self):
-        # Isolate chroma denoise: disable the sharpen default. The GPU shader scales
-        # its a*/b* blur radius by chroma_denoise * scale_factor (Fibonacci-disk taps
-        # approximating the CPU bilateralFilter sigmaSpace), so the two paths track.
+        # Isolate chroma denoise from the sharpen default. The GPU scales its a*/b* blur radius by
+        # chroma_denoise * scale_factor to follow the CPU bilateralFilter sigmaSpace.
         s = replace(
             _make_base_settings(),
             lab=LabConfig(chroma_denoise=3.0, sharpen=0.0),
@@ -589,8 +588,7 @@ class TestToningParity:
         self._run_and_compare(s)
 
     def test_split_toning_tight_parity(self):
-        """Full-strength split toning on a smooth ramp, where the untoned engines agree
-        exactly, so a mask-shape mismatch the class tolerance absorbs shows here."""
+        """A smooth ramp where the untoned engines agree exactly shows a mask mismatch the class tolerance absorbs."""
         h, w = 64, 64
         grad = np.linspace(0.05, 0.9, w, dtype=np.float32)
         img = np.repeat(grad[None, :], h, axis=0)
@@ -803,7 +801,6 @@ class TestSabattierParity(_AltProcessParity):
         self._assert_did_something(s, self._settings(alt_process=AltProcess.SABATTIER, sabattier_agitation=1.0))
 
     def test_sabattier_selenium(self):
-        """Plain silver: selenium tones it like an ordinary print."""
         s = self._settings(ToningConfig(selenium_strength=0.8), alt_process=AltProcess.SABATTIER)
         self._run_and_compare(s)
         self._assert_did_something(s, self._settings(alt_process=AltProcess.SABATTIER))

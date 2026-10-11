@@ -128,8 +128,7 @@ def test_mode_roundtrips_and_an_unknown_value_reads_the_default():
 
 
 def test_film_base_reads_one_shared_set_of_cells():
-    """No clear base in frame: neutral shadows, plus a deep red and a deep blue area that are
-    each thinner than the shadows in one channel only. Per-channel thin ends would mix them."""
+    """No clear base: a red and a blue area each thinner than the shadows in one channel; per-channel thin ends would mix them."""
     rng = np.random.default_rng(9)
     density = np.full((240, 360, 3), 0.8)
     density[60:180, 40:90] = 0.1  # neutral shadows
@@ -185,8 +184,7 @@ def test_render_source_unmixes_a_stitch_once_assembled(monkeypatch, tmp_path):
 
 
 def test_export_unmixes_a_half_frame_after_slicing_it(monkeypatch, tmp_path):
-    """The preview slices a half before the unmix, so the export must too: Two-Scale and
-    Density read the film base from the buffer they are given."""
+    """The preview slices before the unmix, and Two-Scale and Density read the base from the buffer they are given."""
     from negpy.services.rendering import image_processor as ip
 
     class Stop(Exception):
@@ -222,8 +220,7 @@ def test_a_dead_pixel_does_not_blow_up_two_scale():
 
 
 def test_two_scale_still_acts_when_the_base_is_mostly_leak():
-    """A light so unbalanced that most of the base's own blue is green leak: the floor must not
-    hide how far Linear amplifies the neon."""
+    """Most of the base's blue is green leak: the floor must not hide how far Linear amplifies the neon."""
     rng = np.random.default_rng(12)
     base = np.array([0.23, 1.0, 0.3], np.float32)
     assert density_unmix_matrix(_M, base)[2, 2] > 5.0
@@ -266,8 +263,7 @@ def test_contact_sheet_unmixes_a_half_frame_after_slicing_it(monkeypatch, tmp_pa
 
 
 def test_two_scale_keeps_a_hard_light_edge():
-    """A light's core far denser than its surround drops every channel together; that is an
-    edge, not a dead photosite, and keeps its detail."""
+    """A dense light core drops every channel together: an edge, not a dead photosite, so it keeps its detail."""
     import negpy.features.process.sensor as sensor
 
     img = _neon_frame(np.random.default_rng(13), noise=0.0)

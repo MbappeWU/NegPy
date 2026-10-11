@@ -81,18 +81,9 @@ def configure_cpu_parallel(override: Optional[bool]) -> None:
 
 
 def parallel_njit(**jit_kwargs: Any) -> Callable:
-    """
-    @njit that compiles serial AND parallel variants and picks one per call.
-
-    The kernel body may use `prange`; with parallel=False it degrades to plain
-    `range`, so both variants compile from the same source. Each variant JITs
-    lazily on first use, so the unused one costs nothing. Parallel calls are
-    serialized behind the module lock (see module docstring).
-
-    A caller-supplied cache=True holds for both variants, each in its own cache file
-    (_serial_copy). One shared file would let a "serial" call load the parallel binary
-    and defeat the failsafe.
-    """
+    """@njit that compiles serial and parallel variants lazily from one source (`prange` runs as
+    `range` in the serial one) and picks one per call; parallel calls serialize behind the module
+    lock. cache=True gives each variant its own file, or a serial call could load the parallel binary."""
     jit_kwargs.pop("parallel", None)
 
     def wrap(py_func: Callable) -> "_DualDispatcher":

@@ -149,8 +149,7 @@ def test_turning_square_on_squares_and_re_crops_a_cropped_frame():
 
 
 def test_an_export_fits_once():
-    """The export resolves on the preview's settings, then its pipeline resolves again: the
-    settings it hands on are marked squared, so the second call does not fit."""
+    """The export resolves twice; the first marks the settings squared, so the second does not fit."""
     with (
         patch("negpy.services.rendering.image_processor.squared_geometry", side_effect=_square()) as fit,
         patch("negpy.services.rendering.image_processor.resolve_autocrop_rect", return_value=None),
@@ -162,8 +161,7 @@ def test_an_export_fits_once():
 
 
 def test_the_roll_run_takes_the_fits_tilt_and_swing_and_leaves_rotation_to_its_own_deskew():
-    """The roll pools rotations; the run's own deskew sets them, so only the keystone comes from
-    the squaring fit."""
+    """The run's pooled deskew sets rotation; only the keystone comes from the squaring fit."""
     from negpy.desktop.workers.render import BatchAutoCropInput, BatchAutoCropTask, BatchAutoCropWorker
     from negpy.features.geometry.batch_autocrop import CropEvidence
 

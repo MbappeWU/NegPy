@@ -1878,8 +1878,7 @@ class TestCarriedAutoCrop(unittest.TestCase):
         self.assertTrue(self._fresh().geometry.crop_from_auto)
 
     def test_with_the_crop_row_ticked_a_hand_drawn_crop_does_not_carry(self):
-        """The carried rect and Auto flag stay a consistent pair: a fresh frame gets the last
-        auto setup, not a hand-drawn rect marked auto."""
+        """The carried rect and Auto flag stay a pair: a fresh frame gets the last auto setup, not a hand-drawn rect marked auto."""
         self.store["sticky_rows"] = ["geometry.crop_from_auto", "geometry.crop_rect"]
         self._set_auto_crop(True)
         config = self.session.state.config

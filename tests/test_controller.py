@@ -2676,8 +2676,7 @@ class TestAppController(unittest.TestCase):
         self.mock_session_manager.update_config.assert_not_called()
 
     def test_freeze_stores_the_squared_angle_with_the_crop(self):
-        """Square on: the crop was found on the squared frame, so its key is the squared one
-        and both are saved together, with no undo step of their own."""
+        """The crop was found on the squared frame: both save together, with no undo step of their own."""
         self._armed_auto_crop()
         squared = replace(self.controller.state.config.geometry, fine_rotation=1.2, converge_v=0.8, converge_h=0.0)
         key = autocrop_detection_key(squared)
@@ -5666,8 +5665,7 @@ class TestCompareFlatPeekInteraction(unittest.TestCase):
         self.assertEqual(kwargs.get("config_override"), flat_master_config(self.controller.state.config))
 
     def test_an_edit_ends_flat_peek(self):
-        """The debounced render after an edit paints the print, so the badge and the
-        toolbar button must go off with it, and one press of M turns the peek back on."""
+        """The render after an edit paints the print, so the badge and the toolbar button go off with it."""
         from negpy.features.exposure.models import RenderIntent
 
         self.controller.state.flat_peek = True
@@ -5722,9 +5720,8 @@ class TestCompareFlatPeekInteraction(unittest.TestCase):
         self.assertTrue(self.controller.state.negative_peek)
         self.assertTrue(painted)
         metrics = self.controller.state.peek_frame
-        # No camera matrix on this source, so the display level and the encode are
-        # all that separate it from the buffer the loader read. See TestNegativePeekColor
-        # for the camera-native path.
+        # No camera matrix on this source, so only the display level and the encode separate it from
+        # the loader's buffer. TestNegativePeekColor covers the camera-native path.
         np.testing.assert_allclose(metrics["base_positive"], working_oetf_encode(source * lightbox_level(source, None)))
         # Working space, so the display conversion runs; the proof does not.
         self.assertFalse(metrics["splash"])

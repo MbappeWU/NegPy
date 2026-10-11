@@ -266,17 +266,13 @@ class FakeCamera:
 
 
 def _make_demosaic(light, camera, *, k_scale=1.0, level_cap=None, sliver=0, crosstalk=0.0, concave=1.0):
-    """Linear fake sensor (128×128 so a sub-0.1 % clip sliver fits below the p99.9 cut). No bias.
-    `k_scale` scales all channels uniformly (like aperture); `level_cap` saturates the LED above a
-    level (a channel solved to max LED lands under target → under-exposed); `sliver` over-bright
-    pixels clip at the solve but the LED-down clip guard resolves them; `crosstalk` is the share
-    of each neighboring LED a sensor channel also reads; `concave` below 1 makes a low LED level
-    brighter than its share of full drive."""
+    """Linear fake sensor, no bias, 128x128 so a clip sliver under 0.1% fits below the p99.9 cut.
+    `k_scale` scales all channels; `level_cap` saturates the LED above a level; `sliver` pixels clip until the LED-down guard
+    dims them; `crosstalk` is the share of each neighbor LED a channel reads; `concave` below 1 brightens low LED levels."""
 
     def demosaic(_path):
-        # A body exposes the ladder's TRUE time, not the label's fraction ("1/3" is 0.315 s). The
-        # fake sensor must do the same, or it silently absorbs the rounding the solver has to
-        # handle — and the rig failure it caused would be untestable here.
+        # A body exposes the ladder's true time, not the label's fraction ("1/3" is 0.315 s), and the
+        # fake sensor must too, or it absorbs the rounding the solver has to handle.
         sec = true_seconds(camera.last_shutter, SHUTTER_CANDIDATES)
         img = np.zeros((128, 128, 3))
         lit = [min(level, level_cap) if level_cap is not None else level for level in light.last]

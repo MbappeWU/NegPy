@@ -54,12 +54,9 @@ def logluv32_to_xyz(packed: np.ndarray) -> np.ndarray:
 
 
 def decode_strip_logluv32(compressed: bytes, npixels: int, width: int | None = None) -> np.ndarray:
-    """Decode a LogLuv32 RLE strip → npixels uint32 values.
-
-    libtiff codes each scanline on its own: four byte-planes (shifts 24,16,8,0)
-    run-length coded in turn, runs ≥128 count+value, else literals. *width* is
-    the scanline length; None reads the strip as one scanline.
-    """
+    """Decode a LogLuv32 RLE strip → npixels uint32 values. libtiff codes each scanline on its own: four byte-planes
+    (shifts 24,16,8,0), each run-length coded (runs ≥128 count+value, else literals). *width* is the scanline length;
+    None reads the strip as one scanline."""
     buf = np.frombuffer(compressed, dtype=np.uint8)
     width = npixels if not width else width
     pixels = np.zeros(npixels, dtype=np.uint32)

@@ -1,14 +1,7 @@
-"""Sensor (CFA) crosstalk calibration for single-shot narrowband scans.
-
-The camera's color-filter passbands overlap the narrowband source's bands, so a
-pure red/green/blue exposure leaks into the other channels — a fixed property of
-the sensor+light pair, independent of film. Calibrated once from three bare-light
-exposures and corrected with a 3x3 unmix on the LINEAR capture, before the
-log/inversion where the film-dye crosstalk (Density Mixer) lives.
-
-Where the film passes almost none of a band's light, the subtraction leaves a value
-smaller than its own grain and calibration error, and the log after it turns that
-into maximum density. `SensorUnmix` picks how that case is handled.
+"""Sensor (CFA) crosstalk of a sensor+light pair for single-shot narrowband scans: calibrated from three
+bare-light exposures, corrected by a 3x3 unmix on the linear capture, before the log where film-dye crosstalk lives.
+Where the film passes almost none of a band, the subtraction falls below grain and the log turns it into maximum
+density; `SensorUnmix` picks how that case is handled.
 """
 
 from typing import Optional
@@ -50,9 +43,8 @@ _LOG_FLOOR = 1e-6
 # No channel is read denser than this transmission relative to the base, 3 D, past any film:
 # a dead or black-clipped pixel would otherwise reach the other channels through the log.
 _DENSITY_RANGE = 1e-3
-# Two-Scale: a channel this far below the other two, relative to each one's blurred
-# neighborhood, is a defect (a dead or black-clipped photosite), not film. A real edge moves
-# all three channels together.
+# Two-Scale: a channel this far below the other two against its blurred neighborhood is a dead or
+# black-clipped photosite; a real edge moves all three channels together.
 _DEFECT_RATIO = 1.0 / 64.0
 
 
@@ -236,10 +228,9 @@ def _density_unmix(x: np.ndarray, m: np.ndarray) -> Optional[np.ndarray]:
 
 
 def _two_scale_unmix(x: np.ndarray, m: np.ndarray) -> Optional[np.ndarray]:
-    """Linear where the unmix amplifies a channel no more than it does at the film base.
-    Elsewhere the color comes from a blurred, soft-floored unmix and the detail is added back
-    with the base's log gain, so grain is never amplified past it. Never reaches zero.
-    None when the base gives no usable linearisation point."""
+    """Linear where the unmix amplifies a channel no more than at the film base. Elsewhere a blurred, soft-floored
+    unmix gives the color and the detail returns at the base's log gain, so grain is never amplified past it.
+    Never reaches zero; None when the base gives no usable linearisation point."""
     base = film_base(x)
     if base is None or np.any(base <= _LOG_FLOOR) or np.any(m.astype(np.float64) @ base <= _LOG_FLOOR):
         return None

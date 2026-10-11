@@ -70,9 +70,8 @@ def _masked_strip(h: int = 600, w: int = 900) -> np.ndarray:
 
 @pytest.mark.parametrize("angle", [-1.1, 0.8])
 def test_a_holder_edge_beside_the_picture_is_not_a_film_edge(angle: float, monkeypatch: pytest.MonkeyPatch) -> None:
-    # The holder masks the film's own edges, and its band is square to the camera, not the
-    # film. The film detector then boxes the canvas top and left down to the holder and the
-    # next frame; the gate refiner still boxes the picture.
+    # The holder band masks the film edges and is square to the camera, so the film detector boxes
+    # the holder and the next frame; the gate refiner still boxes the picture.
     from dataclasses import replace
 
     import negpy.features.geometry.skew as skew_module

@@ -14,12 +14,9 @@ _SENSITIZER_LABELS = {
 
 
 class AltProcessSidebar(BaseSidebar):
-    """
-    Alternative printing processes, one at a time: lith-developed, a cyanotype or a
-    Sabattier print, never two. Lith's paper comes from the Exposure panel; the
-    cyanotype is on rag paper and takes its color from the sensitizer; a Sabattier
-    print is plain silver.
-    """
+    """Alternative printing processes, one at a time: lith, cyanotype or Sabattier. Lith's paper
+    comes from the Exposure panel, the cyanotype takes its color from the sensitizer, and a
+    Sabattier print is plain silver."""
 
     def _init_ui(self) -> None:
         conf = self.state.config.altproc

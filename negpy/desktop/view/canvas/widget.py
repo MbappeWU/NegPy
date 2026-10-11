@@ -543,7 +543,7 @@ class ImageCanvas(QWidget):
             self._pinch_brush_step(k)
             ev.setAccepted(g, True)
             return True
-        # A pinch reports its centre in screen coordinates.
+        # A pinch reports its center in screen coordinates.
         anchor = self.mapFromGlobal(g.centerPoint())
         if self._apply_scale_at(k, anchor):
             ev.setAccepted(g, True)

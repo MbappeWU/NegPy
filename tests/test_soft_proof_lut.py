@@ -96,12 +96,7 @@ class TestSoftProofLut(unittest.TestCase):
         self.assertFalse(np.array_equal(plain, on_p3), "the proof must land on the monitor profile")
 
     def test_greyscale_proof_lands_on_a_non_srgb_trc_monitor(self):
-        """A neutral proofs the same to Greyscale as to an RGB space, on any monitor.
-
-        The gray profile carries the sRGB TRC, so its values shown raw are right only on
-        an sRGB-TRC display. A pure-gamma monitor (Adobe RGB here) shows the difference
-        in the shadows.
-        """
+        """The gray profile carries the sRGB TRC, so its raw values are right only on an sRGB-TRC display."""
         from negpy.infrastructure.display.color_mgmt import icc_bytes_for_space
 
         monitor = icc_bytes_for_space("Adobe RGB")

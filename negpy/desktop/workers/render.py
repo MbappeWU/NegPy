@@ -1984,11 +1984,8 @@ class NormalizationWorker(QObject):
                     process_mode = params.process.process_mode
                     geometry = params.geometry
 
-                    # to_thread for the blocking load and analysis. The decode picks
-                    # the same WB the render path uses (use_camera_wb = not effective linear
-                    # RAW): the roll-average bounds are applied to the render-decoded image, so
-                    # analyzing in a different WB space shifts the per-channel floors and ceils
-                    # and produces a color cast.
+                    # Decode with the render path's WB (use_camera_wb = not effective linear RAW):
+                    # the roll bounds apply to the render-decoded image, and another WB casts it.
                     raw, decode_meta = await asyncio.to_thread(
                         _decode_asset_preview_with_meta,
                         self._preview_service,

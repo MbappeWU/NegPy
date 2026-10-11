@@ -21,8 +21,7 @@ def _combo_items(combo):
 
 
 def test_paper_reset_covers_every_paper_control():
-    """The card's reset clears PAPER_FIELDS, so a control that falls out of the list
-    leaves a visible slider its own reset cannot clear."""
+    """The card's reset clears PAPER_FIELDS, so a control missing from it cannot be reset."""
     from negpy.desktop.settings_catalog import PAPER_FIELDS
 
     for field in ("paper_profile", "paper_black", "paper_dmin", "midtone_gamma", "toe", "shoulder", "dye_separation", "separation_damping"):
@@ -30,8 +29,7 @@ def test_paper_reset_covers_every_paper_control():
 
 
 def test_separation_damping_locked_without_a_separation_push(qapp):
-    """It redistributes Dye Separation's push and has no effect of its own, so at
-    separation 1.0 it renders nothing — a live slider there reads as broken."""
+    """It only redistributes Dye Separation's push, so at separation 1.0 it renders nothing."""
     controller, sidebar = _sidebar()
     assert not sidebar.separation_damping_slider.isEnabled()
 
@@ -117,7 +115,6 @@ def test_channel_selector_retargets_and_syncs(qapp):
 
 
 def test_a_tone_trim_marks_no_paper_layer(qapp):
-    """Each card's selector dots only its own trims."""
     _controller, sidebar = _sidebar(grade_trim_red=15.0, shadow_grade_trim_red=5.0)
     assert not any(sidebar.ch_btn._edited)
 
@@ -154,8 +151,6 @@ def test_paper_model_controls_hidden_on_a_slide_and_a_positive(qapp):
 
 
 def test_dye_separation_trim_swaps_per_channel_on_transfer_too(qapp):
-    """The transfer curve wires the per-channel trims like the print path, so the global/trim
-    swap on the channel tabs matches."""
     controller = MagicMock()
     controller.state = AppState()
     cfg = controller.state.config

@@ -171,10 +171,8 @@ def resolve_export_dir(task: ExportTask) -> str:
 
 
 def _looks_border_crushed(buffer, task: "ExportTask") -> bool:
-    """An uncropped scan whose bright holder border drove normalization renders as a
-    near-black print inside a black frame edge. Judged on the rendered positive:
-    no crop set, black border ring, and an inner region far darker than any
-    plausible print."""
+    """An uncropped scan whose bright holder border drove normalization: on the rendered
+    positive, a black border ring around an inner region far darker than any plausible print."""
     if task.params.geometry.crop_rect is not None:
         return False
     arr = buffer[:: max(1, buffer.shape[0] // 512), :: max(1, buffer.shape[1] // 512)]
@@ -301,11 +299,9 @@ class ExportWorker(QObject):
 
     @pyqtSlot(list)
     def run_batch(self, tasks: List[ExportTask]) -> None:
-        """Processes an ordered list of export tasks, pipelined: the prefetcher
-        prepares the next source and the finisher encodes+writes the previous
-        render while the current one renders. One finish in flight, so at most
-        two full-res buffers are held. A failed file never stops the batch, and every
-        exit emits `finished` or `cancelled`: that releases the batch lane."""
+        """Export the tasks pipelined: the next source prepares and the previous render encodes
+        while the current one renders, so at most two full-res buffers are held. A failed file
+        never stops the batch, and every exit emits `finished` or `cancelled` to free the lane."""
         self._written = set()
         total = len(tasks)
         finisher = ThreadPoolExecutor(max_workers=1)

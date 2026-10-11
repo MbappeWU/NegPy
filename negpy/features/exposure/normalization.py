@@ -337,17 +337,9 @@ def measure_neutral_axis_from_log(
     roi: Optional[tuple[int, int, int, int]] = None,
     analysis_buffer: float = 0.0,
 ) -> Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float], Optional[Tuple[float, float, float]], float]]:
-    """
-    Per-channel neutral axis: median raw-log density at a highlight, a midtone and a shadow
-    luma band, over each band's lowest-chroma pixels. Two passes: pass 1 selects through the
-    residual cast under a loose cap (a strong but correctable cast must not collapse the axis;
-    saturated content still fails it), then the affine R/B->G correction implied by its
-    mid+shadow refs re-ranks chroma so pass 2 selects true neutrals under the strict cap.
-    Returns (midtone, shadow, highlight, confidence) — highlight is None when that band has no
-    trustworthy neutral set (callers then fit a 2-point line); confidence in [0,1] combines the
-    grey sets' corrected tightness, the midtone sample size, mid<->shadow deviation agreement and
-    the width of each set's offsets from green (drives Auto Cast Removal). None overall when midtone or shadow is missing (shadow tie).
-    """
+    """Per-channel neutral axis: median raw-log density of the lowest-chroma pixels in a highlight, midtone and shadow band.
+    Pass 1 uses a loose cap so a strong but correctable cast keeps the axis; its mid+shadow correction re-ranks chroma for a
+    strict pass 2. Returns (midtone, shadow, highlight or None, confidence in [0, 1]); None without a midtone or shadow set."""
     from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 
     if roi:
@@ -685,14 +677,9 @@ def analysis_grid(
     converge_h: float = 0.0,
     roi_norm: Optional[Tuple[float, float, float, float]] = None,
 ) -> np.ndarray:
-    """
-    The linear frame on the analysis grid with its geometry replayed and cropped to the
-    printed frame, the array the Contrast Mask and Diffusion planes are blurred from.
-
-    Takes the frame *before* geometry and replays it on the downsampled copy, so both
-    engines call this on the same array. `roi_norm` is the printed frame as
-    (y1, y2, x1, x2) fractions: a rebate or surround blurred in prints as a vignette.
-    """
+    """The frame before geometry, downsampled to the analysis grid, geometry replayed and cropped to `roi_norm`
+    ((y1, y2, x1, x2) fractions; a rebate blurred in prints as a vignette). Both engines call this on the same
+    array, and the Contrast Mask and Diffusion planes are blurred from it."""
     from negpy.features.exposure.models import EXPOSURE_CONSTANTS
     from negpy.features.geometry.logic import apply_fine_rotation, apply_keystone, apply_radial_distortion
 
@@ -739,13 +726,9 @@ def contrast_mask_plane(
     roi_norm: Optional[Tuple[float, float, float, float]] = None,
     spacer: float = MASK_SPACER_DEFAULT,
 ) -> Tuple[np.ndarray, float]:
-    """
-    The blurred low-gamma plane an unsharp mask is built from, zero-mean, on the analysis
-    grid (`analysis_grid`), plus the val it was centred on. The gamma's sign picks the
-    mask's polarity and so the direction; the centre is the val a flat area rotates about,
-    which the Analysis chart needs to draw the mask's band. `spacer` is per-cent of the
-    grid: the scale above which tones are masked.
-    """
+    """The zero-mean blurred low-gamma plane an unsharp mask is built from, on `analysis_grid`, plus the val it
+    was centred on (the Analysis chart draws the mask's band from it). The gamma's sign picks the polarity.
+    `spacer` is per-cent of the grid: the scale above which tones are masked."""
     image = analysis_grid(image, rotation, fine_rotation, flip_horizontal, flip_vertical, distortion_k1, converge_v, converge_h, roi_norm)
 
     # A frame that never metered normalizes to huge values; no stretch, no mask.
@@ -772,11 +755,8 @@ def diffusion_grid(
     converge_h: float = 0.0,
     roi_norm: Optional[Tuple[float, float, float, float]] = None,
 ) -> np.ndarray:
-    """
-    The light the paper sees through a diffuser, as log density on the analysis grid
-    (`analysis_grid`): the unmixed light, blurred. The print's normalization is a per-channel
-    gain on that light, so the grid takes no bounds. The blur is `DIFFUSION_SPREAD`.
-    """
+    """The unmixed light blurred by `DIFFUSION_SPREAD`, as log density on `analysis_grid`. It takes no bounds:
+    the print's normalization is a per-channel gain on that light."""
     image = analysis_grid(image, rotation, fine_rotation, flip_horizontal, flip_vertical, distortion_k1, converge_v, converge_h, roi_norm)
     light = np.ascontiguousarray(10.0 ** unmix_log_image(prefilter_log_grid(image, None, 0.0), unmix), dtype=np.float32)
     sigma = DIFFUSION_SPREAD * 0.01 * min(light.shape[:2])
@@ -784,11 +764,8 @@ def diffusion_grid(
 
 
 def diffusion_plane(grid: np.ndarray, bounds: LogNegativeBounds, panchromatic: bool = False) -> Optional[np.ndarray]:
-    """
-    `diffusion_grid` in the print's own normalization, so the print kernel can mix it with
-    the pixel as light. `panchromatic` collapses the plane to luma, as a B&W print collapses
-    the pixel it is mixed with. None when the frame never metered.
-    """
+    """`diffusion_grid` in the print's normalization, for the kernel to mix as light. `panchromatic` collapses it
+    to luma, as a B&W print does the pixel. None when the frame never metered."""
     if luminance_density_range(bounds) < 1e-6:
         return None
     val = normalize_log_image(grid, bounds)

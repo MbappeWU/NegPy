@@ -141,9 +141,9 @@ class CalibrationWindow(QDialog):
         return self.capture_btn.currentIndex() == 1 and self._sensor_profile_wanted
 
     def set_inputs_locked(self, locked: bool) -> None:
-        """Freeze the calibration inputs while a run is in progress: the film-stock name, the capture mode, the Create Sensor Profile toggle, the base
-        ROI (clicking the image must not move the patch being metered), and the ISO/aperture the
-        base is metered at. Re-enabled at any terminal outcome so a failed run can be retried."""
+        """Freeze the calibration inputs while a run is in progress: film-stock name, capture mode,
+        Create Sensor Profile toggle, base ROI (a click must not move the patch being metered) and the
+        base ISO/aperture. Re-enabled at any terminal outcome so a failed run can be retried."""
         self._running = locked
         self.name_edit.setEnabled(not locked)
         self.capture_btn.setEnabled(not locked)

@@ -224,10 +224,8 @@ class DarkroomEngine:
         )
         current_img, pipeline_changed = self._run_stage(current_img, base_key, "base", run_base, context, pipeline_changed)
 
-        # Built from the source, not from the base output, so the GPU engine can call the
-        # same helper on the same array. Keyed on base, so the Contrast Mask slider re-runs
-        # only the exposure stage.
-        # Pre-trim, as the GPU builds it: White/Black Point trims are a look, not the source.
+        # Built from the source and keyed on base, so the GPU calls the same helper and the slider re-runs only exposure.
+        # Pre-trim bounds, as on the GPU: White/Black Point trims are a look, not the source.
         mask_bounds = context.metrics.get("pre_trim_bounds", context.metrics.get("final_bounds"))
         if settings.exposure.contrast_mask != 0.0 and mask_bounds is not None:
             mask_roi = context.active_roi
@@ -250,9 +248,8 @@ class DarkroomEngine:
                 context.metrics["contrast_mask_centre"] = self._mask_plane[2]
                 context.metrics["contrast_mask_roi"] = None
 
-        # Same recipe as the mask plane, in the print's own normalization, so the kernel can
-        # mix it with the pixel as light. Print curve only: the transfer curve and the Flat
-        # master take no plane.
+        # Same recipe as the mask plane, in the print's own normalization, so the kernel mixes it with the pixel as light.
+        # Print curve only: the transfer curve and the Flat master take no plane.
         diff_bounds = context.metrics.get("final_bounds")
         if (
             settings.exposure.diffusion > 0.0

@@ -768,13 +768,9 @@ def _decode_stitch_part(
     process: Optional[ProcessConfig],
     unmix: bool = True,
 ) -> tuple[np.ndarray, Optional[_CameraWB], _SourceMeta]:
-    """Decode one stitch part with flatfield and, when ``unmix``, sensor correction applied.
-    Returns (buffer, as-shot WB, source metadata).
-
-    Triplet merge is performed when *rgbscan* is a valid triplet config.
-    Sensor correction is skipped for triplets (no cross-channel leakage
-    with narrowband exposures). A part decodes as it would on its own, whatever its format.
-    """
+    """Decode one stitch part as it decodes alone: flatfield, a triplet merge for a triplet *rgbscan*, and the sensor
+    correction when ``unmix``, never for a triplet (narrowband exposures carry no crosstalk). Returns (buffer, as-shot WB,
+    source metadata)."""
     is_triplet = rgbscan is not None and is_rgb_triplet(rgbscan)
     demosaic = process.demosaic_export if process is not None else DemosaicMode.AUTO
 

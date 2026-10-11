@@ -102,8 +102,7 @@ def test_cancel_mid_batch_flips_is_cancelled_for_that_same_run():
 
 
 def test_arm_resets_cancel_for_the_next_batch():
-    """A cancel() left over from a batch that already finished does not leak into the
-    next one: the controller arms the worker before each dispatch."""
+    """The controller arms the worker before each dispatch, so a stale cancel() does not reach the next batch."""
     vector = np.zeros(2, dtype=np.float32)
     seen = []
 

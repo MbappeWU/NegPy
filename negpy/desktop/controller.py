@@ -391,9 +391,8 @@ _KNEE_LABELS = {
     "midtone_gamma": "Snap",
 }
 
-# A background thumbnail refresh grows its own preview cache on top of whatever the
-# navigation and Auto-crop all frames caches already hold; deferred and retried rather than
-# started under memory pressure.
+# A background thumbnail refresh adds its own preview cache to the navigation and Auto-crop all
+# frames caches, so under memory pressure it waits and retries.
 _THUMBNAIL_REFRESH_MEMORY_RETRY_MS = 5000
 # Mean decode seconds past which a refresh that decode dominates is read-bound.
 _THUMBNAIL_READ_BOUND_DECODE_S = 3.0
@@ -2098,9 +2097,8 @@ class AppController(QObject):
         return HalfGeometry()
 
     def _remap_half_frame_edits(self, file_hash: str, new_geom: HalfGeometry, old_geom: Optional[HalfGeometry] = None) -> None:
-        """Re-anchor both halves' saved manual edits from ``old_geom`` (by default the file's
-        effective geometry) to ``new_geom``, so a heal stroke, dust spot, scratch line or
-        dodge/burn mask stays on the same physical film location when the split or crop moves.
+        """Re-anchor both halves' saved manual edits from ``old_geom`` (default: the file's effective
+        geometry) to ``new_geom``, so they stay on the same film when the split or crop moves.
         The default may decode the scan, so it is resolved only for a file with saved half edits."""
         path = self._path_for_base_hash(file_hash)
         rows = [
@@ -2348,7 +2346,6 @@ class AppController(QObject):
         _ = keep
 
     def _forget_unloaded_frames(self) -> None:
-        """Drops the in-memory thumbnails, stale flags, embeddings and EXIF of frames no longer loaded."""
         loaded = self.state.uploaded_files
         keys = {asset_thumbnail_key(f) for f in loaded}
         hashes = {f["hash"] for f in loaded}
@@ -2666,10 +2663,8 @@ class AppController(QObject):
         self._preview_load_t0 = time.perf_counter()
         keep_preview = preserve_zoom and self._requested_file_path == file_path
         self._requested_file_path = file_path
-        # A strip belongs to one frame, and the memo fast path below repaints without
-        # going through request_render, so drop it here too. Zone pins froze their sample
-        # from this frame and go the same way. The compare split, the flat peek and marked
-        # Keystone Lines hold the frame the user is leaving, so they go too.
+        # The memo fast path below repaints without request_render, so the state tied to the frame
+        # the user leaves goes here: test strip, zone pins, compare split, flat peek, Keystone Lines.
         self._clear_test_strip()
         self._drop_zone_pins()
         self.exit_compare()
@@ -3150,7 +3145,6 @@ class AppController(QObject):
         self.clipping_overlay_changed.emit(self.state.clipping_overlay)
 
     def toggle_zone_hover_highlight(self, force: Optional[bool] = None) -> None:
-        """Turns the zone strip's hover highlight on or off, persisted."""
         on = (not self.state.zone_hover_highlight) if force is None else bool(force)
         self.state.zone_hover_highlight = on
         self.session.repo.save_global_setting("zone_hover_highlight", on)
@@ -5232,10 +5226,9 @@ class AppController(QObject):
 
     @staticmethod
     def _with_card_values(config, card_key: str, values: dict, remeter: bool = True, force_remeter: bool = False):
-        """*config* with *card_key*'s section carrying *values*. Fields that move the
-        crop also feed the meter, so a real change to one drops the cached per-frame
-        bounds with it; re-freezing a card on its own values must not. ``force_remeter``
-        is a commit after preview ticks, which already wrote the value it compares with."""
+        """*config* with *card_key*'s section carrying *values*. A real change to a meter input drops
+        the cached bounds; re-freezing a card on its own values must not. ``force_remeter`` is a
+        commit after preview ticks, which already wrote the value it compares with."""
         section, _fields = rolls.ROLL_DEFAULT_FIELDS[card_key]
         current = getattr(config, section)
         remeter = remeter and (
@@ -5295,13 +5288,9 @@ class AppController(QObject):
         return [key for key in self._ROLL_CARDS if key in locked]
 
     def _lock_roll_card(self, card_key: str) -> None:
-        """Locks or unlocks *card_key* to match whether the active frame's own
-        already-applied value actually differs from the roll's -- editing a value and
-        then editing it back to what the roll already says is not a divergence, so the
-        card must not stay marked This Frame Only just because it was touched. Shared
-        tail of set_roll_default and set_process_mode/set_positive_source (the "film"
-        card). Written in the roll the frame resolves through (rolls.frame_roll), so a search
-        result's edit holds in its own roll. No-op with no frame, or a frame in no roll."""
+        """Lock *card_key* only while the active frame's value differs from the roll's: a value
+        edited back to the roll's is no divergence. Written in the roll the frame resolves
+        through (rolls.frame_roll). No-op with no frame, or a frame in no roll."""
         if not self.state.current_file_hash:
             return
         roll_id = self._active_frame_roll()
@@ -5470,8 +5459,7 @@ class AppController(QObject):
                 self.set_roll_card_locked(key, True)
 
     def sync_auto_crop_lock(self) -> None:
-        """_lock_roll_card for a write that cleared a hand-drawn crop outside the controller,
-        such as the Geometry card's reset: the frame now differs from a roll with Auto Crop on."""
+        """_lock_roll_card after a write outside the controller cleared a hand-drawn crop."""
         self._lock_roll_card("auto_crop")
 
     def sync_metadata_card_locks(self) -> None:
@@ -6404,10 +6392,9 @@ class AppController(QObject):
             rolls.set_roll_defaults(self.session.repo, roll_id, **wanted)
 
     def _on_capture_finished(self, paths: list) -> None:
-        """Feed the captured frame(s) into NegPy. A 3-file RGB triplet → RGB-Scan negative
-        (C-41) pipeline; a single-capture RGB frame → an ordinary single RAW, C-41; a single
-        white-light slide → E-6/positive; a normal white-light camera scan → an ordinary
-        single RAW (RGB-Scan off, process left to NegPy)."""
+        """Feed the captured frame(s) into NegPy. An RGB triplet → RGB-Scan, C-41; a single-capture
+        RGB frame → a single RAW, C-41; a white-light slide → E-6/positive; a normal camera scan →
+        a single RAW, process left to NegPy."""
         self.capture_finished.emit(paths)
         if not paths:
             return
@@ -6415,9 +6402,8 @@ class AppController(QObject):
         white = bool(req is not None and req.white_mode)
         rgb = bool(req is not None and getattr(req, "rgb_mode", True))
         single = bool(req is not None and getattr(req, "single_capture", False))
-        # RGB-Scan (triplet merge) is on only for an actual RGB triplet. Off for a single
-        # white-light slide, a single-capture RGB frame and a normal camera scan.
-        # It belongs to the roll of the folder the files land in, not to the open roll.
+        # RGB-Scan (triplet merge) is on only for an RGB triplet. It belongs to the roll of the
+        # folder the files land in, not to the open roll.
         as_roll = bool(getattr(req, "as_roll", False))
         folder = os.path.dirname(paths[0])
         target_roll = (
@@ -6441,9 +6427,8 @@ class AppController(QObject):
                 capture_frame=capture_frame,
             )
         elif rgb:
-            # Narrowband RGB exposures, three or one, carry no broadband orange-mask signal
-            # for the normal classifier. They are negative scans unless capture metadata says
-            # otherwise, so carry C-41 through discovery instead of guessing from the pixels.
+            # Narrowband RGB exposures carry no broadband orange-mask signal for the classifier,
+            # so they import as C-41 unless capture metadata says otherwise.
             self._pending_capture_imports[_capture_import_key(paths[0])] = _PendingCaptureImport(
                 process_mode=ProcessMode.C41,
                 capture_roll=capture_roll,
@@ -6855,12 +6840,9 @@ class AppController(QObject):
             self._request_compare_baseline()
 
     def rerender_active_view(self) -> None:
-        """Re-render the canvas after a rotate or flip, keeping the flat peek and the compare split.
-
-        A plain request_render() would exit the flat peek. The compare split survives a plain
-        render, and its baseline half re-captures on the key change. A scan peek ends here, as
-        on every committed rotation.
-        """
+        """Re-render after a rotate or flip. Keeps the flat peek, which a plain request_render()
+        would exit, and the compare split, whose baseline half re-captures on the key change.
+        A scan peek ends, as on every committed rotation."""
         if self.state.negative_peek or self.state.embedded_peek:
             self.reset_all_peeks()
         if self.state.flatfield_peek:
@@ -7077,11 +7059,8 @@ class AppController(QObject):
         self._store_peek_frame(img, splash=True, crop_preview_full=context.crop_preview_full)
 
     def _store_peek_frame(self, buffer: np.ndarray, splash: bool, crop_preview_full: bool) -> None:
-        """Put a painted peek on the canvas, beside the print in last_metrics rather than over it.
-
-        `interactive` is False because a prior Flat Peek render (readback_metrics=False) can
-        leave the print's flag True, and right_panel then skips the histogram refresh.
-        """
+        """Put a painted peek on the canvas, beside the print in last_metrics. `interactive` is
+        False: a prior Flat Peek render can leave it True, and right_panel then skips the histogram."""
         self.state.peek_frame = {
             "base_positive": buffer,
             "content_rect": None,
@@ -7134,14 +7113,9 @@ class AppController(QObject):
             self.request_render()
 
     def _paint_flatfield_peek(self) -> None:
-        """Put the selected Flat Field profile's self-check on the canvas, whatever frame is open.
-
-        The profile's stored reference copy times its gain, each channel over its lit-area
-        median, ±EVENNESS_RANGE as black..white, so a good profile shows gray. A profile saved
-        before the copy was stored shows the light its gain corrects instead. It sits the way the
-        frame does: a sensor-layout profile takes the frame's EXIF orientation, then the frame's
-        quarter turns and flips. Fine rotation, keystone and crop are left out, so the edges show.
-        """
+        """Paint the selected profile's reference times its gain, ±EVENNESS_RANGE as black..white:
+        a good profile shows gray. With no stored reference, show the light its gain corrects.
+        A sensor-layout profile takes the frame's EXIF orientation, quarter turns and flips only."""
         import cv2
 
         from negpy.features.flatfield.logic import EVENNESS_RANGE, GAIN_VIEW_RANGE, evenness_view, self_corrected
@@ -7186,12 +7160,8 @@ class AppController(QObject):
         self.set_status(message, 10000)
 
     def toggle_flatfield_peek(self, force: Optional[bool] = None) -> None:
-        """Show how well the selected Flat Field profile corrects its own reference.
-
-        ``force`` sets an explicit state; otherwise toggles. Mutually exclusive with the
-        other peeks, the before/after compare view and the test strip. With no profile
-        selected it says so and stays off.
-        """
+        """Show how well the selected Flat Field profile corrects its own reference. Excludes the
+        other peeks, the compare view and the test strip. With no profile it says so and stays off."""
         if self.state.preview_raw is None:
             return
         target = (not self.state.flatfield_peek) if force is None else force
@@ -7251,9 +7221,7 @@ class AppController(QObject):
         half has it enabled and the other's DB entry defaults to 0, propagate the active
         session value so both frames get identical dye-unmixing during export.
         """
-        # The active file uses the live session config, which may hold unsaved changes the
-        # user expects in the export. Other files use their saved edit as the canvas resolves
-        # it, or the session config when they have none.
+        # Other files use their saved edit as the canvas resolves it, else the session config.
         if f.get("hash") == self.state.current_file_hash:
             params = self.state.config
         elif self.session.repo.load_file_settings(f["hash"]) is not None:
@@ -7713,10 +7681,8 @@ class AppController(QObject):
         return tasks
 
     def _confirm_unopened_frames(self, files: list[dict]) -> bool:
-        """A frame with no saved edit exports with the live session settings, while its
-        filmstrip thumbnail is a quick source-preview inversion, so the file can differ
-        badly from what the strip shows. The open frame is exempt: its preview is the
-        export."""
+        """A frame with no saved edit exports with the live session settings, but its thumbnail
+        is a quick inversion, so the two can differ badly. The open frame is exempt."""
         hashes = [f["hash"] for f in files if f["hash"] != self.state.current_file_hash]
         if not hashes:
             return True
@@ -7931,10 +7897,9 @@ class AppController(QObject):
         return os.path.basename(os.path.dirname(paths[0])) if paths and paths[0] else ""
 
     def _write_edit_sidecars(self, files: list[dict]) -> tuple[int, int, int]:
-        """Write a .negpy edit sidecar next to each source (each frame's own saved edits).
-        Returns (written, failed, skipped) — a caller that reports only the written count
-        turns a read-only source folder into a silent success. A composite or a roll fork
-        is skipped: the sidecar beside its path belongs to the shared frame."""
+        """Write a .negpy edit sidecar next to each source. Returns (written, failed, skipped), so a
+        read-only folder is no silent success. A composite or a roll fork is skipped: the sidecar
+        beside its path belongs to the shared frame."""
         repo = self.session.repo
         written = 0
         failed = 0

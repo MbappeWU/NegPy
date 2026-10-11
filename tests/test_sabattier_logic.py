@@ -85,8 +85,7 @@ def test_the_output_is_neutral_silver():
 
 
 def test_a_sabattier_print_keeps_its_carrier_ramp_like_a_plain_print():
-    """Plain silver: the rebate prints through the kernel and the toners; lith and cyanotype
-    fall back to the flat carrier tone because their color is not in the ramp."""
+    """Plain silver prints the rebate through the kernel and toners; lith and cyanotype use the flat carrier tone."""
     from dataclasses import replace
 
     from negpy.domain.models import WorkspaceConfig

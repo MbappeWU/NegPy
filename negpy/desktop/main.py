@@ -65,11 +65,9 @@ def _filter_qt_messages(mode, context, message: str) -> None:
 
 
 class AppEventFilter(QObject):
-    """The app-wide event rules, in one filter so each event crosses into Python once.
-
-    Combo and spin boxes never take the wheel; the ignored event goes on to the panel, which
-    scrolls. Every widget tooltip wraps (plain text never does in Qt), and an icon-only button
-    takes its tooltip's first clause as its accessible name, the one name a screen reader has."""
+    """The app-wide event rules, in one filter so each event crosses into Python once. Combo and
+    spin boxes never take the wheel, every tooltip wraps (Qt never wraps plain text), and an
+    icon-only button takes its tooltip's first clause as its accessible name."""
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         kind = event.type()
@@ -344,9 +342,8 @@ def main() -> None:
         exit_code = app.exec()
         controller.cleanup()
         repo.save_global_setting("clean_shutdown", True)
-        # PyQt's at-exit cleanup deletes each Python-owned top-level QObject while it walks
-        # sip's wrapper map, and Python code that a destructor runs (event filters, the
-        # proxy style) can reallocate the map under the walk. Widgets run that code.
+        # PyQt's at-exit cleanup walks sip's wrapper map while it deletes these, and the Python
+        # code their destructors run (event filters, the proxy style) can reallocate the map.
         for widget in [w for w in app.topLevelWidgets() if w.parent() is None and sip.ispyowned(w)]:
             sip.delete(widget)
         sys.exit(exit_code)

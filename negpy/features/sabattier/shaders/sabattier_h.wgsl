@@ -1,6 +1,5 @@
-// Sabattier, pass 2 of 3: the developed-silver mask blurred horizontally. The taps are
-// gaussian_kernel_1d's, uploaded verbatim (sabattier_k buffer), so support and weights
-// match the CPU's sepFilter2D; clamped coordinates are its BORDER_REPLICATE.
+// Sabattier, pass 2 of 3: the mask blurred horizontally with gaussian_kernel_1d's taps (sabattier_k),
+// so it matches the CPU's sepFilter2D; clamped coordinates are its BORDER_REPLICATE.
 struct SabattierUniforms {
     re: f32,
     fold_width: f32,

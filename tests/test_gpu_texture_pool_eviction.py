@@ -48,8 +48,7 @@ class TestTexturePoolEviction(unittest.TestCase):
             self.assertGreaterEqual(gen, self.eng._render_gen - 1)
 
     def test_an_evicted_mask_texture_is_uploaded_again(self):
-        """A masked frame, two mask-free frames, then the same masked frame: the dodge/burn
-        texture was evicted and re-created empty, so its upload must not be skipped."""
+        """An evicted dodge/burn texture comes back empty, so its next upload must not be skipped."""
         from dataclasses import replace
 
         from negpy.features.local.models import LocalAdjustmentsConfig, LocalMask
