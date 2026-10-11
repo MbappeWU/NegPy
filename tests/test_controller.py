@@ -218,6 +218,54 @@ class TestAppController(unittest.TestCase):
         bake.assert_called_once()
         self.assertEqual(float(fit.call_args.args[0].mean()), 0.5)
 
+    def test_auto_skew_cuts_the_flatfield_gain_to_the_active_half(self):
+        self.controller.state.preview_raw = np.zeros((100, 60, 3), dtype=np.float32)
+        self.controller.request_render = MagicMock()
+        self.controller.set_status = MagicMock()
+        half = (2, 0.5, None, 0.0, "x")
+
+        with (
+            patch.object(self.controller, "active_diptych", return_value=None),
+            patch.object(self.controller, "_active_half", return_value=half),
+            patch("negpy.desktop.controller.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
+            patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
+        ):
+            self.controller.auto_skew_frame()
+
+        gain_crop = bake.call_args.args[2]
+        self.assertEqual(gain_crop(np.zeros((100, 120, 3), dtype=np.float32)).shape, (100, 60, 3))
+
+    def test_auto_skew_cuts_the_flatfield_gain_to_the_diptych_crop(self):
+        self.controller.state.preview_raw = np.zeros((100, 60, 3), dtype=np.float32)
+        self.controller.request_render = MagicMock()
+        self.controller.set_status = MagicMock()
+        dip = ({"split_x": 0.5, "crop_rect": (0.0, 0.0, 0.5, 1.0), "gutter_thickness": 0.0, "split_axis": "x"}, None)
+
+        with (
+            patch.object(self.controller, "active_diptych", return_value=dip),
+            patch("negpy.desktop.controller.apply_flatfield", side_effect=lambda image, *_, **__: image) as bake,
+            patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
+        ):
+            self.controller.auto_skew_frame()
+
+        gain_crop = bake.call_args.args[2]
+        self.assertEqual(gain_crop(np.zeros((100, 120, 3), dtype=np.float32)).shape, (100, 60, 3))
+
+    def test_auto_skew_skips_the_flatfield_on_a_stitch(self):
+        config = self.controller.state.config
+        self.controller.state.config = replace(config, stitch=replace(config.stitch, stitch_enabled=True))
+        self.controller.state.preview_raw = np.zeros((100, 120, 3), dtype=np.float32)
+        self.controller.request_render = MagicMock()
+        self.controller.set_status = MagicMock()
+
+        with (
+            patch("negpy.desktop.controller.apply_flatfield") as bake,
+            patch("negpy.features.geometry.skew.trusted_frame_skew", return_value=None),
+        ):
+            self.controller.auto_skew_frame()
+
+        bake.assert_not_called()
+
     def test_auto_skew_failure_reports_and_changes_nothing(self):
         self.controller.state.preview_raw = np.zeros((100, 120, 3), dtype=np.float32)
         self.controller.request_render = MagicMock()
