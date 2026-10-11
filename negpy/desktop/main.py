@@ -3,6 +3,7 @@ import os
 import re
 import sys
 
+from PyQt6 import sip
 from PyQt6.QtCore import QEvent, QObject, Qt, qInstallMessageHandler
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QAbstractButton, QAbstractSpinBox, QApplication, QComboBox, QProxyStyle, QStyle, QWidget
@@ -22,6 +23,7 @@ from negpy.services.assets.migrations.gear_presets import migrate_gear_presets
 from negpy.services.assets.migrations.normalization_roll import migrate_legacy_normalization_rolls
 from negpy.services.assets.migrations.positive_auto import migrate_auto_meter_for_positive_frames
 from negpy.services.assets.migrations.roll_fields import (
+    migrate_auto_crop_roll_locks,
     migrate_baseline_card_split,
     migrate_cast_removal_roll_locks,
     migrate_new_roll_field_locks,
@@ -302,6 +304,7 @@ def main() -> None:
         migrate_paper_card_split(repo)
         migrate_new_roll_field_locks(repo)
         migrate_cast_removal_roll_locks(repo)
+        migrate_auto_crop_roll_locks(repo)
 
         scale = float(repo.get_global_setting("ui_scale", 1.0) or 1.0)
         scale = max(0.8, min(1.2, scale))
@@ -339,6 +342,11 @@ def main() -> None:
         exit_code = app.exec()
         controller.cleanup()
         repo.save_global_setting("clean_shutdown", True)
+        # PyQt's at-exit cleanup deletes each Python-owned top-level QObject while it walks
+        # sip's wrapper map, and Python code that a destructor runs (event filters, the
+        # proxy style) can reallocate the map under the walk. Widgets run that code.
+        for widget in [w for w in app.topLevelWidgets() if w.parent() is None and sip.ispyowned(w)]:
+            sip.delete(widget)
         sys.exit(exit_code)
     except Exception:
         logger.critical("NegPy stopped on an unhandled exception", exc_info=True)
