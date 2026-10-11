@@ -5450,6 +5450,30 @@ class TestFlatFieldPeek(unittest.TestCase):
                 h, w = self.controller.state.peek_frame["base_positive"].shape[:2]
                 self.assertEqual(h > w, portrait)
 
+    def test_it_takes_the_frame_quarter_turns_and_flips(self):
+        import numpy as np
+        from dataclasses import replace
+
+        from negpy.services.assets.flatfield import StoredCheck
+
+        yy, xx = np.mgrid[0:32, 0:48].astype(np.float32)
+        lopsided = np.repeat((1.0 + 0.3 * xx / 48 + 0.1 * yy / 32)[..., None], 3, axis=2).astype(np.float32)
+        self._select(StoredCheck(lopsided, None, None))
+        state = self.controller.state
+
+        def view(**geometry):
+            state.flatfield_peek = False
+            settings = {"rotation": 0, "flip_horizontal": False, "flip_vertical": False, **geometry}
+            state.config = replace(state.config, geometry=replace(state.config.geometry, **settings))
+            self.controller.toggle_flatfield_peek(force=True)
+            return state.peek_frame["base_positive"]
+
+        upright = view()
+        h, w = view(rotation=1).shape[:2]
+        self.assertGreater(h, w)
+        np.testing.assert_allclose(view(flip_horizontal=True), np.fliplr(upright), atol=1e-4)
+        np.testing.assert_allclose(view(flip_vertical=True), np.flipud(upright), atol=1e-4)
+
     def test_with_no_profile_it_says_so_and_stays_off(self):
         seen: list = []
         self.controller.flatfield_peek_changed.connect(seen.append)

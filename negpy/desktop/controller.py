@@ -7130,8 +7130,9 @@ class AppController(QObject):
 
         The profile's stored reference copy times its gain, each channel over its lit-area
         median, ±EVENNESS_RANGE as black..white, so a good profile shows gray. A profile saved
-        before the copy was stored shows the light its gain corrects instead. A sensor-layout
-        profile takes the open frame's EXIF orientation; the frame's own geometry is not applied.
+        before the copy was stored shows the light its gain corrects instead. It sits the way the
+        frame does: a sensor-layout profile takes the frame's EXIF orientation, then the frame's
+        quarter turns and flips. Fine rotation, keystone and crop are left out, so the edges show.
         """
         import cv2
 
@@ -7161,6 +7162,14 @@ class AppController(QObject):
             )
         if stored.sensor_layout:
             view = apply_exif_orientation(view, self.state.preview_orientation)
+        # GeometryProcessor's order.
+        geometry = self.state.config.geometry
+        view = np.rot90(view, k=geometry.rotation)
+        if geometry.flip_horizontal:
+            view = np.fliplr(view)
+        if geometry.flip_vertical:
+            view = np.flipud(view)
+        view = np.ascontiguousarray(view)
         h, w = view.shape[:2]
         scale = APP_CONFIG.preview_render_size / max(h, w)
         view = cv2.resize(view, (round(w * scale), round(h * scale)), interpolation=cv2.INTER_LINEAR)
