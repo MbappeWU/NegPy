@@ -102,6 +102,33 @@ def test_roll_and_frame_each_restore_their_own_analysis_expanded_state():
     panel.analysis_section.set_expanded.assert_not_called()
 
 
+def test_only_an_expanded_analysis_drag_sets_the_saved_height():
+    panel = MagicMock()
+    panel._analysis_expanded_size = 300
+    panel.splitter.sizes.return_value = [40, 860]
+    panel.analysis_section.toggle_button.isChecked.return_value = False
+
+    RightPanel._on_analysis_splitter_moved(panel)
+    assert panel._analysis_expanded_size == 300
+    panel.controller.session.repo.save_global_setting.assert_not_called()
+
+    panel.splitter.sizes.return_value = [500, 400]
+    panel.analysis_section.toggle_button.isChecked.return_value = True
+    RightPanel._on_analysis_splitter_moved(panel)
+    assert panel._analysis_expanded_size == 500
+    panel.controller.session.repo.save_global_setting.assert_called_once_with("analysis_splitter_sizes", [500, 400])
+
+
+def test_analysis_split_waits_for_the_first_show():
+    panel = MagicMock()
+    panel.splitter.sizes.return_value = [189, 287]
+    panel._analysis_split_shown = False
+
+    RightPanel._resize_splitter_for_analysis(panel, True)
+
+    panel.splitter.setSizes.assert_not_called()
+
+
 def test_switch_group_activates_the_chosen_scanner_only_on_the_scan_tab():
     panel = _group_panel_stub(scan_index=5)
 
