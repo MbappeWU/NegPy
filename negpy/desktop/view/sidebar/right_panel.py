@@ -176,17 +176,17 @@ class RightPanel(QWidget):
         repo = self.controller.session.repo
         saved_sizes = repo.get_global_setting("analysis_splitter_sizes")
         if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
-            self.splitter.setSizes([int(s) for s in saved_sizes])
+            sizes = [int(s) for s in saved_sizes]
         else:
-            self.splitter.setSizes(default_analysis_split(QApplication.primaryScreen()))
-        self.splitter.splitterMoved.connect(lambda *_: repo.save_global_setting("analysis_splitter_sizes", self.splitter.sizes()))
+            sizes = default_analysis_split(QApplication.primaryScreen())
+        self.splitter.setSizes(sizes)
+        self.splitter.splitterMoved.connect(self._on_analysis_splitter_moved)
 
         # Collapsing the Analysis section hands its splitter space back to the tabs below and pins
         # the header at the top, instead of leaving a large empty pane.
-        self._analysis_expanded_size = self.splitter.sizes()[0]
+        self._analysis_expanded_size = sizes[0]
+        self._analysis_split_shown = False
         self.analysis_section.expanded_changed.connect(self._resize_splitter_for_analysis)
-        if not self.analysis_section.toggle_button.isChecked():
-            self._resize_splitter_for_analysis(False)
 
         layout.addWidget(self.group_switcher)
         layout.addWidget(self.splitter, 1)
@@ -267,9 +267,9 @@ class RightPanel(QWidget):
         analysis_layout.addWidget(self.stats_widget, 0)
 
         repo = self.controller.session.repo
-        self.analysis_section = make_section(
-            repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", THEME.sidebar_expanded_defaults["analysis"]
-        )
+        # Roll and Frame each keep their own expanded state; _switch_group restores it.
+        self.analysis_section = make_section(repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", persist=False)
+        self.analysis_section.expanded_changed.connect(lambda checked: repo.save_global_setting(self._analysis_expanded_setting(), checked))
         self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
         self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
         self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
@@ -504,17 +504,32 @@ class RightPanel(QWidget):
 
         SectionHelpDialog("analysis", "Analysis", self, repo=self.controller.session.repo).exec()
 
+    def _analysis_expanded_setting(self) -> str:
+        return "section_expanded_analysis_roll" if self._group_keys[self._active_group] == "roll" else "section_expanded_analysis"
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        # Before the first show the splitter has no real height, so a split set then is rescaled.
+        if not self._analysis_split_shown:
+            self._analysis_split_shown = True
+            QTimer.singleShot(0, lambda: self._resize_splitter_for_analysis(self.analysis_section.toggle_button.isChecked()))
+
+    def _on_analysis_splitter_moved(self, *_) -> None:
+        if not self.analysis_section.toggle_button.isChecked():
+            return
+        sizes = self.splitter.sizes()
+        self._analysis_expanded_size = sizes[0]
+        self.controller.session.repo.save_global_setting("analysis_splitter_sizes", sizes)
+
     def _resize_splitter_for_analysis(self, expanded: bool) -> None:
         """Pin the collapsed Analysis header at the top: shrink pane 0 to the header and
-        give the rest to the tabs; restore the prior size when re-expanded."""
-        sizes = self.splitter.sizes()
-        total = sum(sizes)
-        if total <= 0:
+        give the rest to the tabs; restore the dragged size when re-expanded."""
+        total = sum(self.splitter.sizes())
+        if total <= 0 or not self._analysis_split_shown:
             return
         if expanded:
             top = min(max(self._analysis_expanded_size, 120), max(120, total - 120))
         else:
-            self._analysis_expanded_size = sizes[0]
             top = max(1, self.analysis_section.sizeHint().height())
         self.splitter.setSizes([top, max(0, total - top)])
 
@@ -677,7 +692,11 @@ class RightPanel(QWidget):
         self._active_group = index
         self.controller.session.repo.save_global_setting("right_panel_group", index)
         self.group_stack.setCurrentIndex(index)
-        self.analysis_section.setVisible(self._group_keys[index] in ("roll", "frame"))
+        analysis_shown = self._group_keys[index] in ("roll", "frame")
+        self.analysis_section.setVisible(analysis_shown)
+        if analysis_shown:
+            saved = self.controller.session.repo.get_global_setting(self._analysis_expanded_setting())
+            self.analysis_section.set_expanded(THEME.sidebar_expanded_defaults["analysis"] if saved is None else bool(saved))
         for i, btn in enumerate(self._group_buttons):
             btn.setChecked(i == index)
         self.group_switcher.set_pinned(index)
