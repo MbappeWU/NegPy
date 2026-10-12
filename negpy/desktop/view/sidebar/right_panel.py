@@ -81,9 +81,9 @@ def _tab_width(labels: list[str], pixel_size: int) -> int:
 
 class RightPanel(QWidget):
     """Right sidebar panel: a flat tab switcher across Roll / Frame / Metadata / Gear /
-    Export / Scan, in the order an edit moves through them. Frame, Metadata and Gear pin
-    a section above their own scroll area (Analysis, Preview, the Items/Presets
-    switcher); Export and Scan are plain pages."""
+    Export / Scan, in the order an edit moves through them. Analysis is pinned above
+    Roll and Frame. Metadata and Gear pin a section above their own scroll area
+    (Preview, the Items/Presets switcher); Export and Scan are plain pages."""
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -164,19 +164,42 @@ class RightPanel(QWidget):
             if key == "scan":
                 self._scan_group_index = i
 
+        # Vertical splitter lets the user resize Analysis vs. the tabs below
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
+        self.splitter.addWidget(self.analysis_section)
+        self.splitter.addWidget(self.group_stack)
+        self.splitter.setCollapsible(0, False)
+        self.splitter.setCollapsible(1, False)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+
+        repo = self.controller.session.repo
+        saved_sizes = repo.get_global_setting("analysis_splitter_sizes")
+        if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
+            self.splitter.setSizes([int(s) for s in saved_sizes])
+        else:
+            self.splitter.setSizes(default_analysis_split(QApplication.primaryScreen()))
+        self.splitter.splitterMoved.connect(lambda *_: repo.save_global_setting("analysis_splitter_sizes", self.splitter.sizes()))
+
+        # Collapsing the Analysis section hands its splitter space back to the tabs below and pins
+        # the header at the top, instead of leaving a large empty pane.
+        self._analysis_expanded_size = self.splitter.sizes()[0]
+        self.analysis_section.expanded_changed.connect(self._resize_splitter_for_analysis)
+        if not self.analysis_section.toggle_button.isChecked():
+            self._resize_splitter_for_analysis(False)
+
         layout.addWidget(self.group_switcher)
-        layout.addWidget(self.group_stack, 1)
+        layout.addWidget(self.splitter, 1)
 
         self.apply_shortcut_tooltips()
 
-        repo = self.controller.session.repo
         saved_group = repo.get_global_setting("right_panel_group", 0)
         self._switch_group(saved_group if isinstance(saved_group, int) and 0 <= saved_group < len(self._group_buttons) else 0)
 
     def _build_frame_page(self, wrap_scroll) -> QWidget:
-        """Sticky Analysis section pinned above a second, inner tab switcher for the
-        per-image workflow control groups, Favorites and History -- everything that
-        changes what the canvas shows for the one loaded frame."""
+        """The Analysis section, and a second, inner tab switcher for the per-image
+        workflow control groups, Favorites and History -- everything that changes what
+        the canvas shows for the one loaded frame."""
         page = QWidget()
         page_layout = QVBoxLayout(page)
         page_layout.setContentsMargins(0, 0, 0, 0)
@@ -254,7 +277,6 @@ class RightPanel(QWidget):
         self.zone_highlight_btn.setChecked(self.controller.state.zone_hover_highlight)
         self.zone_highlight_btn.toggled.connect(self.controller.toggle_zone_hover_highlight)
         self._refresh_zone_strip_hint()
-        analysis_expanded = self.analysis_section.toggle_button.isChecked()
 
         # Tab content widgets
         self.controls_panel = ControlsPanel(self.controller)
@@ -312,38 +334,8 @@ class RightPanel(QWidget):
             for attr in section_attrs:
                 self._section_tab_index[attr] = i
 
-        # Tabs (switcher + stack) live in the bottom splitter pane
-        tabs_container = QWidget()
-        tabs_vbox = QVBoxLayout(tabs_container)
-        tabs_vbox.setContentsMargins(0, 0, 0, 0)
-        tabs_vbox.setSpacing(0)
-        tabs_vbox.addWidget(self.switcher)
-        tabs_vbox.addWidget(self.stack, 1)
-
-        # Vertical splitter lets the user resize Analysis vs. the tabs below
-        self.splitter = QSplitter(Qt.Orientation.Vertical)
-        self.splitter.addWidget(self.analysis_section)
-        self.splitter.addWidget(tabs_container)
-        self.splitter.setCollapsible(0, False)
-        self.splitter.setCollapsible(1, False)
-        self.splitter.setStretchFactor(0, 0)
-        self.splitter.setStretchFactor(1, 1)
-
-        saved_sizes = repo.get_global_setting("analysis_splitter_sizes")
-        if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
-            self.splitter.setSizes([int(s) for s in saved_sizes])
-        else:
-            self.splitter.setSizes(default_analysis_split(QApplication.primaryScreen()))
-        self.splitter.splitterMoved.connect(lambda *_: repo.save_global_setting("analysis_splitter_sizes", self.splitter.sizes()))
-
-        # Collapsing the Analysis section hands its splitter space back to the tabs below and pins
-        # the header at the top, instead of leaving a large empty pane.
-        self._analysis_expanded_size = self.splitter.sizes()[0]
-        self.analysis_section.expanded_changed.connect(self._resize_splitter_for_analysis)
-        if not analysis_expanded:
-            self._resize_splitter_for_analysis(False)
-
-        page_layout.addWidget(self.splitter, 1)
+        page_layout.addWidget(self.switcher)
+        page_layout.addWidget(self.stack, 1)
 
         saved_tab = repo.get_global_setting("right_panel_tab", 0)
         self._switch_tab(saved_tab if isinstance(saved_tab, int) and 0 <= saved_tab < len(self._tab_buttons) else 0)
@@ -685,6 +677,7 @@ class RightPanel(QWidget):
         self._active_group = index
         self.controller.session.repo.save_global_setting("right_panel_group", index)
         self.group_stack.setCurrentIndex(index)
+        self.analysis_section.setVisible(self._group_keys[index] in ("roll", "frame"))
         for i, btn in enumerate(self._group_buttons):
             btn.setChecked(i == index)
         self.group_switcher.set_pinned(index)

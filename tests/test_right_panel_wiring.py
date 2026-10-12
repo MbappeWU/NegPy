@@ -76,6 +76,15 @@ def test_switch_group_persists_the_index_and_updates_the_stack():
     panel._group_buttons[0].setChecked.assert_called_once_with(False)
 
 
+def test_analysis_shows_on_the_roll_and_frame_tabs_only():
+    panel = _group_panel_stub()
+
+    for index, key in enumerate(panel._group_keys):
+        panel.analysis_section.reset_mock()
+        RightPanel._switch_group(panel, index)
+        panel.analysis_section.setVisible.assert_called_once_with(key in ("roll", "frame"))
+
+
 def test_switch_group_activates_the_chosen_scanner_only_on_the_scan_tab():
     panel = _group_panel_stub(scan_index=5)
 

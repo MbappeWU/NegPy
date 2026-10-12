@@ -16,7 +16,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 *   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
 *   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
-*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Frame** has a pinned **Analysis** readout and its own row of tabs. Only Roll and Frame change the render.
+*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
@@ -291,7 +291,7 @@ A scene is a group of frames in one roll shot in the same light. It has its own 
 <!-- panel:analysis -->
 ## 3. Analysis readout (always visible)
 
-The readout sits above the tabs and describes the current frame as you edit. Top to bottom:
+The readout sits above the Roll and Frame tabs and describes the current frame as you edit. Top to bottom:
 
 #### Photometric curve
 
