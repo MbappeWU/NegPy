@@ -74,6 +74,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "local_oval": ShortcutEntry("", "Toggle dodge & burn oval mask draw", "Tools"),
     "local_gradient": ShortcutEntry("", "Toggle dodge & burn card-edge mask draw", "Tools"),
     "analysis_draw": ShortcutEntry("Ctrl+R", "Toggle analysis region draw", "Tools"),
+    "open_tools_menu": ShortcutEntry("", "Open the Tools menu: every canvas tool", "Tools"),
     "toggle_flat_peek": ShortcutEntry("M", "Peek flat scan (digital intermediate)", "Tools"),
     "toggle_negative_peek": ShortcutEntry("N", "Peek negative (source as loaded)", "Tools"),
     "toggle_embedded_peek": ShortcutEntry("P", "Peek the camera's embedded preview", "Tools"),

@@ -47,6 +47,14 @@ def _make_toolbar() -> ActionToolbar:
     return ActionToolbar(controller)
 
 
+def _repo(stored, added=("tools",)) -> MagicMock:
+    """A stored row whose new items were already offered, unless *added* says otherwise."""
+    repo = MagicMock()
+    settings = {"toolbar_items": stored, "toolbar_added_items": list(added)}
+    repo.get_global_setting.side_effect = lambda key, default=None: settings.get(key, default)
+    return repo
+
+
 def _visible_item_count(tb: ActionToolbar) -> int:
     return sum(1 for item_id in tb._item_ids if not tb._row_widgets[item_id].isHidden())
 
@@ -136,6 +144,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             tb.btn_rot_r,
             tb.btn_flip_h,
             tb.btn_flip_v,
+            tb.btn_tools,
             tb.btn_undo,
             tb.btn_redo,
             tb.source_choice,
@@ -263,33 +272,47 @@ class TestToolbarCustomization(unittest.TestCase):
         self.assertEqual(_row_order(tb), list(DEFAULT_TOOLBAR_IDS))
 
     def test_load_drops_unknown_ids(self):
-        repo = MagicMock()
-        repo.get_global_setting.return_value = ["overlays", "retired_button", "prev"]
+        repo = _repo(["overlays", "retired_button", "prev"])
         self.assertEqual(load_toolbar_items(repo), ["overlays", "prev"])
 
     def test_folded_buttons_become_their_menu_and_the_row_is_saved_once(self):
-        repo = MagicMock()
-        repo.get_global_setting.return_value = [
-            "prev",
-            "next",
-            "zoom_label",
-            "zoom_fit",
-            "hq",
-            "undo",
-            "compare",
-            "negative_peek",
-            "zones",
-            "loupe",
-        ]
+        repo = _repo(
+            [
+                "prev",
+                "next",
+                "zoom_label",
+                "zoom_fit",
+                "hq",
+                "undo",
+                "compare",
+                "negative_peek",
+                "zones",
+                "loupe",
+            ]
+        )
         migrated = ["prev", "position", "next", "zoom", "undo", "source", "overlays"]
         self.assertEqual(load_toolbar_items(repo), migrated)
         repo.save_global_setting.assert_called_once_with("toolbar_items", migrated)
 
     def test_a_removed_frame_counter_stays_removed(self):
-        repo = MagicMock()
-        repo.get_global_setting.return_value = ["prev", "next", "zoom"]
+        repo = _repo(["prev", "next", "zoom"])
         self.assertEqual(load_toolbar_items(repo), ["prev", "next", "zoom"])
         repo.save_global_setting.assert_not_called()
+
+    def test_a_stored_row_gets_tools_once_before_undo(self):
+        repo = _repo(["prev", "undo", "redo"], added=())
+        self.assertEqual(load_toolbar_items(repo), ["prev", "tools", "undo", "redo"])
+        repo.save_global_settings.assert_called_once_with(
+            {"toolbar_items": ["prev", "tools", "undo", "redo"], "toolbar_added_items": ["tools"]}
+        )
+
+    def test_a_stored_row_without_undo_gets_tools_last(self):
+        self.assertEqual(load_toolbar_items(_repo(["prev", "next"], added=())), ["prev", "next", "tools"])
+
+    def test_a_removed_tools_button_stays_removed(self):
+        repo = _repo(["prev", "undo"])
+        self.assertEqual(load_toolbar_items(repo), ["prev", "undo"])
+        repo.save_global_settings.assert_not_called()
 
     def test_load_tolerates_a_malformed_setting(self):
         repo = MagicMock()
@@ -298,8 +321,7 @@ class TestToolbarCustomization(unittest.TestCase):
 
     def test_stored_order_drives_the_row(self):
         tb = _make_toolbar()
-        tb.controller.session.repo.get_global_setting.return_value = ["overlays", "prev", "undo"]
-        tb._item_ids = load_toolbar_items(tb.session.repo)
+        tb._item_ids = load_toolbar_items(_repo(["overlays", "prev", "undo"]))
         tb._rebuild_row()
 
         self.assertEqual(_row_order(tb), ["overlays", "prev", "undo"])
@@ -668,7 +690,7 @@ class TestToolRow(unittest.TestCase):
         source = CompactSlider("Brush Size", 1, 50, 10, step=1)
         source.setValue(10)
         tb = _make_toolbar()
-        with unittest.mock.patch.object(tb, "_find_tool_slider", return_value=source):
+        with unittest.mock.patch.object(tb, "_find_widget", side_effect=lambda path: source if path.endswith("slider") else None):
             tb.session.state.active_tool = ToolMode.DUST_PICK
             tb._sync_tool_row()
         mirror = tb._tool_slider
@@ -692,3 +714,61 @@ class TestToolRow(unittest.TestCase):
         QApplication.processEvents()
         self.assertTrue(tb.tool_hint.isHidden())
         self.assertFalse(tb.btn_tool_done.isHidden())
+
+
+class TestToolsMenu(unittest.TestCase):
+    def _items(self, menu):
+        from PyQt6.QtWidgets import QWidgetAction
+
+        return [a for a in menu.actions() if not a.isSeparator() and not isinstance(a, QWidgetAction)]
+
+    def test_every_menu_tool_has_a_row_and_a_registry_action(self):
+        from negpy.desktop.view.canvas.toolbar import _CANVAS_TOOLS, _TOOL_ROWS
+        from negpy.desktop.view.shortcut_registry import REGISTRY
+
+        tools = [spec for spec in _CANVAS_TOOLS if not isinstance(spec, str)]
+        self.assertEqual({mode for mode, _a, _p in tools}, set(_TOOL_ROWS) - {ToolMode.ZONE_PLACE})
+        for _mode, action_id, _path in tools:
+            self.assertIn(action_id, REGISTRY)
+        self.assertIn("open_tools_menu", REGISTRY)
+
+    def test_the_menu_is_grouped_under_panel_section_titles(self):
+        from PyQt6.QtWidgets import QWidgetAction
+
+        tb = _make_toolbar()
+        headers = [a.defaultWidget().text() for a in tb.btn_tools.choice_menu.actions() if isinstance(a, QWidgetAction)]
+        self.assertEqual(headers, ["GEOMETRY", "METERING", "FILTRATION", "DODGE & BURN", "RETOUCH"])
+
+    def test_tools_is_on_the_stock_row_and_collapses(self):
+        from negpy.desktop.view.canvas.toolbar import _COLLAPSE_ORDER
+
+        self.assertIn("tools", DEFAULT_TOOLBAR_IDS)
+        self.assertIn("tools", _COLLAPSE_ORDER)
+
+    def test_an_item_runs_the_tools_shortcut_action(self):
+        tb = _make_toolbar()
+        with unittest.mock.patch.object(tb, "_arm_tool") as arm:
+            heal = next(a for a in self._items(tb.btn_tools.choice_menu) if a.text().startswith("Heal"))
+            heal.trigger()
+        arm.assert_called_once_with("pick_dust")
+
+    def test_a_gated_tool_and_the_armed_tool_are_grayed_out(self):
+        from PyQt6.QtWidgets import QPushButton
+
+        tb = _make_toolbar()
+        disabled = QPushButton()
+        disabled.setEnabled(False)
+        tb.session.state.active_tool = ToolMode.CROP_MANUAL
+        with unittest.mock.patch.object(
+            tb, "_find_widget", side_effect=lambda path: disabled if path.endswith("clone_btn") else QPushButton()
+        ):
+            tb.tool_name.choice_menu.aboutToShow.emit()
+        enabled = {a.text().split()[0]: a.isEnabled() for a in self._items(tb.tool_name.choice_menu)}
+        self.assertFalse(enabled["Clone"])
+        self.assertFalse(enabled["Crop"])
+        self.assertTrue(enabled["Heal"])
+
+    def test_the_overflow_menu_carries_the_tools(self):
+        tb = _make_toolbar()
+        submenu = next(a.menu() for a in tb.btn_overflow.menu().actions() if a.menu() is not None and a.text() == "Tools")
+        self.assertEqual(len(self._items(submenu)), len(self._items(tb.btn_tools.choice_menu)))
