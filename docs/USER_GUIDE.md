@@ -291,7 +291,7 @@ A scene is a group of frames in one roll shot in the same light. It has its own 
 <!-- panel:analysis -->
 ## 3. Analysis readout (always visible)
 
-The readout sits above the Roll and Frame tabs and describes the current frame as you edit. Top to bottom:
+The readout sits above the Roll and Frame tabs and describes the current frame as you edit. Each tab remembers whether the readout is collapsed. Top to bottom:
 
 #### Photometric curve
 

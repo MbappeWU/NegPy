@@ -267,9 +267,9 @@ class RightPanel(QWidget):
         analysis_layout.addWidget(self.stats_widget, 0)
 
         repo = self.controller.session.repo
-        self.analysis_section = make_section(
-            repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", THEME.sidebar_expanded_defaults["analysis"]
-        )
+        # Roll and Frame each keep their own expanded state; _switch_group restores it.
+        self.analysis_section = make_section(repo, "Analysis", "analysis", analysis_content, "fa5s.chart-bar", persist=False)
+        self.analysis_section.expanded_changed.connect(lambda checked: repo.save_global_setting(self._analysis_expanded_setting(), checked))
         self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
         self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
         self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
@@ -504,6 +504,9 @@ class RightPanel(QWidget):
 
         SectionHelpDialog("analysis", "Analysis", self, repo=self.controller.session.repo).exec()
 
+    def _analysis_expanded_setting(self) -> str:
+        return "section_expanded_analysis_roll" if self._group_keys[self._active_group] == "roll" else "section_expanded_analysis"
+
     def _resize_splitter_for_analysis(self, expanded: bool) -> None:
         """Pin the collapsed Analysis header at the top: shrink pane 0 to the header and
         give the rest to the tabs; restore the prior size when re-expanded."""
@@ -677,7 +680,11 @@ class RightPanel(QWidget):
         self._active_group = index
         self.controller.session.repo.save_global_setting("right_panel_group", index)
         self.group_stack.setCurrentIndex(index)
-        self.analysis_section.setVisible(self._group_keys[index] in ("roll", "frame"))
+        analysis_shown = self._group_keys[index] in ("roll", "frame")
+        self.analysis_section.setVisible(analysis_shown)
+        if analysis_shown:
+            saved = self.controller.session.repo.get_global_setting(self._analysis_expanded_setting())
+            self.analysis_section.set_expanded(THEME.sidebar_expanded_defaults["analysis"] if saved is None else bool(saved))
         for i, btn in enumerate(self._group_buttons):
             btn.setChecked(i == index)
         self.group_switcher.set_pinned(index)

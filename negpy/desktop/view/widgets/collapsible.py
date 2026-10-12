@@ -336,15 +336,17 @@ def make_section(
     default_expanded: bool = False,
     background_widget: Optional[QWidget] = None,
     collapsible: bool = True,
+    *,
+    persist: bool = True,
 ) -> CollapsibleSection:
     """The one way a sidebar builds a section: persisted under section_expanded_{key}, and the
     ⓘ guide present exactly when docs/USER_GUIDE.md carries a `panel:{key}` marker. The help
     dialog is parented to the section, so it centres on the window the section is in.
     collapsible=False always expands and never reads or writes the persisted setting; repo=None
-    keeps the section but not its expanded state."""
+    or persist=False keeps the section but not its expanded state."""
     from negpy.desktop.view.widgets.section_help_dialog import SectionHelpDialog, has_guide
 
-    persist = collapsible and repo is not None
+    persist = persist and collapsible and repo is not None
     if collapsible:
         setting = f"section_expanded_{key}"
         persisted = repo.get_global_setting(setting) if persist else None

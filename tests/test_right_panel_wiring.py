@@ -86,6 +86,22 @@ def test_analysis_shows_on_the_roll_and_frame_tabs_only():
         panel.analysis_section.setVisible.assert_called_once_with(key in ("roll", "frame"))
 
 
+def test_roll_and_frame_each_restore_their_own_analysis_expanded_state():
+    panel = _group_panel_stub()
+    panel._analysis_expanded_setting = lambda: RightPanel._analysis_expanded_setting(panel)
+    saved = {"section_expanded_analysis_roll": False, "section_expanded_analysis": True}
+    panel.controller.session.repo.get_global_setting.side_effect = saved.get
+
+    RightPanel._switch_group(panel, 0)
+    panel.analysis_section.set_expanded.assert_called_with(False)
+    RightPanel._switch_group(panel, 1)
+    panel.analysis_section.set_expanded.assert_called_with(True)
+
+    panel.analysis_section.reset_mock()
+    RightPanel._switch_group(panel, 2)
+    panel.analysis_section.set_expanded.assert_not_called()
+
+
 def test_switch_group_activates_the_chosen_scanner_only_on_the_scan_tab():
     panel = _group_panel_stub(scan_index=5)
 
