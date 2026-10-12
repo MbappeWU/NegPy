@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import qtawesome as qta
 from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QCursor, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -10,6 +11,7 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
 
 from negpy.desktop.controller import AppController
@@ -18,8 +20,15 @@ from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
 from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, ToggleMenuButton
-from negpy.desktop.view.widgets.collapsible import roll_revert_icon
-from negpy.desktop.view.styles.templates import EditedDot, default_button_height, hint_label, labeled_action, wrap_tooltip
+from negpy.desktop.view.widgets.collapsible import hidden_by_gating, roll_revert_icon
+from negpy.desktop.view.styles.templates import (
+    EditedDot,
+    default_button_height,
+    hint_label,
+    labeled_action,
+    section_subheader,
+    wrap_tooltip,
+)
 from negpy.desktop.view.styles.theme import THEME
 
 CANVAS_COLORS = [
@@ -48,6 +57,7 @@ TOOLBAR_ITEMS: tuple[ToolbarItem, ...] = (
     ToolbarItem("rot_r", "Geometry", "Rotate CW"),
     ToolbarItem("flip_h", "Geometry", "Flip Horizontal"),
     ToolbarItem("flip_v", "Geometry", "Flip Vertical"),
+    ToolbarItem("tools", "Tools", "Tools"),
     ToolbarItem("undo", "Edit", "Undo"),
     ToolbarItem("redo", "Edit", "Redo"),
     ToolbarItem("source", "View", "Print or Peek"),
@@ -77,6 +87,7 @@ DEFAULT_TOOLBAR_IDS: tuple[str, ...] = (
     "rot_r",
     "flip_h",
     "flip_v",
+    "tools",
     "undo",
     "redo",
     "source",
@@ -99,6 +110,10 @@ _RETIRED_IDS = {
 
 _TOOLBAR_SETTING_KEY = "toolbar_items"
 
+# A new item reaches a stored row once, before its anchor (else last); the record keeps a removed one out.
+_ADDED_IDS = {"tools": "undo"}
+_ADDED_SETTING_KEY = "toolbar_added_items"
+
 # A narrow canvas hides these first to last; items not listed (menu actions put on the row) go
 # before them, from the end of the user's order.
 _COLLAPSE_ORDER = (
@@ -111,6 +126,7 @@ _COLLAPSE_ORDER = (
     "overlays",
     "redo",
     "undo",
+    "tools",
     "source",
     "zoom",
     "position",
@@ -131,7 +147,13 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
         "toggle_negative_peek",
         "The source as it was loaded, un-inverted and unedited, at your crop and rotation (no color management)",
     ),
-    ("flat_peek", "fa5s.eye", "Flat Scan", "toggle_flat_peek", "The flat master. Turn on Flat output in the Export tab to use it."),
+    (
+        "flat_peek",
+        "fa5s.eye",
+        "Flat Scan",
+        "toggle_flat_peek",
+        "The flat master: the scan as a log-encoded digital intermediate, with no print curve",
+    ),
     (
         "embedded_peek",
         "fa5s.camera",
@@ -179,6 +201,34 @@ _TOOL_ROWS: dict[ToolMode, tuple[str, str, str]] = {
 }
 _CLONE_SOURCE_HINT = "Click the photo to pick the area to copy from"
 
+# The Tools menu, in panel order: a panel section's title, then its tools as (tool, action id, sidebar button
+# path from MainWindow). Zone Placement has no entry: it arms only with a zone picked on the zone strip.
+_CANVAS_TOOLS: tuple[tuple[ToolMode, str, str] | str, ...] = (
+    "Geometry",
+    (ToolMode.CROP_MANUAL, "manual_crop", "controls_panel.geometry_sidebar.manual_crop_btn"),
+    (ToolMode.STRAIGHTEN, "straighten", "controls_panel.geometry_sidebar.straighten_btn"),
+    (ToolMode.KEYSTONE_LINES, "keystone_lines", "controls_panel.geometry_sidebar.keystone_lines_btn"),
+    "Metering",
+    (ToolMode.ANALYSIS_DRAW, "analysis_draw", "controls_panel.process_sidebar.analysis_region_btn"),
+    "Filtration",
+    (ToolMode.WB_PICK, "pick_wb", "controls_panel.color_sidebar.pick_wb_btn"),
+    "Dodge & Burn",
+    (ToolMode.LOCAL_DRAW, "local_draw", "controls_panel.local_sidebar.draw_btn"),
+    (ToolMode.LOCAL_OVAL, "local_oval", "controls_panel.local_sidebar.oval_btn"),
+    (ToolMode.LOCAL_GRADIENT, "local_gradient", "controls_panel.local_sidebar.gradient_btn"),
+    "Retouch",
+    (ToolMode.DUST_PICK, "pick_dust", "controls_panel.retouch_sidebar.pick_dust_btn"),
+    (ToolMode.SCRATCH_PICK, "pick_scratch", "controls_panel.retouch_sidebar.pick_scratch_btn"),
+    (ToolMode.SCRATCH_LINE, "pick_scratch_line", "controls_panel.retouch_sidebar.pick_line_btn"),
+    (ToolMode.CLONE, "clone_tool", "controls_panel.retouch_sidebar.clone_btn"),
+)
+_TOOL_BUTTON_PATHS = {spec[0]: spec[2] for spec in _CANVAS_TOOLS if not isinstance(spec, str)}
+
+
+def _checkable_menu_icon(name: str):
+    """The icon takes the checkmark's place in the menu, so the accent marks the item on."""
+    return qta.icon(name, color=THEME.text_primary, color_on=THEME.accent_primary, color_disabled=THEME.text_muted)
+
 
 def frame_position(model, actual_idx: int) -> str:
     """n / total in the Film Strip's order and filter, the one Next and Previous follow."""
@@ -195,6 +245,15 @@ def _migrate_retired(stored: list[str]) -> list[str]:
     return out
 
 
+def _add_new_items(stored: list[str], added: list[str]) -> list[str]:
+    out = list(stored)
+    for item_id, anchor in _ADDED_IDS.items():
+        if item_id in added or item_id in out:
+            continue
+        out.insert(out.index(anchor) if anchor in out else len(out), item_id)
+    return out
+
+
 def load_toolbar_items(repo) -> list[str]:
     """No stored row means the stock one; unknown ids drop so a retired button degrades quietly."""
     stored = repo.get_global_setting(_TOOLBAR_SETTING_KEY)
@@ -204,6 +263,11 @@ def load_toolbar_items(repo) -> list[str]:
     if any(item_id in _RETIRED_IDS for item_id in stored):
         stored = _migrate_retired(stored)
         repo.save_global_setting(_TOOLBAR_SETTING_KEY, stored)
+    added = repo.get_global_setting(_ADDED_SETTING_KEY, [])
+    added = added if isinstance(added, list) else []
+    if any(item_id not in added for item_id in _ADDED_IDS):
+        stored = _add_new_items(stored, added)
+        repo.save_global_settings({_TOOLBAR_SETTING_KEY: stored, _ADDED_SETTING_KEY: sorted(set(added) | set(_ADDED_IDS))})
     return [item_id for item_id in stored if item_id in TOOLBAR_ITEM_BY_ID]
 
 
@@ -330,16 +394,20 @@ class ActionToolbar(QWidget):
             tuple((icon, label) for _flag, icon, label, _key, _tip in _VIEW_SOURCES),
             "What the canvas shows: the print, a before/after split, or a peek that leaves your edit alone",
         )
-        for i, (_flag, _icon, label, key, tip) in enumerate(_VIEW_SOURCES):
+        for i, (_flag, icon, label, key, tip) in enumerate(_VIEW_SOURCES):
+            self.source_choice.choice_action(i).setIcon(_checkable_menu_icon(icon))
             if key:
                 self._label(self.source_choice.choice_action(i), label, key)
             self.source_choice.set_choice_tooltip(i, tip)
 
-        self.overlays_menu = ToggleMenuButton("fa5s.layer-group", "Overlays", "Marks drawn over the frame; none of them changes the edit")
+        self.overlays_menu = ToggleMenuButton(
+            "fa5s.layer-group", "", "Overlays — marks drawn over the frame; none of them changes the edit"
+        )
         self._overlay_actions = {}
-        for flag, label, key, tip, toggle in (
+        for flag, icon, label, key, tip, toggle in (
             (
                 "zones_overlay",
+                "mdi6.numeric-5-box-outline",
                 "Zone Overlay",
                 "toggle_zones",
                 "Label each region of the print with its Adams zone",
@@ -347,6 +415,7 @@ class ActionToolbar(QWidget):
             ),
             (
                 "clipping_overlay",
+                "fa5s.adjust",
                 "Clipping Overlay",
                 "toggle_clipping_overlay",
                 "Mark paper black and paper white on the frame",
@@ -354,6 +423,7 @@ class ActionToolbar(QWidget):
             ),
             (
                 "printing_notes",
+                "mdi.playlist-edit",
                 "Printing Notes",
                 "toggle_printing_notes",
                 "The dodge and burn map and the print recipe",
@@ -361,6 +431,7 @@ class ActionToolbar(QWidget):
             ),
             (
                 "grain_focuser",
+                "fa5s.search-plus",
                 "Grain Focuser",
                 "toggle_grain_focuser",
                 "A loupe at the cursor showing the frame's own pixels, with an acutance figure for comparing sharpness across the frame (reads true on HQ)",
@@ -368,9 +439,15 @@ class ActionToolbar(QWidget):
             ),
         ):
             action = self.overlays_menu.add_toggle(label, tip)
+            action.setIcon(_checkable_menu_icon(icon))
             self._label(action, label, key)
             action.triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
             self._overlay_actions[flag] = action
+
+        self.btn_tools = MenuButton("Tools — crop, straighten, the pickers, masks and retouching; each opens its own row here")
+        self.btn_tools.setIcon(qta.icon("fa5s.tools", color=icon_color, color_disabled=THEME.text_muted))
+        self.btn_tools.setMinimumWidth(self.btn_tools.sizeHint().width())
+        self._fill_tools_menu(self.btn_tools.choice_menu)
 
         # One-shot actions that otherwise live only in the ⋯ menu.
         self.btn_reference = self._action_button(
@@ -462,6 +539,7 @@ class ActionToolbar(QWidget):
         find_action = overflow_menu.addAction(qta.icon("fa5s.search", color=icon_color), "Find Control or Action…", self._show_palette)
         self._label(find_action, "Find Control or Action…", "command_palette")
         find_action.setToolTip("Find any slider, card or action by name, and open it")
+        self._fill_tools_menu(overflow_menu.addMenu(qta.icon("fa5s.tools", color=icon_color), "Tools"))
         overflow_menu.addSeparator()
 
         self._ov_hq_action = overflow_menu.addAction("HQ Preview")
@@ -636,7 +714,7 @@ class ActionToolbar(QWidget):
             btn.setFixedHeight(btn_height)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setToolTip(wrap_tooltip(btn.toolTip()))
-        for btn in (self.btn_zoom, self.source_choice, self.overlays_menu):
+        for btn in (self.btn_zoom, self.btn_tools, self.source_choice, self.overlays_menu):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._row_layout = row_layout
@@ -649,6 +727,7 @@ class ActionToolbar(QWidget):
             "rot_r": self.btn_rot_r,
             "flip_h": self.btn_flip_h,
             "flip_v": self.btn_flip_v,
+            "tools": self.btn_tools,
             "undo": self.btn_undo,
             "redo": self.btn_redo,
             "source": self.source_choice,
@@ -690,9 +769,9 @@ class ActionToolbar(QWidget):
         self._tool_slider = None
         self._tool_slider_source = None
 
-        self.tool_name = QLabel()
-        self.tool_name.setFixedHeight(btn_height)
-        self.tool_name.setStyleSheet(f"color: {THEME.text_primary}; font-size: {THEME.font_size_base}px; font-weight: 600; padding: 0 4px;")
+        # Names the armed tool and switches to another one, with no Done in between.
+        self.tool_name = MenuButton("Switch to another canvas tool")
+        self._fill_tools_menu(self.tool_name.choice_menu)
         self.tool_hint = hint_label()
         self.tool_hint.setWordWrap(False)
         self.btn_tool_undo = QToolButton()
@@ -732,7 +811,10 @@ class ActionToolbar(QWidget):
         spec = _TOOL_ROWS.get(mode)
         if spec is not None:
             name, hint, _path = spec
-            self.tool_name.setText(name)
+            button = self._find_widget(_TOOL_BUTTON_PATHS.get(mode, ""))
+            self.tool_name.setIcon(button.icon() if button is not None else QIcon())
+            self.tool_name.setText(f" {name}" if button is not None else name)
+            self.tool_name.setMinimumWidth(self.tool_name.sizeHint().width())
             self.tool_hint.setText(_CLONE_SOURCE_HINT if mode == ToolMode.CLONE and state.clone_picking else hint)
             self.tool_name.setToolTip(self.tool_hint.text())
             self.btn_tool_undo.setEnabled(state.undo_index > 0)
@@ -749,7 +831,7 @@ class ActionToolbar(QWidget):
         if self._tool_slider is not None:
             self._tool_slider.setEnabled(self._tool_slider_source.isEnabled())
 
-    def _find_tool_slider(self, path: str):
+    def _find_widget(self, path: str):
         from negpy.desktop.view.main_window import MainWindow
 
         win = self.window()
@@ -769,7 +851,7 @@ class ActionToolbar(QWidget):
             self._tool_slider.setParent(None)
             self._tool_slider.deleteLater()
             self._tool_slider = self._tool_slider_source = None
-        source = self._find_tool_slider(path)
+        source = self._find_widget(path)
         if source is None:
             return
         mirror = clone_slider(source)
@@ -782,6 +864,55 @@ class ActionToolbar(QWidget):
         source.valueChanged.connect(mirror.setValue)
         self._tool_layout.insertWidget(self._tool_slider_index, mirror)
         self._tool_slider, self._tool_slider_source = mirror, source
+
+    def _fill_tools_menu(self, menu: QMenu) -> None:
+        """Each item runs the tool's own shortcut action, which shows its tab and refuses a gated tool."""
+        menu.setToolTipsVisible(True)
+        entries = []
+        for spec in _CANVAS_TOOLS:
+            if isinstance(spec, str):
+                header = section_subheader(spec)
+                header.setContentsMargins(THEME.space_lg, 0, THEME.space_lg, 0)
+                section = QWidgetAction(menu)
+                section.setDefaultWidget(header)
+                section.setEnabled(False)
+                menu.addAction(section)
+                continue
+            mode, action_id, path = spec
+            name, hint, _slider = _TOOL_ROWS[mode]
+            action = menu.addAction(name)
+            self._label(action, name, action_id)
+            action.setToolTip(hint)
+            action.triggered.connect(lambda _checked=False, a=action_id: self._arm_tool(a))
+            entries.append((mode, path, action))
+
+        def refresh() -> None:
+            current = self.session.state.active_tool
+            for mode, path, action in entries:
+                button = self._find_widget(path)
+                usable = button is None or (button.isEnabled() and not hidden_by_gating(button))
+                if button is not None:
+                    action.setIcon(button.icon())
+                # The armed tool's own item would toggle it off.
+                action.setEnabled(mode != current and usable)
+                font = action.font()
+                font.setBold(mode == current)
+                action.setFont(font)
+
+        menu.aboutToShow.connect(refresh)
+
+    def _arm_tool(self, action_id: str) -> None:
+        from negpy.desktop.view.main_window import MainWindow
+
+        win = self.window()
+        if isinstance(win, MainWindow):
+            action = win.shortcut_manager.action_for(action_id)
+            if action is not None:
+                action()
+
+    def open_tools_menu(self) -> None:
+        """At the cursor: the row may have hidden the Tools button."""
+        self.btn_tools.choice_menu.exec(QCursor.pos())
 
     def _on_tool_done(self) -> None:
         overlay = getattr(self.parentWidget(), "overlay", None)
@@ -796,9 +927,6 @@ class ActionToolbar(QWidget):
         self.source_choice.blockSignals(True)
         self.source_choice.setCurrentIndex(active)
         self.source_choice.blockSignals(False)
-        flat_ok = bool(state.flat_output)
-        self.source_choice.set_choice_enabled(_SOURCE_INDEX["flat_peek"], flat_ok)
-        self._ov_flat_peek_action.setEnabled(flat_ok)
         self.source_choice.set_choice_enabled(_SOURCE_INDEX["flatfield_peek"], bool(state.config.flatfield.profile_id))
         for flag, action in self._overlay_actions.items():
             action.setChecked(bool(getattr(state, flag)))
@@ -859,7 +987,6 @@ class ActionToolbar(QWidget):
             controller.negative_peek_changed,
             controller.embedded_peek_changed,
             controller.flatfield_peek_changed,
-            controller.flat_output_changed,
             controller.zones_overlay_changed,
             controller.clipping_overlay_changed,
             controller.printing_notes_changed,
