@@ -35,12 +35,13 @@ def test_update_analysis_refreshes_histograms() -> None:
     panel._update_histograms.assert_called_once_with(metrics)
 
 
-def test_update_analysis_skips_mid_gesture_frames() -> None:
-    panel = _panel_stub({"interactive": True})
+def test_update_analysis_tracks_mid_gesture_frames() -> None:
+    metrics = {"interactive": True, "histogram_density": [1.0]}
+    panel = _panel_stub(metrics)
 
     RightPanel._update_analysis(panel)
 
-    panel._update_histograms.assert_not_called()
+    panel._update_histograms.assert_called_once_with(metrics)
 
 
 def test_a_peek_refreshes_over_a_stale_interactive_print() -> None:
@@ -74,6 +75,15 @@ def test_switch_group_persists_the_index_and_updates_the_stack():
     assert panel._active_group == 1
     panel._group_buttons[1].setChecked.assert_called_once_with(True)
     panel._group_buttons[0].setChecked.assert_called_once_with(False)
+
+
+def test_analysis_shows_on_the_roll_and_frame_tabs_only():
+    panel = _group_panel_stub()
+
+    for index, key in enumerate(panel._group_keys):
+        panel.analysis_section.reset_mock()
+        RightPanel._switch_group(panel, index)
+        panel.analysis_section.setVisible.assert_called_once_with(key in ("roll", "frame"))
 
 
 def test_switch_group_activates_the_chosen_scanner_only_on_the_scan_tab():
