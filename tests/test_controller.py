@@ -946,6 +946,24 @@ class TestAppController(unittest.TestCase):
         self.assertTrue(self.controller._is_rendering)
         self.assertIsNone(self.controller._pending_render_task)
 
+    def test_a_drag_reads_metrics_back_but_an_override_does_not(self):
+        import numpy as np
+
+        from negpy.domain.models import WorkspaceConfig
+
+        emitted = []
+        self.controller.render_requested.connect(emitted.append)
+        self.controller.state.preview_raw = np.zeros((4, 4, 3), dtype=np.float32)
+
+        self.controller.request_render(readback_metrics=False)
+        self.controller._is_rendering = False
+        self.controller.request_render(readback_metrics=False, config_override=WorkspaceConfig())
+
+        drag, override = emitted
+        self.assertTrue(drag.interactive)
+        self.assertTrue(drag.readback_metrics)
+        self.assertFalse(override.readback_metrics)
+
     def test_stale_prefetch_finish_starts_the_next_queued_prefetch(self):
         from negpy.desktop.workers.render import PreviewLoadTask
 

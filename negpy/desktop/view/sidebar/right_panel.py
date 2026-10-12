@@ -826,9 +826,6 @@ class RightPanel(QWidget):
     def _update_analysis(self) -> None:
         metrics = self.controller.session.state.last_metrics
         self.zone_strip.set_placement_enabled(self.controller.zone_placement_available())
-        # Mid-gesture frames carry no metrics; the settle frame refreshes all of this.
-        if self.controller.session.state.canvas_value("interactive"):
-            return
         # The film mode picks the vectorscope's scale, and it can change with the frame.
         self._sync_scale_btn()
 

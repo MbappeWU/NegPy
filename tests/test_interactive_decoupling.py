@@ -126,15 +126,6 @@ class TestSettleOnlyWorkIsSkipped(unittest.TestCase):
         AppController._on_render_finished(stub, None, {"crop_preview_full": False, "source_hash": "h1"})
         stub._update_thumbnail_from_state.assert_called_once()
 
-    def test_analysis_panel_skips_interactive_frames(self):
-        from negpy.desktop.session import AppState
-        from negpy.desktop.view.sidebar.right_panel import RightPanel
-
-        panel = MagicMock()
-        panel.controller.session.state = AppState(last_metrics={"interactive": True})
-        RightPanel._update_analysis(panel)
-        panel._update_histograms.assert_not_called()
-
     def test_bounds_are_not_persisted_mid_gesture(self):
         from negpy.desktop.controller import AppController
 

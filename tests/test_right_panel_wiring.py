@@ -35,12 +35,13 @@ def test_update_analysis_refreshes_histograms() -> None:
     panel._update_histograms.assert_called_once_with(metrics)
 
 
-def test_update_analysis_skips_mid_gesture_frames() -> None:
-    panel = _panel_stub({"interactive": True})
+def test_update_analysis_tracks_mid_gesture_frames() -> None:
+    metrics = {"interactive": True, "histogram_density": [1.0]}
+    panel = _panel_stub(metrics)
 
     RightPanel._update_analysis(panel)
 
-    panel._update_histograms.assert_not_called()
+    panel._update_histograms.assert_called_once_with(metrics)
 
 
 def test_a_peek_refreshes_over_a_stale_interactive_print() -> None:

@@ -6688,8 +6688,8 @@ class AppController(QObject):
         if preview_raw is None:
             return
 
-        # A drag asks for no metrics, the release does. Interactive frames go through the
-        # proxy, so full resolution arrives only once the gesture settles. The baseline
+        # A drag passes readback_metrics=False, the release True. Interactive frames go
+        # through the proxy, so full resolution arrives only once the gesture settles. The baseline
         # capture wants no metrics but full resolution: it is painted beside the edit, and a
         # proxy would show softer pixels on one side of the divider.
         interactive = not readback_metrics and not compare_capture
@@ -6723,7 +6723,9 @@ class AppController(QObject):
             source_hash=self.state.current_file_hash or "preview",
             preview_size=target_size,
             gpu_enabled=self.state.gpu_enabled,
-            readback_metrics=readback_metrics,
+            # A drag of the edit itself reads metrics back from the proxy, so the Analysis
+            # panel tracks it. An override must not replace the edit's histograms.
+            readback_metrics=readback_metrics or (interactive and config_override is None and not ephemeral),
             ir_buffer=ir_buffer,
             detect_buffer=detect_buffer,
             crop_preview_full=crop_preview_full,
