@@ -152,7 +152,7 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
         "fa5s.eye",
         "Flat Scan",
         "toggle_flat_peek",
-        "The flat master. Turn on Flat output in the Export tab to use it.",
+        "The flat master: the scan as a log-encoded digital intermediate, with no print curve",
     ),
     (
         "embedded_peek",
@@ -927,9 +927,6 @@ class ActionToolbar(QWidget):
         self.source_choice.blockSignals(True)
         self.source_choice.setCurrentIndex(active)
         self.source_choice.blockSignals(False)
-        flat_ok = bool(state.flat_output)
-        self.source_choice.set_choice_enabled(_SOURCE_INDEX["flat_peek"], flat_ok)
-        self._ov_flat_peek_action.setEnabled(flat_ok)
         self.source_choice.set_choice_enabled(_SOURCE_INDEX["flatfield_peek"], bool(state.config.flatfield.profile_id))
         for flag, action in self._overlay_actions.items():
             action.setChecked(bool(getattr(state, flag)))
@@ -990,7 +987,6 @@ class ActionToolbar(QWidget):
             controller.negative_peek_changed,
             controller.embedded_peek_changed,
             controller.flatfield_peek_changed,
-            controller.flat_output_changed,
             controller.zones_overlay_changed,
             controller.clipping_overlay_changed,
             controller.printing_notes_changed,

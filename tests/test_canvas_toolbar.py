@@ -612,13 +612,14 @@ class TestViewChooser(unittest.TestCase):
         self._choose(tb, "Embedded")
         self.assertEqual(tb.source_choice.text().strip(), "Print")
 
-    def test_flat_scan_waits_on_flat_output(self):
+    def test_flat_scan_needs_no_flat_output(self):
+        """The peek renders the flat master from any frame, like its key."""
         tb = _make_toolbar()
-        flat = next(i for i in range(tb.source_choice.count()) if tb.source_choice.choice_action(i).text().startswith("Flat Scan"))
-        self.assertFalse(tb.source_choice.is_choice_enabled(flat))
-        tb.session.state.flat_output = True
+        tb.session.state.flat_output = False
         tb._sync_view_state()
+        flat = next(i for i in range(tb.source_choice.count()) if tb.source_choice.choice_action(i).text().startswith("Flat Scan"))
         self.assertTrue(tb.source_choice.is_choice_enabled(flat))
+        self.assertTrue(tb._ov_flat_peek_action.isEnabled())
 
 
 class TestOverlaysMenu(unittest.TestCase):
