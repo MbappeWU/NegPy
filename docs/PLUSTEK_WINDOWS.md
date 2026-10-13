@@ -1,11 +1,15 @@
 # Windows USB setup (Plustek OpticFilm)
 
-NegPy's Plustek USB backend uses the external [pyopticfilm](https://github.com/jboneng/pyopticfilm) driver (libusb through PyUSB), version **1.3.3** or later. The stock Plustek Windows driver must not own the device.
+NegPy's Plustek USB backend uses the external [pyopticfilm](https://github.com/jboneng/pyopticfilm) driver (libusb through PyUSB), version **1.3.5** or later. The stock Plustek Windows driver must not own the device.
 
 ## Requirements
 
 - Windows 10 or 11
-- Supported Plustek OpticFilm scanners: **8200i SE** (`07B3:1825`, GL128) and **8100 V2** (`07B3:1824`, GL128)
+- Supported Plustek OpticFilm scanners:
+  - **8200i SE** (`07B3:1825`, GL128)
+  - **8100 V2** (`07B3:1824`, GL128)
+  - **8300i SE** (`07B3:181F`, GL128)
+  - **7600i v1** (`07B3:0C3B`, GL843; `bcdDevice` `0x0400`)
 - WinUSB (or libusbK) bound with [Zadig](https://zadig.akeo.ie/)
 - NegPy with the `plustek` optional dependency (`uv sync --group plustek` or `pip install negpy[plustek]`). On Windows, pyopticfilm also pulls in `libusb-package`
 
@@ -15,13 +19,13 @@ Power the scanner and plug it in, then:
 
 1. Open **Device Manager**
 2. Look under imaging or USB devices for Plustek
-3. Properties → Details → Hardware Ids must include `VID_07B3&PID_1825`
+3. Properties → Details → Hardware Ids must include `VID_07B3&PID_1825`, `PID_1824`, `PID_181F` or `PID_0C3B` for your model
 
 ## 2. Bind WinUSB (Zadig)
 
 1. Download [Zadig](https://zadig.akeo.ie/)
 2. Select **Options → List All Devices**
-3. Select the Plustek Film Scanner (`07B3:1825`)
+3. Select the Plustek Film Scanner (`07B3:1825`, `07B3:1824`, `07B3:181F` or `07B3:0C3B`)
 4. Replace the driver with **WinUSB**. libusbK also works
 5. Keep the stock Plustek driver installer. You need it to restore VueScan or the vendor software later
 
