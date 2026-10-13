@@ -154,6 +154,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "scan_as_roll": ShortcutEntry("", "Toggle Scan as Roll", "Process"),
     "scan_folder_as_roll": ShortcutEntry("", "Toggle Folder as Roll", "Process"),
     "scan_new_roll": ShortcutEntry("", "Start the next scan roll", "Process"),
+    "scanlight_keep_light_on": ShortcutEntry("", "Toggle Keep Light On (Scanlight)", "Process"),
     "mode_color_negative": ShortcutEntry("", "Mode: Color Negative", "Process"),
     "mode_bw_negative": ShortcutEntry("", "Mode: B&W Negative", "Process"),
     "mode_transparency": ShortcutEntry("", "Mode: Transparency", "Process"),
