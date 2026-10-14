@@ -744,7 +744,7 @@ CAMERA_SCANNING.md has a workflow for each way to build and assign a profile.
 
 To tune a matrix, adjust its six off-diagonal terms in the editor and save it as your own, named after the *combination* ("Gold 200 + Spectracolor"). Working profiles are welcome [upstream](CROSSTALK.md#contributing-a-matrix).
 
-**Dye balance: Cast Removal** (0.0 to 1.0, color only): balances each layer against the frame's own grays, so neutrals stay neutral from shadows to highlights. On Color Negative it removes the orange mask and starts at 1.0; on Transparency it starts at 0, for a faded slide's crossover.
+**Dye balance: Cast Removal** (0.0 to 1.0, color only): removes an overall color cast by balancing each layer against the frame's own grays, so neutrals stay neutral from shadows to highlights. On a negative, leaves never count as gray, so a forest keeps its greens. It starts at 1.0 on Color Negative and at 0 on Transparency, for a faded slide's crossover.
 
 **Light source:**
 

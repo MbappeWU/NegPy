@@ -67,9 +67,8 @@ def cast_removal_for_mode(mode: str, strength: float) -> float:
     """The Cast Removal strength `mode` starts at, given the strength carried in.
 
     A transparency starts at 0 and a negative at the shipped default: on a negative the
-    control defeats the orange mask, which is never part of the picture, while on a slide
-    it corrects a faded original's crossover — a deliberate act, since a slide's cast can
-    be the photograph. Only the other mode's default is rewritten, so a strength the user
+    control removes the cast the stretch leaves, while on a slide it corrects a faded
+    original's crossover — a deliberate act, since a slide's cast can be the photograph. Only the other mode's default is rewritten, so a strength the user
     chose survives a mode switch.
     """
     default = float(ExposureConfig.cast_removal_strength)
