@@ -27,6 +27,14 @@ def _alpha(color: str, alpha: int) -> QColor:
 _CLIP_THRESH = 0.005  # fraction of pixels considered "clipping"
 
 
+def _draw_plated_text(painter: QPainter, rect: QRect, flags: Qt.AlignmentFlag, text: str) -> None:
+    """A chart label on a dark plate, so it reads over a bright trace."""
+    box = painter.boundingRect(rect, flags, text).adjusted(-2, 0, 2, 0)
+    painter.fillRect(box, _alpha(THEME.canvas_bg_black, 190))
+    painter.setPen(_alpha(THEME.text_hint, 230))
+    painter.drawText(rect, flags, text)
+
+
 def _draw_hover_ring(painter: QPainter, at: QPointF) -> None:
     """The hovered pixel's mark on a scope: the curve's tracking ring over a dark halo, so it holds over a bright trace."""
     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -701,7 +709,8 @@ class WaveformWidget(QWidget):
     marked on the bottom and top edges. With parade=True it draws R, G and B side by side, each
     channel's own tone across the frame; in the scan domain, each channel's scan density, dense at the
     bottom, with solid marks at the density range the stretch maps onto the curve. The parade's overlay
-    draws the three on one plot, added: where they coincide the trace is white."""
+    draws the three on one plot, added: where they coincide the trace is white. The orange mask keeps
+    a scan's channels apart, so the overlay and the cross-panel line are for the print only."""
 
     _GUIDE_ZONES = ((3, "III"), (5, "V"), (7, "VII"))
     _PARADE_GAP = 3
@@ -730,8 +739,12 @@ class WaveformWidget(QWidget):
             self._images = None
             self.update()
 
+    def _aligned(self) -> bool:
+        """Whether one height means the same in every channel: on the print, not on the scan."""
+        return not self._scan
+
     def _split(self) -> bool:
-        return self._parade and not self._overlay
+        return self._parade and not (self._overlay and self._aligned())
 
     def set_scan_domain(self, enabled: bool, marks: Any = None, caption: str = "Scan density", full_scale: Any = None) -> None:
         """Read the counts as scan density (Peek Negative) rather than print tone. ``marks`` is the
@@ -741,6 +754,8 @@ class WaveformWidget(QWidget):
         marks = None if marks is None or not enabled else np.asarray(marks, dtype=float)
         if enabled != self._scan:
             self._marker = None
+        if enabled != self._scan:
+            self._images = None
         self._scan = enabled
         self._scan_marks = marks
         self._scan_caption = caption if enabled else ""
@@ -801,7 +816,7 @@ class WaveformWidget(QWidget):
                 mean = np.moveaxis(self._color, 0, -1)
                 peak = mean.max(axis=-1, keepdims=True)
                 tints = [np.divide(mean, peak, out=np.ones_like(mean), where=peak > 0)]
-            if self._parade and self._overlay:
+            if self._parade and not self._split():
                 # Pure primaries, not the channel tokens: only these add up to white where R, G and B coincide.
                 levels = levels.max(axis=0, keepdims=True)
                 tints = [np.moveaxis(np.clip(vals / ref, 0.0, 1.0), 0, -1) / np.maximum(levels[0][..., None], 1e-9)]
@@ -840,10 +855,10 @@ class WaveformWidget(QWidget):
         rects = self._panel_rects(3 if self._split() else 1)
         # The rect each channel's marks and rings sit in: its own panel, or the one shared plot.
         channel_rects = rects if self._split() else rects * 3
+        ticks: list[tuple[int, int, int]] = []
         if images is not None and counts is not None:
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-            painter.setPen(QPen(QColor(THEME.clip_warning), 2))
-            # Past the axis at the bottom; at full scale (or paper white) at the top.
+            # Ticks read the unshifted counts: past the axis at the bottom, at full scale (or paper white) at the top.
             raw = self._panels()
             bottom, top = raw[:, 0] > 0, raw[:, -1] > 0
             if self._scan and self._full_scale is not None and self._full_scale.shape == top.shape:
@@ -855,7 +870,7 @@ class WaveformWidget(QWidget):
                 cols = low.shape[0]
                 for marks, y in ((low, h - 3), (high, 2)):
                     for c in np.flatnonzero(marks).tolist():
-                        painter.drawLine(rect.x() + int(c * rect.width() / cols), y, rect.x() + int((c + 1) * rect.width() / cols), y)
+                        ticks.append((rect.x() + int(c * rect.width() / cols), rect.x() + int((c + 1) * rect.width() / cols), y))
             if self._split():
                 painter.setPen(QPen(QColor(THEME.border_primary), 1))
                 for rect in rects[1:]:
@@ -872,23 +887,27 @@ class WaveformWidget(QWidget):
             y = int(h - tone * h)
             painter.setPen(QPen(_alpha(THEME.border_hover, 200), 1, Qt.PenStyle.DashLine))
             painter.drawLine(0, y, w, y)
-            painter.setPen(_alpha(THEME.text_hint, 200))
-            painter.drawText(QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label)
+            _draw_plated_text(
+                painter, QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label
+            )
         ranges = self._scan_ranges()
         if self._split():
             # Channel letters, so the panel order reads without telling the traces apart by hue.
-            painter.setPen(_alpha(THEME.text_hint, 200))
             for i, (rect, letter) in enumerate(zip(rects, "RGB")):
                 text = letter if ranges is None else f"{letter} {ranges[i]:.2f}"
-                painter.drawText(
-                    rect.adjusted(0, THEME.space_xs, -THEME.space_xs, 0), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop, text
+                _draw_plated_text(
+                    painter,
+                    rect.adjusted(0, THEME.space_xs, -THEME.space_xs, 0),
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
+                    text,
                 )
         if self._scan:
             caption = self._scan_caption
             if ranges is not None and not self._split():
                 caption += " · range " + "  ".join(f"{letter} {r:.2f}" for letter, r in zip("RGB", ranges))
-            painter.setPen(_alpha(THEME.text_hint, 200))
-            painter.drawText(QRect(THEME.space_xs, THEME.space_xs, w, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, caption)
+            _draw_plated_text(
+                painter, QRect(THEME.space_xs, THEME.space_xs, w, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, caption
+            )
             if self._scan_marks is not None and counts is not None:
                 hexes = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
                 for rect, ends, hex_ in zip(channel_rects, self._scan_marks, hexes):
@@ -899,7 +918,7 @@ class WaveformWidget(QWidget):
 
         if self._marker is not None and counts is not None:
             x, *tones = self._marker
-            if len(tones) == 3 and self._split():
+            if len(tones) == 3 and self._split() and self._aligned():
                 # Green's level across all three panels: a neutral rings on it in each.
                 gy = min(max(h - tones[1] * h, 0.0), h - 1.0)
                 painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
@@ -911,6 +930,11 @@ class WaveformWidget(QWidget):
                 painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
                 painter.drawLine(QPointF(mx, 0), QPointF(mx, h))
                 _draw_hover_ring(painter, QPointF(mx, my))
+
+        # Over the label plates, so a clipped column under a caption still shows.
+        painter.setPen(QPen(QColor(THEME.clip_warning), 2))
+        for x1, x2, y in ticks:
+            painter.drawLine(x1, y, x2, y)
 
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)

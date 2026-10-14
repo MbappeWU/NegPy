@@ -269,7 +269,7 @@ class RightPanel(QWidget):
         self.parade_overlay_btn.toggled.connect(self._on_parade_overlay)
         self._sync_parade_overlay()
         self.controller.session.color_vision_changed.connect(self._sync_parade_overlay)
-        self.parade_overlay_btn.setVisible(self.view_btn.currentData() == "parade")
+        self._sync_parade_tools()
 
         chart_row = QHBoxLayout()
         chart_row.setContentsMargins(0, 0, 0, 0)
@@ -600,20 +600,28 @@ class RightPanel(QWidget):
     def _on_analysis_view(self, index: int) -> None:
         self.chart_stack.setCurrentIndex(index)
         self.controller.session.repo.save_global_setting("analysis_view", self.view_btn.currentData())
-        self.parade_overlay_btn.setVisible(self.view_btn.currentData() == "parade")
+        self._sync_parade_tools()
         self._sync_scale_btn()
 
     def _on_parade_overlay(self, on: bool) -> None:
         self.controller.session.repo.save_global_setting("parade_overlay", on)
         self._sync_parade_overlay()
 
+    def _sync_parade_tools(self) -> None:
+        parade = self.view_btn.currentData() == "parade"
+        self.parade_overlay_btn.setVisible(parade)
+
     def _sync_parade_overlay(self) -> None:
-        """The overlay reads by hue alone (fringes of the primaries), so only Standard color vision gets it."""
+        """The overlay reads by hue alone (fringes of the primaries), so only Standard color vision gets it.
+        On the scan the mask keeps the channels apart, so it is for the print only."""
         standard = self.controller.state.color_vision == "standard"
-        self.parade_overlay_btn.setEnabled(standard)
+        apart = bool(self.controller.state.negative_peek)
+        self.parade_overlay_btn.setEnabled(standard and not apart)
         tip = "Parade Overlay: R, G and B on one plot, white where they agree"
         if not standard:
             tip += ". Off under this Color vision: its fringes tell the channels apart by hue alone"
+        elif apart:
+            tip += ". Off on the scan: the film's mask keeps the channels apart"
         self.parade_overlay_btn.setToolTip(tooltip_with_shortcut(tip, "toggle_parade_overlay"))
         self.parade_widget.set_overlay(standard and self.parade_overlay_btn.isChecked())
 
@@ -887,6 +895,8 @@ class RightPanel(QWidget):
         self._scan_bounds = metrics.get("final_bounds") if negative else None
         self._scan_full_scale = metrics.get("scan_full_scale") if negative else None
         self.parade_widget.set_scan_domain(negative, *self._scan_marks_and_caption(), full_scale=self._scan_full_scale)
+        self._sync_parade_tools()
+        self._sync_parade_overlay()
         if negative:
             self.parade_widget.set_data(metrics.get("density_parade"))
         else:

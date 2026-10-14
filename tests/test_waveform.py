@@ -509,7 +509,32 @@ def test_the_overlay_choice_persists_and_shows_only_with_the_parade() -> None:
 
     panel.view_btn.currentData.return_value = "waveform"
     RightPanel._on_analysis_view(panel, 1)
-    panel.parade_overlay_btn.setVisible.assert_called_once_with(False)
+    panel._sync_parade_tools.assert_called_once_with()
+
+
+def test_the_overlay_shows_only_with_the_parade() -> None:
+    from negpy.desktop.view.sidebar.right_panel import RightPanel
+
+    for view, shown in (("waveform", False), ("parade", True)):
+        panel = MagicMock()
+        panel.view_btn.currentData.return_value = view
+
+        RightPanel._sync_parade_tools(panel)
+
+        panel.parade_overlay_btn.setVisible.assert_called_once_with(shown)
+
+
+def test_the_overlay_is_grayed_on_the_scan() -> None:
+    from negpy.desktop.view.sidebar.right_panel import RightPanel
+
+    for peek, on in ((True, False), (False, True)):
+        panel = MagicMock()
+        panel.controller.state = AppState(negative_peek=peek)
+        panel.parade_overlay_btn.isChecked.return_value = True
+
+        RightPanel._sync_parade_overlay(panel)
+
+        panel.parade_overlay_btn.setEnabled.assert_called_once_with(on)
 
 
 def test_the_overlay_is_off_and_grayed_under_a_color_vision_palette() -> None:
@@ -721,3 +746,15 @@ def test_the_scan_parade_ticks_full_scale_from_the_scan_before_the_unmix(qapp) -
     img = widget.grab().toImage()
 
     assert _top_tick(img, 5) and not _top_tick(img, 60) and not _top_tick(img, 106)
+
+
+def test_the_scan_parade_stays_split_under_the_overlay(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    widget.set_overlay(True)
+    widget.set_scan_domain(True, np.array([[0.2, 0.7], [0.1, 0.6], [0.0, 0.5]]))
+    assert widget._split()
+
+    widget.set_scan_domain(False)
+    assert not widget._split()
