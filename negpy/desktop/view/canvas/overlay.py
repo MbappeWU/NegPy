@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 import qtawesome as qta
-from PyQt6.QtCore import QEvent, QLineF, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QImage, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -28,6 +28,7 @@ from negpy.features.exposure.analysis import (
     STRIP_GRADES,
     STRIP_GRID,
     clip_masks,
+    encoded_of_zone,
     loupe_acutance,
     proof_grid,
     ring_cc,
@@ -36,9 +37,10 @@ from negpy.features.exposure.analysis import (
     rotated_cell,
     strip_cell_at,
     strip_nearest_cell,
-    zone_grid,
+    zone_anchors,
+    zone_field,
     zone_mask,
-    zone_region_labels,
+    zone_shares,
 )
 from negpy.features.exposure.densitometer import zone_roman
 from negpy.features.geometry.logic import (
@@ -103,9 +105,28 @@ def _tint_qimage(layers: List[Tuple[np.ndarray, QColor]], alpha: int) -> QImage:
     return QImage(buf.data, gw, gh, gw * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
 
 
-_ZONE_LINE_ALPHA = 150
 _ZONE_LINE_SHADOW_ALPHA = 110  # dark underlay so the white edges hold over blown highlights
-_ZONE_LABEL_MIN_PX = 16.0  # below this cell size the numerals collide into noise
+_ZONE_TINT_ALPHA = 153  # False Color lets the photo show through
+_ZONE_CLIP_ALPHA = 230  # paper black / paper white read as flat paper
+_ZONE_SPOT_DIM_ALPHA = 190
+_ZONE_LABEL_MIN_INSET_PX = 8.0  # a numeral needs this much of its region around it on screen
+_ZONE_OUTLINE_MIN_AREA = 20.0  # field px; smaller specks are noise, not regions
+
+
+def zone_colors(style: str, color_vision: str) -> List[Tuple[QColor, int]]:
+    """(color, alpha) per zone 0..10 for a Zone Overlay look; the canvas and its legend share it."""
+    palette = palette_for(color_vision)
+    if style == "zone_map":
+        shadow, highlight = palette.pair
+        grays = [QColor.fromRgbF(encoded_of_zone(z), encoded_of_zone(z), encoded_of_zone(z)) for z in range(1, 10)]
+        return [(QColor(shadow), 255), *((g, 255) for g in grays), (QColor(highlight), 255)]
+    return [
+        (QColor(0, 0, 0), _ZONE_CLIP_ALPHA),
+        *((QColor(c), _ZONE_TINT_ALPHA) for c in palette.zone_ramp),
+        (QColor(255, 255, 255), _ZONE_CLIP_ALPHA),
+    ]
+
+
 _ZONE_CLIP_COLOR = QColor(THEME.clip_warning)  # paper black / paper white, same red the zone strip warns with
 
 _STRIP_LABEL_MIN_PX = 34.0  # below this patch size the two axis labels overlap
@@ -344,6 +365,8 @@ class CanvasOverlay(QWidget):
     zone_pin_moved = pyqtSignal(int, float, float, bool)  # (pin index, nx, ny, drag ended)
     zone_placement_confirmed = pyqtSignal()  # Enter over the canvas: commit the solved print
     zoom_toggle_requested = pyqtSignal(QPointF)  # double-click with no tool armed
+    zone_shares_changed = pyqtSignal(object)  # each zone's share of a newly measured frame
+    zone_pointer_changed = pyqtSignal(object)  # zone under the pointer, or None
 
     def __init__(self, state: AppState, parent=None):
         super().__init__(parent)
@@ -424,8 +447,14 @@ class CanvasOverlay(QWidget):
         self._display_buffer: Optional[np.ndarray] = None
         self._gpu_texture: Optional[Any] = None
         self._host_qimage_cache: Optional[Tuple[tuple, QImage]] = None
-        self._zone_cells: Optional[np.ndarray] = None
-        self._zone_labels: List[Tuple[int, int, int]] = []
+        # Zone Overlay: the frame's zone field, its numeral anchors, the painted map keyed by look,
+        # and per-zone outlines in field pixels. All rebuilt lazily for each new frame.
+        self._zone_field: Optional[np.ndarray] = None
+        self._zone_anchors: List[Tuple[int, int, int, float]] = []
+        self._zone_image: Optional[Tuple[tuple, QImage]] = None
+        self._zone_outlines: Dict[int, List[QPolygonF]] = {}
+        # The pointer's zone over the frame.
+        self._zone_hover: Optional[int] = None
         # Clipping Overlay and zone-highlight washes for the displayed frame, keyed by what they mark.
         self._frame_washes: Dict[tuple, Optional[QImage]] = {}
 
@@ -729,7 +758,9 @@ class CanvasOverlay(QWidget):
         self._display_buffer = buffer if isinstance(buffer, np.ndarray) else None
         self._gpu_texture = gpu_texture
         self._host_qimage_cache = None
-        self._zone_cells = None  # rebuilt lazily on the next zones paint
+        self._zone_field = None  # rebuilt lazily on the next zones paint
+        self._zone_image = None
+        self._zone_outlines = {}
         self._frame_washes = {}
         # Kept so a strip mosaic gets the same display transform as this buffer did.
         self._display_cs = color_space
@@ -1171,12 +1202,13 @@ class CanvasOverlay(QWidget):
             # Takes the content rect over from the zone grid: both would claim it.
             self._draw_test_strip(painter)
         elif self.state.zones_overlay and content_aligned:
-            self._draw_zone_grid(painter)
+            self._draw_zone_map(painter)
 
         if content_aligned and not self.state.test_strip:
             if self.state.clipping_overlay:
                 self._draw_clipping_overlay(painter)
-            if self.state.zone_highlight is not None:
+            # With the Zone Overlay up the highlight is its spotlight instead of a wash.
+            if self.state.zone_highlight is not None and not self.state.zones_overlay:
                 self._draw_zone_highlight(painter)
 
         # Pins are content-anchored, so they hide with the strip (whose mosaic
@@ -1638,73 +1670,103 @@ class CanvasOverlay(QWidget):
         if img is not None:
             painter.drawImage(self._content_view_rect(), img)
 
-    def _draw_zone_grid(self, painter: QPainter) -> None:
-        """Adams-zone map over the image content: a fixed grid whose internal edges are
-        drawn only where the zone changes, so neighbouring cells of the same zone merge
-        into one region carrying a single numeral. Paper black (0) and paper white (X)
-        are flagged red.
-
-        ponytail: the grid is image-space, built once per render, so it scales with zoom
-        instead of reflowing under the cursor while panning; zoom deep enough and you're
-        inside one cell. Rebuild from the visible sub-rect if that ever matters."""
-        if self._zone_cells is None:
+    def _zone_map_field(self) -> Optional[np.ndarray]:
+        if self._zone_field is None:
             src = self._content_host_buffer()
-            if src is None:
-                return
-            self._zone_cells = zone_grid(src)
-            if self._zone_cells is None:
-                return
-            self._zone_labels = zone_region_labels(self._zone_cells)
+            self._zone_field = None if src is None else zone_field(src)
+            if self._zone_field is not None:
+                self._zone_anchors = zone_anchors(self._zone_field)
+                self.zone_shares_changed.emit(zone_shares(self._zone_field))
+        return self._zone_field
 
-        zones = self._zone_cells
-        rows, cols = zones.shape
+    def _zone_map_image(self, zones: np.ndarray) -> QImage:
+        colors = zone_colors(self.state.zones_style, self.state.color_vision)
+        key = (id(zones), self.state.zones_style, self.state.color_vision)
+        if self._zone_image is None or self._zone_image[0] != key:
+            lut = np.array([(c.red() * a // 255, c.green() * a // 255, c.blue() * a // 255, a) for c, a in colors], np.uint8)
+            rgba = np.ascontiguousarray(lut[zones])
+            h, w = zones.shape
+            img = QImage(rgba.data, w, h, w * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
+            self._zone_image = (key, img)
+        return self._zone_image[1]
+
+    def _zone_outline(self, zones: np.ndarray, zone: int) -> List[QPolygonF]:
+        if zone not in self._zone_outlines:
+            contours, _ = cv2.findContours((zones == zone).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            self._zone_outlines[zone] = [
+                QPolygonF([QPointF(float(x) + 0.5, float(y) + 0.5) for [[x, y]] in cv2.approxPolyDP(c, 1.0, True)])
+                for c in contours
+                if cv2.contourArea(c) >= _ZONE_OUTLINE_MIN_AREA
+            ]
+        return self._zone_outlines[zone]
+
+    def _draw_zone_map(self, painter: QPainter) -> None:
+        """Adams zones over the content, as a False Color tint or a Zone Map of gray steps.
+        Hovering the frame outlines the pointer's zone; a highlighted zone (a legend or strip
+        cell under the pointer) is shown alone.
+
+        ponytail: the field is built once per frame at ZONE_FIELD_MAX_EDGE, so deep zoom
+        shows its pixels. Rebuild from the visible sub-rect if that ever matters."""
+        zones = self._zone_map_field()
         rect = self._content_view_rect()
-        cw = rect.width() / cols
-        ch = rect.height() / rows
-
-        edges: List[QLineF] = []
-        for r in range(rows):
-            y0, y1 = rect.y() + r * ch, rect.y() + (r + 1) * ch
-            for c in range(1, cols):
-                if zones[r, c] != zones[r, c - 1]:
-                    x = rect.x() + c * cw
-                    edges.append(QLineF(QPointF(x, y0), QPointF(x, y1)))
-        for r in range(1, rows):
-            y = rect.y() + r * ch
-            for c in range(cols):
-                if zones[r, c] != zones[r - 1, c]:
-                    x0 = rect.x() + c * cw
-                    edges.append(QLineF(QPointF(x0, y), QPointF(x0 + cw, y)))
-
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        for color, width in (
-            (QColor(0, 0, 0, _ZONE_LINE_SHADOW_ALPHA), 3.5),
-            (QColor(255, 255, 255, _ZONE_LINE_ALPHA), 1.5),
-        ):
-            pen = QPen(color, width)
-            pen.setCosmetic(True)
-            painter.setPen(pen)
-            painter.drawRect(rect)
-            painter.drawLines(edges)
-
-        if min(cw, ch) < _ZONE_LABEL_MIN_PX:
+        if zones is None or rect.isEmpty():
             return
-        widget_rect = QRectF(self.rect())
-        label_white = QColor(255, 255, 255, 230)
-        shadow = QColor(0, 0, 0, 160)
-        painter.save()
-        painter.setFont(_overlay_label_font(painter))
-        for col, row, zone in self._zone_labels:
-            cell = QRectF(rect.x() + col * cw, rect.y() + row * ch, cw, ch)
-            if not widget_rect.intersects(cell):
-                continue
-            label = zone_roman(float(zone))
-            # Drop shadow first, or white numerals vanish against a blown highlight.
-            painter.setPen(shadow)
-            painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
-            painter.setPen(_ZONE_CLIP_COLOR if zone in (0, 10) else label_white)
-            painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
-        painter.restore()
+        spot = self.state.zone_highlight
+        if spot is None:
+            painter.drawImage(rect, self._zone_map_image(zones))
+        else:
+            dim = self._frame_wash(("zone_spot", spot), lambda _src: _tint_qimage([(zones != spot, QColor(0, 0, 0))], _ZONE_SPOT_DIM_ALPHA))
+            if dim is not None:
+                painter.drawImage(rect, dim)
+
+        h, w = zones.shape
+        sx, sy = rect.width() / w, rect.height() / h
+        outlined = spot if spot is not None else self._zone_hover
+        if outlined is not None:
+            painter.save()
+            painter.translate(rect.topLeft())
+            painter.scale(sx, sy)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            for color, width in ((QColor(0, 0, 0, _ZONE_LINE_SHADOW_ALPHA), 3.0), (QColor(255, 255, 255, 235), 1.5)):
+                pen = QPen(color, width)
+                pen.setCosmetic(True)
+                painter.setPen(pen)
+                for poly in self._zone_outline(zones, outlined):
+                    painter.drawPolygon(poly)
+            painter.restore()
+
+        if spot is None:
+            painter.save()
+            painter.setFont(_overlay_label_font(painter))
+            for x, y, zone, inset in self._zone_anchors:
+                if inset * min(sx, sy) < _ZONE_LABEL_MIN_INSET_PX:
+                    continue
+                at = QPointF(rect.x() + (x + 0.5) * sx, rect.y() + (y + 0.5) * sy)
+                cell = QRectF(at.x() - 40.0, at.y() - 20.0, 80.0, 40.0)
+                label = zone_roman(float(zone))
+                # Drop shadow first, or white numerals vanish against a light zone.
+                painter.setPen(QColor(0, 0, 0, 160))
+                painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
+                painter.setPen(QColor(255, 255, 255, 235))
+                painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
+            painter.restore()
+
+    def _set_zone_hover(self, zone: Optional[int]) -> None:
+        if zone != self._zone_hover:
+            self._zone_hover = zone
+            self.zone_pointer_changed.emit(zone)
+
+    def _update_zone_hover(self, pos: QPointF) -> None:
+        """The zone of the frame under the pointer, or None off the frame."""
+        zone = None
+        zones = self._zone_field
+        rect = self._content_view_rect()
+        if zones is not None and rect.contains(pos):
+            h, w = zones.shape
+            x = min(w - 1, int((pos.x() - rect.x()) / rect.width() * w))
+            y = min(h - 1, int((pos.y() - rect.y()) / rect.height() * h))
+            zone = int(zones[y, x])
+        self._set_zone_hover(zone)
 
     def _draw_zone_pins(self, painter: QPainter) -> None:
         """Zone-placement pins: a numbered ring per probed spot with its caption."""
@@ -3041,6 +3103,8 @@ class CanvasOverlay(QWidget):
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         self._mouse_pos = event.position()
         self._track_auto_pan_pointer(event.position())
+        if self.state.zones_overlay:
+            self._update_zone_hover(event.position())
 
         # An exclusion drag owns the mouse like the divider does below: it is painting, and a
         # tool or a pan reading the same motion would act on it twice. Sampled at half the
@@ -3677,6 +3741,7 @@ class CanvasOverlay(QWidget):
         # position. That shows whenever the cursor exits over the floating toolbar, which sits
         # inside the image rect.
         self._mouse_pos = QPointF(-1.0, -1.0)
+        self._set_zone_hover(None)
         self.update()
         super().leaveEvent(event)
 

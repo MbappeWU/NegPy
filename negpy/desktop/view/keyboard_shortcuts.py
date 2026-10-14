@@ -81,7 +81,7 @@ def _context_cancel(controller, window) -> None:
     """Esc ladder: whatever has taken the canvas over goes first — a test strip, any peek,
     the before/after split — then the grain focuser loupe, then an armed zone, then
     in-progress tool geometry (polyline points, straighten line, zone pins), then the tool
-    itself."""
+    itself, or the Zone Overlay when no tool is armed."""
     if window.light_table_active():
         window.set_light_table(False)
         return
@@ -112,8 +112,13 @@ def _context_cancel(controller, window) -> None:
     if controller.state.zone_pins:
         controller.clear_zone_pins()
         return
-    if not window.canvas.overlay.cancel_in_progress():
-        controller.cancel_active_tool()
+    if window.canvas.overlay.cancel_in_progress():
+        return
+    # The Zone Overlay row stands in for the view row, so Esc closes it once no tool is armed.
+    if controller.state.active_tool == ToolMode.NONE and controller.state.zones_overlay:
+        controller.toggle_zones_overlay(force=False)
+        return
+    controller.cancel_active_tool()
 
 
 def _toggle_tool_button(window, tab_key: str, button) -> None:

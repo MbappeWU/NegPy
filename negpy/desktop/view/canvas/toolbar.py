@@ -15,17 +15,21 @@ from PyQt6.QtWidgets import (
 )
 
 from negpy.desktop.controller import AppController
-from negpy.desktop.session import ToolMode
+from negpy.desktop.session import ZONE_STYLES, ToolMode
 from negpy.desktop.view.canvas.hud import INFO_LEVEL_LABELS
+from negpy.desktop.view.canvas.overlay import zone_colors
+from negpy.desktop.view.canvas.zone_legend import ZoneLegend
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
-from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, ToggleMenuButton
+from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating, roll_revert_icon
 from negpy.desktop.view.styles.templates import (
     EditedDot,
     default_button_height,
+    field_label,
     hint_label,
+    icon_button,
     labeled_action,
     section_subheader,
     wrap_tooltip,
@@ -411,7 +415,7 @@ class ActionToolbar(QWidget):
                 "mdi6.numeric-5-box-outline",
                 "Zone Overlay",
                 "toggle_zones",
-                "Label each region of the print with its Adams zone",
+                "Show which Adams zone each part of the print falls in",
                 self.controller.toggle_zones_overlay,
             ),
             (
@@ -609,7 +613,7 @@ class ActionToolbar(QWidget):
         )
         self._ov_zones_action = overflow_menu.addAction("Zone Overlay")
         self._ov_zones_action.setCheckable(True)
-        self._menu_tip(self._ov_zones_action, "Zone overlay — label each region of the print with its Adams zone", "toggle_zones")
+        self._menu_tip(self._ov_zones_action, "Zone overlay — show which Adams zone each part of the print falls in", "toggle_zones")
         self._ov_loupe_action = overflow_menu.addAction("Grain Focuser")
         self._ov_loupe_action.setCheckable(True)
         self._menu_tip(
@@ -779,6 +783,7 @@ class ActionToolbar(QWidget):
         self._rebuild_row()
 
         self._build_tool_row(v_layout, icon_color, icon_size, btn_height)
+        self._build_zone_row(v_layout)
 
         # Size the pill to its controls; don't stretch it across the canvas.
         main_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignCenter)
@@ -793,6 +798,7 @@ class ActionToolbar(QWidget):
         layout.setSpacing(6)
         self._tool_layout = layout
         self._shown_tool = ToolMode.NONE
+        self._shown_rows = (False, False)  # (tool row, zone row); neither means the view row
         self._tool_slider = None
         self._tool_slider_source = None
 
@@ -831,6 +837,43 @@ class ActionToolbar(QWidget):
         layout.addWidget(self.btn_tool_done)
         v_layout.addWidget(self._tool_row)
 
+    def _build_zone_row(self, v_layout: QVBoxLayout) -> None:
+        """While the Zone Overlay is up the pill shows its look, its legend and a close button."""
+        self._zone_row = QWidget()
+        self._zone_row.hide()
+        layout = QHBoxLayout(self._zone_row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self.zone_style = SegmentedChoice(
+            (("fa5s.palette", "False Color"), ("mdi.gradient-horizontal", "Zone Map")),
+            "Zone Overlay look: a color per zone over the photo, or the print in eleven gray steps",
+            data=tuple(ZONE_STYLES),
+        )
+        self.zone_style.currentChanged.connect(lambda _i: self.controller.set_zones_style(self.zone_style.currentData()))
+        self.zone_legend = ZoneLegend()
+        self.zone_legend.zone_hovered.connect(self.controller.highlight_zone)
+        self.btn_zone_close = icon_button("fa5s.times", "Close the Zone Overlay")
+        self.btn_zone_close.clicked.connect(lambda: self.controller.toggle_zones_overlay(force=False))
+        layout.addWidget(field_label("Zone overlay"))
+        layout.addWidget(self.zone_style)
+        layout.addWidget(self._create_separator())
+        layout.addWidget(self.zone_legend)
+        layout.addWidget(self.btn_zone_close)
+        v_layout.addWidget(self._zone_row)
+
+    def _sync_zone_row(self) -> None:
+        state = self.session.state
+        self.zone_style.blockSignals(True)
+        self.zone_style.setCurrentIndex(max(0, self.zone_style.findData(state.zones_style)))
+        self.zone_style.blockSignals(False)
+        self.zone_legend.set_colors(zone_colors(state.zones_style, state.color_vision))
+
+    def set_zone_shares(self, shares) -> None:
+        self.zone_legend.set_shares(shares)
+
+    def set_zone_pointer(self, zone) -> None:
+        self.zone_legend.set_ringed(zone)
+
     def _sync_tool_row(self) -> None:
         """Re-entrant: a sidebar sync can cancel the tool from inside tool_sync_requested."""
         state = self.session.state
@@ -850,8 +893,15 @@ class ActionToolbar(QWidget):
         if mode != self._shown_tool:
             self._shown_tool = mode
             self._swap_tool_slider(spec[2] if spec else "")
-            self._view_row.setVisible(spec is None)
-            self._tool_row.setVisible(spec is not None)
+        # An armed tool outranks the Zone Overlay, which outranks the view row.
+        rows = (spec is not None, spec is None and bool(state.zones_overlay))
+        if rows != self._shown_rows:
+            self._shown_rows = rows
+            if rows[1]:
+                self._sync_zone_row()
+            self._tool_row.setVisible(rows[0])
+            self._zone_row.setVisible(rows[1])
+            self._view_row.setVisible(not any(rows))
             canvas = self.parentWidget()
             if hasattr(canvas, "relayout_floating_widgets"):
                 canvas.relayout_floating_widgets()
@@ -1029,6 +1079,9 @@ class ActionToolbar(QWidget):
         self.session.state_changed.connect(self._update_ui_state)
         self.session.asset_model.layoutChanged.connect(self._update_ui_state)
         controller.tool_sync_requested.connect(self._sync_tool_row)
+        controller.zones_overlay_changed.connect(lambda _on: self._sync_tool_row())
+        controller.zones_style_changed.connect(lambda _style: self._sync_zone_row())
+        self.session.color_vision_changed.connect(self._sync_zone_row)
 
         # Overflow menu action connections
         self._ov_hq_action.triggered.connect(controller.toggle_hq_preview)

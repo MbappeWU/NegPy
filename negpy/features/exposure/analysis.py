@@ -313,45 +313,50 @@ def clip_masks(rgb: Any, max_edge: int = MASK_MAX_EDGE) -> Optional[Tuple[np.nda
     return np.any(small < edge, axis=-1), np.any(small >= 1.0 - edge, axis=-1)
 
 
-ZONE_GRID_CELLS = 24  # cells along the frame's long edge
+ZONE_FIELD_MAX_EDGE = 768  # drawn scaled to the view; finer only sharpens grain
 
 
-def zone_grid(rgb: Any, cells: int = ZONE_GRID_CELLS) -> Optional[np.ndarray]:
-    """Integer Adams zone (0..10) per cell of a fixed grid over a display-encoded H×W×3
-    frame; None if the frame isn't one. Cells are square-ish whatever the aspect, and the
-    area-average over a cell is what damps grain — no extra smoothing needed.
-
-    The frame is sRGB- rather than Adobe-RGB-encoded on the soft-proof/splash path; the
-    ruler hinge differs by ~0.04 zone there, under the rounding step, so we don't branch.
-    """
+def zone_field(rgb: Any, max_edge: int = ZONE_FIELD_MAX_EDGE) -> Optional[np.ndarray]:
+    """Integer Adams zone (0..10) per pixel of a display-encoded H×W×3 frame, at most
+    `max_edge` on the long side; None if the frame isn't one. Smoothed first, so grain
+    does not split one tone into speckled zones."""
     rgb = np.asarray(rgb)
     if rgb.ndim != 3 or rgb.shape[-1] < 3 or min(rgb.shape[:2]) < 2:
         return None
     h, w = rgb.shape[:2]
-    # Slice first: INTER_AREA straight off a full-res HQ buffer costs ~50 ms.
-    step = max(1, min(h, w) // (4 * cells))
+    # Slice first: INTER_AREA straight off a full-res HQ buffer is slow.
+    step = max(1, max(h, w) // (2 * max_edge))
     small = np.ascontiguousarray(rgb[::step, ::step, :3], dtype=np.float32)
-    scale = cells / max(small.shape[:2])
+    scale = min(1.0, max_edge / max(small.shape[:2]))
     sh, sw = small.shape[:2]
-    small = cv2.resize(small, (max(1, round(sw * scale)), max(1, round(sh * scale))), interpolation=cv2.INTER_AREA)
-    z = np.nan_to_num(zone_of_encoded(get_luminance(small)))
-    return np.rint(z).astype(np.int32)
+    lum = get_luminance(cv2.resize(small, (max(1, round(sw * scale)), max(1, round(sh * scale))), interpolation=cv2.INTER_AREA))
+    lum = cv2.GaussianBlur(np.ascontiguousarray(lum, dtype=np.float32), (0, 0), 2.0)
+    zones = np.clip(np.rint(np.nan_to_num(zone_of_encoded(lum))), 0, ZONE_COUNT).astype(np.uint8)
+    return cv2.medianBlur(zones, 5)
 
 
-def zone_region_labels(zones: np.ndarray) -> List[Tuple[int, int, int]]:
-    """One label anchor per contiguous same-zone region: [(col, row, zone)].
+def zone_shares(zones: np.ndarray) -> np.ndarray:
+    """Fraction of the frame in each zone 0..10."""
+    return np.bincount(zones.ravel(), minlength=ZONE_COUNT + 1)[: ZONE_COUNT + 1] / max(1, zones.size)
 
-    Anchors are snapped to a cell the region actually owns, so a concave region's numeral
-    can't land outside it (its centroid can).
-    """
-    out: List[Tuple[int, int, int]] = []
+
+def zone_anchors(zones: np.ndarray, min_share: float = 0.01) -> List[Tuple[int, int, int, float]]:
+    """(x, y, zone, inset) per region holding at least `min_share` of the frame, at its most
+    interior pixel; `inset` is that pixel's distance to the region's edge. The frame edge
+    counts as an edge, so a numeral never sits half off the picture."""
+    out: List[Tuple[int, int, int, float]] = []
+    min_area = min_share * zones.size
     for zone in np.unique(zones):
-        count, comp, _, centroids = cv2.connectedComponentsWithStats((zones == zone).astype(np.uint8), connectivity=4)
+        count, comp, stats, _ = cv2.connectedComponentsWithStats((zones == zone).astype(np.uint8), connectivity=4)
         for i in range(1, count):  # 0 is the background (everything not this zone)
-            ys, xs = np.nonzero(comp == i)
-            cx, cy = centroids[i]
-            j = int(np.argmin((xs - cx) ** 2 + (ys - cy) ** 2))
-            out.append((int(xs[j]), int(ys[j]), int(zone)))
+            if stats[i, cv2.CC_STAT_AREA] < min_area:
+                continue
+            mask = (comp == i).astype(np.uint8)
+            mask[0, :] = mask[-1, :] = 0
+            mask[:, 0] = mask[:, -1] = 0
+            dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
+            y, x = np.unravel_index(int(np.argmax(dist)), dist.shape)
+            out.append((int(x), int(y), int(zone), float(dist[y, x])))
     return out
 
 

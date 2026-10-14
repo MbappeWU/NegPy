@@ -71,6 +71,9 @@ class ToolMode(Enum):
 # These tools' renders carry crop_preview_full, which skips the crop, the border and the filed carrier.
 UNCROPPED_PREVIEW_TOOLS = frozenset({ToolMode.CROP_MANUAL, ToolMode.ANALYSIS_DRAW, ToolMode.KEYSTONE_LINES})
 
+# Zone Overlay looks, by stored key and menu label.
+ZONE_STYLES = {"false_color": "False Color", "zone_map": "Zone Map"}
+
 
 @dataclass
 class AppState:
@@ -229,8 +232,10 @@ class AppState:
     # diagnostic. Never persisted.
     dust_overlay_mode: str = "off"
 
-    # Adams-zone box overlay on the canvas: display-only and session-only, never persisted.
+    # Adams-zone overlay on the canvas: display-only and session-only, never persisted.
     zones_overlay: bool = False
+    # Its look, "false_color" or "zone_map" (ZONE_STYLES). A persisted preference.
+    zones_style: str = "false_color"
     # Clipping Overlay (paper black and paper white marked on the frame) and the zone the
     # zone strip's hover lights up. Display-only, session-only.
     clipping_overlay: bool = False
@@ -878,6 +883,8 @@ class DesktopSessionManager(QObject):
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
         self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
         self.state.cursor_probe = bool(self.repo.get_global_setting("cursor_probe", False))
+        style = self.repo.get_global_setting("zones_style", "false_color")
+        self.state.zones_style = style if style in ZONE_STYLES else "false_color"
         self.state.canvas_info_level = int(self.repo.get_global_setting("canvas_info_level", 1) or 0) % 3
 
         saved_immersive = self.repo.get_global_setting("immersive_canvas")

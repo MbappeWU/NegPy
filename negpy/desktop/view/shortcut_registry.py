@@ -99,7 +99,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_printing_notes": ShortcutEntry("Shift+N", "Printing notes (dodge/burn map + print recipe)", "Tools"),
     "toggle_cursor_probe": ShortcutEntry("Shift+I", "Probe at cursor (zone, print density and ΔD beside the pointer)", "Tools"),
     "toggle_soft_proof": ShortcutEntry("Shift+P", "Soft proof the print on screen", "Tools"),
-    "cancel_tool": ShortcutEntry("Esc", "Leave the current view (peek, split, strip) or cancel the active tool", "Tools"),
+    "cancel_tool": ShortcutEntry("Esc", "Leave the current view (peek, split, strip, zone overlay) or cancel the active tool", "Tools"),
     "cyan_dec": ShortcutEntry("", "Cyan down", "Exposure"),
     "cyan_inc": ShortcutEntry("", "Cyan up", "Exposure"),
     "magenta_down": ShortcutEntry("D", "Magenta down", "Exposure"),
