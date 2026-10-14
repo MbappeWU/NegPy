@@ -119,6 +119,9 @@ _PIN_GRAB_PX = 16.0  # grab radius, wider than the drawn ring
 _SPLIT_GRAB_PX = 12.0  # before/after divider grab half-width
 _SPLIT_HANDLE_PX = 11.0  # drawn knob radius
 
+_PROBE_OFFSET_PX = 18.0  # chip corner from the pointer
+_PROBE_TOOLS = (ToolMode.NONE, ToolMode.WB_PICK, ToolMode.ZONE_PLACE)
+
 _LOUPE_RADIUS_PX = 128.0
 # Device px per buffer px inside the glass. At fit-zoom the canvas already shows most of a
 # device px per buffer px, so a literal 1:1 loupe barely magnifies. 2x always out-magnifies
@@ -127,13 +130,34 @@ _LOUPE_MAG = 2.0
 _LOUPE_BADGE_H = 22.0
 
 
-def draw_view_badge(painter: QPainter, text: str, x: float, y: float, width: float = 68.0) -> None:
-    badge = QRectF(x, y, width, 22)
+_BADGE_H = 22.0
+_BADGE_DOT_PX = 6.0
+
+
+def view_badge_width(painter: QPainter, text: str, dot: bool = True) -> float:
+    return painter.fontMetrics().horizontalAdvance(text) + 2 * THEME.space_lg + (_BADGE_DOT_PX + THEME.space_md if dot else 0.0)
+
+
+def draw_view_badge(painter: QPainter, text: str, x: float, y: float, width: Optional[float] = None, dot: bool = True) -> None:
+    """White text on a dark plate; the accent dot says a view is on. Accent text on the plate
+    is too dark to read over a photograph."""
+    badge = QRectF(x, y, view_badge_width(painter, text, dot) if width is None else width, _BADGE_H)
     painter.setBrush(QColor(0, 0, 0, 170))
     painter.setPen(Qt.PenStyle.NoPen)
     painter.drawRoundedRect(badge, 4, 4)
-    painter.setPen(QColor(THEME.accent_primary))
-    painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, text)
+    left = THEME.space_lg
+    if dot:
+        painter.setBrush(QColor(THEME.accent_primary))
+        painter.drawEllipse(QPointF(badge.left() + left + _BADGE_DOT_PX / 2, badge.center().y()), _BADGE_DOT_PX / 2, _BADGE_DOT_PX / 2)
+        left += _BADGE_DOT_PX + THEME.space_md
+    painter.setPen(QColor(255, 255, 255, 245))
+    painter.drawText(badge.adjusted(left, 0, -THEME.space_lg, 0), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+
+
+def probe_lines(reading: Any) -> Tuple[str, str]:
+    """The cursor probe's two lines: zone and print density, then ΔD per channel."""
+    dd = reading.dd_rgb
+    return f"{zone_roman(reading.zone)} · D {reading.print_density:.2f}", f"ΔD {dd[0]:.2f}·{dd[1]:.2f}·{dd[2]:.2f}"
 
 
 def hit_resize_handle(pos: QPointF, handles: Dict[str, QPointF]) -> Optional[str]:
@@ -319,6 +343,7 @@ class CanvasOverlay(QWidget):
     test_strip_picked = pyqtSignal(int, int)  # (row, col) of the clicked patch
     zone_pin_moved = pyqtSignal(int, float, float, bool)  # (pin index, nx, ny, drag ended)
     zone_placement_confirmed = pyqtSignal()  # Enter over the canvas: commit the solved print
+    zoom_toggle_requested = pyqtSignal(QPointF)  # double-click with no tool armed
 
     def __init__(self, state: AppState, parent=None):
         super().__init__(parent)
@@ -431,6 +456,9 @@ class CanvasOverlay(QWidget):
         # Zone-placement pin being dragged (the controller re-reads the tone as it moves).
         self._pin_drag_index: Optional[int] = None
 
+        # Densitometer reading under the pointer, for the cursor probe chip.
+        self._probe_reading: Optional[Any] = None
+
         # Before/after split: the stashed baseline frame, its content rect, its converted
         # QImage (cached like the host one) and whether the divider is under the mouse.
         self._compare_qimage_cache: Optional[Tuple[tuple, QImage]] = None
@@ -440,6 +468,7 @@ class CanvasOverlay(QWidget):
         self.pan_x: float = 0.0
         self.pan_y: float = 0.0
         self.fit_height_reserve: float = 0.0
+        self.fit_margin: float = 0.0
 
         self._view_rect: QRectF = QRectF()
 
@@ -501,6 +530,11 @@ class CanvasOverlay(QWidget):
 
         if sys.platform == "win32":
             self.setAttribute(Qt.WidgetAttribute.WA_StaticContents, False)
+
+    def set_probe_reading(self, reading: Optional[Any]) -> None:
+        self._probe_reading = reading
+        if self.state.cursor_probe:
+            self.update()
 
     def set_transform(self, zoom: float, px: float, py: float) -> None:
         self.zoom_level = zoom
@@ -777,7 +811,8 @@ class CanvasOverlay(QWidget):
         img_w, img_h = size.width(), size.height()
 
         fit_h = max(1.0, h - self.fit_height_reserve)
-        scale_fit = min(w / img_w, fit_h / img_h)
+        margin = 2.0 * self.fit_margin
+        scale_fit = min(max(1.0, w - margin) / img_w, max(1.0, fit_h - margin) / img_h)
         total_scale = scale_fit * self.zoom_level
 
         final_w = img_w * total_scale
@@ -1176,6 +1211,9 @@ class CanvasOverlay(QWidget):
         if self.state.grain_focuser and not self.state.test_strip and self.state.dust_overlay_mode != "ir":
             self._draw_grain_loupe(painter)
 
+        if self.state.cursor_probe and content_aligned and not self.state.test_strip and self._tool_mode in _PROBE_TOOLS:
+            self._draw_cursor_probe(painter)
+
     def _draw_grid(self, painter: QPainter, rect: QRectF, divisions: int, alpha: int) -> None:
         """Even N×N reference grid (interior lines only) across `rect`, screen-aligned."""
         pen = QPen(QColor(255, 255, 255, alpha), 1, Qt.PenStyle.SolidLine)
@@ -1288,7 +1326,7 @@ class CanvasOverlay(QWidget):
         if x - target.left() > 92:
             draw_view_badge(painter, "BEFORE", target.left() + 12, target.top() + 12)
         if target.right() - x > 92:
-            draw_view_badge(painter, "AFTER", target.right() - 80, target.top() + 12)
+            draw_view_badge(painter, "AFTER", target.right() - 12 - view_badge_width(painter, "AFTER"), target.top() + 12)
 
     def _draw_peek_badge(self, painter: QPainter) -> None:
         """Name the peek on the canvas. Otherwise only the toolbar says the view is on."""
@@ -1303,8 +1341,7 @@ class CanvasOverlay(QWidget):
         rect = self._content_view_rect()
         if rect.isEmpty():
             return
-        width = painter.fontMetrics().horizontalAdvance(text) + 24.0
-        draw_view_badge(painter, text, rect.left() + 12, rect.top() + 12, width)
+        draw_view_badge(painter, text, rect.left() + 12, rect.top() + 12)
 
     def _draw_brush(self, painter: QPainter, fill: Optional[str] = None) -> None:
         radius = self._brush_screen_radius(self.state.config.retouch.manual_dust_size)
@@ -1742,6 +1779,34 @@ class CanvasOverlay(QWidget):
         # so an accented readout is barely legible over a light frame.
         painter.setPen(QColor(255, 255, 255, 245))
         painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, label)
+
+    def _draw_cursor_probe(self, painter: QPainter) -> None:
+        """The densitometer reading in a chip beside the pointer, past the loupe when that is up."""
+        reading = self._probe_reading
+        if reading is None or not self._content_view_rect().contains(self._mouse_pos):
+            return
+        zone_line, dd_line = probe_lines(reading)
+        fm = painter.fontMetrics()
+        pad = THEME.space_lg
+        w = max(fm.horizontalAdvance(zone_line), fm.horizontalAdvance(dd_line)) + 2 * pad
+        h = 2 * fm.height() + 2 * THEME.space_sm
+        offset = _LOUPE_RADIUS_PX + THEME.space_lg if self.state.grain_focuser else _PROBE_OFFSET_PX
+        x = self._mouse_pos.x() + offset
+        y = self._mouse_pos.y() + _PROBE_OFFSET_PX
+        if x + w > self.width():
+            x = self._mouse_pos.x() - offset - w
+        if y + h > self.height():
+            y = self._mouse_pos.y() - _PROBE_OFFSET_PX - h
+        chip = QRectF(x, y, w, h)
+        painter.setBrush(QColor(0, 0, 0, 170))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(chip, 4, 4)
+        top = QRectF(chip.x() + pad, chip.y() + THEME.space_sm, w - 2 * pad, fm.height())
+        clipped = zone_roman(reading.zone) in ("0", "X")
+        painter.setPen(_ZONE_CLIP_COLOR if clipped else QColor(255, 255, 255, 245))
+        painter.drawText(top, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, zone_line)
+        painter.setPen(QColor(255, 255, 255, 200))
+        painter.drawText(top.translated(0, fm.height()), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, dd_line)
 
     def on_test_strip_changed(self) -> None:
         """Strip came up or went away — drop the hover highlight and the picker cursor."""
@@ -3296,6 +3361,16 @@ class CanvasOverlay(QWidget):
                 self.analysis_confirmed.emit()
                 event.accept()
                 return
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._tool_mode == ToolMode.NONE
+            and not self.state.test_strip
+            and not self._hit_compare_split(event.position())
+            and self._view_rect.contains(event.position())
+        ):
+            self.zoom_toggle_requested.emit(event.position())
+            event.accept()
+            return
         super().mouseDoubleClickEvent(event)
 
     def _finish_draw_if_active(self) -> None:

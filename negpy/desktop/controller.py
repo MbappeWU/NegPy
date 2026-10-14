@@ -474,6 +474,8 @@ class AppController(QObject):
     zone_hover_highlight_changed = pyqtSignal(bool)
     grain_focuser_changed = pyqtSignal(bool)
     printing_notes_changed = pyqtSignal(bool)
+    cursor_probe_changed = pyqtSignal(bool)
+    canvas_info_changed = pyqtSignal(int)
     printing_notes_requested = pyqtSignal()  # the canvas holds the annotated pixels
     strip_requested = pyqtSignal(TestStripTask)
     test_strip_changed = pyqtSignal(bool)  # True = mosaic is up, False = cleared or building
@@ -3163,6 +3165,25 @@ class AppController(QObject):
         holds, so no re-render is needed."""
         self.state.grain_focuser = (not self.state.grain_focuser) if force is None else bool(force)
         self.grain_focuser_changed.emit(self.state.grain_focuser)
+
+    def toggle_cursor_probe(self, force: Optional[bool] = None) -> None:
+        """Densitometer chip beside the pointer. Repaint only."""
+        on = (not self.state.cursor_probe) if force is None else bool(force)
+        self.state.cursor_probe = on
+        self.session.repo.save_global_setting("cursor_probe", on)
+        self.cursor_probe_changed.emit(on)
+
+    def set_canvas_info_level(self, level: int) -> None:
+        """Canvas corner pills: off, basic or full."""
+        self.state.canvas_info_level = level % 3
+        self.session.repo.save_global_setting("canvas_info_level", self.state.canvas_info_level)
+        self.canvas_info_changed.emit(self.state.canvas_info_level)
+
+    def cycle_canvas_info(self) -> None:
+        from negpy.desktop.view.canvas.hud import INFO_LEVEL_LABELS
+
+        self.set_canvas_info_level(self.state.canvas_info_level + 1)
+        self.set_status(f"Frame Info: {INFO_LEVEL_LABELS[self.state.canvas_info_level]}", 1500)
 
     def toggle_printing_notes(self, force: Optional[bool] = None) -> None:
         """Printing-notes overlay (dodge/burn map + print recipe). Repaint only — every

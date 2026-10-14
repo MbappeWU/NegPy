@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import qtawesome as qta
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QCursor, QIcon
+from PyQt6.QtGui import QActionGroup, QCursor, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from negpy.desktop.controller import AppController
 from negpy.desktop.session import ToolMode
+from negpy.desktop.view.canvas.hud import INFO_LEVEL_LABELS
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
@@ -437,12 +438,35 @@ class ActionToolbar(QWidget):
                 "A loupe at the cursor showing the frame's own pixels, with an acutance figure for comparing sharpness across the frame (reads true on HQ)",
                 self.controller.toggle_grain_focuser,
             ),
+            (
+                "cursor_probe",
+                "fa5s.crosshairs",
+                "Probe at Cursor",
+                "toggle_cursor_probe",
+                "Zone, print density and ΔD of the pixel under the pointer, in a chip beside it",
+                self.controller.toggle_cursor_probe,
+            ),
         ):
             action = self.overlays_menu.add_toggle(label, tip)
             action.setIcon(_checkable_menu_icon(icon))
             self._label(action, label, key)
             action.triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
             self._overlay_actions[flag] = action
+        # Not a toggle of the menu button: the corner pills are on by default, and the button lights only for marks.
+        self.overlays_menu.choice_menu.addSeparator()
+        info_menu = self.overlays_menu.choice_menu.addMenu("Frame Info")
+        info_menu.setToolTipsVisible(True)
+        info_group = QActionGroup(self)
+        self._info_actions = []
+        for level, label in enumerate(INFO_LEVEL_LABELS):
+            action = info_menu.addAction(label)
+            action.setCheckable(True)
+            info_group.addAction(action)
+            action.triggered.connect(lambda _checked=False, level=level: self.controller.set_canvas_info_level(level))
+            self._info_actions.append(action)
+        self._info_actions[0].setToolTip("No corner pills")
+        self._info_actions[1].setToolTip("File name, scan size and film mode")
+        self._info_actions[2].setToolTip("Adds the frame's place in the strip, film, camera and lens, the proof and the export size")
 
         self.btn_tools = MenuButton("Tools — crop, straighten, the pickers, masks and retouching; each opens its own row here")
         self.btn_tools.setIcon(qta.icon("fa5s.tools", color=icon_color, color_disabled=THEME.text_muted))
@@ -600,6 +624,9 @@ class ActionToolbar(QWidget):
         self._ov_notes_action = overflow_menu.addAction("Printing Notes")
         self._ov_notes_action.setCheckable(True)
         self._menu_tip(self._ov_notes_action, "The dodge and burn map and the print recipe", "toggle_printing_notes")
+        self._ov_probe_action = overflow_menu.addAction("Probe at Cursor")
+        self._ov_probe_action.setCheckable(True)
+        self._menu_tip(self._ov_probe_action, "Zone, print density and ΔD of the pixel under the pointer", "toggle_cursor_probe")
         self._ov_undo_action = overflow_menu.addAction(qta.icon("mdi.undo", color=icon_color), "Undo")
         self._menu_tip(self._ov_undo_action, "Undo", "undo")
         self._ov_redo_action = overflow_menu.addAction(qta.icon("mdi.redo", color=icon_color), "Redo")
@@ -932,6 +959,7 @@ class ActionToolbar(QWidget):
             action.setChecked(bool(getattr(state, flag)))
         for flag, action in self._ov_view_actions.items():
             action.setChecked(bool(getattr(state, flag)))
+        self._info_actions[state.canvas_info_level].setChecked(True)
 
     def _on_source_chosen(self, index: int) -> None:
         state = self.session.state
@@ -979,6 +1007,7 @@ class ActionToolbar(QWidget):
             "grain_focuser": self._ov_loupe_action,
             "clipping_overlay": self._ov_clipping_action,
             "printing_notes": self._ov_notes_action,
+            "cursor_probe": self._ov_probe_action,
         }
         self.source_choice.currentChanged.connect(self._on_source_chosen)
         for signal in (
@@ -991,6 +1020,8 @@ class ActionToolbar(QWidget):
             controller.clipping_overlay_changed,
             controller.printing_notes_changed,
             controller.grain_focuser_changed,
+            controller.cursor_probe_changed,
+            controller.canvas_info_changed,
         ):
             signal.connect(self._sync_view_state)
         controller.zoom_changed.connect(self._on_zoom_changed)
@@ -1016,6 +1047,7 @@ class ActionToolbar(QWidget):
             ("grain_focuser", controller.toggle_grain_focuser),
             ("clipping_overlay", controller.toggle_clipping_overlay),
             ("printing_notes", self.controller.toggle_printing_notes),
+            ("cursor_probe", controller.toggle_cursor_probe),
         ):
             self._ov_view_actions[flag].triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
         self._ov_undo_action.triggered.connect(lambda: _context_undo(controller))

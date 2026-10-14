@@ -240,6 +240,10 @@ class AppState:
 
     # Grain focuser: a near-1:1 loupe following the cursor. Display-only, session-only.
     grain_focuser: bool = False
+    # Densitometer reading in a chip beside the pointer. A persisted preference.
+    cursor_probe: bool = False
+    # Canvas corner pills: 0 off, 1 basic, 2 full (hud.INFO_*). A persisted preference.
+    canvas_info_level: int = 1
 
     # Printing notes: the dodge/burn map and print recipe over the frame. Display-only and
     # session-only, never persisted.
@@ -871,6 +875,8 @@ class DesktopSessionManager(QObject):
             self.state.canvas_bg_index = int(saved_bg)
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
         self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
+        self.state.cursor_probe = bool(self.repo.get_global_setting("cursor_probe", False))
+        self.state.canvas_info_level = int(self.repo.get_global_setting("canvas_info_level", 1) or 0) % 3
 
         saved_immersive = self.repo.get_global_setting("immersive_canvas")
         if saved_immersive is not None:

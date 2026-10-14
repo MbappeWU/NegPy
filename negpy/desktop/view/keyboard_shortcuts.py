@@ -382,6 +382,8 @@ class ShortcutManager:
             "toggle_cyanotype": controller.toggle_cyanotype,
             "toggle_sabattier": controller.toggle_sabattier,
             "toggle_printing_notes": controller.toggle_printing_notes,
+            "toggle_cursor_probe": controller.toggle_cursor_probe,
+            "cycle_frame_info": controller.cycle_canvas_info,
             "toggle_soft_proof": lambda: controller.set_soft_proof(not controller.state.soft_proof_enabled),
             "cancel_tool": lambda: _context_cancel(controller, self.window),
             "show_library": self.window.session_panel.show_library,

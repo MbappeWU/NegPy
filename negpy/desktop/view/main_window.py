@@ -22,8 +22,9 @@ from negpy.desktop.controller import AppController
 from negpy.desktop.session import ToolMode
 from negpy.infrastructure.loaders.constants import SUPPORTED_RAW_EXTENSIONS
 from negpy.desktop.converters import ImageConverter
+from negpy.desktop.view.canvas.hud import INFO_FULL, frame_info
 from negpy.desktop.view.canvas.reference_pane import ReferencePane
-from negpy.desktop.view.canvas.toolbar import ActionToolbar
+from negpy.desktop.view.canvas.toolbar import ActionToolbar, frame_position
 from negpy.desktop.view.canvas.widget import ImageCanvas
 from negpy.desktop.view.keyboard_shortcuts import SpacePanKeyFilter, setup_keyboard_shortcuts
 from negpy.desktop.view.mac_menu_bar import install_mac_menus
@@ -609,6 +610,9 @@ class MainWindow(QMainWindow):
         self.controller.zone_highlight_changed.connect(self.canvas.overlay.update)
         self.controller.grain_focuser_changed.connect(lambda _on: self.canvas.overlay.update())
         self.controller.printing_notes_changed.connect(lambda _on: self.canvas.overlay.update())
+        self.controller.cursor_probe_changed.connect(lambda _on: self.canvas.overlay.update())
+        self.controller.densitometer_readout.connect(self.canvas.overlay.set_probe_reading)
+        self.controller.canvas_info_changed.connect(lambda _level: self._refresh_image_info())
         self.controller.printing_notes_requested.connect(self._save_printing_notes)
         self.controller.compare_frame_ready.connect(self.canvas.refresh_compare)
         self.controller.compare_changed.connect(lambda _on: self.canvas.refresh_compare())
@@ -736,22 +740,38 @@ class MainWindow(QMainWindow):
 
     def _refresh_image_info(self) -> None:
         """Updates the canvas HUD corner pills."""
-        if not self.state.current_file_path:
+        st = self.state
+        if not st.current_file_path:
             self.canvas.hud.set_zoom_note("")
-            self.canvas.hud.update_info("", "", "", "")
+            self.canvas.hud.update_info("", "", "")
             return
-
-        filename = os.path.basename(self.state.current_file_path)
-        w, h = self.state.original_res
-        res_str = f"{w} x {h} px"
-
-        mode_str = str(self.state.config.process.process_mode)
-        edits_str = f"Edits: {self.state.undo_index}"
-
-        self.canvas.hud.update_info(filename, res_str, mode_str, edits_str)
+        w, h = st.original_res
+        proof = os.path.splitext(os.path.basename(st.proof_icc_path))[0] if st.soft_proof_enabled and st.proof_icc_path else ""
+        self.canvas.hud.update_info(
+            *frame_info(
+                st.canvas_info_level,
+                st.config,
+                os.path.basename(st.current_file_path),
+                f"{w} x {h} px",
+                str(st.config.process.process_mode),
+                frame_position(self.controller.session.asset_model, st.selected_file_idx),
+                proof,
+            )
+        )
+        self._on_zoom_info_changed(self.canvas.zoom_level)
 
     def _on_zoom_info_changed(self, zoom: float) -> None:
-        self.canvas.hud.set_zoom_note(self.canvas.zoom_note())
+        """The zoom readout: under the navigator while it is up, else the bottom-right pill."""
+        if not self.state.current_file_path:
+            return
+        note = self.canvas.zoom_note()
+        percent = f"{self.canvas.current_zoom_percent()}%"
+        if not self.canvas.navigator.isHidden():
+            self.canvas.navigator.set_caption(" · ".join(s for s in (percent, note) if s))
+            self.canvas.hud.set_zoom_note("")
+            return
+        full = self.state.canvas_info_level == INFO_FULL
+        self.canvas.hud.set_zoom_note(" · ".join(s for s in (percent if full else "", note) if s))
 
     def _on_export_progress(self, current: int, total: int, filename: str) -> None:
         self.canvas.hud.set_progress(current, total)

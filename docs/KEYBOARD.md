@@ -51,6 +51,7 @@ Actions with no default key are not listed; every one of them can still be bound
 | `Shift + F` | Color ring-around (M/Y filtration) |
 | `Shift + L` | Grain focuser loupe |
 | `Shift + N` | Printing notes (dodge/burn map + print recipe) |
+| `Shift + I` | Probe at cursor (zone, print density and ΔD beside the pointer) |
 | `Shift + P` | Soft proof the print on screen |
 | `Esc` | Leave the current view (peek, split, strip) or cancel the active tool |
 
@@ -71,6 +72,7 @@ Actions with no default key are not listed; every one of them can still be bound
 ## View
 | Key | Action |
 |-----|--------|
+| `I` | Frame info on the canvas: off, basic or full |
 | `Ctrl + [` | Toggle session panel (re-docks when floating) |
 | `Ctrl + ]` | Toggle controls panel (re-docks when floating) |
 | `Ctrl + Shift + L` | Dock session and controls panels |

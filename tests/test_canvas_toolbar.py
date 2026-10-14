@@ -30,6 +30,8 @@ def _make_toolbar() -> ActionToolbar:
     controller.session.state.clipping_overlay = False
     controller.session.state.printing_notes = False
     controller.session.state.grain_focuser = False
+    controller.session.state.cursor_probe = False
+    controller.session.state.canvas_info_level = 1
     controller.session.state.active_tool = ToolMode.NONE
     controller.session.state.clone_picking = False
     controller.session.state.selected_file_idx = 0
