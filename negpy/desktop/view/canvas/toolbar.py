@@ -845,7 +845,7 @@ class ActionToolbar(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         self.zone_style = SegmentedChoice(
-            (("fa5s.palette", "False Color"), ("mdi.gradient-horizontal", "Zone Map"), ("mdi.grid", "Grid")),
+            tuple(zip(("fa5s.palette", "mdi.gradient-horizontal", "mdi.grid"), ZONE_STYLES.values())),
             "Zone Overlay look: a color per zone over the photo, the print in eleven gray steps, or a grid of zone numerals",
             data=tuple(ZONE_STYLES),
         )

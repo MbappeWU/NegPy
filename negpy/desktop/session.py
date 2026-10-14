@@ -72,7 +72,7 @@ class ToolMode(Enum):
 UNCROPPED_PREVIEW_TOOLS = frozenset({ToolMode.CROP_MANUAL, ToolMode.ANALYSIS_DRAW, ToolMode.KEYSTONE_LINES})
 
 # Zone Overlay looks, by stored key and menu label.
-ZONE_STYLES = {"false_color": "False Color", "zone_map": "Zone Map", "grid": "Grid"}
+ZONE_STYLES = {"false_color": "Color", "zone_map": "Grayscale", "grid": "Grid"}
 
 
 @dataclass
