@@ -332,9 +332,9 @@ A 21-step wedge printed through the current curve, alternative process and tonin
 
 #### Zone strip
 
-Ten cells on the Adams scale (**0** paper black, **V** 18% mid-gray); opacity shows how much of the frame lands in each. The end cells turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
+Eleven cells on the Adams scale (**0** paper black, **V** 18% mid-gray, **X** paper white), each zone rounded to the nearest as the Zone Overlay counts it; opacity shows how much of the frame lands in each. The two cells at each end turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
 
-Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the canvas toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **False Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Zone Map** draws the print in eleven gray steps. Both number the larger regions. Hovering the frame outlines the pointer's zone and rings its legend cell; hovering a legend cell shows that zone alone. Hovering a strip cell lights up the pixels that print in that zone; the highlighter icon in the Analysis header toggles this.
+Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the canvas toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **False Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Zone Map** draws the print in eleven gray steps. Both number the larger regions. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
 
 #### Probe
 
@@ -1149,7 +1149,7 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 
 ### Accessibility
 
-*   **Color vision** (default **Standard**): colors for marks told apart by color alone (dust overlay, dodge and burn masks, zone highlight, clipping overlay). *Protanopia / deuteranopia*, *Tritanopia* and *Achromatopsia* use colors from the Okabe–Ito palette.
+*   **Color vision** (default **Standard**): colors for marks told apart by color alone (dust overlay, dodge and burn masks, Zone Overlay, clipping overlay). *Protanopia / deuteranopia*, *Tritanopia* and *Achromatopsia* use colors from the Okabe–Ito palette.
 
 ### Performance
 

@@ -80,7 +80,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_embedded_peek": ShortcutEntry("P", "Peek the camera's embedded preview; hold to peek only while down", "Tools"),
     "toggle_zones": ShortcutEntry("Shift+Z", "Adams zone overlay", "Tools"),
     "toggle_clipping_overlay": ShortcutEntry("", "Clipping Overlay: paper black and paper white on the frame", "Tools"),
-    "toggle_zone_hover_highlight": ShortcutEntry("", "Zone Highlight: light up the zone strip's hovered zone on the frame", "Tools"),
+    "toggle_zone_hover_highlight": ShortcutEntry("", "Zone Highlight: show the zone strip's hovered zone alone on the frame", "Tools"),
     "toggle_hq": ShortcutEntry("", "Toggle high-quality (full-resolution) preview", "View"),
     "toggle_optical_removal": ShortcutEntry("", "Toggle Optical Removal", "Retouch"),
     "toggle_right_click_excludes": ShortcutEntry("", "Toggle right-click excludes from Optical Removal", "Retouch"),

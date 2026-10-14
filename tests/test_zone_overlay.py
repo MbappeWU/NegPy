@@ -117,16 +117,17 @@ def test_hovering_the_frame_reports_its_zone_until_the_pointer_leaves(qapp):
     assert seen == [10, 0, None]
 
 
-def test_a_highlighted_zone_is_spotlit_not_washed(qapp):
-    overlay = _overlay("false_color")
-    overlay.state.zone_highlight = 0
-    overlay._view_rect = QRectF(0, 0, 400, 300)
-    pixmap = QPixmap(400, 300)
-    painter = QPainter(pixmap)
-    overlay._draw_ui(painter)
-    painter.end()
-    assert ("zone_spot", 0) in overlay._frame_washes
-    assert not any(key[0] == "zone" for key in overlay._frame_washes)
+def test_a_highlighted_zone_is_spotlit_with_the_overlay_on_or_off(qapp):
+    for overlay_on in (True, False):
+        overlay = _overlay("false_color")
+        overlay.state.zones_overlay = overlay_on
+        overlay.state.zone_highlight = 0
+        pixmap = QPixmap(400, 300)
+        painter = QPainter(pixmap)
+        overlay._draw_ui(painter)
+        painter.end()
+        assert list(overlay._frame_washes) == [("zone_spot", 0)]
+        assert overlay._zone_image is None  # the spotlight replaces the map
 
 
 def test_legend_rings_the_pointer_zone_and_reports_hover(qapp):

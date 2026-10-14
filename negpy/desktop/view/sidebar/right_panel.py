@@ -621,7 +621,7 @@ class RightPanel(QWidget):
         )
         self.zone_highlight_btn.setToolTip(
             tooltip_with_shortcut(
-                "Zone Highlight: hover a zone strip cell to light up its pixels on the frame", "toggle_zone_hover_highlight"
+                "Zone Highlight: hover a zone strip cell to show that zone alone on the frame", "toggle_zone_hover_highlight"
             )
         )
 

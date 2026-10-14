@@ -3161,8 +3161,8 @@ class AppController(QObject):
         self.zone_hover_highlight_changed.emit(on)
 
     def set_zone_highlight(self, zone: Optional[int]) -> None:
-        """Lights up one zone-strip cell's pixels on the frame, if the strip's Zone Highlight is
-        on; None clears. Repaint only."""
+        """Shows one zone-strip cell's zone alone, if the strip's Zone Highlight is on; None
+        clears. Repaint only."""
         if zone is not None and not self.state.zone_hover_highlight:
             return
         self.highlight_zone(zone)

@@ -264,22 +264,23 @@ def encoded_of_zone(zone: float) -> float:
 
 
 def zone_occupancy(l_bins: np.ndarray) -> np.ndarray:
-    """Fold display-encoded luma histogram bins into ZONE_COUNT occupancy fractions."""
+    """Fold display-encoded luma histogram bins into the share of each zone 0..X, rounded to the
+    nearest zone as zone_field rounds, so the strip and the Zone Overlay count alike."""
     l_bins = np.asarray(l_bins, dtype=float)
-    out = np.zeros(ZONE_COUNT)
+    out = np.zeros(ZONE_COUNT + 1)
     total = float(l_bins.sum())
     if total <= 0.0:
         return out
     centers = (np.arange(l_bins.size) + 0.5) / l_bins.size
-    cells = np.minimum(np.asarray(zone_of_encoded(centers)).astype(int), ZONE_COUNT - 1)
+    cells = np.clip(np.rint(np.asarray(zone_of_encoded(centers))), 0, ZONE_COUNT).astype(int)
     np.add.at(out, cells, l_bins)
     return out / total
 
 
 def zone_warnings(occ: np.ndarray) -> Tuple[bool, bool]:
-    """(shadow, highlight): a texture zone pair is empty while its extreme holds mass."""
+    """(shadow, highlight): a texture zone pair is empty while its extreme pair holds mass."""
     shadow = float(occ[2] + occ[3]) < ZONE_EMPTY and float(occ[0] + occ[1]) > ZONE_LOADED
-    highlight = float(occ[7] + occ[8]) < ZONE_EMPTY and float(occ[9]) > ZONE_LOADED
+    highlight = float(occ[7] + occ[8]) < ZONE_EMPTY and float(occ[9] + occ[10]) > ZONE_LOADED
     return shadow, highlight
 
 
@@ -292,15 +293,6 @@ def _mask_preview(rgb: Any, max_edge: int) -> Optional[np.ndarray]:
         return None
     step = max(1, -(-max(rgb.shape[:2]) // max_edge))
     return np.ascontiguousarray(rgb[::step, ::step, :3], dtype=np.float32)
-
-
-def zone_mask(rgb: Any, zone: int, max_edge: int = MASK_MAX_EDGE) -> Optional[np.ndarray]:
-    """Pixels in one zone-strip cell (IX also holds X), on a strided preview of an encoded frame."""
-    small = _mask_preview(rgb, max_edge)
-    if small is None:
-        return None
-    cells = np.minimum(np.nan_to_num(zone_of_encoded(get_luminance(small))).astype(np.int32), ZONE_COUNT - 1)
-    return cells == int(zone)
 
 
 def clip_masks(rgb: Any, max_edge: int = MASK_MAX_EDGE) -> Optional[Tuple[np.ndarray, np.ndarray]]:

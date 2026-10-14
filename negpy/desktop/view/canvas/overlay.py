@@ -39,7 +39,6 @@ from negpy.features.exposure.analysis import (
     strip_nearest_cell,
     zone_anchors,
     zone_field,
-    zone_mask,
     zone_shares,
 )
 from negpy.features.exposure.densitometer import zone_roman
@@ -92,7 +91,6 @@ _LOCAL_TOOLS = (ToolMode.NONE, *_SHAPE_FOR_TOOL)
 
 _IR_CORRECTED_ALPHA = 55  # dim wash over repaired regions
 _CLIP_WASH_ALPHA = 200  # clipped pixels must read as marks over any print
-_ZONE_HIGHLIGHT_ALPHA = 150
 
 
 def _tint_qimage(layers: List[Tuple[np.ndarray, QColor]], alpha: int) -> QImage:
@@ -1206,9 +1204,9 @@ class CanvasOverlay(QWidget):
         if content_aligned and not self.state.test_strip:
             if self.state.clipping_overlay:
                 self._draw_clipping_overlay(painter)
-            # With the Zone Overlay up the highlight is its spotlight instead of a wash.
+            # The Zone Overlay draws the spotlight itself, in place of its map.
             if self.state.zone_highlight is not None and not self.state.zones_overlay:
-                self._draw_zone_highlight(painter)
+                self._draw_zone_spotlight(painter, int(self.state.zone_highlight))
 
         # Pins are content-anchored, so they hide with the strip (whose mosaic
         # replaces the frame) and in the uncropped tool views.
@@ -1656,19 +1654,6 @@ class CanvasOverlay(QWidget):
         if img is not None:
             painter.drawImage(self._content_view_rect(), img)
 
-    def _draw_zone_highlight(self, painter: QPainter) -> None:
-        """The zone the strip's hover names, washed over the pixels that print in it."""
-        zone = int(self.state.zone_highlight)
-        color = palette_for(self.state.color_vision).spot
-
-        def build(src: np.ndarray) -> Optional[QImage]:
-            mask = zone_mask(src, zone)
-            return None if mask is None else _tint_qimage([(mask, QColor(color))], _ZONE_HIGHLIGHT_ALPHA)
-
-        img = self._frame_wash(("zone", zone, color), build)
-        if img is not None:
-            painter.drawImage(self._content_view_rect(), img)
-
     def _zone_map_field(self) -> Optional[np.ndarray]:
         if self._zone_field is None:
             src = self._content_host_buffer()
@@ -1706,49 +1691,59 @@ class CanvasOverlay(QWidget):
 
         ponytail: the field is built once per frame at ZONE_FIELD_MAX_EDGE, so deep zoom
         shows its pixels. Rebuild from the visible sub-rect if that ever matters."""
+        if self.state.zone_highlight is not None:
+            self._draw_zone_spotlight(painter, int(self.state.zone_highlight))
+            return
         zones = self._zone_map_field()
         rect = self._content_view_rect()
         if zones is None or rect.isEmpty():
             return
-        spot = self.state.zone_highlight
-        if spot is None:
-            painter.drawImage(rect, self._zone_map_image(zones))
-        else:
-            dim = self._frame_wash(("zone_spot", spot), lambda _src: _tint_qimage([(zones != spot, QColor(0, 0, 0))], _ZONE_SPOT_DIM_ALPHA))
-            if dim is not None:
-                painter.drawImage(rect, dim)
+        painter.drawImage(rect, self._zone_map_image(zones))
+        if self._zone_hover is not None:
+            self._draw_zone_outline(painter, zones, rect, self._zone_hover)
 
         h, w = zones.shape
         sx, sy = rect.width() / w, rect.height() / h
-        outlined = spot if spot is not None else self._zone_hover
-        if outlined is not None:
-            painter.save()
-            painter.translate(rect.topLeft())
-            painter.scale(sx, sy)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            for color, width in ((QColor(0, 0, 0, _ZONE_LINE_SHADOW_ALPHA), 3.0), (QColor(255, 255, 255, 235), 1.5)):
-                pen = QPen(color, width)
-                pen.setCosmetic(True)
-                painter.setPen(pen)
-                for poly in self._zone_outline(zones, outlined):
-                    painter.drawPolygon(poly)
-            painter.restore()
+        painter.save()
+        painter.setFont(_overlay_label_font(painter))
+        for x, y, zone, inset in self._zone_anchors:
+            if inset * min(sx, sy) < _ZONE_LABEL_MIN_INSET_PX:
+                continue
+            at = QPointF(rect.x() + (x + 0.5) * sx, rect.y() + (y + 0.5) * sy)
+            cell = QRectF(at.x() - 40.0, at.y() - 20.0, 80.0, 40.0)
+            label = zone_roman(float(zone))
+            # Drop shadow first, or white numerals vanish against a light zone.
+            painter.setPen(QColor(0, 0, 0, 160))
+            painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
+            painter.setPen(QColor(255, 255, 255, 235))
+            painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
+        painter.restore()
 
-        if spot is None:
-            painter.save()
-            painter.setFont(_overlay_label_font(painter))
-            for x, y, zone, inset in self._zone_anchors:
-                if inset * min(sx, sy) < _ZONE_LABEL_MIN_INSET_PX:
-                    continue
-                at = QPointF(rect.x() + (x + 0.5) * sx, rect.y() + (y + 0.5) * sy)
-                cell = QRectF(at.x() - 40.0, at.y() - 20.0, 80.0, 40.0)
-                label = zone_roman(float(zone))
-                # Drop shadow first, or white numerals vanish against a light zone.
-                painter.setPen(QColor(0, 0, 0, 160))
-                painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
-                painter.setPen(QColor(255, 255, 255, 235))
-                painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
-            painter.restore()
+    def _draw_zone_outline(self, painter: QPainter, zones: np.ndarray, rect: QRectF, zone: int) -> None:
+        h, w = zones.shape
+        painter.save()
+        painter.translate(rect.topLeft())
+        painter.scale(rect.width() / w, rect.height() / h)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for color, width in ((QColor(0, 0, 0, _ZONE_LINE_SHADOW_ALPHA), 3.0), (QColor(255, 255, 255, 235), 1.5)):
+            pen = QPen(color, width)
+            pen.setCosmetic(True)
+            painter.setPen(pen)
+            for poly in self._zone_outline(zones, zone):
+                painter.drawPolygon(poly)
+        painter.restore()
+
+    def _draw_zone_spotlight(self, painter: QPainter, zone: int) -> None:
+        """One zone shown alone, the rest dimmed: what hovering a zone strip or legend cell does,
+        with the Zone Overlay up or not."""
+        zones = self._zone_map_field()
+        rect = self._content_view_rect()
+        if zones is None or rect.isEmpty():
+            return
+        dim = self._frame_wash(("zone_spot", zone), lambda _src: _tint_qimage([(zones != zone, QColor(0, 0, 0))], _ZONE_SPOT_DIM_ALPHA))
+        if dim is not None:
+            painter.drawImage(rect, dim)
+        self._draw_zone_outline(painter, zones, rect, zone)
 
     def _set_zone_hover(self, zone: Optional[int]) -> None:
         if zone != self._zone_hover:
