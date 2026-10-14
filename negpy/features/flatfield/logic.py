@@ -26,9 +26,10 @@ _BLUR_DIVISOR = 64.0
 _CHECK_COPY_SIZE = 512
 
 # Below _LIT_FRACTION of the _LIT_PERCENTILE luminance is carrier (a percentile, so a carrier that fills
-# most of the frame still reads dark). Under _MIN_LIT_FRACTION lit pixels the whole frame is used.
+# most of the frame still reads dark). The fraction puts a carrier's soft shadow edge on the carrier side
+# and keeps a light source's corner falloff lit. Under _MIN_LIT_FRACTION lit pixels the whole frame is used.
 _LIT_PERCENTILE = 95.0
-_LIT_FRACTION = 0.2
+_LIT_FRACTION = 0.35
 _MIN_LIT_FRACTION = 0.02
 # Below this blurred lit weight a pixel is too far from the lit area for the normalized blur
 # to hold, and takes the value of the nearest pixel that is not.
