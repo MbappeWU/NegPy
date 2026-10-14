@@ -37,6 +37,12 @@ from negpy.services.assets.rolls import card_fields
 from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
 
+_SCAN_BASE_TIP = (
+    "Base Relative: each channel's density above its clear film base (the Film Base set on the roll, "
+    "else the base read from the rebate, else the stretch's thin end), so the mask's offset is gone "
+    "and the channels compare at one height"
+)
+
 # The Roll tab's cards that own settings, for its header's Apply picker.
 _ROLL_TAB_CARDS = (
     "film",
@@ -223,6 +229,8 @@ class RightPanel(QWidget):
         self._hover_x: float | None = None
         self._scan_bounds: Any = None
         self._scan_full_scale: Any = None
+        self._scan_base_density: Any = None
+        self._scan_base_source = ""
 
         repo = self.controller.session.repo
         self.scale_btn = SegmentedChoice(
@@ -267,6 +275,10 @@ class RightPanel(QWidget):
         self.parade_overlay_btn = tool_toggle("fa5s.layer-group", "", "Parade Overlay: R, G and B on one plot, white where they agree")
         self.parade_overlay_btn.setChecked(bool(repo.get_global_setting("parade_overlay", False)))
         self.parade_overlay_btn.toggled.connect(self._on_parade_overlay)
+        self.scan_base_btn = tool_toggle("fa5s.ruler-vertical", "", _SCAN_BASE_TIP)
+        self.scan_base_btn.setChecked(bool(repo.get_global_setting("scan_parade_base_relative", False)))
+        self.scan_base_btn.toggled.connect(self._on_scan_base)
+        self.parade_widget.set_base_relative(self.scan_base_btn.isChecked())
         self._sync_parade_overlay()
         self.controller.session.color_vision_changed.connect(self._sync_parade_overlay)
         self._sync_parade_tools()
@@ -275,6 +287,7 @@ class RightPanel(QWidget):
         chart_row.setContentsMargins(0, 0, 0, 0)
         chart_row.addWidget(self.view_btn)
         chart_row.addStretch(1)
+        chart_row.addWidget(self.scan_base_btn)
         chart_row.addWidget(self.parade_overlay_btn)
         chart_row.addWidget(self.scale_btn)
 
@@ -562,6 +575,8 @@ class RightPanel(QWidget):
         for btn, key, base in zip(self._group_buttons, self._group_keys, self._group_tooltips):
             btn.setToolTip(tooltip_with_shortcut(base, f"tab_{key}"))
         self._refresh_zone_strip_hint()
+        self._sync_parade_overlay()
+        self.scan_base_btn.setToolTip(tooltip_with_shortcut(_SCAN_BASE_TIP, "toggle_scan_parade_base"))
         self.metadata_sidebar.apply_shortcut_tooltips()
         self.export_sidebar.apply_shortcut_tooltips()
         self.gear_panel.apply_shortcut_tooltips()
@@ -610,18 +625,26 @@ class RightPanel(QWidget):
     def _sync_parade_tools(self) -> None:
         parade = self.view_btn.currentData() == "parade"
         self.parade_overlay_btn.setVisible(parade)
+        self.scan_base_btn.setVisible(parade and bool(self.controller.state.negative_peek))
+
+    def _on_scan_base(self, on: bool) -> None:
+        self.controller.session.repo.save_global_setting("scan_parade_base_relative", on)
+        self.parade_widget.set_base_relative(on)
+        if self.controller.state.negative_peek:
+            self._push_scan_domain(True)
+        self._sync_parade_overlay()
 
     def _sync_parade_overlay(self) -> None:
         """The overlay reads by hue alone (fringes of the primaries), so only Standard color vision gets it.
-        On the scan the mask keeps the channels apart, so it is for the print only."""
+        On the scan the mask keeps the channels apart, so it needs the base-relative view."""
         standard = self.controller.state.color_vision == "standard"
-        apart = bool(self.controller.state.negative_peek)
+        apart = bool(self.controller.state.negative_peek) and not self.scan_base_btn.isChecked()
         self.parade_overlay_btn.setEnabled(standard and not apart)
         tip = "Parade Overlay: R, G and B on one plot, white where they agree"
         if not standard:
             tip += ". Off under this Color vision: its fringes tell the channels apart by hue alone"
         elif apart:
-            tip += ". Off on the scan: the film's mask keeps the channels apart"
+            tip += ". On the scan, turn on Base Relative first: the film's mask keeps the channels apart"
         self.parade_overlay_btn.setToolTip(tooltip_with_shortcut(tip, "toggle_parade_overlay"))
         self.parade_widget.set_overlay(standard and self.parade_overlay_btn.isChecked())
 
@@ -870,12 +893,26 @@ class RightPanel(QWidget):
 
         config = self.controller.state.config
         unmixed = effective_crosstalk_matrix(config.process, config.process.process_mode) is not None
-        caption = "Scan density, unmixed" if unmixed else "Scan density"
+        caption = "Scan density"
+        if self.scan_base_btn.isChecked():
+            if self._scan_base_density is None:
+                caption += " above thin end"
+            else:
+                caption += " above film base" if self._scan_base_source == "picked" else " above rebate base"
+        if unmixed:
+            caption += ", unmixed"
         bounds = self._scan_bounds
         if bounds is None:
             return None, caption
         ends = np.stack([-np.asarray(bounds.floors, dtype=float)[:3], -np.asarray(bounds.ceils, dtype=float)[:3]], axis=-1)
         return scan_density_axis(ends), caption
+
+    def _push_scan_domain(self, negative: bool) -> None:
+        from negpy.features.exposure.analysis import scan_density_axis
+
+        marks, caption = self._scan_marks_and_caption()
+        base = None if self._scan_base_density is None else scan_density_axis(self._scan_base_density)
+        self.parade_widget.set_scan_domain(negative, marks, caption, full_scale=self._scan_full_scale, base=base)
 
     def _update_histograms(self, metrics: Dict[str, Any]) -> None:
         """Feed the merged chart's two distributions, the zone strip and the clip stats."""
@@ -894,7 +931,9 @@ class RightPanel(QWidget):
         self.waveform_widget.set_data(None if peeking else metrics.get("waveform"), metrics.get("waveform_color"))
         self._scan_bounds = metrics.get("final_bounds") if negative else None
         self._scan_full_scale = metrics.get("scan_full_scale") if negative else None
-        self.parade_widget.set_scan_domain(negative, *self._scan_marks_and_caption(), full_scale=self._scan_full_scale)
+        self._scan_base_density = metrics.get("film_base_density") if negative else None
+        self._scan_base_source = metrics.get("base_source", "")
+        self._push_scan_domain(negative)
         self._sync_parade_tools()
         self._sync_parade_overlay()
         if negative:

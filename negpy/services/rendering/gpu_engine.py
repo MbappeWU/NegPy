@@ -31,6 +31,7 @@ from negpy.features.exposure.normalization import (
     geometry_kwargs,
     luma_source_bounds,
     normalized_roi,
+    base_scan_density,
     density_above_base,
     luminance_density_range,
     measure_base_log,
@@ -895,6 +896,7 @@ class GPUEngine:
         else:
             bounds, base_bounds = resolve_bounds_detailed(settings.process, _analyze_bounds)
             anchor_bounds = luma_source_bounds(settings.process, base_bounds)
+        pass_base_log = None  # a rebate read with no source identity to cache it under (the tiled reference pass)
         if prefiltered is not None and readback_metrics and not transfer and (density_above_base_value is None or needs_bounds_analysis):
             # Only a preview reads the densities, like the anchor's readback_metrics gate. A base
             # the user set on the roll wins; else the rebate reader's, a property of the source
@@ -904,7 +906,7 @@ class GPUEngine:
                 density_above_base_value = density_above_base(tuple(film_base), bounds, prefiltered, unmix_m)
             else:
                 if analysis_source_hash is None:
-                    base_log = measure_base_log(img)
+                    base_log = pass_base_log = measure_base_log(img)
                 else:
                     if self._base_cache is None or self._base_cache[0] != analysis_source_hash:
                         self._base_cache = (analysis_source_hash, measure_base_log(img))
@@ -1660,6 +1662,15 @@ class GPUEngine:
             floors=tuple(f + wp for f, wp in zip(_base_bounds.floors, _wp3)),
             ceils=tuple(c + bp for c, bp in zip(_base_bounds.ceils, _bp3)),
         )
+        # The scan Parade's base: the roll's picked base, else this source's rebate read.
+        read_base_log = None
+        if not transfer:
+            if film_base is not None:
+                read_base_log = tuple(film_base)
+            elif self._base_cache is not None and self._base_cache[0] == analysis_source_hash:
+                read_base_log = self._base_cache[1]
+            else:
+                read_base_log = pass_base_log
         metrics: Dict[str, Any] = {
             "active_roi": roi,
             "base_positive": tex_final,
@@ -1671,6 +1682,7 @@ class GPUEngine:
             "norm_density_range": luminance_density_range(bounds),
             "density_above_base": density_above_base_value,
             "base_source": "picked" if film_base is not None else "read",
+            "film_base_density": base_scan_density(read_base_log, unmix_m),
             "metered_anchor": metered_anchor,
             "contrast_mask_centre": mask_centre,
             "textural_range": textural_range,

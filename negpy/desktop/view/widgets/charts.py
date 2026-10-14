@@ -710,7 +710,7 @@ class WaveformWidget(QWidget):
     channel's own tone across the frame; in the scan domain, each channel's scan density, dense at the
     bottom, with solid marks at the density range the stretch maps onto the curve. The parade's overlay
     draws the three on one plot, added: where they coincide the trace is white. The orange mask keeps
-    a scan's channels apart, so the overlay and the cross-panel line are for the print only."""
+    a scan's channels apart, so the overlay and the cross-panel line need the base-relative view there."""
 
     _GUIDE_ZONES = ((3, "III"), (5, "V"), (7, "VII"))
     _PARADE_GAP = 3
@@ -730,6 +730,8 @@ class WaveformWidget(QWidget):
         self._scan_marks: np.ndarray | None = None
         self._scan_caption = ""
         self._full_scale: np.ndarray | None = None
+        self._scan_base: np.ndarray | None = None
+        self._base_relative = False
         self._overlay = False
 
     def set_overlay(self, enabled: bool) -> None:
@@ -740,27 +742,77 @@ class WaveformWidget(QWidget):
             self.update()
 
     def _aligned(self) -> bool:
-        """Whether one height means the same in every channel: on the print, not on the scan."""
-        return not self._scan
+        """Whether one height means the same in every channel: always on the print, and on the scan
+        only with each channel's base at the top."""
+        return not self._scan or self._base_shifts() is not None
 
     def _split(self) -> bool:
         return self._parade and not (self._overlay and self._aligned())
 
-    def set_scan_domain(self, enabled: bool, marks: Any = None, caption: str = "Scan density", full_scale: Any = None) -> None:
+    def set_scan_domain(
+        self, enabled: bool, marks: Any = None, caption: str = "Scan density", full_scale: Any = None, base: Any = None
+    ) -> None:
         """Read the counts as scan density (Peek Negative) rather than print tone. ``marks`` is the
-        (3, 2) per-channel stretch ends, 0..1 up the panel; ``full_scale`` the (3, cols) counts of
-        scan pixels at sensor clip, which set the top ticks. A domain change drops the marker."""
+        (3, 2) per-channel stretch ends and ``base`` the (3,) clear film base, 0..1 up the panel;
+        ``full_scale`` the (3, cols) counts of scan pixels at sensor clip, which set the top ticks.
+        A domain change drops the marker."""
         enabled = bool(enabled)
         marks = None if marks is None or not enabled else np.asarray(marks, dtype=float)
+        base = None if base is None or not enabled else np.asarray(base, dtype=float).reshape(3)
         if enabled != self._scan:
             self._marker = None
-        if enabled != self._scan:
             self._images = None
+        old_shifts = self._base_shifts()
         self._scan = enabled
         self._scan_marks = marks
+        self._scan_base = base
+        new_shifts = self._base_shifts()
+        if (old_shifts is None) != (new_shifts is None) or (new_shifts is not None and not np.array_equal(old_shifts, new_shifts)):
+            self._images = None
         self._scan_caption = caption if enabled else ""
         self._full_scale = None if full_scale is None or not enabled else np.asarray(full_scale, dtype=float)
         self.update()
+
+    def set_base_relative(self, enabled: bool) -> None:
+        """Shift each scan channel so its clear film base, else its thin stretch mark, sits at the top."""
+        if bool(enabled) != self._base_relative:
+            self._base_relative = bool(enabled)
+            self._images = None
+            self.update()
+
+    def _base_shifts(self) -> np.ndarray | None:
+        """Per-channel shift up the panel, in bins, that puts each film base (else thin mark) at the top."""
+        if not (self._scan and self._base_relative):
+            return None
+        if self._scan_base is not None:
+            zero = self._scan_base
+        elif self._scan_marks is not None:
+            zero = self._scan_marks.max(axis=1)
+        else:
+            return None
+        from negpy.features.exposure.analysis import WAVEFORM_BINS
+
+        # The zero's own bin lands in the top bin.
+        return (WAVEFORM_BINS - 1 - np.minimum(np.floor(np.clip(zero, 0.0, 1.0) * WAVEFORM_BINS), WAVEFORM_BINS - 1)).astype(int)
+
+    def _shown_panels(self) -> np.ndarray:
+        """The counts as drawn: each scan channel moved up by its base shift, with mass pushed past
+        an edge kept in that edge bin."""
+        panels = self._panels()
+        shifts = self._base_shifts()
+        if shifts is None:
+            return panels
+        out = np.zeros_like(panels)
+        bins = panels.shape[1]
+        for c, k in enumerate(shifts.tolist()):
+            k = max(-bins + 1, min(bins - 1, k))
+            if k >= 0:
+                out[c, k:] = panels[c, : bins - k]
+                out[c, -1] += panels[c, bins - k :].sum(axis=0)
+            else:
+                out[c, : bins + k] = panels[c, -k:]
+                out[c, 0] += panels[c, :-k].sum(axis=0)
+        return out
 
     def set_log_scale(self, enabled: bool) -> None:
         if bool(enabled) != self._log_scale:
@@ -802,7 +854,7 @@ class WaveformWidget(QWidget):
 
     def _trace_images(self) -> list[QImage] | None:
         if self._images is None and self._counts is not None:
-            vals = np.log1p(self._panels()) if self._log_scale else self._panels()
+            vals = np.log1p(self._shown_panels()) if self._log_scale else self._shown_panels()
             # A flat area piles into a few bins; scaling by their peak would leave every other trace black.
             ref = float(np.percentile(vals[vals > 0], 99))
             levels = np.clip(vals / ref, 0.0, 1.0)
@@ -826,6 +878,16 @@ class WaveformWidget(QWidget):
                 h, w = level.shape
                 self._images.append(QImage(rgb.data, w, h, w * 3, QImage.Format.Format_RGB888).copy())
         return self._images
+
+    def _shown_marks(self, tones: np.ndarray) -> np.ndarray:
+        """Per-channel axis positions (first axis R, G, B) moved by the base shift, as drawn."""
+        shifts = self._base_shifts()
+        if shifts is None:
+            return tones
+        from negpy.features.exposure.analysis import WAVEFORM_BINS
+
+        offset = shifts / WAVEFORM_BINS
+        return tones + (offset[:, None] if tones.ndim == 2 else offset)
 
     def _scan_ranges(self) -> list[float] | None:
         """Each channel's density range between its stretch marks: the film's own range, which a
@@ -910,14 +972,22 @@ class WaveformWidget(QWidget):
             )
             if self._scan_marks is not None and counts is not None:
                 hexes = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
-                for rect, ends, hex_ in zip(channel_rects, self._scan_marks, hexes):
+                for rect, ends, hex_ in zip(channel_rects, self._shown_marks(self._scan_marks), hexes):
                     painter.setPen(QPen(_alpha(THEME.text_primary if self._split() else hex_, 170), 1))
                     for tone in ends:
                         y = int(min(max(h - tone * h, 1.0), h - 2.0))
                         painter.drawLine(rect.x(), y, rect.x() + rect.width() - 1, y)
+            if self._scan_base is not None and counts is not None:
+                hexes = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
+                for rect, tone, hex_ in zip(channel_rects, self._shown_marks(self._scan_base), hexes):
+                    painter.setPen(QPen(_alpha(THEME.text_primary if self._split() else hex_, 220), 1, Qt.PenStyle.DotLine))
+                    y = int(min(max(h - tone * h, 1.0), h - 2.0))
+                    painter.drawLine(rect.x(), y, rect.x() + rect.width() - 1, y)
 
         if self._marker is not None and counts is not None:
             x, *tones = self._marker
+            if len(tones) == 3 and self._scan:
+                tones = list(self._shown_marks(np.asarray(tones, dtype=float)))
             if len(tones) == 3 and self._split() and self._aligned():
                 # Green's level across all three panels: a neutral rings on it in each.
                 gy = min(max(h - tones[1] * h, 0.0), h - 1.0)

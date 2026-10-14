@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock
 
 import numpy as np
+import pytest
 
 from negpy.desktop.session import AppState
 from negpy.features.exposure.analysis import (
@@ -20,6 +21,13 @@ from negpy.features.exposure.analysis import (
     waveform_parade,
 )
 from negpy.infrastructure.gpu.device import GPUDevice
+
+
+def _require_gpu(metrics: dict) -> None:
+    """Skip when run_pipeline fell back to the CPU: the scan keys exist on both engines, so a
+    fallback would compare the CPU with itself. histogram_raw comes from the GPU only."""
+    if "histogram_raw" not in metrics:
+        pytest.skip("GPU render fell back to the CPU")
 
 
 def test_a_left_to_right_ramp_climbs_column_by_column() -> None:
@@ -251,7 +259,7 @@ def test_a_flat_peek_clears_the_parade() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": parade, "density_parade": parade})
 
-    panel.parade_widget.set_scan_domain.assert_called_once_with(False, full_scale=None)
+    panel._push_scan_domain.assert_called_once_with(False)
     panel.parade_widget.set_data.assert_called_once_with(None)
 
 
@@ -264,7 +272,7 @@ def test_peek_negative_shows_the_scan_on_the_parade() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": np.zeros_like(scan), "density_parade": scan})
 
-    assert panel.parade_widget.set_scan_domain.call_args[0][0] is True
+    panel._push_scan_domain.assert_called_once_with(True)
     panel.parade_widget.set_data.assert_called_once_with(scan)
     panel.waveform_widget.set_data.assert_called_once_with(None, None)
 
@@ -278,7 +286,7 @@ def test_the_print_parade_returns_after_the_peek() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": printed, "density_parade": np.zeros_like(printed)})
 
-    panel.parade_widget.set_scan_domain.assert_called_once_with(False, full_scale=None)
+    panel._push_scan_domain.assert_called_once_with(False)
     panel.parade_widget.set_data.assert_called_once_with(printed)
 
 
@@ -336,9 +344,8 @@ def test_wgsl_scan_parade_matches_the_cpu() -> None:
     _cpu_out, cpu_metrics = proc.run_pipeline(img, cfg, "dparade|cpu", render_size_ref=300, prefer_gpu=False, readback_metrics=True)
     _gpu_out, gpu_metrics = proc.run_pipeline(img, cfg, "dparade|gpu", render_size_ref=300, prefer_gpu=True, readback_metrics=True)
 
-    gpu = gpu_metrics.get("density_parade")
-    if gpu is None:
-        return
+    _require_gpu(gpu_metrics)
+    gpu = gpu_metrics["density_parade"]
     cpu = cpu_metrics["density_parade"]
     assert cpu.sum() == gpu.sum()
     for c in range(3):
@@ -390,12 +397,15 @@ def test_peek_negative_marks_each_channels_stretch_ends() -> None:
 
     panel = MagicMock()
     panel.controller.state = AppState(negative_peek=True)
+    panel.scan_base_btn.isChecked.return_value = False
     panel._scan_marks_and_caption = lambda: RightPanel._scan_marks_and_caption(panel)
+    panel._push_scan_domain = lambda negative: RightPanel._push_scan_domain(panel, negative)
     bounds = LogNegativeBounds(floors=(-2.0, -2.2, -2.6), ceils=(-0.4, -0.7, -1.1))
 
     RightPanel._update_histograms(panel, {"density_parade": np.ones((3, WAVEFORM_BINS, WAVEFORM_COLS)), "final_bounds": bounds})
 
     enabled, marks, caption = panel.parade_widget.set_scan_domain.call_args[0]
+    assert panel.parade_widget.set_scan_domain.call_args[1]["base"] is None
     assert enabled and caption == "Scan density"
     np.testing.assert_allclose(marks, scan_density_axis(np.array([[2.0, 0.4], [2.2, 0.7], [2.6, 1.1]])))
 
@@ -512,29 +522,59 @@ def test_the_overlay_choice_persists_and_shows_only_with_the_parade() -> None:
     panel._sync_parade_tools.assert_called_once_with()
 
 
-def test_the_overlay_shows_only_with_the_parade() -> None:
+def test_the_parade_tools_show_with_the_parade_and_base_relative_only_on_the_scan() -> None:
     from negpy.desktop.view.sidebar.right_panel import RightPanel
 
-    for view, shown in (("waveform", False), ("parade", True)):
+    for view, peek, overlay, base in (("waveform", True, False, False), ("parade", False, True, False), ("parade", True, True, True)):
         panel = MagicMock()
+        panel.controller.state = AppState(negative_peek=peek)
         panel.view_btn.currentData.return_value = view
 
         RightPanel._sync_parade_tools(panel)
 
-        panel.parade_overlay_btn.setVisible.assert_called_once_with(shown)
+        panel.parade_overlay_btn.setVisible.assert_called_once_with(overlay)
+        panel.scan_base_btn.setVisible.assert_called_once_with(base)
 
 
-def test_the_overlay_is_grayed_on_the_scan() -> None:
+def test_the_overlay_waits_for_base_relative_on_the_scan() -> None:
     from negpy.desktop.view.sidebar.right_panel import RightPanel
 
-    for peek, on in ((True, False), (False, True)):
+    for peek, base, on in ((True, False, False), (True, True, True), (False, False, True)):
         panel = MagicMock()
         panel.controller.state = AppState(negative_peek=peek)
         panel.parade_overlay_btn.isChecked.return_value = True
+        panel.scan_base_btn.isChecked.return_value = base
 
         RightPanel._sync_parade_overlay(panel)
 
         panel.parade_overlay_btn.setEnabled.assert_called_once_with(on)
+
+
+def test_base_relative_persists_and_renames_the_caption() -> None:
+    from negpy.desktop.view.sidebar.right_panel import RightPanel
+    from negpy.features.exposure.normalization import LogNegativeBounds
+
+    panel = MagicMock()
+    panel.controller.state = AppState(negative_peek=True)
+    panel._scan_bounds = LogNegativeBounds(floors=(-2.0, -2.2, -2.6), ceils=(-0.4, -0.7, -1.1))
+    panel.scan_base_btn.isChecked.return_value = True
+    panel._scan_marks_and_caption = lambda: RightPanel._scan_marks_and_caption(panel)
+    panel._push_scan_domain = lambda negative: RightPanel._push_scan_domain(panel, negative)
+    panel._scan_base_density = None
+
+    RightPanel._on_scan_base(panel, True)
+
+    panel.controller.session.repo.save_global_setting.assert_called_once_with("scan_parade_base_relative", True)
+    panel.parade_widget.set_base_relative.assert_called_once_with(True)
+    assert panel.parade_widget.set_scan_domain.call_args[0][2] == "Scan density above thin end"
+
+    for source, caption in (("picked", "Scan density above film base"), ("read", "Scan density above rebate base")):
+        panel._scan_base_density = np.array([0.2, 0.6, 0.9])
+        panel._scan_base_source = source
+        RightPanel._on_scan_base(panel, True)
+        args, kwargs = panel.parade_widget.set_scan_domain.call_args
+        assert args[2] == caption
+        np.testing.assert_allclose(kwargs["base"], scan_density_axis(np.array([0.2, 0.6, 0.9])))
 
 
 def test_the_overlay_is_off_and_grayed_under_a_color_vision_palette() -> None:
@@ -544,6 +584,7 @@ def test_the_overlay_is_off_and_grayed_under_a_color_vision_palette() -> None:
         panel = MagicMock()
         panel.controller.state = AppState(color_vision=vision)
         panel.parade_overlay_btn.isChecked.return_value = True
+        panel.scan_base_btn.isChecked.return_value = False
 
         RightPanel._sync_parade_overlay(panel)
 
@@ -588,8 +629,9 @@ def _scan_parade_peaks(prefer_gpu: bool, crop_preview_full: bool):
     _out, metrics = ImageProcessor().run_pipeline(
         img, cfg, tag, render_size_ref=512, prefer_gpu=prefer_gpu, readback_metrics=True, crop_preview_full=crop_preview_full
     )
-    parade = metrics.get("density_parade")
-    return None if parade is None else parade[1].argmax(axis=0)
+    if prefer_gpu:
+        _require_gpu(metrics)
+    return metrics["density_parade"][1].argmax(axis=0)
 
 
 def test_the_scan_parade_spans_the_whole_frame_while_the_crop_tool_shows_it() -> None:
@@ -605,8 +647,6 @@ def test_the_scan_parade_spans_the_whole_frame_while_the_crop_tool_shows_it() ->
 @unittest.skipUnless(GPUDevice.get().is_available, "GPU not available")
 def test_wgsl_scan_parade_spans_the_whole_frame_like_the_cpu() -> None:
     gpu = _scan_parade_peaks(prefer_gpu=True, crop_preview_full=True)
-    if gpu is None:
-        return
     cpu = _scan_parade_peaks(prefer_gpu=False, crop_preview_full=True)
     assert np.abs(gpu.astype(int) - cpu.astype(int)).max() <= 1
 
@@ -631,9 +671,8 @@ def test_wgsl_scan_parade_matches_the_cpu_on_a_slide_with_a_camera_matrix() -> N
     _c, cpu_metrics = proc.run_pipeline(img, cfg, "slide|cpu", prefer_gpu=False, **kw)
     _g, gpu_metrics = proc.run_pipeline(img, cfg, "slide|gpu", prefer_gpu=True, **kw)
 
-    gpu = gpu_metrics.get("density_parade")
-    if gpu is None:
-        return
+    _require_gpu(gpu_metrics)
+    gpu = gpu_metrics["density_parade"]
     cpu = cpu_metrics["density_parade"]
     assert cpu.sum() == gpu.sum()
     for c in range(3):
@@ -715,9 +754,8 @@ def test_wgsl_full_scale_columns_match_the_cpu() -> None:
     _c, cpu_metrics = proc.run_pipeline(img, cfg, "fs|cpu", render_size_ref=300, prefer_gpu=False, readback_metrics=True)
     _g, gpu_metrics = proc.run_pipeline(img, cfg, "fs|gpu", render_size_ref=300, prefer_gpu=True, readback_metrics=True)
 
-    gpu = gpu_metrics.get("scan_full_scale")
-    if gpu is None:
-        return
+    _require_gpu(gpu_metrics)
+    gpu = gpu_metrics["scan_full_scale"]
     cpu = cpu_metrics["scan_full_scale"]
     assert cpu[0].any()
     assert np.array_equal(cpu > 0, gpu > 0)
@@ -748,7 +786,7 @@ def test_the_scan_parade_ticks_full_scale_from_the_scan_before_the_unmix(qapp) -
     assert _top_tick(img, 5) and not _top_tick(img, 60) and not _top_tick(img, 106)
 
 
-def test_the_scan_parade_stays_split_under_the_overlay(qapp) -> None:
+def test_the_scan_parade_overlays_only_when_base_relative(qapp) -> None:
     from negpy.desktop.view.widgets.charts import WaveformWidget
 
     widget = WaveformWidget(parade=True)
@@ -756,5 +794,185 @@ def test_the_scan_parade_stays_split_under_the_overlay(qapp) -> None:
     widget.set_scan_domain(True, np.array([[0.2, 0.7], [0.1, 0.6], [0.0, 0.5]]))
     assert widget._split()
 
+    widget.set_base_relative(True)
+    assert not widget._split()
     widget.set_scan_domain(False)
     assert not widget._split()
+
+
+def test_base_relative_moves_each_channels_thin_mark_to_the_top(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    counts = np.zeros((3, WAVEFORM_BINS, WAVEFORM_COLS))
+    counts[0, 96, 0] = 1.0  # at red's thin mark
+    counts[2, 64, 0] = 1.0  # at blue's thin mark
+    counts[2, 120, 0] = 2.0  # thinner than blue's base: pinned at the top
+    widget.set_data(counts)
+    widget.set_scan_domain(True, np.array([[0.25, 96 / WAVEFORM_BINS], [0.1, 0.6], [0.0, 64 / WAVEFORM_BINS]]))
+    widget.set_base_relative(True)
+
+    shown = widget._shown_panels()
+
+    assert shown[0, -1, 0] == 1.0
+    assert shown[2, -1, 0] == 3.0
+    np.testing.assert_allclose(widget._shown_marks(widget._scan_marks)[:, 1], 1.0, atol=1.0 / WAVEFORM_BINS)
+
+
+def test_base_relative_puts_the_film_base_at_the_top_before_the_thin_mark(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    counts = np.zeros((3, WAVEFORM_BINS, WAVEFORM_COLS))
+    counts[1, 100, 0] = 1.0  # green's base
+    counts[1, 90, 0] = 1.0  # green's thinnest picture tone, below its base
+    widget.set_data(counts)
+    marks = np.array([[0.2, 0.9], [0.2, 90 / WAVEFORM_BINS], [0.2, 0.6]])
+    base = np.array([0.95, 100 / WAVEFORM_BINS, 0.7])
+    widget.set_base_relative(True)
+    widget.set_scan_domain(True, marks, base=base)
+
+    shown = widget._shown_panels()
+
+    assert shown[1, -1, 0] == 1.0
+    assert shown[1, WAVEFORM_BINS - 1 - 10, 0] == 1.0
+    np.testing.assert_allclose(widget._shown_marks(base), 1.0, atol=1.0 / WAVEFORM_BINS)
+
+
+def test_the_scan_parade_draws_the_film_base_line(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    widget.resize(300, 200)
+    counts = np.zeros((3, WAVEFORM_BINS, WAVEFORM_COLS))
+    counts[:, -1, 0] = 1.0
+    widget.set_data(counts)
+    widget.set_scan_domain(True, np.array([[0.2, 0.7]] * 3))
+    y = int(200 - 0.85 * 200)
+
+    def dots(img) -> int:
+        from PyQt6.QtGui import QColor
+
+        return sum(QColor(img.pixel(x, y)).lightness() > 40 for x in range(img.width()))
+
+    assert dots(widget.grab().toImage()) < 10
+    widget.set_scan_domain(True, np.array([[0.2, 0.7]] * 3), base=np.full(3, 0.85))
+    assert dots(widget.grab().toImage()) > 60  # a dotted line across all three panels
+
+
+def test_both_engines_report_the_picked_film_base_as_scan_density() -> None:
+    from negpy.domain.models import WorkspaceConfig
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    grad = np.linspace(0.05, 0.6, 300, dtype=np.float32)
+    img = np.ascontiguousarray(np.repeat(np.stack([grad, grad * 0.8, grad * 0.5], axis=-1)[None], 200, axis=0))
+    base_log = (-0.1, -0.3, -0.5)
+    proc = ImageProcessor()
+    kw = dict(render_size_ref=300, readback_metrics=True, film_base=base_log)
+
+    _c, cpu = proc.run_pipeline(img, WorkspaceConfig(), "fb|cpu", prefer_gpu=False, **kw)
+    np.testing.assert_allclose(cpu["film_base_density"], (0.1, 0.3, 0.5), atol=1e-6)
+    if GPUDevice.get().is_available:
+        _g, gpu = proc.run_pipeline(img, WorkspaceConfig(), "fb|gpu", prefer_gpu=True, **kw)
+        _require_gpu(gpu)
+        np.testing.assert_allclose(gpu["film_base_density"], cpu["film_base_density"], atol=1e-6)
+
+
+def _unmix_cfg():
+    from dataclasses import replace
+
+    from negpy.domain.models import WorkspaceConfig
+
+    cfg = WorkspaceConfig()
+    # A strong positive cross term pulls a clipped red off full scale wherever green is dense.
+    matrix = (1.0, 0.25, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    return replace(cfg, process=replace(cfg.process, crosstalk_strength=1.0, crosstalk_matrix=matrix))
+
+
+def test_full_scale_ticks_read_the_scan_before_the_unmix() -> None:
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    img = np.full((200, 300, 3), (0.5, 0.03, 0.4), dtype=np.float32)
+    img[:, 150:, 0] = 1.0
+    proc = ImageProcessor()
+    kw = dict(render_size_ref=300, readback_metrics=True)
+
+    _c, cpu = proc.run_pipeline(img, _unmix_cfg(), "fsu|cpu", prefer_gpu=False, **kw)
+
+    right = slice(WAVEFORM_COLS // 2 + 1, WAVEFORM_COLS)
+    assert cpu["scan_full_scale"][0, right].all()
+    assert not cpu["density_parade"][0, -1, right].any()  # the unmixed red sits below the top bin
+    if GPUDevice.get().is_available:
+        _g, gpu = proc.run_pipeline(img, _unmix_cfg(), "fsu|gpu", prefer_gpu=True, **kw)
+        _require_gpu(gpu)
+        assert np.array_equal(gpu["scan_full_scale"] > 0, cpu["scan_full_scale"] > 0)
+        for c in range(3):
+            g, k = gpu["density_parade"][c], cpu["density_parade"][c]
+            assert float(np.abs(g / g.sum() - k / k.sum()).sum()) < 0.02
+
+
+def test_the_film_base_reads_through_the_unmix_on_both_engines() -> None:
+    from negpy.features.exposure.normalization import effective_crosstalk_matrix
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    grad = np.linspace(0.05, 0.6, 300, dtype=np.float32)
+    img = np.ascontiguousarray(np.repeat(np.stack([grad, grad * 0.8, grad * 0.5], axis=-1)[None], 200, axis=0))
+    base_log = (-0.1, -0.3, -0.5)
+    cfg = _unmix_cfg()
+    matrix = effective_crosstalk_matrix(cfg.process, cfg.process.process_mode)
+    want = -(matrix @ np.array(base_log))
+    proc = ImageProcessor()
+    kw = dict(render_size_ref=300, readback_metrics=True, film_base=base_log)
+
+    _c, cpu = proc.run_pipeline(img, cfg, "fbu|cpu", prefer_gpu=False, **kw)
+    np.testing.assert_allclose(cpu["film_base_density"], want, atol=1e-5)
+    if GPUDevice.get().is_available:
+        _g, gpu = proc.run_pipeline(img, cfg, "fbu|gpu", prefer_gpu=True, **kw)
+        _require_gpu(gpu)
+        np.testing.assert_allclose(gpu["film_base_density"], want, atol=1e-5)
+
+
+def test_a_slide_reports_no_film_base_after_a_negative() -> None:
+    from dataclasses import replace
+
+    from negpy.domain.models import WorkspaceConfig
+    from negpy.features.process.models import ProcessMode
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    img = np.ascontiguousarray(np.full((60, 90, 3), 0.4, dtype=np.float32))
+    proc = ImageProcessor()
+    kw = dict(render_size_ref=90, readback_metrics=True, film_base=(-0.1, -0.3, -0.5), prefer_gpu=False)
+    slide = replace(WorkspaceConfig(), process=replace(WorkspaceConfig().process, process_mode=ProcessMode.E6))
+
+    _o, neg = proc.run_pipeline(img, WorkspaceConfig(), "stale|neg", **kw)
+    _o, pos = proc.run_pipeline(img, slide, "stale|pos", **kw)
+
+    assert neg["film_base_density"] is not None
+    assert "film_base_density" in pos and pos["film_base_density"] is None
+
+
+def test_the_film_base_survives_a_drag_on_the_cpu() -> None:
+    from negpy.domain.models import WorkspaceConfig
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    img = np.ascontiguousarray(np.full((60, 90, 3), 0.4, dtype=np.float32))
+    proc = ImageProcessor()
+    kw = dict(render_size_ref=90, film_base=(-0.1, -0.3, -0.5), prefer_gpu=False)
+
+    proc.run_pipeline(img, WorkspaceConfig(), "drag|x", readback_metrics=False, **kw)
+    _o, release = proc.run_pipeline(img, WorkspaceConfig(), "drag|x", readback_metrics=True, **kw)
+
+    np.testing.assert_allclose(release["film_base_density"], (0.1, 0.3, 0.5), atol=1e-6)
+
+
+def test_base_relative_keeps_a_base_at_full_scale_in_place(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    widget.set_data(np.ones((3, WAVEFORM_BINS, WAVEFORM_COLS)))
+    widget.set_base_relative(True)
+    widget.set_scan_domain(True, np.array([[0.2, 0.9]] * 3), base=np.array([1.0, 1.2, 0.5]))
+
+    shifts = widget._base_shifts()
+
+    assert shifts[0] == 0 and shifts[1] == 0 and shifts[2] > 0

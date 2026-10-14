@@ -26,6 +26,12 @@ from negpy.desktop.view.slider_targets import slider_widget_map
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating
 
 
+def _toggle_if_live(button) -> None:
+    """Toggle a panel button only while it can be used: a grayed-out or gated one keeps its setting."""
+    if button.isEnabled() and not hidden_by_gating(button):
+        button.toggle()
+
+
 def _context_undo(controller) -> None:
     """Undo the active retouch tool's last stroke, else the last edit."""
     if controller.session.state.active_tool == ToolMode.CLONE:
@@ -493,7 +499,8 @@ class ShortcutManager:
             "toggle_zones": controller.toggle_zones_overlay,
             "toggle_clipping_overlay": controller.toggle_clipping_overlay,
             "toggle_zone_hover_highlight": controller.toggle_zone_hover_highlight,
-            "toggle_parade_overlay": lambda: right.parade_overlay_btn.toggle(),
+            "toggle_parade_overlay": lambda: _toggle_if_live(right.parade_overlay_btn),
+            "toggle_scan_parade_base": lambda: _toggle_if_live(right.scan_base_btn),
             "toggle_test_strip": controller.toggle_test_strip,
             "toggle_pick_better": controller.toggle_pick_better,
             "finish_pick_better": controller.pick_better_finish,
