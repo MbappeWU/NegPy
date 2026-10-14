@@ -3,14 +3,17 @@
 
 nkscan addresses a frame by its rectangle on the film, measured per strip, where the rest of
 NegPy addresses one by index. The index is resolved against the rectangles the last discovery
-found, cached per device: they are absolute stage addresses, so they stay valid across session
-closes and until the film moves.
+found, cached per device: they are absolute stage addresses, so they stay valid until the film moves.
+
+The backend keeps one nkscan session open per unit, as Nikon Scan does. Each operation uses that
+session. An error closes it, and the next operation opens it again.
 """
 
 from __future__ import annotations
 
 import threading
 import time
+import weakref
 from collections.abc import Callable
 from contextlib import contextmanager, suppress
 from typing import Any, Iterator
@@ -66,6 +69,13 @@ _MAX_NUDGE_LINES = 144
 # The two nkscan framing mechanisms that measure the frames. Only a strip feeder that measures
 # the frames can return a strip without a command.
 _MEASURED_FRAMING = ("thumbnail", "perforation")
+
+
+def _close_units(units: dict[str, Any]) -> None:
+    for session in list(units.values()):
+        with suppress(Exception):
+            session.close()
+    units.clear()
 
 
 def _caps_for(caps: Any) -> ScannerCapabilities:
@@ -226,10 +236,8 @@ class NkscanSession:
         if self._closed:
             return
         self._closed = True
-        try:
-            self._session.close()
-        finally:
-            self._backend._release_session(self)
+        # The unit stays open in the backend. This only ends the hold.
+        self._backend._release_session(self)
 
     def _require_open(self) -> None:
         if self._closed:
@@ -253,6 +261,9 @@ class NkscanBackend:
         self._nk = nkscan
         self._devices_cache: list[ScannerDevice] | None = None
         self._sessions: dict[str, NkscanSession] = {}
+        # The open nkscan session of each unit. The finalizer closes them when NegPy stops.
+        self._units: dict[str, Any] = {}
+        self._finalizer = weakref.finalize(self, _close_units, self._units)
         # Frame rects from the last discovery, per device. Absolute stage addresses, so they
         # outlive the session that measured them, and so does the pass they were measured on:
         # re-previewing a strip after a nudge must not cost another read of the film.
@@ -282,24 +293,32 @@ class NkscanBackend:
     def _probe_devices(self) -> list[ScannerDevice]:
         with self._mapped_errors():
             found = list(self._nk.list_devices())
-        cached = {d.id: d for d in self._devices_cache or []}
+        locations = {str(device.location) for device in found}
+        # A unit that is gone does not come back on the same session.
+        for location in [loc for loc in self._units if loc not in locations]:
+            self._drop(location)
         devices: list[ScannerDevice] = []
         for device in found:
-            location = str(device.location)
-            # Probing opens the unit, and a held one refuses. Reuse what the hold was built from.
-            if location in self._sessions and location in cached:
-                devices.append(cached[location])
-                continue
-            probed = self._probe_one(device, location)
+            probed = self._probe_one(device, str(device.location))
             if probed is not None:
                 devices.append(probed)
         return devices
 
     def _probe_one(self, device: Any, location: str) -> ScannerDevice | None:
+        """The unit and its capabilities. This opens the unit and keeps it open."""
+        with self._lock:
+            session = self._units.get(location)
         try:
-            session = self._nk.Session.open(device)
+            if session is None:
+                session = self._nk.Session.open(device)
+                with self._lock:
+                    self._units[location] = session
+            else:
+                # A command reads the capabilities again if the adapter changed
+                session.media_loaded()
         except Exception as exc:
             logger.warning("Could not probe %s: %s", location, exc)
+            self._drop(location)
             return None
         try:
             caps = session.capabilities
@@ -311,10 +330,12 @@ class NkscanBackend:
             )
         except Exception as exc:
             logger.warning("Could not read capabilities of %s: %s", location, exc)
+            self._drop(location)
             return None
-        finally:
-            with suppress(Exception):
-                session.close()
+
+    def close(self) -> None:
+        """Close every open unit."""
+        _close_units(self._units)
 
     # ── sessions ──────────────────────────────────────────────────────
 
@@ -332,8 +353,45 @@ class NkscanBackend:
         with self._lock:
             self._sessions.pop(session.device_id, None)
 
+    def _unit(self, device_id: str) -> Any:
+        """The open nkscan session of the unit. This opens the unit if it is not open."""
+        with self._lock:
+            session = self._units.get(device_id)
+        if session is None:
+            with self._mapped_errors():
+                session = self._nk.Session(device_id)
+            with self._lock:
+                self._units[device_id] = session
+        return session
+
+    def _drop(self, device_id: str) -> None:
+        """Close the session of the unit. The next operation opens the unit again."""
+        with self._lock:
+            session = self._units.pop(device_id, None)
+        if session is not None:
+            with suppress(Exception):
+                session.close()
+
+    @contextmanager
+    def _dropping(self, device_id: str) -> Iterator[None]:
+        """Close the unit if the operation fails, because nkscan may not know the state of the unit."""
+        try:
+            yield
+        except StripReturned:
+            raise
+        except Exception:
+            self._drop(device_id)
+            raise
+
+    @contextmanager
+    def _using(self, device_id: str, *, notice_return: bool = True) -> Iterator[tuple[Any, str]]:
+        """The staged unit and its model, for one operation. An error closes the unit."""
+        session, model = self._open(device_id, notice_return=notice_return)
+        with self._dropping(device_id):
+            yield session, model
+
     def _open(self, device_id: str, *, notice_return: bool = True) -> tuple[Any, str]:
-        """Open the unit at `device_id` and stage it for a scan.
+        """Stage the unit at `device_id` for a scan. This opens the unit if it is not open.
 
         Raises StripReturned when the unit returned a measured strip, unless `notice_return=False` (an eject).
         Only a strip feeder that measures its frames (SA-21, SA-30) can return a strip without a command.
@@ -341,8 +399,7 @@ class NkscanBackend:
         device = next((d for d in self.list_devices() if d.id == device_id), None)
         model = device.model if device is not None else ""
         idle = time.monotonic() - self._last_contact
-        with self._mapped_errors():
-            session = self._nk.Session(device_id)
+        session = self._unit(device_id)
         try:
             returns = str(session.capabilities.framing) in _MEASURED_FRAMING
             returned: StripReturned | None = None
@@ -366,9 +423,10 @@ class NkscanBackend:
                     session.stage()
             if returned is not None:
                 raise returned
+        except StripReturned:
+            raise
         except Exception:
-            with suppress(Exception):
-                session.close()
+            self._drop(device_id)
             raise
         return session, model
 
@@ -386,12 +444,8 @@ class NkscanBackend:
                 raise RuntimeError(f"Device {device_id} is held by an open session; use session.scan()")
         # Validate before opening: a refused option must never leave the unit staged.
         _validate_params(params)
-        session, model = self._open(device_id)
-        try:
+        with self._using(device_id) as (session, model):
             return self._scan_on_session(session, device_id, model, params, progress, cancel)
-        finally:
-            with suppress(Exception):
-                session.close()
 
     def _scan_on_session(
         self,
@@ -451,17 +505,13 @@ class NkscanBackend:
             if device_id in self._sessions:
                 raise RuntimeError(f"Device {device_id} is held by an open session")
         _validate_params(params)
-        session, _model = self._open(device_id)
-        try:
+        with self._using(device_id) as (session, _model):
             report = _progress_bridge(progress, cancel)
             rect = self._resolve_frame(session, device_id, params, report)
             rect = self.nudged(device_id, rect, params.frame_offset_mm, int(session.capabilities.optical_dpi))
             metering = self.metering(device_id, params.film_type, params.film_format)
             with self._mapped_errors():
                 exposures = session.meter_frame(rect, infrared=True, progress=report, **metering)
-        finally:
-            with suppress(Exception):
-                session.close()
         if cancel.is_set():
             raise RuntimeError("Metering cancelled")
         return {str(k): int(v) for k, v in exposures.items()}
@@ -556,13 +606,8 @@ class NkscanBackend:
             with self._mapped_errors():
                 self.discover_frames(held._session, device_id, film_format=film_format, film_type=film_type)
             return len(self._frames.get(device_id, ()))
-        session, _model = self._open(device_id)
-        try:
-            with self._mapped_errors():
-                self.discover_frames(session, device_id, film_format=film_format, film_type=film_type)
-        finally:
-            with suppress(Exception):
-                session.close()
+        with self._using(device_id) as (session, _model), self._mapped_errors():
+            self.discover_frames(session, device_id, film_format=film_format, film_type=film_type)
         return len(self._frames.get(device_id, ()))
 
     def frames(self, device_id: str) -> list[tuple[int, int, int, int]]:
@@ -675,17 +720,14 @@ class NkscanBackend:
             held = self._sessions.get(device_id)
         if held is not None:
             return held.eject()
-        session, _model = self._open(device_id, notice_return=False)
         try:
-            with self._mapped_errors():
+            with self._using(device_id, notice_return=False) as (session, _model), self._mapped_errors():
                 if device_id in self._returned and not session.media_loaded():
                     ejected = True
                 else:
                     ejected = bool(session.eject())
         finally:
             self.forget_frames(device_id)
-            with suppress(Exception):
-                session.close()
         if ejected:
             self._returned.discard(device_id)
         return ejected

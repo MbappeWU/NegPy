@@ -176,11 +176,11 @@ def test_a_pre_set_cancel_never_touches_the_unit() -> None:
 # ── lifetime ──────────────────────────────────────────────────────────────
 
 
-def test_close_releases_the_unit_and_is_idempotent() -> None:
+def test_close_keeps_the_unit_open_and_is_idempotent() -> None:
     session, module, _ = _roll()
     session.close()
     session.close()
-    assert module.opened[-1].closed
+    assert not module.opened[-1].closed
 
 
 def test_a_closed_strip_refuses_a_preview() -> None:

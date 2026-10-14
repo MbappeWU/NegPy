@@ -122,7 +122,7 @@ class FakeNkscanModule:
     locations: tuple[str, ...] = (DEVICE_ID,)
     frames: tuple[tuple[int, int, int, int], ...] = FRAMES
     caps: FakeCapabilities = field(default_factory=FakeCapabilities)
-    media_loaded_at_open: bool = True
+    film_loaded: bool = True  # the unit's own state, which every session reads
     film_waiting: bool = True  # what load() finds in the adapter
     load_error: Exception | None = None
     with_eject: bool = False
@@ -211,14 +211,14 @@ class FakeSession:
         return self._module.caps
 
     def media_loaded(self) -> bool:
-        return self._module.media_loaded_at_open or getattr(self, "took_film", False)
+        return self._module.film_loaded
 
     def load(self) -> bool:
         self.loads += 1
         if self._module.load_error is not None:
             raise self._module.load_error
-        self.took_film = self._module.film_waiting
-        return self.took_film
+        self._module.film_loaded = self._module.film_waiting
+        return self._module.film_loaded
 
     def stage(self) -> None:
         self.staged += 1

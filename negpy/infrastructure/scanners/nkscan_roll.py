@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable, Iterable, Iterator
-from contextlib import suppress
 from typing import Any
 
 import numpy as np
@@ -120,7 +119,7 @@ class NkscanRollSession:
 
     def _scan_preview(self, rect: tuple[int, int, int, int], cancel: threading.Event, progress: Callable[..., None] | None) -> np.ndarray:
         """A pass of one frame, for a mechanism that measured the film without a strip pass."""
-        with self._backend._mapped_errors():
+        with self._backend._dropping(self._device.id), self._backend._mapped_errors():
             result = self._backend.scan_frame(
                 self._unit(),
                 rect,
@@ -139,13 +138,14 @@ class NkscanRollSession:
     def _ensure_frames(self, cancel: threading.Event, progress: Callable[..., None] | None) -> list[tuple[int, int, int, int]]:
         frames = self._backend.measured_frames(self._device.id, self._film_format, self._film_type)
         if not frames:
-            self._backend.discover_frames(
-                self._unit(),
-                self._device.id,
-                film_format=self._film_format,
-                film_type=self._film_type,
-                progress=_progress_bridge(progress, cancel),
-            )
+            with self._backend._dropping(self._device.id):
+                self._backend.discover_frames(
+                    self._unit(),
+                    self._device.id,
+                    film_format=self._film_format,
+                    film_type=self._film_type,
+                    progress=_progress_bridge(progress, cancel),
+                )
             frames = self._backend.frames(self._device.id)
         self.slot_count = len(frames)
         return frames
@@ -189,8 +189,8 @@ class NkscanRollSession:
         return self._backend.optical_dpi(self._device.id) or int(self._unit().capabilities.optical_dpi)
 
     def _unit(self) -> Any:
-        """The open unit. This opens the unit when it is necessary. A tile from the strip pass does not need it."""
-        if self._session is None:
+        """The staged unit. This stages the unit again if the backend opened it again. A tile from the strip pass does not need it."""
+        if self._session is None or self._session is not self._backend._units.get(self._device.id):
             self._session, self._model = self._backend._open(self._device.id)
         return self._session
 
@@ -199,10 +199,8 @@ class NkscanRollSession:
     def close(self) -> None:
         if self._closed:
             return
+        # The unit stays open in the backend.
         self._closed = True
-        if self._session is not None:
-            with suppress(Exception):
-                self._session.close()
 
     def _require_open(self) -> None:
         if self._closed:
