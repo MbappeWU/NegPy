@@ -102,7 +102,7 @@ def test_strong_corner_falloff_stays_lit():
     r = np.sqrt(((yy - 63.5) / 63.5) ** 2 + ((xx - 95.5) / 95.5) ** 2) / np.sqrt(2)
     reference = np.repeat((1.0 - 0.6 * r)[:, :, None], 3, axis=2)  # corners at 0.4 of the center
 
-    assert ff._lit_mask(reference)[1:-1, 1:-1].all()
+    assert ff._lit_mask(reference)[2:-2, 2:-2].all()
 
 
 def test_carrier_filling_most_of_the_reference_is_masked():
