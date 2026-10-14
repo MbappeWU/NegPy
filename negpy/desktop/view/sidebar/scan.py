@@ -277,15 +277,10 @@ class ScanSidebar(QWidget):
         self.debug_log_widget = self._row_widget(field_row("Debug log", self.debug_log_btn, self.debug_log_folder_btn))
         device.addWidget(self.debug_log_widget)
 
-        # Crop info sits to the right of Frame info, and only appears once there is a crop
-        # to report — Prescan's own crop, when the connected backend uses Prescan at all.
-        frame_info_row = QHBoxLayout()
-        self.frame_label = hint_label("")
+        # The crop label shows only when there is a crop. This crop is the Prescan crop.
         self.crop_label = hint_label("")
         self.crop_label.setVisible(False)
-        frame_info_row.addWidget(self.frame_label)
-        frame_info_row.addWidget(self.crop_label, 1)
-        device.addLayout(frame_info_row)
+        device.addWidget(self.crop_label)
         layout.addWidget(self.device_body)
 
         # ── FILM & QUALITY ───────────────────────────────────
@@ -602,7 +597,6 @@ class ScanSidebar(QWidget):
         device = self._current_device()
         if device is None:
             self.scan_btn.setEnabled(False)
-            self.frame_label.setText("")
             self.dpi_combo.setEnabled(False)
             self.depth_btn.setEnabled(False)
             self.depth_widget.setVisible(False)
@@ -646,7 +640,6 @@ class ScanSidebar(QWidget):
         self.mode_btn.setEnabled(True)
         self.eject_btn.setVisible(caps.can_eject)
         self.eject_btn.setEnabled(caps.can_eject and not self._scanning)
-        self.frame_label.setText(f"Frame: {caps.max_area_mm[0]:.0f} × {caps.max_area_mm[1]:.0f} mm")
 
         # If no film sources, show banner
         if not caps.sources:

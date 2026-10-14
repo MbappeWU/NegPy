@@ -316,7 +316,7 @@ def test_open_roll_wraps_a_backend_that_scans_one_frame_at_a_time(fake_device: S
 
 
 class _MeasuringBackend(FakeBackend):
-    def detect_frames(self, device_id: str, *, film_format: str | None = None) -> int:
+    def detect_frames(self, device_id: str, *, film_format: str | None = None, film_type: str = "negative") -> int:
         self.detect_args = (device_id, film_format)
         return 4
 

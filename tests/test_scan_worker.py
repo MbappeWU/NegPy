@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import threading
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 import pytest
@@ -81,7 +82,7 @@ class _BatchService:
         self.eject_calls.append(device_id)
         return True
 
-    def detect_frames(self, device_id: str, *, film_format: str | None = None) -> int:
+    def detect_frames(self, device_id: str, *, film_format: str | None = None, film_type: str = "negative") -> int:
         self.detect_calls.append(film_format)
         return self.detected
 
@@ -565,7 +566,9 @@ class _FakeRollSession:
     def set_offset(self, slot: int, offset: float) -> None:
         self.offsets[slot] = offset
 
-    def preview(self, slots, *, cancel):
+    def preview(
+        self, slots: Iterable[int], *, cancel: threading.Event, progress: Callable[..., None] | None = None
+    ) -> Iterator[RollPreview]:
         for slot in slots:
             if self._cancel_at == slot:
                 cancel.set()
@@ -663,7 +666,9 @@ def test_run_roll_preview_reports_a_failure_to_open_the_strip() -> None:
 
 def test_run_roll_preview_closes_the_session_when_a_slot_raises() -> None:
     class _Exploding(_FakeRollSession):
-        def preview(self, slots, *, cancel):
+        def preview(
+            self, slots: Iterable[int], *, cancel: threading.Event, progress: Callable[..., None] | None = None
+        ) -> Iterator[RollPreview]:
             yield RollPreview(slot=1, rgb=object())
             raise RuntimeError("transport died")
 

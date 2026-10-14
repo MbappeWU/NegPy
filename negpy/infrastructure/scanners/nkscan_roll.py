@@ -10,14 +10,14 @@ boundary re-previews without touching the scanner.
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import suppress
 from typing import Any
 
 import numpy as np
 
 from negpy.infrastructure.scanners.base import ScannerDevice
-from negpy.infrastructure.scanners.nkscan_backend import _offset_units, _progress_bridge, _shift_frame, _stack_rgb
+from negpy.infrastructure.scanners.nkscan_backend import _offset_units, _progress_bridge, _stack_rgb
 from negpy.infrastructure.scanners.roll import RollPreview, effective_pitch_mm
 from negpy.kernel.system.logging import get_logger
 
@@ -26,17 +26,19 @@ logger = get_logger(__name__)
 _PREVIEW_DEPTH_DPI = 0  # the strip pass has its own resolution; nothing chooses it
 
 
-def slice_frame(strip: np.ndarray, rect: tuple[int, int, int, int], scale: float) -> np.ndarray | None:
+def slice_frame(strip: np.ndarray, rect: tuple[int, int, int, int], columns: np.ndarray | None) -> np.ndarray | None:
     """The frame's own pixels out of the strip pass, or None when it falls outside.
 
-    Columns are feed addresses from the axis start, so a rect maps straight onto them.
+    `columns` is the feed address of each column. The top and bottom of a rect find their columns.
     """
-    if scale <= 0:
+    if columns is None or len(columns) != strip.shape[1]:
         return None
     top, _left, bottom, _right = rect
-    first = int(round(top / scale))
-    last = int(round(bottom / scale))
-    if first < 0 or last > strip.shape[1] or last - first < 2:
+    # A frame before the first column starts at the first column. A frame after the last column
+    # stops at the last column. Nikon Scan shows the frame in the same way.
+    first = int(np.searchsorted(columns, top))
+    last = int(np.searchsorted(columns, bottom))
+    if last - first < 2:
         return None
     return strip[:, first:last]
 
@@ -48,7 +50,7 @@ class NkscanRollSession:
         self,
         backend: Any,
         device: ScannerDevice,
-        session: Any,
+        session: Any | None,
         model: str,
         *,
         dpi: int = _PREVIEW_DEPTH_DPI,
@@ -67,7 +69,7 @@ class NkscanRollSession:
         # Only the fallback meters, and one strip is one exposure decision.
         self._exposures: dict[str, int] | None = None
         self._closed = False
-        self.slot_count = len(backend.measured_frames(device.id, film_format))
+        self.slot_count = len(backend.measured_frames(device.id, film_format, film_type))
         # An absolute rect can be re-addressed backwards, unlike a within-frame offset.
         self.offset_range = (-1.0, 1.0)
         self.supports_single_slot_preview = True
@@ -75,11 +77,13 @@ class NkscanRollSession:
 
     # ── preview ───────────────────────────────────────────────────────
 
-    def preview(self, slots: Iterable[int], *, cancel: threading.Event) -> Iterator[RollPreview]:
+    def preview(
+        self, slots: Iterable[int], *, cancel: threading.Event, progress: Callable[..., None] | None = None
+    ) -> Iterator[RollPreview]:
         self._require_open()
         if cancel.is_set():
             return
-        frames = self._ensure_frames(cancel)
+        frames = self._ensure_frames(cancel, progress)
         if not frames:
             return
         for slot in slots:
@@ -88,9 +92,9 @@ class NkscanRollSession:
             if not 1 <= slot <= len(frames):
                 # The dialog may ask for more slots than this strip turned out to hold.
                 continue
-            offset = self._offsets.get(slot, 0.0)
+            offset = self._reached(slot)
             try:
-                rgb = self._preview_one(slot, cancel)
+                rgb = self._preview_one(slot, cancel, progress)
             except Exception as error:
                 if cancel.is_set():
                     return
@@ -104,42 +108,43 @@ class NkscanRollSession:
         """The strip pass every preview is cut from, where the mechanism took one."""
         return self._backend.strip_pass(self._device.id)
 
-    def _preview_one(self, slot: int, cancel: threading.Event) -> np.ndarray:
+    def _preview_one(self, slot: int, cancel: threading.Event, progress: Callable[..., None] | None) -> np.ndarray:
         rect = self._rect(slot)
         strip = self.thumbnail
         if strip is not None:
-            tile = slice_frame(strip, rect, self._backend.addresses_per_column(self._device.id) or 0.0)
+            tile = slice_frame(strip, rect, self._backend.column_addresses(self._device.id))
             if tile is not None:
                 return tile
             logger.info("Slot %s falls outside the strip pass; scanning it instead", slot)
-        return self._scan_preview(rect, cancel)
+        return self._scan_preview(rect, cancel, progress)
 
-    def _scan_preview(self, rect: tuple[int, int, int, int], cancel: threading.Event) -> np.ndarray:
+    def _scan_preview(self, rect: tuple[int, int, int, int], cancel: threading.Event, progress: Callable[..., None] | None) -> np.ndarray:
         """A pass of one frame, for a mechanism that measured the film without a strip pass."""
         with self._backend._mapped_errors():
             result = self._backend.scan_frame(
-                self._session,
+                self._unit(),
                 rect,
                 dpi=self._dpi or None,
                 samples=1,
                 infrared=False,
                 clean=False,
-                lock_white_balance=self._backend.locks_white_balance(self._film_type),
                 exposures=self._exposures,
-                progress=_progress_bridge(None, cancel),
+                progress=_progress_bridge(progress, cancel),
+                **self._backend.metering(self._device.id, self._film_type, self._film_format),
             )
         if self._exposures is None:
             self._exposures = dict(result.exposures)
         return _stack_rgb(result.colors)
 
-    def _ensure_frames(self, cancel: threading.Event) -> list[tuple[int, int, int, int]]:
-        frames = self._backend.measured_frames(self._device.id, self._film_format)
+    def _ensure_frames(self, cancel: threading.Event, progress: Callable[..., None] | None) -> list[tuple[int, int, int, int]]:
+        frames = self._backend.measured_frames(self._device.id, self._film_format, self._film_type)
         if not frames:
             self._backend.discover_frames(
-                self._session,
+                self._unit(),
                 self._device.id,
                 film_format=self._film_format,
-                progress=_progress_bridge(None, cancel),
+                film_type=self._film_type,
+                progress=_progress_bridge(progress, cancel),
             )
             frames = self._backend.frames(self._device.id)
         self.slot_count = len(frames)
@@ -159,15 +164,35 @@ class NkscanRollSession:
         return slot not in self._approved
 
     def _rect(self, slot: int) -> tuple[int, int, int, int]:
-        """The slot's rect, slid by its offset.
+        """The rect of the slot, moved by its offset and kept on the strip pass.
 
-        The offset is a fraction of one frame pitch, the same units the fine scan receives as
-        millimetres, so preview and scan land on the same film.
+        The offset is a fraction of one frame pitch. The scan gets the same offset in millimetres.
+        The backend applies the same limit to the two, thus the tile and the scan show the same film.
         """
         rect = self._backend.frames(self._device.id)[slot - 1]
         offset_mm = self._offsets.get(slot, 0.0) * self._pitch_mm
-        optical = int(self._session.capabilities.optical_dpi)
-        return _shift_frame(rect, _offset_units(offset_mm, optical))
+        return self._backend.nudged(self._device.id, rect, offset_mm, self._optical_dpi())
+
+    def _reached(self, slot: int) -> float:
+        """The offset that the slot uses after the limit, as a fraction of the pitch."""
+        asked = self._offsets.get(slot, 0.0)
+        frames = self._backend.frames(self._device.id)
+        if not 1 <= slot <= len(frames) or not self._pitch_mm:
+            return asked
+        optical = self._optical_dpi()
+        moved = self._rect(slot)[0] - frames[slot - 1][0]
+        if moved == _offset_units(asked * self._pitch_mm, optical):
+            return asked
+        return moved * 25.4 / optical / self._pitch_mm
+
+    def _optical_dpi(self) -> int:
+        return self._backend.optical_dpi(self._device.id) or int(self._unit().capabilities.optical_dpi)
+
+    def _unit(self) -> Any:
+        """The open unit. This opens the unit when it is necessary. A tile from the strip pass does not need it."""
+        if self._session is None:
+            self._session, self._model = self._backend._open(self._device.id)
+        return self._session
 
     # ── lifetime ──────────────────────────────────────────────────────
 
@@ -175,8 +200,9 @@ class NkscanRollSession:
         if self._closed:
             return
         self._closed = True
-        with suppress(Exception):
-            self._session.close()
+        if self._session is not None:
+            with suppress(Exception):
+                self._session.close()
 
     def _require_open(self) -> None:
         if self._closed:

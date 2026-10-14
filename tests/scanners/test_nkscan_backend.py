@@ -17,6 +17,12 @@ from tests.scanners.fake_nkscan import DEVICE_ID, FRAMES, FakeCapabilities, make
 _PARAMS = ScanParams(dpi=1000, depth=16, capture_ir=False)
 
 
+def _column_top(backend, address: int) -> int:
+    """The column address nearest `address`: a nudge moves a frame by full thumbnail columns."""
+    columns = backend.column_addresses(DEVICE_ID)
+    return int(columns[np.argmin(np.abs(columns - address))])
+
+
 def _scan(backend, params=_PARAMS, progress=None):
     return backend.scan(DEVICE_ID, params, progress or (lambda *_: None), threading.Event())
 
@@ -175,10 +181,10 @@ def test_the_offset_and_the_window_both_reach_the_scan() -> None:
     backend, module = make_backend()
     _scan(
         backend,
-        ScanParams(dpi=1000, depth=16, capture_ir=False, frame=1, frame_offset_mm=25.4, window=(0.0, 0.0, 1.0, 0.5)),
+        ScanParams(dpi=1000, depth=16, capture_ir=False, frame=1, frame_offset_mm=5.08, window=(0.0, 0.0, 1.0, 0.5)),
     )
     top, _left, bottom, _right = module.opened[-1].scans[0]["frame"]
-    assert top == FRAMES[0][0] + 4000
+    assert top == _column_top(backend, FRAMES[0][0] + 800)
     assert bottom - top == (FRAMES[0][2] - FRAMES[0][0]) // 2
 
 
@@ -217,9 +223,9 @@ def test_a_scan_with_no_planes_at_all_is_an_error() -> None:
 
 def test_ice_samples_and_superfine_reach_the_scan() -> None:
     backend, module = make_backend()
-    _scan(backend, ScanParams(dpi=2400, depth=16, capture_ir=True, clean=True, samples=4, superfine=True))
+    _scan(backend, ScanParams(dpi=2400, depth=16, capture_ir=False, clean=True, samples=4, superfine=True))
     asked = module.opened[-1].scans[0]
-    assert asked["clean"] and asked["infrared"] and asked["superfine"]
+    assert asked["clean"] and not asked["infrared"] and asked["superfine"]
     assert (asked["samples"], asked["dpi"]) == (4, 2400)
 
 
@@ -498,36 +504,45 @@ def test_a_unit_that_cannot_give_the_film_back_offers_no_eject() -> None:
     assert backend.list_devices()[0].capabilities.can_eject is False
 
 
-def test_only_a_transport_that_measures_the_film_is_told_the_frame_length() -> None:
-    """A holder with its own frame table fixes the format, so there is nothing to choose."""
-    measured, _ = make_backend(caps=FakeCapabilities(framing="perforation"))
-    assert "135" in measured.list_devices()[0].capabilities.film_formats
+def test_the_format_is_offered_only_where_the_holder_does_not_fix_it() -> None:
+    open_choice, _ = make_backend(caps=FakeCapabilities(framing="thumbnail", film_formats=("66", "67", "69")))
+    assert open_choice.list_devices()[0].capabilities.film_formats == ("66", "67", "69")
 
-    published, _ = make_backend(caps=FakeCapabilities(framing="published"))
-    assert published.list_devices()[0].capabilities.film_formats == ()
+    fixed, _ = make_backend(caps=FakeCapabilities(framing="perforation", film_format="135", film_formats=()))
+    assert fixed.list_devices()[0].capabilities.film_formats == ()
 
 
-def test_only_the_framings_that_take_a_thumbnail_pass_cut_previews_from_a_strip_pass() -> None:
-    for framing, strip_pass in (("thumbnail", True), ("perforation", True), ("published", False), ("address", False)):
-        backend, _ = make_backend(caps=FakeCapabilities(framing=framing))
-        assert backend.list_devices()[0].capabilities.strip_pass is strip_pass, framing
+def test_only_a_unit_that_takes_a_thumbnail_pass_cuts_previews_from_a_strip_pass() -> None:
+    for thumbnail in (True, False):
+        backend, _ = make_backend(caps=FakeCapabilities(framing="published", thumbnail=thumbnail))
+        assert backend.list_devices()[0].capabilities.strip_pass is thumbnail
 
 
 # ── metering ──────────────────────────────────────────────────────────────
 
 
-def test_a_colour_negative_is_metered_per_channel() -> None:
-    """Held together, the orange mask is quantised through and the blue record loses range."""
-    backend, module = make_backend()
-    _scan(backend, dataclasses.replace(_PARAMS, film_type="negative"))
-    assert module.opened[-1].scans[-1]["lock_white_balance"] is False
-
-
-def test_every_other_film_keeps_its_factory_balance() -> None:
-    for film in ("positive", "kodachrome", "mono"):
+def test_the_scan_is_metered_for_the_film_its_format_and_the_measured_base() -> None:
+    """nkscan picks the white balance lock for the film, so the backend does not pass one."""
+    for film in ("negative", "positive", "kodachrome", "mono"):
         backend, module = make_backend()
         _scan(backend, dataclasses.replace(_PARAMS, film_type=film, capture_ir=False))
-        assert module.opened[-1].scans[-1]["lock_white_balance"] is True, film
+        scan = module.opened[-1].scans[-1]
+        assert (scan["film"], scan["format"]) == (film, _PARAMS.film_format), film
+        assert scan["base_density"] == module.base_density
+        assert scan["lock_white_balance"] is None
+
+
+def test_the_strip_is_measured_for_the_film() -> None:
+    backend, module = make_backend()
+    _scan(backend, dataclasses.replace(_PARAMS, film_type="positive", capture_ir=False))
+    assert module.opened[-1].films == ["positive"]
+
+
+def test_a_strip_measured_for_another_film_is_measured_again() -> None:
+    backend, module = make_backend()
+    backend.detect_frames(DEVICE_ID, film_format=_PARAMS.film_format, film_type="negative")
+    _scan(backend, dataclasses.replace(_PARAMS, film_type="positive", capture_ir=False))
+    assert module.opened[-1].films == ["positive"]
 
 
 # ── what is on the film ───────────────────────────────────────────────────
@@ -574,20 +589,20 @@ def test_the_fake_capabilities_carry_what_the_extension_does() -> None:
 
 def test_the_films_the_backend_names_are_films_the_extension_knows() -> None:
     nkscan = pytest.importorskip("nkscan")
-    backend, _ = make_backend()
     for film in FILM_TYPES:
-        assert backend.locks_white_balance(film) == nkscan.Capabilities.locks_white_balance(film)
+        nkscan.Capabilities.locks_white_balance(film)  # raises for a film it does not know
 
 
 def test_a_per_frame_offset_slides_only_the_feed_axis_of_the_frame_asked_for() -> None:
     """The rect moves by the dialled distance on the feed axis only."""
     shift = round(0.7 * 4000 / 25.4)  # 0.7 mm at the fake's optical dpi
-    for frame, offset_mm, expected in ((3, 0.0, 0), (3, 0.7, shift), (3, -0.7, -shift), (1, 0.7, shift)):
-        backend, module = make_backend()
+    for frame, offset_mm in ((3, 0.0), (3, 0.7), (3, -0.7), (1, 0.7)):
+        backend, module = make_backend(strip_slack=20)  # room on the strip pass for the nudge
         _scan(backend, dataclasses.replace(_PARAMS, frame=frame, frame_offset_mm=offset_mm))
 
         rect = module.opened[-1].scans[-1]["frame"]
         detected = FRAMES[frame - 1]
+        expected = _column_top(backend, detected[0] + round(offset_mm / 0.7 * shift)) - detected[0] if offset_mm else 0
         assert rect[0] - detected[0] == expected
         assert rect[2] - detected[2] == expected
         assert (rect[1], rect[3]) == (detected[1], detected[3])  # across-film edges untouched
@@ -637,7 +652,16 @@ def test_metering_reads_the_whole_detected_frame_with_its_offset_but_not_the_win
     exposures = _meter(backend, params)
 
     session = module.opened[-1]
-    assert session.meters == [{"frame": _shift_frame(FRAMES[1], _offset_units(1.0, 4000)), "infrared": True, "lock_white_balance": False}]
+    assert session.meters == [
+        {
+            "frame": _shift_frame(FRAMES[1], _column_top(backend, FRAMES[1][0] + _offset_units(1.0, 4000)) - FRAMES[1][0]),
+            "infrared": True,
+            "film": _PARAMS.film_type,
+            "format": _PARAMS.film_format,
+            "base_density": module.base_density,
+            "lock_white_balance": None,
+        }
+    ]
     assert session.scans == []
     assert exposures == {"red": 11, "green": 22, "blue": 33, "infrared": 44}
     assert session.closed
@@ -792,3 +816,25 @@ def test_a_long_idle_is_no_return_on_a_holder_with_its_own_frame_table(clock) ->
     _scan(backend)
 
     assert module.opened[-1].discoveries == []
+
+
+def test_a_nudge_is_held_on_the_strip_pass() -> None:
+    """The scan lands where the preview showed: both clamp a nudge to the strip pass."""
+    backend, module = make_backend(strip_slack=0)  # the last frame ends where the pass ends
+    _scan(backend, dataclasses.replace(_PARAMS, frame=3, frame_offset_mm=5.0))
+    assert module.opened[-1].scans[-1]["frame"] == FRAMES[2]
+
+
+def test_ice_without_ir_keeps_no_infrared_plane() -> None:
+    """ICE reads the infrared plane to clean the frame, but the scan asked for no IR file."""
+    backend, module = make_backend()
+    result = _scan(backend, dataclasses.replace(_PARAMS, capture_ir=False, clean=True))
+    assert module.opened[-1].scans[-1]["clean"] is True
+    assert result.ir is None and result.ir_valid_mask is None
+
+
+def test_ir_and_ice_together_are_refused_before_the_unit_moves() -> None:
+    backend, module = make_backend()
+    with pytest.raises(RuntimeError, match="IR and ICE cannot be used together"):
+        _scan(backend, dataclasses.replace(_PARAMS, capture_ir=True, clean=True))
+    assert module.opened == []

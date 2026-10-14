@@ -59,8 +59,12 @@ _IDLE_RETURN_S = 9 * 60
 
 _MM_PER_INCH = 25.4
 
-# The two of nkscan's four framing mechanisms that take a thumbnail pass, and so the two that
-# can be told a frame length. The others read the holder's own table or an address.
+# The maximum number of thumbnail lines that a frame moves in each direction. This is one frame,
+# as in Nikon Scan (`CSAThumbCtrl::BaseLineOffset`).
+_MAX_NUDGE_LINES = 144
+
+# The two nkscan framing mechanisms that measure the frames. Only a strip feeder that measures
+# the frames can return a strip without a command.
 _MEASURED_FRAMING = ("thumbnail", "perforation")
 
 
@@ -87,8 +91,9 @@ def _caps_for(caps: Any) -> ScannerCapabilities:
         exposure_time_us=None,
         hw_clean=True,
         roll_discovery=True,
-        strip_pass=str(caps.framing) in _MEASURED_FRAMING,
-        film_formats=FILM_FORMATS if str(caps.framing) in _MEASURED_FRAMING else (),
+        strip_pass=bool(caps.thumbnail),
+        # Only when the holder or adapter does not set the format.
+        film_formats=tuple(caps.film_formats),
         film_types=tuple(FILM_TYPES),
         max_samples=max(1, int(caps.max_samples)),
         # One read mode means no Superfine to switch: every pass on the unit is already one
@@ -133,6 +138,9 @@ def _validate_params(params: ScanParams) -> None:
         raise RuntimeError(f"Unknown film format {params.film_format!r}; expected one of {', '.join(FILM_FORMATS)}")
     if params.film_type not in FILM_TYPES:
         raise RuntimeError(f"Unknown film type {params.film_type!r}; expected one of {', '.join(FILM_TYPES)}")
+    if params.capture_ir and params.clean:
+        # ICE changes the image with the infrared plane, thus an IR file next to it has no use.
+        raise RuntimeError("IR and ICE cannot be used together: ICE changes the image that the IR file is for")
     if (params.capture_ir or params.clean) and not film_passes_infrared(params.film_type):
         label = FILM_TYPES[params.film_type][0]
         raise RuntimeError(f"{label} blocks infrared, so IR and ICE have nothing to read on it")
@@ -250,8 +258,11 @@ class NkscanBackend:
         # re-previewing a strip after a nudge must not cost another read of the film.
         self._frames: dict[str, list[tuple[int, int, int, int]]] = {}
         self._strips: dict[str, np.ndarray] = {}
-        self._columns: dict[str, float] = {}
-        self._formats: dict[str, str | None] = {}  # the film format each device's rects were measured for
+        self._columns: dict[str, np.ndarray] = {}  # The feed address of each column of the strip pass
+        self._densities: dict[str, tuple[float, float, float]] = {}  # The film base density from the strip pass
+        self._optical: dict[str, int] = {}  # The optical dpi of the rect addresses
+        # The film format and the film type of the measurement. The two change the frame search.
+        self._measured_for: dict[str, tuple[str | None, str]] = {}
         # Unreported strip returns, kept apart from the rects so a failed load or eject keeps the return.
         self._returned: set[str] = set()
         self._last_contact = time.monotonic()  # end of the last command to any unit
@@ -325,15 +336,15 @@ class NkscanBackend:
         """Open the unit at `device_id` and stage it for a scan.
 
         Raises StripReturned when the unit returned a measured strip, unless `notice_return=False` (an eject).
-        Only a strip feeder with a strip pass (SA-21, SA-30) is known to return a strip by itself.
+        Only a strip feeder that measures its frames (SA-21, SA-30) can return a strip without a command.
         """
         device = next((d for d in self.list_devices() if d.id == device_id), None)
         model = device.model if device is not None else ""
-        returns = device is not None and device.capabilities.strip_pass
         idle = time.monotonic() - self._last_contact
         with self._mapped_errors():
             session = self._nk.Session(device_id)
         try:
+            returns = str(session.capabilities.framing) in _MEASURED_FRAMING
             returned: StripReturned | None = None
             with self._mapped_errors():
                 loaded = True
@@ -400,7 +411,7 @@ class NkscanBackend:
         rect = self._resolve_frame(session, device_id, params, report)
         optical = int(session.capabilities.optical_dpi)
         detected = rect
-        rect = _shift_frame(rect, _offset_units(params.frame_offset_mm, optical))
+        rect = self.nudged(device_id, rect, params.frame_offset_mm, optical)
         rect = _crop_frame(rect, params.window)
         logger.info("Frame %s detected %s, scanning %s (%+0.2f mm)", params.frame, detected, rect, params.frame_offset_mm)
         with self._mapped_errors():
@@ -412,15 +423,16 @@ class NkscanBackend:
                 superfine=bool(params.superfine),
                 infrared=bool(params.capture_ir),
                 clean=bool(params.clean),
-                lock_white_balance=self.locks_white_balance(params.film_type),
                 exposures=exposures if exposures is not None else params.exposures,
                 progress=report,
+                **self.metering(device_id, params.film_type, params.film_format),
             )
         if cancel.is_set():
             raise RuntimeError("Scan cancelled")
         if result.cleaned:
             logger.info("Dust removal rebuilt %d pixels", result.cleaned)
-        return self._to_result(result, model)
+        # ICE reads the infrared plane to clean the frame. Keep it only when the scan asks for IR.
+        return self._to_result(result, model, self._profile(session, params.film_type), keep_ir=bool(params.capture_ir))
 
     def meter(
         self,
@@ -431,10 +443,9 @@ class NkscanBackend:
     ) -> dict[str, int]:
         """Exposures for `params.frame`, to hand later scans through `ScanParams.exposures`.
 
-        Metered on the whole detected frame, never the window: the rect keeps the film base
-        between frames, which a colour negative's per-channel meter lands on, while a window
-        cropped to the picture meters its highlights. Infrared is metered too, so the result
-        also holds for an IR or ICE scan.
+        Metered on the whole detected frame, never the window: nkscan meters Nikon Scan's crop
+        of the frame for its format. Infrared is metered too, so the result also holds for an
+        IR or ICE scan.
         """
         with self._lock:
             if device_id in self._sessions:
@@ -444,10 +455,10 @@ class NkscanBackend:
         try:
             report = _progress_bridge(progress, cancel)
             rect = self._resolve_frame(session, device_id, params, report)
-            rect = _shift_frame(rect, _offset_units(params.frame_offset_mm, int(session.capabilities.optical_dpi)))
-            lock = self.locks_white_balance(params.film_type)
+            rect = self.nudged(device_id, rect, params.frame_offset_mm, int(session.capabilities.optical_dpi))
+            metering = self.metering(device_id, params.film_type, params.film_format)
             with self._mapped_errors():
-                exposures = session.meter_frame(rect, infrared=True, lock_white_balance=lock, progress=report)
+                exposures = session.meter_frame(rect, infrared=True, progress=report, **metering)
         finally:
             with suppress(Exception):
                 session.close()
@@ -474,17 +485,24 @@ class NkscanBackend:
             raise TransientScanError(f"The pass ended early: {result.blocks} blocks arrived")
         return result
 
-    def locks_white_balance(self, film_type: str) -> bool:
-        """nkscan's own metering default for this film.
+    def metering(self, device_id: str, film_type: str, film_format: str | None) -> dict[str, Any]:
+        """The values that nkscan uses to meter a frame: the film, the format and the film base density.
 
-        A colour negative is metered per channel, which takes the orange mask off before the
-        ADC instead of quantising the blue record through it; everything else keeps the factory
-        balance, because there the cast is the picture.
+        nkscan picks the white balance lock for the film, so a colour negative is metered per channel.
         """
-        return bool(self._nk.Capabilities.locks_white_balance(film_type))
+        return {"film": film_type, "format": film_format, "base_density": self._densities.get(device_id)}
 
-    def _to_result(self, result: Any, model: str) -> ScanResult:
-        ir = result.ir
+    def _profile(self, session: Any, film_type: str) -> bytes | None:
+        """The Nikon Scan profile for this unit and film, as the nkscan CLI embeds it. None if there is no profile."""
+        try:
+            profile = session.nikon_profile(film_type)
+        except Exception as exc:
+            logger.warning("No Nikon profile for %s: %s", film_type, exc)
+            return None
+        return bytes(profile) if profile else None
+
+    def _to_result(self, result: Any, model: str, icc_profile: bytes | None = None, *, keep_ir: bool = True) -> ScanResult:
+        ir = result.ir if keep_ir else None
         return ScanResult(
             rgb=_stack_rgb(result.colors),
             ir=ir,
@@ -492,6 +510,7 @@ class NkscanBackend:
             device_model=model,
             ir_valid_mask=np.ones(ir.shape[:2], dtype=np.bool_) if ir is not None else None,
             exposures={str(k): int(v) for k, v in result.exposures.items()},
+            icc_profile=icc_profile,
         )
 
     # ── frames ────────────────────────────────────────────────────────
@@ -502,41 +521,45 @@ class NkscanBackend:
         device_id: str,
         *,
         film_format: str | None,
+        film_type: str,
         progress: Callable[..., bool] | None = None,
     ) -> Any:
         """Measure the loaded film, cache the rects, and return nkscan's Discovery."""
         with self._mapped_errors():
-            discovery = session.discover_frames(format=film_format, progress=progress)
+            discovery = session.discover_frames(format=film_format, film=film_type, progress=progress)
         # A short thumbnail pass reads as film ending early, so its fit miscounts the frames.
         if discovery.thumbnail_complete is False:
             raise TransientScanError(f"The thumbnail pass ended early: {discovery.thumbnail_blocks} blocks arrived")
+        self.forget_frames(device_id)
         self._frames[device_id] = [tuple(int(v) for v in rect) for rect in discovery.frames]
-        self._formats[device_id] = film_format
-        thumbnail = getattr(discovery, "thumbnail", None)
-        if thumbnail:
-            self._strips[device_id] = _stack_rgb(thumbnail)
-            self._columns[device_id] = float(discovery.addresses_per_column)
+        self._optical[device_id] = int(session.capabilities.optical_dpi)
+        self._measured_for[device_id] = (film_format, film_type)
+        if discovery.thumbnail and discovery.column_addresses:
+            self._strips[device_id] = _stack_rgb(discovery.thumbnail)
+            self._columns[device_id] = np.asarray(discovery.column_addresses, dtype=np.int64)
+        if discovery.base_density is not None:
+            self._densities[device_id] = tuple(float(d) for d in discovery.base_density)
         logger.info("Detected %d frames on %s", len(self._frames[device_id]), device_id)
         return discovery
 
-    def detect_frames(self, device_id: str, *, film_format: str | None = None) -> int:
+    def detect_frames(self, device_id: str, *, film_format: str | None = None, film_type: str = "negative") -> int:
         """How many frames the loaded film carries, measuring it only if that is not known.
 
         A strip previewed a moment ago is already measured, so this usually costs nothing.
         """
-        known = self.measured_frames(device_id, film_format)
+        known = self.measured_frames(device_id, film_format, film_type)
         if known:
             return len(known)
         with self._lock:
             held = self._sessions.get(device_id)
         if held is not None:
             with self._mapped_errors():
-                self.discover_frames(held._session, device_id, film_format=film_format)
+                self.discover_frames(held._session, device_id, film_format=film_format, film_type=film_type)
             return len(self._frames.get(device_id, ()))
         session, _model = self._open(device_id)
         try:
             with self._mapped_errors():
-                self.discover_frames(session, device_id, film_format=film_format)
+                self.discover_frames(session, device_id, film_format=film_format, film_type=film_type)
         finally:
             with suppress(Exception):
                 session.close()
@@ -545,9 +568,9 @@ class NkscanBackend:
     def frames(self, device_id: str) -> list[tuple[int, int, int, int]]:
         return list(self._frames.get(device_id, ()))
 
-    def measured_frames(self, device_id: str, film_format: str | None) -> list[tuple[int, int, int, int]]:
-        """The cached rects, if they were measured for this film format; else none, and the cache is dropped."""
-        if device_id in self._frames and self._formats.get(device_id) != film_format:
+    def measured_frames(self, device_id: str, film_format: str | None, film_type: str) -> list[tuple[int, int, int, int]]:
+        """The cached rects for this film. If the rects are for a different film, this deletes them."""
+        if device_id in self._frames and self._measured_for.get(device_id) != (film_format, film_type):
             self.forget_frames(device_id)
         return self.frames(device_id)
 
@@ -555,8 +578,36 @@ class NkscanBackend:
         """The whole-strip read the frames were measured on, where the mechanism took one."""
         return self._strips.get(device_id)
 
-    def addresses_per_column(self, device_id: str) -> float | None:
-        """Feed addresses one column of the strip pass spans, as that pass measured it."""
+    def optical_dpi(self, device_id: str) -> int | None:
+        """The optical dpi of the cached rect addresses."""
+        return self._optical.get(device_id)
+
+    def nudged(self, device_id: str, rect: tuple[int, int, int, int], offset_mm: float, optical_dpi: int) -> tuple[int, int, int, int]:
+        """Move `rect` along the feed by approximately `offset_mm`, as Nikon Scan moves a frame.
+
+        Nikon Scan moves a frame by full thumbnail lines. It moves a frame by one frame or less,
+        and it keeps the frame on the strip pass. The top is then the address of a line.
+        Without the column addresses of the strip pass, this moves the rect by `offset_mm`.
+        """
+        units = _offset_units(offset_mm, optical_dpi)
+        columns = self._columns.get(device_id)
+        if columns is None or not len(columns) or not units:
+            return _shift_frame(rect, units)
+        top, _left, bottom, _right = rect
+        first = int(np.searchsorted(columns, top))
+        last = int(np.searchsorted(columns, bottom))
+        wanted = int(np.searchsorted(columns, top + units))
+        if 0 < wanted < len(columns) and top + units - columns[wanted - 1] < columns[wanted] - (top + units):
+            wanted -= 1
+        back = -min(first, _MAX_NUDGE_LINES)
+        ahead = max(0, min(_MAX_NUDGE_LINES, len(columns) - 1 - last))
+        lines = max(back, min(wanted - first, ahead))
+        if lines == 0:
+            return rect
+        return _shift_frame(rect, int(columns[first + lines]) - top)
+
+    def column_addresses(self, device_id: str) -> np.ndarray | None:
+        """The feed address of each column of the strip pass. The addresses do not decrease."""
         return self._columns.get(device_id)
 
     def set_frame(self, device_id: str, slot: int, rect: tuple[int, int, int, int]) -> None:
@@ -570,7 +621,9 @@ class NkscanBackend:
         self._frames.pop(device_id, None)
         self._strips.pop(device_id, None)
         self._columns.pop(device_id, None)
-        self._formats.pop(device_id, None)
+        self._densities.pop(device_id, None)
+        self._optical.pop(device_id, None)
+        self._measured_for.pop(device_id, None)
 
     def _resolve_frame(
         self,
@@ -579,12 +632,13 @@ class NkscanBackend:
         params: ScanParams,
         report: Callable[..., bool],
     ) -> tuple[int, int, int, int]:
-        frames = self.measured_frames(device_id, params.film_format)
+        frames = self.measured_frames(device_id, params.film_format, params.film_type)
         if not frames:
             self.discover_frames(
                 session,
                 device_id,
                 film_format=params.film_format,
+                film_type=params.film_type,
                 progress=report,
             )
             frames = self._frames.get(device_id)
@@ -609,7 +663,9 @@ class NkscanBackend:
     ) -> Any:
         from negpy.infrastructure.scanners.nkscan_roll import NkscanRollSession
 
-        session, model = self._open(device.id)
+        # A measured strip gives its tiles from the strip pass. Open the unit only to measure or scan.
+        cut = self.measured_frames(device.id, film_format, film_type) and self.strip_pass(device.id) is not None
+        session, model = (None, device.model) if cut else self._open(device.id)
         return NkscanRollSession(self, device, session, model, dpi=dpi, film_format=film_format, film_type=film_type)
 
     # ── eject ─────────────────────────────────────────────────────────
