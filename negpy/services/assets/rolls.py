@@ -268,10 +268,11 @@ def create_virtual_roll(repo: Any, name: str, member_paths: List[str]) -> str:
     return roll_id
 
 
-def add_extra_members(repo: Any, roll_id: str, paths: List[str]) -> None:
+def add_extra_members(repo: Any, roll_id: str, paths: List[str], parts: Sequence[str] = ()) -> None:
     """Extend a roll's membership, in one write: a folder roll's extra_paths, or a virtual
     roll's member_paths. Skips an unknown roll id, paths already members and files the
-    folder's own walk already finds."""
+    folder's own walk already finds. *parts* (a composite's or triplet's other files) leave
+    excluded_paths with *paths* but never join the membership."""
     store = _read(repo)
     entry = store.get(roll_id)
     if entry is None:
@@ -280,7 +281,7 @@ def add_extra_members(repo: Any, roll_id: str, paths: List[str]) -> None:
     known = set(entry[key])
     folder = _folder_key(entry["folder_path"]) if entry["kind"] == "folder" else None
     new = [p for p in dict.fromkeys(paths) if p not in known and _folder_key(os.path.dirname(p)) != folder]
-    added = {_folder_key(p) for p in paths}
+    added = {_folder_key(p) for p in (*paths, *parts)}
     excluded = entry.get("excluded_paths", [])
     kept = [p for p in excluded if _folder_key(p) not in added]
     if new or kept != excluded:

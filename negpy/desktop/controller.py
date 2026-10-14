@@ -2387,7 +2387,12 @@ class AppController(QObject):
         # Files appended (not replaced) while a roll is active join its membership, so
         # reopening that roll later still shows what was added by hand.
         if not replace_existing and self.state.active_roll_id:
-            rolls.add_extra_members(self.session.repo, self.state.active_roll_id, [a["path"] for a in valid_assets if a.get("path")])
+            rolls.add_extra_members(
+                self.session.repo,
+                self.state.active_roll_id,
+                [a["path"] for a in valid_assets if a.get("path")],
+                parts=[p for a in valid_assets for p in source_files(a)],
+            )
         pending_scan = getattr(self, "_pending_scanned_file", None)
 
         if replace_existing and valid_assets:

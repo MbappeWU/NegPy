@@ -50,6 +50,20 @@ def test_adding_an_excluded_file_back_lifts_the_exclusion():
     assert entry["extra_paths"] == []
 
 
+def test_adding_a_removed_stitch_back_lifts_its_parts_without_adding_them():
+    repo = _repo()
+    roll_id = rolls.recognize_folder(repo, "/scans/roll_a")
+    stitch = {"path": "/scans/roll_a/1.tif", "stitch_paths": ["/scans/roll_a/1.tif", "/scans/roll_a/2.tif", "/elsewhere/3.tif"]}
+    rolls.remove_members(repo, roll_id, source_files(stitch), [])
+    assert rolls.roll_for_id(repo, roll_id)["excluded_paths"] == ["/scans/roll_a/1.tif", "/scans/roll_a/2.tif"]
+
+    rolls.add_extra_members(repo, roll_id, [stitch["path"]], parts=source_files(stitch))
+
+    entry = rolls.roll_for_id(repo, roll_id)
+    assert entry["excluded_paths"] == []
+    assert entry["extra_paths"] == []
+
+
 def test_removal_drops_the_frames_locks_scene_and_fork():
     repo = _repo()
     roll_id = rolls.create_virtual_roll(repo, "Picks", ["/a/1.tif", "/a/2.tif"])
