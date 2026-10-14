@@ -245,6 +245,15 @@ def set_hint_kind(lbl: QLabel, kind: str) -> None:
     style.polish(lbl)
 
 
+def caption_label(text: str) -> QLabel:
+    """A white, bold caption that sits directly above an image (the A/Skip/B frames in Pick Better)."""
+    lbl = QLabel(text)
+    lbl.setStyleSheet(
+        f"color: {THEME.text_on_accent}; font-size: {THEME.font_size_small}px; font-weight: {THEME.weight_bold}; border: none;"
+    )
+    return lbl
+
+
 def toast_qss(kind: str = "info") -> str:
     """Canvas toast and loading chip: title type on a solid dark plate that reads over any canvas.
     kind: "info" | "warning" | "error" picks the text colour, the same three as hint_label."""

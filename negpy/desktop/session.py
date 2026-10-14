@@ -279,6 +279,13 @@ class AppState:
     # and reprint, so a chosen orientation sticks for the session.
     test_strip_rotation: int = 0
 
+    # Pick Better: a session-only two-up, dropped by any real render. `pick_better` is True
+    # while the three-frame window (committed edit on top, the two candidates below) is up;
+    # `pick_better_pending` is True while a pair renders. A click on a candidate commits that
+    # candidate's one ExposureConfig field to the live config and proposes the next pair.
+    pick_better: bool = False
+    pick_better_pending: bool = False
+
     # Reverse scroll-wheel zoom direction on the image viewer (scroll up = zoom out).
     invert_zoom_scroll: bool = False
 

@@ -98,6 +98,9 @@ class ToneSidebar(BaseSidebar):
         self.test_strip_btn = self._tool_toggle("mdi.view-grid-outline", "", self._test_strip_tooltip())
         self.test_strip_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.test_strip_btn.clicked.connect(lambda checked: self.controller.toggle_test_strip(force=checked))
+        self.pick_better_btn = self._tool_toggle("fa5s.balance-scale", "", self._pick_better_tooltip())
+        self.pick_better_btn.setFixedWidth(ICON_BUTTON_WIDTH)
+        self.pick_better_btn.clicked.connect(lambda checked: self.controller.toggle_pick_better(force=checked))
 
         ch_row = QHBoxLayout()
         ch_row.addWidget(self.ch_btn, 1)
@@ -105,6 +108,7 @@ class ToneSidebar(BaseSidebar):
         ch_row.addStretch()
         ch_row.addWidget(self.auto_btn)
         ch_row.addWidget(self.test_strip_btn)
+        ch_row.addWidget(self.pick_better_btn)
         self.layout.addLayout(ch_row)
         # Disabled widgets get no hover, so the reason hangs off the hint under them.
         self.auto_merged_hint = hint_label("Not applied to a merged bracket.")
@@ -174,6 +178,7 @@ class ToneSidebar(BaseSidebar):
         self._global_only = (
             self.density_slider,
             self.test_strip_btn,
+            self.pick_better_btn,
             self.auto_btn,
             self.shadow_density_slider,
             self.highlight_density_slider,
@@ -247,10 +252,33 @@ class ToneSidebar(BaseSidebar):
         self.test_strip_btn.setEnabled(not pending)
         self.test_strip_btn.setToolTip(wrap_tooltip(self._test_strip_tooltip(printing=pending)))
 
+    @staticmethod
+    def _pick_better_tooltip(printing: bool = False) -> str:
+        if printing:
+            return "Printing Pick Better…"
+        return tooltip_with_shortcut(
+            "Pick Better: a separate window shows the current edit on top and two candidates below — "
+            "the stronger on the left, the weaker on the right. Click a candidate to keep it; the next "
+            "pair fills the same window. A fixed 22-round sequence runs first, then finer pairs. OK ends "
+            "the mode; Undo re-shows the previous pair.",
+            "toggle_pick_better",
+        )
+
+    def _sync_pick_better_btn(self, _up: bool) -> None:
+        """ponytail: Pick Better is one job with no per-pair progress — the button is
+        icon-only, so it goes dead with a 'printing' tooltip rather than changing its
+        label. Per-pair progress if the endless refinement ever feels slow."""
+        active = self.state.pick_better or self.state.pick_better_pending
+        pending = self.state.pick_better_pending
+        self.pick_better_btn.setChecked(active)
+        self.pick_better_btn.setEnabled(not pending)
+        self.pick_better_btn.setToolTip(wrap_tooltip(self._pick_better_tooltip(printing=pending)))
+
     def _connect_signals(self) -> None:
         # The strip is session state, not config, and any render drops it, so the button has to
         # follow the controller rather than sync_ui.
         self.controller.test_strip_changed.connect(self._sync_test_strip_btn)
+        self.controller.pick_better_changed.connect(self._sync_pick_better_btn)
         self.ch_btn.currentChanged.connect(lambda _i: self.sync_ui())
 
         # White Point/Black Point live on ProcessConfig, not ExposureConfig like the rest of
