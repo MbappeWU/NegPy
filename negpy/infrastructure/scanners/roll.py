@@ -10,6 +10,8 @@ windows have no counterpart on a whole-roll transport, so the scan half of this
 seam can't be settled until a native implementation exists to settle it against.
 """
 
+from __future__ import annotations
+
 import threading
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
@@ -46,6 +48,9 @@ class RollPreview:
     # confirm before it can be scanned. Always False on a per-frame transport.
     needs_approval: bool = False
     warnings: tuple[str, ...] = ()
+    # Cuts this slot again at another offset, a fraction of one frame pitch, from the pass
+    # already read. None where the transport must scan for a new offset, or the cut leaves that pass.
+    cut: Callable[[float], RollPreview | None] | None = None
 
 
 class RollSession(Protocol):

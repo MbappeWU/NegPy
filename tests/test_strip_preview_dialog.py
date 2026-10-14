@@ -1261,6 +1261,26 @@ def test_an_offset_the_tiles_were_already_cut_at_re_cuts_nothing() -> None:
     assert controller.preview_reqs == []
 
 
+def test_a_tile_with_a_cut_follows_the_slider_without_the_worker() -> None:
+    controller = _FakeController()
+    dialog = _measured(controller)
+    cuts: list[float] = []
+
+    def cut(offset: float) -> RollPreview:
+        cuts.append(offset)
+        return RollPreview(slot=2, rgb=_rgb(), offset=offset, cut=cut)
+
+    dialog._tiles[2].cut = cut
+    dialog._tiles[2].offset_slider.setValue(15)
+    armed = dialog._recut.isActive()
+    shown = dialog._tiles[2].previewed_offset
+    _dispose(dialog)
+
+    assert cuts == [pytest.approx(1.5 / 36.0, abs=1e-4)]
+    assert shown == pytest.approx(cuts[0])
+    assert not armed and controller.preview_reqs == []
+
+
 def test_moving_an_offset_arms_the_re_cut() -> None:
     controller = _FakeController()
     dialog = _measured(controller)

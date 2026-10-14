@@ -319,3 +319,24 @@ def test_the_strip_pass_reports_its_progress() -> None:
     list(session.preview((1,), cancel=threading.Event(), progress=lambda fraction, phase: seen.append(phase)))
     session.close()
     assert "Detecting frames" in seen
+
+
+def test_a_cut_moves_the_tile_without_the_unit() -> None:
+    """A nudge crops the strip pass again. The unit does nothing."""
+    session, module, _ = _roll()
+    first = _previews(session, slots=(2,))[0]
+    unit = module.opened[-1]
+    before = (len(unit.scans), len(unit.discoveries), unit.staged)
+
+    assert first.cut is not None
+    moved = first.cut(0.1)
+
+    assert moved is not None and moved.slot == 2 and moved.offset > 0
+    assert moved.rgb.shape == first.rgb.shape and not (moved.rgb == first.rgb).all()
+    assert (len(unit.scans), len(unit.discoveries), unit.staged) == before
+    assert moved.cut is not None
+
+
+def test_without_a_strip_pass_a_preview_has_no_cut() -> None:
+    session, _module, _ = _roll(thumbnail=False)
+    assert all(p.cut is None for p in _previews(session))

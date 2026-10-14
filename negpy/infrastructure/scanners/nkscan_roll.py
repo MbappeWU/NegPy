@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable, Iterable, Iterator
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -100,7 +101,25 @@ class NkscanRollSession:
                 logger.warning("Preview of slot %s failed: %s", slot, error)
                 yield RollPreview(slot=slot, error=str(error), offset=offset, needs_approval=self._needs_approval(slot))
                 continue
-            yield RollPreview(slot=slot, rgb=rgb, offset=offset, needs_approval=self._needs_approval(slot))
+            cut = partial(self.cut, slot) if self.thumbnail is not None else None
+            yield RollPreview(slot=slot, rgb=rgb, offset=offset, needs_approval=self._needs_approval(slot), cut=cut)
+
+    def cut(self, slot: int, offset: float) -> RollPreview | None:
+        """The slot at `offset`, cut from the strip pass. This does not use the unit. None if the frame is not on the pass."""
+        strip = self.thumbnail
+        if strip is None or not 1 <= slot <= len(self._backend.frames(self._device.id)):
+            return None
+        self.set_offset(slot, offset)
+        tile = slice_frame(strip, self._rect(slot), self._backend.column_addresses(self._device.id))
+        if tile is None:
+            return None
+        return RollPreview(
+            slot=slot,
+            rgb=tile,
+            offset=self._reached(slot),
+            needs_approval=self._needs_approval(slot),
+            cut=partial(self.cut, slot),
+        )
 
     @property
     def thumbnail(self) -> np.ndarray | None:

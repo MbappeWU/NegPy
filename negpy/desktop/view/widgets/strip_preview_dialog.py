@@ -5,6 +5,8 @@ Read after ``exec()`` via ``selected_frames()`` / ``frame_windows()`` /
 ``frame_offset()``.
 """
 
+from collections.abc import Callable
+
 import qtawesome as qta
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QColor, QPainter, QPen, QPixmap, QTransform
@@ -36,7 +38,7 @@ from negpy.desktop.view.widgets.scan_window_label import ScanWindowLabel
 from negpy.desktop.workers.scan_worker import RollPreviewRequest
 from negpy.infrastructure.scanners.base import ScannerDevice
 from negpy.infrastructure.scanners.params import clamp_frame_offset_mm
-from negpy.infrastructure.scanners.roll import effective_pitch_mm
+from negpy.infrastructure.scanners.roll import RollPreview, effective_pitch_mm
 
 _GUIDE_KEY = "scan_strip"  # the <!-- panel: --> marker its ⓘ reads out of the user guide
 _CLAMP_NOTICE = "Offset held at the frame pitch"
@@ -160,6 +162,7 @@ class _Tile:
         self.frame = frame
         self.previewed_offset: float | None = None  # offset the shown preview was scanned at
         self.held = False  # the transport held this frame short of the offset that the dialog asked for
+        self.cut: Callable[[float], RollPreview | None] | None = None  # cuts the tile again from the strip pass
         self.label = label
         self.checkbox = checkbox
         self.preview_btn = preview_btn
@@ -657,7 +660,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             # setVisible, not set_active: a dot in a layout would be pinned to the dialog's corner.
             self._name_dots[name].setVisible(slider.is_moved())
         self._refresh_offset_indicators()
-        if self._discovers and self._tiles:
+        if self._discovers and self._tiles and self._cut_moved_tiles():
             self._recut.start()
 
     def _tile_coverage(self, tile: _Tile) -> tuple[float, float]:
@@ -783,6 +786,24 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
         self._recut.stop()
         super().done(result)
 
+    def _cut_moved_tiles(self) -> bool:
+        """Cut the moved tiles again from the strip pass, without the worker. True if a moved tile needs a scan."""
+        pitch = self._frame_pitch()
+        if not pitch:
+            return False
+        scan = False
+        for frame, tile in sorted(self._tiles.items()):
+            asked = self._raw_offset_for_frame(frame) / pitch
+            if abs(asked - (tile.previewed_offset or 0.0)) <= 1e-4:
+                continue
+            preview = tile.cut(asked) if tile.cut is not None else None
+            if preview is None:
+                scan = True
+                continue
+            self._requested[frame] = asked
+            self._on_preview_ready(preview)
+        return scan
+
     def _recut_moved_tiles(self) -> None:
         """Re-cut, from the strip pass, the tiles whose offset no longer matches their pixels."""
         if self._previewing:
@@ -853,6 +874,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             self.status_strip.set_message(f"Could not display frame {preview.slot}: {e}")
             return
         tile.previewed_offset = preview.offset
+        tile.cut = preview.cut
         if self._discovers:
             # A measured strip cuts the whole frame at the offset that the dialog asked for, or
             # holds it at the limit. The tile is that frame, so it fills the window.
