@@ -125,7 +125,6 @@ class CanvasNavigator(QWidget):
         painter.drawRect(rect.adjusted(0.5, 0.5, -0.5, -0.5))
 
         if self._caption:
-            # The zoom readout stays at full strength; only the map dims.
             painter.setOpacity(1.0)
             w = min(float(self.width()), painter.fontMetrics().horizontalAdvance(self._caption) + 2 * THEME.space_lg)
             cap = QRectF(self.width() - w, rect.bottom() + THEME.space_xs, w, float(_CAPTION_H - THEME.space_xs))

@@ -114,7 +114,6 @@ def _context_cancel(controller, window) -> None:
         return
     if window.canvas.overlay.cancel_in_progress():
         return
-    # The Zone Overlay row stands in for the view row, so Esc closes it once no tool is armed.
     if controller.state.active_tool == ToolMode.NONE and controller.state.zones_overlay:
         controller.toggle_zones_overlay(force=False)
         return

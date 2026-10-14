@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 # Inset for the floating bottom toolbar, so the pill is not flush against the canvas edge
 # or clipped by it on tight laptop layouts.
 _TOOLBAR_INSET = THEME.space_xl
-# Clear space around the frame at fit, so it sits on the canvas like a print on an easel.
+# Clear space kept around the frame at fit.
 FIT_MARGIN = THEME.space_xl
 
 

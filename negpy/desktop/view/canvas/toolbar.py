@@ -456,7 +456,7 @@ class ActionToolbar(QWidget):
             self._label(action, label, key)
             action.triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
             self._overlay_actions[flag] = action
-        # Not a toggle of the menu button: the corner pills are on by default, and the button lights only for marks.
+        # A submenu, not a toggle: the pills are on by default and the button lights only for marks.
         self.overlays_menu.choice_menu.addSeparator()
         info_menu = self.overlays_menu.choice_menu.addMenu("Frame Info")
         info_menu.setToolTipsVisible(True)

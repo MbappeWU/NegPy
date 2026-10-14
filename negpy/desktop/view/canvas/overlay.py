@@ -453,7 +453,6 @@ class CanvasOverlay(QWidget):
         self._zone_anchors: List[Tuple[int, int, int, float]] = []
         self._zone_image: Optional[Tuple[tuple, QImage]] = None
         self._zone_outlines: Dict[int, List[QPolygonF]] = {}
-        # The pointer's zone over the frame.
         self._zone_hover: Optional[int] = None
         # Clipping Overlay and zone-highlight washes for the displayed frame, keyed by what they mark.
         self._frame_washes: Dict[tuple, Optional[QImage]] = {}
