@@ -34,7 +34,7 @@ Actions with no default key are not listed; every one of them can still be bound
 ## Tools
 | Key | Action |
 |-----|--------|
-| `\` | Before/after split (auto baseline) |
+| `\` | Before/after split (auto baseline); hold for the whole frame as the baseline |
 | `Shift + W` | Toggle WB picker |
 | `Shift + C` | Toggle manual crop |
 | `Shift + D` | Toggle heal tool |
@@ -43,9 +43,9 @@ Actions with no default key are not listed; every one of them can still be bound
 | `Shift + J` | Toggle clone tool |
 | `Shift + B` | Toggle dodge & burn mask draw |
 | `Ctrl + R` | Toggle analysis region draw |
-| `M` | Peek flat scan (digital intermediate) |
-| `N` | Peek negative (source as loaded) |
-| `P` | Peek the camera's embedded preview |
+| `M` | Peek flat scan (digital intermediate); hold to peek only while down |
+| `N` | Peek negative (source as loaded); hold to peek only while down |
+| `P` | Peek the camera's embedded preview; hold to peek only while down |
 | `Shift + Z` | Adams zone overlay |
 | `Shift + T` | Density × grade test strip |
 | `Shift + F` | Color ring-around (M/Y filtration) |

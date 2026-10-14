@@ -1214,6 +1214,10 @@ class CanvasOverlay(QWidget):
         if self.state.cursor_probe and content_aligned and not self.state.test_strip and self._tool_mode in _PROBE_TOOLS:
             self._draw_cursor_probe(painter)
 
+        # Over everything: the marks above describe the edit, not the baseline.
+        if self.state.compare_hold and content_aligned and not self.state.test_strip:
+            self._draw_compare_hold(painter)
+
     def _draw_grid(self, painter: QPainter, rect: QRectF, divisions: int, alpha: int) -> None:
         """Even N×N reference grid (interior lines only) across `rect`, screen-aligned."""
         pen = QPen(QColor(255, 255, 255, alpha), 1, Qt.PenStyle.SolidLine)
@@ -1282,6 +1286,22 @@ class CanvasOverlay(QWidget):
         self._compare_qimage_cache = (key, img)
         return img
 
+    def _compare_before_src(self, before: QImage) -> QRectF:
+        """The picture inside the baseline frame, so the edit's border or mat cannot shift it."""
+        crect = self.state.compare_before_rect
+        if crect is not None and crect[2] > 0 and crect[3] > 0:
+            return QRectF(float(crect[0]), float(crect[1]), float(crect[2]), float(crect[3]))
+        return QRectF(0.0, 0.0, float(before.width()), float(before.height()))
+
+    def _draw_compare_hold(self, painter: QPainter) -> None:
+        """The baseline over the whole picture while the compare key is held."""
+        before = self._compare_before_qimage()
+        target = self._content_view_rect()
+        if before is None or target.isEmpty():
+            return
+        painter.drawImage(target, before, self._compare_before_src(before))
+        draw_view_badge(painter, "BEFORE", target.left() + 12, target.top() + 12)
+
     def _split_screen_x(self) -> float:
         rect = self._content_view_rect()
         return rect.x() + float(np.clip(self.state.compare_split, 0.0, 1.0)) * rect.width()
@@ -1300,11 +1320,7 @@ class CanvasOverlay(QWidget):
         if before is None or target.isEmpty():
             return
 
-        src = QRectF(0.0, 0.0, float(before.width()), float(before.height()))
-        crect = self.state.compare_before_rect
-        if crect is not None and crect[2] > 0 and crect[3] > 0:
-            src = QRectF(float(crect[0]), float(crect[1]), float(crect[2]), float(crect[3]))
-
+        src = self._compare_before_src(before)
         x = self._split_screen_x()
         painter.save()
         painter.setClipRect(QRectF(target.left(), target.top(), x - target.left(), target.height()))

@@ -504,6 +504,7 @@ class AppController(QObject):
     monitor_profile_changed = pyqtSignal()
     compare_changed = pyqtSignal(bool)
     compare_frame_ready = pyqtSignal()
+    compare_hold_changed = pyqtSignal(bool)
     flat_output_changed = pyqtSignal(bool)
     linear_output_changed = pyqtSignal(bool)
     flat_peek_changed = pyqtSignal(bool)
@@ -6823,6 +6824,31 @@ class AppController(QObject):
             self.state.compare_mode = False
             self.compare_changed.emit(False)
 
+    def begin_compare_hold(self) -> None:
+        """Show the baseline over the whole picture until end_compare_hold. Only over the print:
+        a peek, the test strip or an uncropped tool view has no baseline that lines up."""
+        st = self.state
+        if (
+            st.preview_raw is None
+            or st.test_strip
+            or st.negative_peek
+            or st.flat_peek
+            or st.embedded_peek
+            or st.flatfield_peek
+            or st.active_tool in UNCROPPED_PREVIEW_TOOLS
+        ):
+            return
+        st.compare_hold = True
+        # Kept after release, so the next hold on this frame needs no render.
+        if not isinstance(st.compare_before, np.ndarray) or st.compare_before_key != self._compare_before_key():
+            self._request_compare_baseline()
+        self.compare_hold_changed.emit(True)
+
+    def end_compare_hold(self) -> None:
+        if self.state.compare_hold:
+            self.state.compare_hold = False
+            self.compare_hold_changed.emit(False)
+
     def toggle_compare(self) -> None:
         """Toggle the before/after split between the edit and the auto baseline."""
         if self.state.preview_raw is None:
@@ -8078,7 +8104,7 @@ class AppController(QObject):
         # The baseline half of the split is stashed, never displayed: it must not reach
         # last_metrics, the memo, the thumbnail or the canvas.
         if metrics.get("compare"):
-            if self.state.compare_mode:
+            if self.state.compare_mode or self.state.compare_hold:
                 self._capture_compare_before(metrics)
             if self._pending_render_task is not None:
                 self._dispatch_pending_render()

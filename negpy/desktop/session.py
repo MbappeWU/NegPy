@@ -304,6 +304,8 @@ class AppState:
     compare_before_key: str = ""
     # Divider position, content-normalized x (0 = all after, 1 = all before)
     compare_split: float = 0.5
+    # True while the compare key is held: the whole picture shows the baseline.
+    compare_hold: bool = False
 
     # Export presets (globally managed, not per-file)
     export_presets: List[ExportPreset] = field(default_factory=list)

@@ -33,7 +33,7 @@ Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** h
 
 ### Before / After
 
-**Before / After** in the **Print** menu (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. It stays up while you edit. `\`, `Esc`, a frame change, a peek or the test strip closes it.
+**Before / After** in the **Print** menu (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. It stays up while you edit. `\`, `Esc`, a frame change, a peek or the test strip closes it. Hold `\` instead to see the whole frame as the baseline until you let go.
 
 ### Reference view
 
@@ -47,7 +47,7 @@ Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** h
 
 **Embedded** in the **Print** menu (or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Scanner TIFFs and most converter DNGs have none. It closes like Peek Negative.
 
-`Esc` closes any peek, the split or a test strip.
+`Esc` closes any peek, the split or a test strip. Hold a peek key (`N`, `M`, `P`) to peek only while it is down.
 
 ### The workflow
 
