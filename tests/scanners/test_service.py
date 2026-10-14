@@ -330,6 +330,25 @@ def test_detect_frames_asks_the_backend_that_can_measure(fake_device: ScannerDev
     assert backend.detect_args == ("fake:001", "135")
 
 
+def test_the_film_poll_asks_the_backend_that_can_tell(fake_device: ScannerDevice) -> None:
+    class _Polling(FakeBackend):
+        def media_loaded(self, device_id: str) -> bool:
+            return device_id == "fake:001"
+
+    service = ScannerService()
+    service._backend = _Polling(devices=[fake_device])
+
+    assert service.media_loaded("fake:001") is True
+    assert service.media_loaded("fake:002") is False
+
+
+def test_the_film_poll_is_none_where_the_backend_cannot_tell(fake_device: ScannerDevice) -> None:
+    service = ScannerService()
+    service._backend = FakeBackend(devices=[fake_device])
+
+    assert service.media_loaded("fake:001") is None
+
+
 def test_a_backend_that_counts_slots_measures_nothing(fake_device: ScannerDevice) -> None:
     """A feeder's capacity is a capability; the caller already has it."""
     service = ScannerService()

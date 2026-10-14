@@ -713,6 +713,16 @@ class NkscanBackend:
         session, model = (None, device.model) if cut else self._open(device.id)
         return NkscanRollSession(self, device, session, model, dpi=dpi, film_format=film_format, film_type=film_type)
 
+    # ── film ──────────────────────────────────────────────────────────
+
+    def media_loaded(self, device_id: str) -> bool:
+        """Whether film or a holder is in the unit. If the film went out, this drops the measured frames."""
+        with self._dropping(device_id), self._mapped_errors():
+            loaded = bool(self._unit(device_id).media_loaded())
+        if not loaded:
+            self.forget_frames(device_id)
+        return loaded
+
     # ── eject ─────────────────────────────────────────────────────────
 
     def eject(self, device_id: str) -> bool:

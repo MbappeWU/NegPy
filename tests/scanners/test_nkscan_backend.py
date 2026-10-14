@@ -875,3 +875,27 @@ def test_ir_and_ice_together_are_refused_before_the_unit_moves() -> None:
     with pytest.raises(RuntimeError, match="IR and ICE cannot be used together"):
         _scan(backend, dataclasses.replace(_PARAMS, capture_ir=True, clean=True))
     assert module.opened == []
+
+
+# ── film poll ─────────────────────────────────────────────────────────────
+
+
+def test_the_film_poll_asks_the_open_unit() -> None:
+    backend, module = make_backend()
+    backend.list_devices()
+
+    assert backend.media_loaded(DEVICE_ID) is True
+    module.film_loaded = False
+    assert backend.media_loaded(DEVICE_ID) is False
+    assert len(module.opened) == 1
+
+
+def test_film_that_went_out_drops_its_frames() -> None:
+    backend, module = make_backend()
+    backend.detect_frames(DEVICE_ID)
+    module.film_loaded = False
+
+    backend.media_loaded(DEVICE_ID)
+
+    assert backend.frames(DEVICE_ID) == []
+    assert backend.strip_pass(DEVICE_ID) is None

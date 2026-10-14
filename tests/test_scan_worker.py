@@ -242,6 +242,39 @@ def test_scan_worker_reports_eject_failure() -> None:
     assert errors == ["transport refused"]
 
 
+class _PollService:
+    def __init__(self, loaded: bool | None = True, error: Exception | None = None) -> None:
+        self.loaded = loaded
+        self.error = error
+
+    def media_loaded(self, device_id: str) -> bool | None:
+        if self.error is not None:
+            raise self.error
+        return self.loaded
+
+
+def test_the_film_poll_reports_the_state() -> None:
+    worker = ScanWorker()
+    worker._service = _PollService(loaded=False)  # type: ignore[assignment]
+    polled: list[tuple[str, bool | None]] = []
+    worker.media_polled.connect(lambda device_id, loaded: polled.append((device_id, loaded)))
+
+    worker.poll_media("nkscan:test")
+
+    assert polled == [("nkscan:test", False)]
+
+
+def test_a_failed_film_poll_reports_no_state() -> None:
+    worker = ScanWorker()
+    worker._service = _PollService(error=RuntimeError("transport refused"))  # type: ignore[assignment]
+    polled: list[tuple[str, bool | None]] = []
+    worker.media_polled.connect(lambda device_id, loaded: polled.append((device_id, loaded)))
+
+    worker.poll_media("nkscan:test")
+
+    assert polled == [("nkscan:test", None)]
+
+
 def test_progress_without_a_phase_is_reported_as_scanning() -> None:
     """A backend with one phase calls progress(fraction); the signal needs both.
 
