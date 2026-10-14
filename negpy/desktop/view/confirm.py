@@ -33,6 +33,26 @@ def confirm_load_roll(parent, repo, image_count: int, label: str) -> bool:
     return True
 
 
+def warn_targets_affect_unbaked(parent, repo) -> None:
+    """On a confirmed target change, advise that unbaked frames move with the new targets, and
+    that baking a frame first keeps it fixed. Skippable via "Don't show again", persisted so a
+    one-time retune does not re-prompt for every frame after."""
+    if repo.get_global_setting("exposure_targets_warn_dismissed", False):
+        return
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Information)
+    box.setWindowTitle("Auto Density and Grade Targets")
+    box.setText("Changing the targets affects every frame, including ones not yet baked.")
+    box.setInformativeText("Bake Auto Density and Grade on a frame before you change the targets to keep its density and grade fixed.")
+    dismiss = QCheckBox("Don't show again")
+    box.setCheckBox(dismiss)
+    ok = box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+    box.setDefaultButton(ok)
+    box.exec()
+    if dismiss.isChecked():
+        repo.save_global_setting("exposure_targets_warn_dismissed", True)
+
+
 def confirm_close_roll(parent, roll_name: str | None) -> bool:
     box = QMessageBox(parent)
     box.setIcon(QMessageBox.Icon.Question)
