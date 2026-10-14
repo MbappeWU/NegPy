@@ -1,6 +1,6 @@
 # Windows USB setup (Plustek OpticFilm)
 
-NegPy's Plustek USB backend uses the external [pyopticfilm](https://github.com/jboneng/pyopticfilm) driver (libusb through PyUSB), version **1.3.5** or later. The stock Plustek Windows driver must not own the device.
+NegPy's Plustek USB backend uses the external [pyopticfilm](https://github.com/jboneng/pyopticfilm) driver (libusb through PyUSB), version **1.3.6** or later. The stock Plustek Windows driver must not own the device.
 
 ## Requirements
 
@@ -72,4 +72,5 @@ A Windows release build also works. It bundles pyopticfilm, PyUSB and libusb. In
 | Strong green cast on the positive | The border clamp ceiling must be **per channel**. A single joint percentile flattens the margin to neutral gray at a level the dimmest channel never reaches in the film (session 004: joint 27432 against green's own 19306), so auto Dmin meters green off chrome and lifts it 1.4x. Check `border highlight clamp peak_p99.7=(r,g,b)`. Each figure must sit just above that channel's own film peak |
 | `white clipped at the rail` | The white strip is pinned near `0xFFFF`, so it has no shape to flatten. Lower the AFE gains. DVDSET stays off and the host stretch runs |
 | Scan fails: white mean below 20000 | The post-unity strip is too dim to reach target within the 4x gain clamp. Often a stale AHB strip: dark and AFE wait until the buffer has data **at home**, and a motor-busy `0xa5` is not ready there. Also check that the lamp is off for dark and that the head is on clear home chrome. Cache v6+ ignores collapsed calibration |
+| `GL128 motor stayed enabled` while the scan starts | The motor did not stop after a positioning feed, so the driver does not start the next move. Check that the holder moves freely, then scan again. The log records each feed as `GL128 feed of N steps complete in …s, idle at …s` |
 | Scan fails: color ASIC shading / clear home field | The carriage is not on the clear home sensor. Park or power-cycle, then retry. The film may stay loaded |
