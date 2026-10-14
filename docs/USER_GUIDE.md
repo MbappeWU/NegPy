@@ -175,7 +175,8 @@ The Film Strip button row:
 *   **Apply (clone)**: copies the chosen aspects of the current frame's settings to selected frames or the whole roll. Crop and rotation stay per image.
 *   **Roll Settings**: writes gear, capture, place, process and scanning metadata to the frame, a selection or the whole roll. **Load** fills the fields from a metadata preset; tick the groups to write. An empty Analog Gear is matched from the folder name.
 *   **Save as Roll…**: keeps the loaded frames as a roll ([Rolls that are not folders](#rolls-that-are-not-folders)).
-*   **Unload…**: drops the active frame or selection.
+*   **Unload…**: drops the active frame or selection from the Film Strip. It is back the next time the roll opens.
+*   **Remove from Roll…** (right-click, with a roll open): takes the frame or selection out of the roll for good, with its scene, card locks and own edit in that roll. The file and its shared edit stay. A file in the roll's own folder is skipped when the folder is opened again, until you add it back with **Add Files…**. A half-frame scan goes as one file.
 *   **Show Scenes**: edges each frame in its scene's color ([Scenes](#scenes)).
 *   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
 *   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.

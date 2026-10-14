@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from negpy.desktop.session import ToolMode
 from negpy.services.assets import rolls
-from negpy.desktop.view.confirm import confirm_close_roll, confirm_reset_frames
+from negpy.desktop.view.confirm import confirm_close_roll, confirm_remove_from_roll, confirm_reset_frames
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sticky_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import (
     REGISTRY,
@@ -69,6 +69,18 @@ def _close_roll(window, controller) -> None:
         name = (rolls.roll_for_id(session.repo, roll_id) or {}).get("name") or "this roll"
     if confirm_close_roll(window, name):
         session.clear_files()
+
+
+def remove_from_roll(window, controller) -> None:
+    """Take the selected frames out of the open roll, after a confirmation."""
+    state = controller.state
+    if not state.active_roll_id or not state.uploaded_files:
+        return
+    indices = list(state.selected_indices) or [state.selected_file_idx]
+    count = len(controller.roll_removal(indices))
+    name = (rolls.roll_for_id(controller.session.repo, state.active_roll_id) or {}).get("name") or "this roll"
+    if count and confirm_remove_from_roll(window, count, name):
+        controller.request_remove_from_roll(indices)
 
 
 def _reset_selected(window, controller) -> None:
@@ -422,6 +434,7 @@ class ShortcutManager:
             "sync_bounds": lambda: open_sync_bounds_dialog(self.window, controller.session),
             "reset_roll": lambda: _reset_roll(self.window, controller),
             "close_roll": lambda: _close_roll(self.window, controller),
+            "remove_from_roll": lambda: remove_from_roll(self.window, controller),
             "reset_tab": lambda: _fire_tab_header(right, "reset"),
             "reset_tab_to_roll": lambda: _fire_tab_header(right, "revert"),
             "reset_to_roll": controller.revert_frame_to_roll,

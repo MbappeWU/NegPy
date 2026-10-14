@@ -282,6 +282,18 @@ def _confirm_with_verb(parent, title: str, text: str, informative: str, verb: st
     return box.clickedButton() is accept
 
 
+def confirm_remove_from_roll(parent, count: int, roll_name: str) -> bool:
+    """Ask before frames leave a roll. Their files and edits stay."""
+    subject = "this frame" if count == 1 else f"the {count_of(count, 'selected frame')}"
+    return _confirm_with_verb(
+        parent,
+        "Remove from Roll",
+        f"Remove {subject} from “{roll_name}”?",
+        "The files and their edits stay. Their scene, card locks and own edit in this roll are deleted.",
+        "Remove",
+    )
+
+
 def confirm_unfork_edit(parent) -> bool:
     """Ask before this roll's own edit for a frame goes and the frame returns to the
     edit every other roll it belongs to already shares."""
