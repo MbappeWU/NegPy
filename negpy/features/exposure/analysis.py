@@ -630,6 +630,19 @@ def scan_density_of_val(val: Any, bounds: Any) -> np.ndarray:
     return -(floors + np.asarray(val, dtype=np.float64)[:3] * (ceils - floors))
 
 
+def _parade_samples(img: np.ndarray, roi: Optional[Tuple[int, int, int, int]]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """The crop's RGB, stride-subsampled, and each sample column's parade column."""
+    if roi is not None:
+        y1, y2, x1, x2 = roi
+        img = img[y1:y2, x1:x2]
+    if min(img.shape[:2]) < 1:
+        return None
+    full_w = img.shape[1]
+    step = max(1, round(np.sqrt(img.shape[0] * full_w / _MAX_HIST_SAMPLES)))
+    cols = np.minimum(np.arange(0, full_w, step) * WAVEFORM_COLS // full_w, WAVEFORM_COLS - 1)
+    return img[::step, ::step, :3], cols
+
+
 def density_parade(img_log: Any, roi: Optional[Tuple[int, int, int, int]] = None) -> Optional[np.ndarray]:
     """(3, WAVEFORM_BINS, WAVEFORM_COLS) counts of each channel's scan density (-log10 of the
     linear scan, after any crosstalk unmix: the log the stretch reads) per image column of the
@@ -640,17 +653,32 @@ def density_parade(img_log: Any, roi: Optional[Tuple[int, int, int, int]] = None
     img = np.asarray(img_log)
     if img.ndim != 3 or img.shape[-1] < 3:
         return None
-    if roi is not None:
-        y1, y2, x1, x2 = roi
-        img = img[y1:y2, x1:x2]
-    if min(img.shape[:2]) < 1:
+    sampled = _parade_samples(img, roi)
+    if sampled is None:
         return None
-    full_w = img.shape[1]
-    step = max(1, round(np.sqrt(img.shape[0] * full_w / _MAX_HIST_SAMPLES)))
-    img = img[::step, ::step, :3]
-    cols = np.minimum(np.arange(0, full_w, step) * WAVEFORM_COLS // full_w, WAVEFORM_COLS - 1)
+    img, cols = sampled
     pos = scan_density_axis(-np.nan_to_num(img.astype(np.float32)))
     bins = np.clip(np.floor(pos * WAVEFORM_BINS), 0, WAVEFORM_BINS - 1).astype(np.int64)
     flat_cols = np.broadcast_to(cols[None, :], bins.shape[:2]).ravel()
     counts = [np.bincount(bins[..., c].ravel() * WAVEFORM_COLS + flat_cols, minlength=WAVEFORM_BINS * WAVEFORM_COLS) for c in range(3)]
     return np.stack(counts).reshape(3, WAVEFORM_BINS, WAVEFORM_COLS).astype(float)
+
+
+def scan_full_scale_columns(image: Any, roi: Optional[Tuple[int, int, int, int]] = None) -> Optional[np.ndarray]:
+    """(3, WAVEFORM_COLS) counts of linear scan pixels at or above the sensor clip level, per
+    parade column. Read before the crosstalk unmix, which can move a clipped channel off full
+    scale on the parade. CPU counterpart of the clip count in density_hist.wgsl."""
+    from negpy.features.exposure.models import EXPOSURE_CONSTANTS
+
+    if image is None:
+        return None
+    img = np.asarray(image)
+    if img.ndim != 3 or img.shape[-1] < 3:
+        return None
+    sampled = _parade_samples(img, roi)
+    if sampled is None:
+        return None
+    img, cols = sampled
+    clipped = img >= float(EXPOSURE_CONSTANTS["scan_clip_level"])
+    flat_cols = np.broadcast_to(cols[None, :], clipped.shape[:2]).ravel()
+    return np.stack([np.bincount(flat_cols, weights=clipped[..., c].ravel().astype(np.float64), minlength=WAVEFORM_COLS) for c in range(3)])

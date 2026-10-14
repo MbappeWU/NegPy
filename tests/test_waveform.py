@@ -13,6 +13,7 @@ from negpy.features.exposure.analysis import (
     WAVEFORM_COLS,
     density_parade,
     scan_density_axis,
+    scan_full_scale_columns,
     scan_density_of_val,
     waveform,
     waveform_color,
@@ -250,7 +251,7 @@ def test_a_flat_peek_clears_the_parade() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": parade, "density_parade": parade})
 
-    panel.parade_widget.set_scan_domain.assert_called_once_with(False)
+    panel.parade_widget.set_scan_domain.assert_called_once_with(False, full_scale=None)
     panel.parade_widget.set_data.assert_called_once_with(None)
 
 
@@ -263,7 +264,7 @@ def test_peek_negative_shows_the_scan_on_the_parade() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": np.zeros_like(scan), "density_parade": scan})
 
-    panel.parade_widget.set_scan_domain.assert_called_once_with(True)
+    assert panel.parade_widget.set_scan_domain.call_args[0][0] is True
     panel.parade_widget.set_data.assert_called_once_with(scan)
     panel.waveform_widget.set_data.assert_called_once_with(None, None)
 
@@ -277,7 +278,7 @@ def test_the_print_parade_returns_after_the_peek() -> None:
 
     RightPanel._update_histograms(panel, {"waveform_parade": printed, "density_parade": np.zeros_like(printed)})
 
-    panel.parade_widget.set_scan_domain.assert_called_once_with(False)
+    panel.parade_widget.set_scan_domain.assert_called_once_with(False, full_scale=None)
     panel.parade_widget.set_data.assert_called_once_with(printed)
 
 
@@ -656,3 +657,67 @@ def test_the_scan_parade_reads_out_each_channels_range() -> None:
     widget.set_scan_domain(True, scan_density_axis(ends))
 
     np.testing.assert_allclose(widget._scan_ranges(), (1.53, 1.92, 2.19), atol=1e-9)
+
+
+def test_full_scale_columns_count_clipped_scan_pixels_per_channel() -> None:
+    img = np.full((10, 512, 3), 0.5, dtype=np.float32)
+    img[:, 256:, 0] = 1.0  # red clips on the right half
+    img[:4, :2, 2] = 0.995
+
+    cols = scan_full_scale_columns(img)
+
+    assert cols.shape == (3, WAVEFORM_COLS)
+    assert np.flatnonzero(cols[0]).tolist() == list(range(128, 256))
+    assert cols[0, 200] == 10 * 2
+    assert not cols[1].any()
+    assert np.flatnonzero(cols[2]).tolist() == [0] and cols[2, 0] == 4 * 2
+    assert scan_full_scale_columns(img, roi=(0, 10, 0, 256))[0].sum() == 0
+    assert scan_full_scale_columns(None) is None
+
+
+@unittest.skipUnless(GPUDevice.get().is_available, "GPU not available")
+def test_wgsl_full_scale_columns_match_the_cpu() -> None:
+    from negpy.domain.models import WorkspaceConfig
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    grad = np.linspace(0.05, 0.9, 300, dtype=np.float32)
+    img = np.stack([grad, grad[::-1], np.full_like(grad, 0.4)], axis=-1)
+    img = np.ascontiguousarray(np.repeat(img[None], 200, axis=0))
+    img[:, 200:, 0] = 1.0
+    proc = ImageProcessor()
+    cfg = WorkspaceConfig()
+
+    _c, cpu_metrics = proc.run_pipeline(img, cfg, "fs|cpu", render_size_ref=300, prefer_gpu=False, readback_metrics=True)
+    _g, gpu_metrics = proc.run_pipeline(img, cfg, "fs|gpu", render_size_ref=300, prefer_gpu=True, readback_metrics=True)
+
+    gpu = gpu_metrics.get("scan_full_scale")
+    if gpu is None:
+        return
+    cpu = cpu_metrics["scan_full_scale"]
+    assert cpu[0].any()
+    assert np.array_equal(cpu > 0, gpu > 0)
+
+
+def _top_tick(img, x: int) -> bool:
+    from PyQt6.QtGui import QColor
+
+    from negpy.desktop.view.styles.theme import THEME
+
+    return QColor(img.pixel(x, 2)).name() == QColor(THEME.clip_warning).name()
+
+
+def test_the_scan_parade_ticks_full_scale_from_the_scan_before_the_unmix(qapp) -> None:
+    from negpy.desktop.view.widgets.charts import WaveformWidget
+
+    widget = WaveformWidget(parade=True)
+    widget.resize(3 * 100, WAVEFORM_BINS)
+    counts = np.zeros((3, WAVEFORM_BINS, WAVEFORM_COLS))
+    counts[:, 100, :] = 4.0  # the unmix moved the clipped red off the top bin
+    widget.set_data(counts)
+    full = np.zeros((3, WAVEFORM_COLS))
+    full[0, :32] = 3.0
+
+    widget.set_scan_domain(True, np.array([[0.2, 0.7]] * 3), full_scale=full)
+    img = widget.grab().toImage()
+
+    assert _top_tick(img, 5) and not _top_tick(img, 60) and not _top_tick(img, 106)

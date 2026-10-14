@@ -15,6 +15,10 @@ struct DensityHistUniforms {
 // indexed ch * 32768 + bin * 256 + col, bin 0 = the dense end of SCAN_DENSITY_RANGE. Mirrors
 // density_parade() and WAVEFORM_BINS / WAVEFORM_COLS in features/exposure/analysis.py.
 @group(0) @binding(3) var<storage, read_write> parade: array<atomic<u32>, 98304>;
+// The linear scan before the unmix, and its per-column full-scale counts (ch * 256 + col).
+// Mirrors scan_full_scale_columns().
+@group(0) @binding(4) var geom_tex: texture_2d<f32>;
+@group(0) @binding(5) var<storage, read_write> full_scale: array<atomic<u32>, 768>;
 
 const LUMA_COEFFS = vec3<f32>(0.2126, 0.7152, 0.0722);
 
@@ -27,6 +31,8 @@ const PARADE_BINS = 128.0;
 // Mirror SCAN_DENSITY_RANGE: (hi, hi - lo).
 const SCAN_D_MAX = 3.0;
 const SCAN_D_SPAN = 3.0;
+// Mirror EXPOSURE_CONSTANTS["scan_clip_level"].
+const SCAN_CLIP_LEVEL = 0.99;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -54,4 +60,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     atomicAdd(&parade[p_bins.r * PARADE_COLS + col], 1u);
     atomicAdd(&parade[32768u + p_bins.g * PARADE_COLS + col], 1u);
     atomicAdd(&parade[65536u + p_bins.b * PARADE_COLS + col], 1u);
+
+    let raw = textureLoad(geom_tex, coords, 0).rgb;
+    for (var ch = 0u; ch < 3u; ch = ch + 1u) {
+        if (raw[ch] >= SCAN_CLIP_LEVEL) {
+            atomicAdd(&full_scale[ch * PARADE_COLS + col], 1u);
+        }
+    }
 }

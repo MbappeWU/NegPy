@@ -222,6 +222,7 @@ class RightPanel(QWidget):
         self._clip_fracs: tuple = (None, None)
         self._hover_x: float | None = None
         self._scan_bounds: Any = None
+        self._scan_full_scale: Any = None
 
         repo = self.controller.session.repo
         self.scale_btn = SegmentedChoice(
@@ -884,7 +885,8 @@ class RightPanel(QWidget):
         peeking = negative or self.controller.state.flat_peek
         self.waveform_widget.set_data(None if peeking else metrics.get("waveform"), metrics.get("waveform_color"))
         self._scan_bounds = metrics.get("final_bounds") if negative else None
-        self.parade_widget.set_scan_domain(negative, *self._scan_marks_and_caption())
+        self._scan_full_scale = metrics.get("scan_full_scale") if negative else None
+        self.parade_widget.set_scan_domain(negative, *self._scan_marks_and_caption(), full_scale=self._scan_full_scale)
         if negative:
             self.parade_widget.set_data(metrics.get("density_parade"))
         else:

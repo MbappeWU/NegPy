@@ -720,6 +720,7 @@ class WaveformWidget(QWidget):
         self._scan = False
         self._scan_marks: np.ndarray | None = None
         self._scan_caption = ""
+        self._full_scale: np.ndarray | None = None
         self._overlay = False
 
     def set_overlay(self, enabled: bool) -> None:
@@ -732,9 +733,10 @@ class WaveformWidget(QWidget):
     def _split(self) -> bool:
         return self._parade and not self._overlay
 
-    def set_scan_domain(self, enabled: bool, marks: Any = None, caption: str = "Scan density") -> None:
+    def set_scan_domain(self, enabled: bool, marks: Any = None, caption: str = "Scan density", full_scale: Any = None) -> None:
         """Read the counts as scan density (Peek Negative) rather than print tone. ``marks`` is the
-        (3, 2) per-channel stretch ends, 0..1 up the panel; a domain change drops the marker."""
+        (3, 2) per-channel stretch ends, 0..1 up the panel; ``full_scale`` the (3, cols) counts of
+        scan pixels at sensor clip, which set the top ticks. A domain change drops the marker."""
         enabled = bool(enabled)
         marks = None if marks is None or not enabled else np.asarray(marks, dtype=float)
         if enabled != self._scan:
@@ -742,6 +744,7 @@ class WaveformWidget(QWidget):
         self._scan = enabled
         self._scan_marks = marks
         self._scan_caption = caption if enabled else ""
+        self._full_scale = None if full_scale is None or not enabled else np.asarray(full_scale, dtype=float)
         self.update()
 
     def set_log_scale(self, enabled: bool) -> None:
@@ -840,12 +843,18 @@ class WaveformWidget(QWidget):
         if images is not None and counts is not None:
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
             painter.setPen(QPen(QColor(THEME.clip_warning), 2))
-            panels = self._panels() if self._split() or not self._parade else self._panels().sum(axis=0, keepdims=True)
-            for image, rect, panel in zip(images, rects, panels):
+            # Past the axis at the bottom; at full scale (or paper white) at the top.
+            raw = self._panels()
+            bottom, top = raw[:, 0] > 0, raw[:, -1] > 0
+            if self._scan and self._full_scale is not None and self._full_scale.shape == top.shape:
+                top = self._full_scale > 0
+            if not self._split() and self._parade:
+                bottom, top = bottom.any(axis=0, keepdims=True), top.any(axis=0, keepdims=True)
+            for image, rect, low, high in zip(images, rects, bottom, top):
                 painter.drawImage(rect, image)
-                cols = panel.shape[1]
-                for row, y in ((0, h - 3), (-1, 2)):
-                    for c in np.flatnonzero(panel[row]).tolist():
+                cols = low.shape[0]
+                for marks, y in ((low, h - 3), (high, 2)):
+                    for c in np.flatnonzero(marks).tolist():
                         painter.drawLine(rect.x() + int(c * rect.width() / cols), y, rect.x() + int((c + 1) * rect.width() / cols), y)
             if self._split():
                 painter.setPen(QPen(QColor(THEME.border_primary), 1))

@@ -415,6 +415,7 @@ class RenderWorker(QObject):
         metrics.pop("vectorscope", None)
         # No joined scan to rebin; None, not a pop, so the merged metrics drop the last frame's.
         metrics["density_parade"] = None
+        metrics["scan_full_scale"] = None
         along = 1 if task.split_axis == "x" else 0
         gap = gap_px(left.shape[along], right.shape[along], task.gutter_thickness)
         return join_halves(left, right, gap, axis=task.split_axis), metrics
