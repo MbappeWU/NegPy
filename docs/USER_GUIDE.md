@@ -912,7 +912,7 @@ Optional original shutter, aperture and ISO. Click the lock to edit a free-text 
 
 A live view of what goes into the file. **Description…** picks the fields joined into EXIF `ImageDescription` (default: camera, lens, film stock, ISO); the choice becomes the default for frames without their own.
 
-Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`.
+Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`. A star rating set in the camera carries over as `xmp:Rating`.
 
 ---
 
