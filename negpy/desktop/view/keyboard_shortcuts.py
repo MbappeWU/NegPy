@@ -81,7 +81,7 @@ def _context_cancel(controller, window) -> None:
     """Esc ladder: whatever has taken the canvas over goes first — a test strip, any peek,
     the before/after split — then the grain focuser loupe, then an armed zone, then
     in-progress tool geometry (polyline points, straighten line, zone pins), then the tool
-    itself."""
+    itself, or the Zone Overlay when no tool is armed."""
     if window.light_table_active():
         window.set_light_table(False)
         return
@@ -112,8 +112,12 @@ def _context_cancel(controller, window) -> None:
     if controller.state.zone_pins:
         controller.clear_zone_pins()
         return
-    if not window.canvas.overlay.cancel_in_progress():
-        controller.cancel_active_tool()
+    if window.canvas.overlay.cancel_in_progress():
+        return
+    if controller.state.active_tool == ToolMode.NONE and controller.state.zones_overlay:
+        controller.toggle_zones_overlay(force=False)
+        return
+    controller.cancel_active_tool()
 
 
 def _toggle_tool_button(window, tab_key: str, button) -> None:
@@ -258,6 +262,69 @@ class SpacePanKeyFilter(QObject):
             pass
 
 
+# Same threshold as Space: a press held past it is a hold, not a tap.
+KEY_HOLD_MS = SPACE_PAN_DELAY_MS
+
+
+class KeyHold(QObject):
+    """Tells a tap of a shortcut key from a hold. The shortcut reports the press; this watches
+    the release, which a QShortcut never sees. One key at a time: a second press ends the first."""
+
+    def __init__(self, window):
+        super().__init__(window)
+        self.window = window
+        self._key: Optional[int] = None
+        self._callbacks: tuple[Optional[Callable[[], None]], ...] = (None, None, None)
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(KEY_HOLD_MS)
+        self._timer.timeout.connect(self._on_held)
+
+    def press(
+        self,
+        key: int,
+        on_tap: Optional[Callable[[], None]] = None,
+        on_hold: Optional[Callable[[], None]] = None,
+        on_end: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """on_tap runs on a quick release; on_hold once the press outlasts KEY_HOLD_MS, and on_end on its release."""
+        if self._key is not None:
+            self._finish()
+        self._key = key
+        self._callbacks = (on_tap, on_hold, on_end)
+        QApplication.instance().installEventFilter(self)
+        self._timer.start()
+
+    def _on_held(self) -> None:
+        on_hold = self._callbacks[1]
+        if on_hold is not None:
+            on_hold()
+
+    def _finish(self) -> None:
+        QApplication.instance().removeEventFilter(self)
+        on_tap, _on_hold, on_end = self._callbacks
+        callback = on_tap if self._timer.isActive() else on_end
+        self._timer.stop()
+        self._key = None
+        self._callbacks = (None, None, None)
+        if callback is not None:
+            callback()
+
+    def eventFilter(self, watched, event) -> bool:
+        event_type = event.type()
+        if event_type in (QEvent.Type.ApplicationDeactivate, QEvent.Type.WindowDeactivate):
+            # The release lands in another window, or nowhere.
+            if event_type == QEvent.Type.ApplicationDeactivate or not self.window.isActiveWindow():
+                self._finish()
+            return False
+        if event_type in (QEvent.Type.KeyPress, QEvent.Type.KeyRelease) and event.key() == self._key:
+            if event.isAutoRepeat():
+                return True
+            if event_type == QEvent.Type.KeyRelease:
+                self._finish()
+        return False
+
+
 class ShortcutManager:
     def __init__(self, window):
         self.window = window
@@ -265,7 +332,39 @@ class ShortcutManager:
         self.slider_steps = load_slider_steps(window.controller.session.repo)
         self._shortcuts: list[QShortcut] = []
         self._actions = self._build_actions()
+        self.key_hold = KeyHold(window)
+        self._held_actions = self._build_held_actions()
         self.apply_bindings(self.bindings)
+
+    def _build_held_actions(self) -> dict[str, Callable[[int], None]]:
+        """Keys that act differently when held. Only the key does: a menu item has no release,
+        so menus and action_for() keep the plain toggle."""
+        controller = self.window.controller
+        held = {
+            action_id: self._spring_loaded(flag, toggle)
+            for action_id, flag, toggle in (
+                ("toggle_negative_peek", "negative_peek", controller.toggle_negative_peek),
+                ("toggle_flat_peek", "flat_peek", controller.toggle_flat_peek),
+                ("toggle_embedded_peek", "embedded_peek", controller.toggle_embedded_peek),
+            )
+        }
+        held["toggle_compare"] = lambda key: self.key_hold.press(
+            key, on_tap=controller.toggle_compare, on_hold=controller.begin_compare_hold, on_end=controller.end_compare_hold
+        )
+        return held
+
+    def _spring_loaded(self, flag: str, toggle: Callable[..., None]) -> Callable[[int], None]:
+        """Toggles on press; a held press puts the flag back on release. A refused toggle
+        changed nothing, so its release does nothing."""
+        state = self.window.controller.state
+
+        def press(key: int) -> None:
+            before = bool(getattr(state, flag))
+            toggle()
+            if bool(getattr(state, flag)) != before:
+                self.key_hold.press(key, on_end=lambda: toggle(force=before))
+
+        return press
 
     def _slider_adjuster(self, getter: Callable[[], object], action_id: str) -> Callable[[], None]:
         group = SLIDER_GROUP_BY_ACTION[action_id]
@@ -382,6 +481,8 @@ class ShortcutManager:
             "toggle_cyanotype": controller.toggle_cyanotype,
             "toggle_sabattier": controller.toggle_sabattier,
             "toggle_printing_notes": controller.toggle_printing_notes,
+            "toggle_cursor_probe": controller.toggle_cursor_probe,
+            "cycle_frame_info": controller.cycle_canvas_info,
             "toggle_soft_proof": lambda: controller.set_soft_proof(not controller.state.soft_proof_enabled),
             "cancel_tool": lambda: _context_cancel(controller, self.window),
             "show_library": self.window.session_panel.show_library,
@@ -496,7 +597,13 @@ class ShortcutManager:
             if not key:
                 continue
             shortcut = QShortcut(QKeySequence(key), self.window)
-            shortcut.activated.connect(callback)
+            held = self._held_actions.get(action_id)
+            if held is not None:
+                # Autorepeat would re-run the press while the key is down.
+                shortcut.setAutoRepeat(False)
+                shortcut.activated.connect(lambda held=held, k=QKeySequence(key)[0].key(): held(k))
+            else:
+                shortcut.activated.connect(callback)
             self._shortcuts.append(shortcut)
 
         self.window.controls_panel.apply_shortcut_tooltips()

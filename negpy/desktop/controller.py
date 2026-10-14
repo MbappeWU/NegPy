@@ -474,6 +474,9 @@ class AppController(QObject):
     zone_hover_highlight_changed = pyqtSignal(bool)
     grain_focuser_changed = pyqtSignal(bool)
     printing_notes_changed = pyqtSignal(bool)
+    cursor_probe_changed = pyqtSignal(bool)
+    zones_style_changed = pyqtSignal(str)
+    canvas_info_changed = pyqtSignal(int)
     printing_notes_requested = pyqtSignal()  # the canvas holds the annotated pixels
     strip_requested = pyqtSignal(TestStripTask)
     test_strip_changed = pyqtSignal(bool)  # True = mosaic is up, False = cleared or building
@@ -502,6 +505,7 @@ class AppController(QObject):
     monitor_profile_changed = pyqtSignal()
     compare_changed = pyqtSignal(bool)
     compare_frame_ready = pyqtSignal()
+    compare_hold_changed = pyqtSignal(bool)
     flat_output_changed = pyqtSignal(bool)
     linear_output_changed = pyqtSignal(bool)
     flat_peek_changed = pyqtSignal(bool)
@@ -3137,6 +3141,12 @@ class AppController(QObject):
         self.state.zones_overlay = (not self.state.zones_overlay) if force is None else bool(force)
         self.zones_overlay_changed.emit(self.state.zones_overlay)
 
+    def set_zones_style(self, style: str) -> None:
+        """Zone Overlay look, a ZONE_STYLES key. Repaint only."""
+        self.state.zones_style = style
+        self.session.repo.save_global_setting("zones_style", style)
+        self.zones_style_changed.emit(style)
+
     def toggle_clipping_overlay(self, force: Optional[bool] = None) -> None:
         """Marks paper black and paper white on the frame. Repaint only."""
         self.state.clipping_overlay = (not self.state.clipping_overlay) if force is None else bool(force)
@@ -3151,9 +3161,14 @@ class AppController(QObject):
         self.zone_hover_highlight_changed.emit(on)
 
     def set_zone_highlight(self, zone: Optional[int]) -> None:
-        """Lights up one zone-strip cell's pixels on the frame; None clears. Repaint only."""
+        """Shows one zone-strip cell's zone alone, if the strip's Zone Highlight is on; None
+        clears. Repaint only."""
         if zone is not None and not self.state.zone_hover_highlight:
             return
+        self.highlight_zone(zone)
+
+    def highlight_zone(self, zone: Optional[int]) -> None:
+        """Shows one zone alone, whatever the strip's setting; None clears. Repaint only."""
         if zone != self.state.zone_highlight:
             self.state.zone_highlight = zone
             self.zone_highlight_changed.emit()
@@ -3163,6 +3178,25 @@ class AppController(QObject):
         holds, so no re-render is needed."""
         self.state.grain_focuser = (not self.state.grain_focuser) if force is None else bool(force)
         self.grain_focuser_changed.emit(self.state.grain_focuser)
+
+    def toggle_cursor_probe(self, force: Optional[bool] = None) -> None:
+        """Densitometer chip beside the pointer. Repaint only."""
+        on = (not self.state.cursor_probe) if force is None else bool(force)
+        self.state.cursor_probe = on
+        self.session.repo.save_global_setting("cursor_probe", on)
+        self.cursor_probe_changed.emit(on)
+
+    def set_canvas_info_level(self, level: int) -> None:
+        """Canvas corner pills: off, basic or full."""
+        self.state.canvas_info_level = level % 3
+        self.session.repo.save_global_setting("canvas_info_level", self.state.canvas_info_level)
+        self.canvas_info_changed.emit(self.state.canvas_info_level)
+
+    def cycle_canvas_info(self) -> None:
+        from negpy.desktop.view.canvas.hud import INFO_LEVEL_LABELS
+
+        self.set_canvas_info_level(self.state.canvas_info_level + 1)
+        self.set_status(f"Frame Info: {INFO_LEVEL_LABELS[self.state.canvas_info_level]}", 1500)
 
     def toggle_printing_notes(self, force: Optional[bool] = None) -> None:
         """Printing-notes overlay (dodge/burn map + print recipe). Repaint only — every
@@ -6802,6 +6836,31 @@ class AppController(QObject):
             self.state.compare_mode = False
             self.compare_changed.emit(False)
 
+    def begin_compare_hold(self) -> None:
+        """Show the baseline over the whole picture until end_compare_hold. Only over the print:
+        a peek, the test strip or an uncropped tool view has no baseline that lines up."""
+        st = self.state
+        if (
+            st.preview_raw is None
+            or st.test_strip
+            or st.negative_peek
+            or st.flat_peek
+            or st.embedded_peek
+            or st.flatfield_peek
+            or st.active_tool in UNCROPPED_PREVIEW_TOOLS
+        ):
+            return
+        st.compare_hold = True
+        # Kept after release, so the next hold on this frame needs no render.
+        if not isinstance(st.compare_before, np.ndarray) or st.compare_before_key != self._compare_before_key():
+            self._request_compare_baseline()
+        self.compare_hold_changed.emit(True)
+
+    def end_compare_hold(self) -> None:
+        if self.state.compare_hold:
+            self.state.compare_hold = False
+            self.compare_hold_changed.emit(False)
+
     def toggle_compare(self) -> None:
         """Toggle the before/after split between the edit and the auto baseline."""
         if self.state.preview_raw is None:
@@ -8057,7 +8116,7 @@ class AppController(QObject):
         # The baseline half of the split is stashed, never displayed: it must not reach
         # last_metrics, the memo, the thumbnail or the canvas.
         if metrics.get("compare"):
-            if self.state.compare_mode:
+            if self.state.compare_mode or self.state.compare_hold:
                 self._capture_compare_before(metrics)
             if self._pending_render_task is not None:
                 self._dispatch_pending_render()

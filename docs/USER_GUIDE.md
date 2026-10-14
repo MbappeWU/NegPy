@@ -15,7 +15,8 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 ### Screen layout
 
 *   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
-*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
 *   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
@@ -32,7 +33,7 @@ Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** h
 
 ### Before / After
 
-**Before / After** in the **Print** menu (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. It stays up while you edit. `\`, `Esc`, a frame change, a peek or the test strip closes it.
+**Before / After** in the **Print** menu (or `\`) splits the canvas: left is the auto baseline (same film process, crop and rotation, every creative control at default), right is your edit. It stays up while you edit. `\`, `Esc`, a frame change, a peek or the test strip closes it. Hold `\` instead to see the whole frame as the baseline until you let go.
 
 ### Reference view
 
@@ -46,7 +47,7 @@ Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** h
 
 **Embedded** in the **Print** menu (or `P`) shows the camera's own JPEG at your crop and rotation. NegPy uses nothing from it. Scanner TIFFs and most converter DNGs have none. It closes like Peek Negative.
 
-`Esc` closes any peek, the split or a test strip.
+`Esc` closes any peek, the split or a test strip. Hold a peek key (`N`, `M`, `P`) to peek only while it is down.
 
 ### The workflow
 
@@ -331,13 +332,13 @@ A 21-step wedge printed through the current curve, alternative process and tonin
 
 #### Zone strip
 
-Ten cells on the Adams scale (**0** paper black, **V** 18% mid-gray); opacity shows how much of the frame lands in each. The end cells turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
+Eleven cells on the Adams scale (**0** paper black, **V** 18% mid-gray, **X** paper white), each zone rounded to the nearest as the Zone Overlay counts it; opacity shows how much of the frame lands in each. The two cells at each end turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
 
-Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**, which labels every region of the print with its zone. Hovering a cell lights up the pixels that print in that zone; the highlighter icon in the Analysis header toggles this.
+Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the canvas toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
 
 #### Probe
 
-A spot densitometer: hover the image for per-channel density above film base (ΔD), the print density and its zone.
+A spot densitometer: hover the image for per-channel density above film base (ΔD), the print density and its zone. **Probe at Cursor** (**Overlays**, or `Shift+I`) shows the same reading in a chip beside the pointer.
 
 #### Zone placement
 
@@ -1148,7 +1149,7 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 
 ### Accessibility
 
-*   **Color vision** (default **Standard**): colors for marks told apart by color alone (dust overlay, dodge and burn masks, zone highlight, clipping overlay). *Protanopia / deuteranopia*, *Tritanopia* and *Achromatopsia* use colors from the Okabe–Ito palette.
+*   **Color vision** (default **Standard**): colors for marks told apart by color alone (dust overlay, dodge and burn masks, Zone Overlay, clipping overlay). *Protanopia / deuteranopia*, *Tritanopia* and *Achromatopsia* use colors from the Okabe–Ito palette.
 
 ### Performance
 
