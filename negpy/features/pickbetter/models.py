@@ -69,3 +69,7 @@ class PickBetterProgress:
     round_kind: RoundKind
     center_before: float
     selection_counts: tuple[int, ...]
+    # The order the rounds visit the eleven parameters; a randomized run shuffles it once at
+    # start. selection_counts stays keyed by the real parameter index, so a shuffle reorders
+    # rounds but each parameter's step still shrinks by its own count.
+    param_order: tuple[int, ...] = tuple(range(len(PICK_PARAMS)))

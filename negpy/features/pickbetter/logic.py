@@ -1,8 +1,14 @@
+import random
 from dataclasses import replace
 
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.exposure.logic import kelvin_to_wb, wb_to_kelvin
-from negpy.features.pickbetter.models import PICK_PARAMS, Phase, PickBetterProgress, PickParam, RoundKind
+from negpy.features.pickbetter.models import PICK_PARAMS, PickBetterProgress, PickParam, Phase, RoundKind
+
+
+def _param_at(progress: PickBetterProgress, position: int) -> PickParam:
+    """The PickParam the rounds visit at a given order position (a real PICK_PARAMS index)."""
+    return PICK_PARAMS[progress.param_order[position]]
 
 
 def _clamp(value: float, param: PickParam) -> float:
@@ -11,7 +17,7 @@ def _clamp(value: float, param: PickParam) -> float:
 
 
 def param_value(config: WorkspaceConfig, param: PickParam) -> float:
-    """Read a control's current value: the field itself, or Kelvin for the compound Temperature."""
+    """Read a control's current value: the field itself, or Kelvin for the compound Temperature"""
     if param.compound:
         return wb_to_kelvin(config.exposure.wb_magenta, config.exposure.wb_yellow)
     return float(getattr(config.exposure, param.field))
@@ -37,32 +43,46 @@ def step_for(param: PickParam, selections: int) -> float:
     return max(param.strong_step / (2**selections), param.floor)
 
 
-def start_pick_better(config: WorkspaceConfig) -> PickBetterProgress:
-    """The first round: param 0 (grade), strong-vs-weak at its full (bold) step."""
-    param = PICK_PARAMS[0]
+def start_pick_better(config: WorkspaceConfig, randomize: bool = False) -> PickBetterProgress:
+    """The first round: position 0, strong-vs-weak at its full (bold) step.
+
+    `randomize` shuffles `param_order` once so the rounds visit the eleven parameters in a
+    different sequence; the order is fixed otherwise.
+    """
+    if randomize:
+        order = list(range(len(PICK_PARAMS)))
+        random.shuffle(order)
+        param_order = tuple(order)
+    else:
+        param_order = tuple(range(len(PICK_PARAMS)))
+    param = PICK_PARAMS[param_order[0]]
     return PickBetterProgress(
         phase=Phase.FIXED,
         param_index=0,
         round_kind=RoundKind.STRONG_WEAK,
         center_before=param_value(config, param),
         selection_counts=tuple(0 for _ in PICK_PARAMS),
+        param_order=param_order,
     )
 
 
 def current_pair(
     config: WorkspaceConfig,
     progress: PickBetterProgress,
+    scale: float = 1.0,
 ) -> tuple[WorkspaceConfig, WorkspaceConfig]:
     """The two candidates to render, differing in one ExposureConfig field.
 
     A STRONG_WEAK round is center +/- step (left stronger, right weaker), the step bold at the
     parameter's first selection and smaller on each later one. A CHOSEN_MIDDLE round offers the
     committed value nudged a half step further in the committed direction (left) against the
-    pre-tuning value (right), so a pick of either half always moves.
+    pre-tuning value (right), so a pick of either half always moves. `scale` multiplies the step
+    so a Difference slider widens or narrows the A/B spread without changing the committed center.
     """
-    param = PICK_PARAMS[progress.param_index]
+    real = progress.param_order[progress.param_index]
+    param = PICK_PARAMS[real]
     current = param_value(config, param)
-    step = step_for(param, progress.selection_counts[progress.param_index])
+    step = step_for(param, progress.selection_counts[real]) * scale
     if progress.round_kind == RoundKind.STRONG_WEAK:
         left_val = _clamp(current + step, param)
         right_val = _clamp(current - step, param)
@@ -90,32 +110,20 @@ def apply_pick(
     config: WorkspaceConfig,
     progress: PickBetterProgress,
     side: int,
+    scale: float = 1.0,
 ) -> tuple[WorkspaceConfig, PickBetterProgress]:
     """Commit the chosen half (side 0 = left, 1 = right) and advance to the next round.
 
     A STRONG_WEAK pick counts as one selection of the in-flight parameter, so its next
     opportunity proposes a smaller step; a CHOSEN_MIDDLE pick does not.
     """
-    left, right = current_pair(config, progress)
+    left, right = current_pair(config, progress, scale=scale)
     new_config = left if side == 0 else right
     counts = progress.selection_counts
     if progress.round_kind == RoundKind.STRONG_WEAK:
-        i = progress.param_index
+        i = progress.param_order[progress.param_index]
         counts = counts[:i] + (counts[i] + 1,) + counts[i + 1 :]
     return new_config, _advance(new_config, progress, counts)
-
-
-def move_summary(old: WorkspaceConfig, new: WorkspaceConfig, progress: PickBetterProgress) -> str:
-    """The "Name +delta" line shown for a few seconds after a left or right pick.
-
-    The delta is the committed value minus the pre-pick value (a clamp shows the actual
-    movement); a pick that keeps the value shows the name alone, with no delta.
-    """
-    param = PICK_PARAMS[progress.param_index]
-    delta = param_value(new, param) - param_value(old, param)
-    if abs(delta) < 1e-9:
-        return param.name
-    return f"{param.name} {delta:+g}"
 
 
 def reject_and_advance(
@@ -126,35 +134,38 @@ def reject_and_advance(
 
     A reject is not a selection: the config and the selection counts stay put, so the next
     parameter's first round still opens at its bold step. The advance is uniform across the
-    fixed and refine phases — both move to the next parameter's STRONG_WEAK round.
+    fixed and refine phases - both move to the next parameter's STRONG_WEAK round.
     """
     if progress.phase == Phase.FIXED:
         next_index = progress.param_index + 1
         if next_index < len(PICK_PARAMS):
-            param = PICK_PARAMS[next_index]
+            param = _param_at(progress, next_index)
             return config, PickBetterProgress(
                 phase=Phase.FIXED,
                 param_index=next_index,
                 round_kind=RoundKind.STRONG_WEAK,
                 center_before=param_value(config, param),
                 selection_counts=progress.selection_counts,
+                param_order=progress.param_order,
             )
-        param = PICK_PARAMS[0]
+        param = _param_at(progress, 0)
         return config, PickBetterProgress(
             phase=Phase.REFINE,
             param_index=0,
             round_kind=RoundKind.STRONG_WEAK,
             center_before=param_value(config, param),
             selection_counts=progress.selection_counts,
+            param_order=progress.param_order,
         )
     next_index = (progress.param_index + 1) % len(PICK_PARAMS)
-    param = PICK_PARAMS[next_index]
+    param = _param_at(progress, next_index)
     return config, PickBetterProgress(
         phase=Phase.REFINE,
         param_index=next_index,
         round_kind=RoundKind.STRONG_WEAK,
         center_before=param_value(config, param),
         selection_counts=progress.selection_counts,
+        param_order=progress.param_order,
     )
 
 
@@ -172,25 +183,28 @@ def _advance(
                 round_kind=RoundKind.CHOSEN_MIDDLE,
                 center_before=progress.center_before,
                 selection_counts=counts,
+                param_order=progress.param_order,
             )
         next_index = progress.param_index + 1
         if next_index < len(PICK_PARAMS):
-            param = PICK_PARAMS[next_index]
+            param = _param_at(progress, next_index)
             return PickBetterProgress(
                 phase=Phase.FIXED,
                 param_index=next_index,
                 round_kind=RoundKind.STRONG_WEAK,
                 center_before=param_value(config, param),
                 selection_counts=counts,
+                param_order=progress.param_order,
             )
-        # All eleven params settled; begin the endless refinement at param 0.
-        param = PICK_PARAMS[0]
+        # All eleven params settled; begin the endless refinement at position 0.
+        param = _param_at(progress, 0)
         return PickBetterProgress(
             phase=Phase.REFINE,
             param_index=0,
             round_kind=RoundKind.STRONG_WEAK,
             center_before=param_value(config, param),
             selection_counts=counts,
+            param_order=progress.param_order,
         )
     return _advance_refine(config, progress, counts)
 
@@ -200,17 +214,19 @@ def _advance_refine(
     progress: PickBetterProgress,
     counts: tuple[int, ...],
 ) -> PickBetterProgress:
-    param = PICK_PARAMS[progress.param_index]
-    if step_for(param, counts[progress.param_index]) <= param.floor:
+    real = progress.param_order[progress.param_index]
+    param = PICK_PARAMS[real]
+    if step_for(param, counts[real]) <= param.floor:
         # At the floor: move to the next param, restarting its halving from the bold step.
         next_index = (progress.param_index + 1) % len(PICK_PARAMS)
-        next_param = PICK_PARAMS[next_index]
+        next_param = _param_at(progress, next_index)
         return PickBetterProgress(
             phase=Phase.REFINE,
             param_index=next_index,
             round_kind=RoundKind.STRONG_WEAK,
             center_before=param_value(config, next_param),
             selection_counts=counts,
+            param_order=progress.param_order,
         )
     return PickBetterProgress(
         phase=Phase.REFINE,
@@ -218,9 +234,38 @@ def _advance_refine(
         round_kind=RoundKind.STRONG_WEAK,
         center_before=param_value(config, param),
         selection_counts=counts,
+        param_order=progress.param_order,
     )
 
 
 def is_finished(progress: PickBetterProgress) -> bool:
     """The refinement is endless; the user ends via the Finish button or the toggle, not here."""
     return False
+
+
+def randomize_remaining(progress: PickBetterProgress) -> PickBetterProgress:
+    """Shuffle only the not-yet-visited order, leaving the in-flight round in place.
+
+    Pressing Randomize reshuffles the parameters after the current position; the current round's
+    parameter and the rounds already run keep their place, so the pick in front of you is
+    unchanged and only what comes next is re-ordered.
+    """
+    order = list(progress.param_order)
+    tail = order[progress.param_index + 1 :]
+    random.shuffle(tail)
+    order[progress.param_index + 1 :] = tail
+    return replace(progress, param_order=tuple(order))
+
+
+def move_summary(old: WorkspaceConfig, new: WorkspaceConfig, progress: PickBetterProgress) -> str:
+    """The "Name +delta" line shown for a few seconds after a left or right pick.
+
+    The delta is the committed value minus the pre-pick value (a clamp shows the actual
+    movement); a pick that keeps the value shows the name alone, with no delta.
+    """
+    real = progress.param_order[progress.param_index]
+    param = PICK_PARAMS[real]
+    delta = param_value(new, param) - param_value(old, param)
+    if abs(delta) < 1e-9:
+        return param.name
+    return f"{param.name} {delta:+g}"

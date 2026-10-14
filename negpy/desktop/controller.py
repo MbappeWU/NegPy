@@ -204,10 +204,11 @@ from negpy.features.pickbetter.logic import (
     apply_pick,
     current_pair,
     move_summary,
+    randomize_remaining,
     reject_and_advance,
     start_pick_better,
 )
-from negpy.features.pickbetter.models import PickBetterProgress
+from negpy.features.pickbetter.models import PICK_PARAMS, PickBetterProgress
 from negpy.features.toning.models import ToningConfig
 from negpy.infrastructure.capture.settings import WhiteCaptureMode
 from negpy.infrastructure.display.color_spaces import ColorSpaceRegistry
@@ -488,7 +489,8 @@ class AppController(QObject):
     pick_better_requested = pyqtSignal(PickBetterTask)
     pick_better_changed = pyqtSignal(bool)  # True = the window is up, False = cleared
     pick_better_ready = pyqtSignal(object, object, object)  # (current, left, right ndarrays)
-    pick_better_moved = pyqtSignal(str)  # 'Grade +20', shown for a few seconds after a left/right pick
+    pick_better_param = pyqtSignal(str)  # the in-flight parameter name, shown above the Skip caption
+    pick_better_moved = pyqtSignal(str)  # the "Name +delta" summary, shown briefly after a pick
     zone_pins_changed = pyqtSignal()
     rgb_scan_mode_changed = pyqtSignal(bool)  # the mode changed from somewhere other than its button
     half_frame_mode_changed = pyqtSignal(bool)  # a roll became active; each remembers its own toggle
@@ -785,6 +787,12 @@ class AppController(QObject):
         self._pick_better_progress: Optional[PickBetterProgress] = None
         # Pre-pick (config, progress) snapshots for Undo: each pop re-proposes that pair.
         self._pick_better_undo: list = []
+        # The Difference slider's A/B spread multiplier, and the scale the last pair rendered at,
+        # so a render that lands after the slider moved can re-request at the new spread.
+        self._pick_better_diff_scale: float = 1.0
+        self._pick_better_request_scale: float = 1.0
+        # The Randomize toggle: shuffle the 22-round order on the next start.
+        self._pick_better_randomize: bool = False
 
         self._render_debounce = QTimer()
         self._render_debounce.setSingleShot(True)
@@ -3657,7 +3665,13 @@ class AppController(QObject):
         """
         if self.state.preview_raw is None or self._pick_better_progress is None:
             return
-        left, right = current_pair(self.state.config, self._pick_better_progress)
+        progress = self._pick_better_progress
+        real = progress.param_order[progress.param_index]
+        left, right = current_pair(self.state.config, progress, scale=self._pick_better_diff_scale)
+        # Record the spread this render ran at, so a render that lands after the Difference slider
+        # moved can re-request at the new spread instead of showing a stale pair.
+        self._pick_better_request_scale = self._pick_better_diff_scale
+        self.pick_better_param.emit(PICK_PARAMS[real].name)
         cam_xyz, camera_wb = self._effective_cam_xyz()
         self.state.pick_better_pending = True
         self.set_status("Printing Pick Better…", 2500)
@@ -3692,7 +3706,7 @@ class AppController(QObject):
         if self.state.preview_raw is None:
             return
         self.exit_compare()
-        self._pick_better_progress = start_pick_better(self.state.config)
+        self._pick_better_progress = start_pick_better(self.state.config, randomize=self._pick_better_randomize)
         self._request_pick_better_pair()
 
     def _clear_pick_better(self) -> None:
@@ -3711,9 +3725,17 @@ class AppController(QObject):
         if not self.state.pick_better_pending:
             return
         self.state.pick_better_pending = False
+        # The user may have moved the Difference slider while this render was in flight, so the
+        # frame shows the old spread. Re-request at the new spread and drop this stale one; a
+        # settled frame is shown, and the window appears only on the first finish.
+        if self._pick_better_diff_scale != self._pick_better_request_scale:
+            self._request_pick_better_pair()
+            return
+        already_up = self.state.pick_better
         self.state.pick_better = True
         self.pick_better_ready.emit(current, left, right)
-        self.pick_better_changed.emit(True)
+        if not already_up:
+            self.pick_better_changed.emit(True)
         self.set_status("Pick Better ready — click the better candidate", 4000)
 
     def pick_better_select(self, side: int) -> None:
@@ -3727,7 +3749,7 @@ class AppController(QObject):
         self._pick_better_undo.append((self.state.config, self._pick_better_progress))
         old = self.state.config
         progress = self._pick_better_progress
-        new_config, next_progress = apply_pick(old, progress, side)
+        new_config, next_progress = apply_pick(old, progress, side, scale=self._pick_better_diff_scale)
         self.session.update_config(new_config, persist=True)
         self._pick_better_progress = next_progress
         self.pick_better_moved.emit(move_summary(old, new_config, progress))
@@ -3765,6 +3787,23 @@ class AppController(QObject):
         self.session.update_config(config, persist=True)
         self._pick_better_progress = progress
         self._request_pick_better_pair()
+
+    def pick_better_set_diff(self, scale: float) -> None:
+        """Scale the A/B spread live. A render already in flight re-requests on finish, so the
+        new spread is shown without waiting for a pick; a settled pair re-renders at once."""
+        self._pick_better_diff_scale = scale
+        if self._pick_better_progress is not None and not self.state.pick_better_pending:
+            self._request_pick_better_pair()
+
+    def pick_better_set_randomize(self, on: bool) -> None:
+        """On turning the mode on, reshuffle only the rounds after the current one, keeping the
+        in-flight round in place; the choice is remembered for the next fresh start."""
+        self._pick_better_randomize = on
+        if not on:
+            return
+        if self._pick_better_progress is None or not (self.state.pick_better or self.state.pick_better_pending):
+            return
+        self._pick_better_progress = randomize_remaining(self._pick_better_progress)
 
     def _on_pick_better_error(self, _message: str) -> None:
         """A render that errors never reaches on_pick_better_finished, and the stuck `pending`

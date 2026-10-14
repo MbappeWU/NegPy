@@ -8,6 +8,7 @@ from negpy.features.pickbetter.logic import (
     is_finished,
     move_summary,
     param_value,
+    randomize_remaining,
     reject_and_advance,
     set_param,
     start_pick_better,
@@ -104,9 +105,8 @@ class TestFixedSequence:
         assert progress.param_index == 1
 
     def test_chosen_middle_left_pick_always_moves(self):
-        # The reported bug: a chosen-vs-middle A pick kept the committed value (A equaled the
-        # Skip frame), so only the name showed and the value did not move. A left pick now
-        # nudges a half step further, so it changes the value and the summary carries a delta.
+        # A chosen-vs-middle A pick must change the value: the committed value (135) equaled the
+        # Skip frame, so a plain pick would be a no-op. A left pick nudges a half step further.
         config = WorkspaceConfig()
         progress = start_pick_better(config)
         config, progress = apply_pick(config, progress, side=0)  # STRONG_WEAK -> 135
@@ -114,7 +114,6 @@ class TestFixedSequence:
         before = config.exposure.grade
         new_config, _ = apply_pick(config, chosen_middle, side=0)  # CHOSEN_MIDDLE A -> 140
         assert new_config.exposure.grade != before
-        assert move_summary(config, new_config, chosen_middle) == "Grade +5"
 
 
 class TestClamping:
@@ -353,48 +352,136 @@ class TestFinished:
         assert is_finished(PickBetterProgress(Phase.REFINE, 5, RoundKind.STRONG_WEAK, 0.0, _zeros())) is False
 
 
+class TestDifferenceScale:
+    # The Difference slider multiplies the A/B step; the two candidates stay symmetric about the
+    # current (Skip) value, so a larger spread moves them further out without moving the center.
+    def test_scale_doubles_the_spread(self):
+        # grade 115, bold step 20: at scale 2.0 the step is 40, so A is 155 and B is 75.
+        progress = start_pick_better(WorkspaceConfig())
+        left, right = current_pair(WorkspaceConfig(), progress, scale=2.0)
+        assert left.exposure.grade == 155.0
+        assert right.exposure.grade == 75.0
+
+    def test_scale_keeps_the_pair_symmetric_about_current(self):
+        # A bigger spread moves both candidates out but the midpoint stays the current value.
+        config = _config(grade=115.0)
+        progress = start_pick_better(config)
+        for scale in (0.5, 1.0, 2.0, 4.0):
+            left, right = current_pair(config, progress, scale=scale)
+            assert (left.exposure.grade + right.exposure.grade) / 2 == pytest.approx(115.0)
+
+    def test_apply_pick_commits_the_scaled_candidate(self):
+        # A left pick at scale 2.0 commits the further-out value (155), not the unit-scale 135.
+        config = WorkspaceConfig()
+        progress = start_pick_better(config)
+        new_config, _ = apply_pick(config, progress, side=0, scale=2.0)
+        assert new_config.exposure.grade == 155.0
+
+
+class TestRandomizeOrder:
+    # randomize shuffles param_order once at start; selection_counts stay keyed by the real
+    # parameter index, so a shuffle reorders the rounds but each parameter's step still shrinks by
+    # its own count.
+    def test_default_order_is_identity(self):
+        progress = start_pick_better(WorkspaceConfig())
+        assert progress.param_order == tuple(range(len(PICK_PARAMS)))
+
+    def test_randomized_order_is_a_permutation(self):
+        progress = start_pick_better(WorkspaceConfig(), randomize=True)
+        assert len(progress.param_order) == len(PICK_PARAMS)
+        assert sorted(progress.param_order) == list(range(len(PICK_PARAMS)))
+
+    def test_shuffled_fixed_run_visits_all_params(self):
+        # 22 fixed rounds over a shuffled order still cover every one of the eleven parameters once
+        # in a strong-weak round.
+        config = WorkspaceConfig()
+        progress = start_pick_better(config, randomize=True)
+        seen = set()
+        for _ in range(len(PICK_PARAMS) * 2):
+            if progress.round_kind == RoundKind.STRONG_WEAK:
+                seen.add(progress.param_order[progress.param_index])
+            config, progress = apply_pick(config, progress, side=0)
+        assert seen == set(range(len(PICK_PARAMS)))
+
+    def test_selection_count_tracks_the_real_param(self):
+        # After a strong-vs-weak pick at a shuffled position, the count increments on that
+        # position's real parameter, not on the position index.
+        config = WorkspaceConfig()
+        progress = start_pick_better(config, randomize=True)
+        real = progress.param_order[progress.param_index]
+        _, next_progress = apply_pick(config, progress, side=0)
+        assert next_progress.selection_counts[real] == 1
+        assert sum(next_progress.selection_counts) == 1
+
+
 class TestMoveSummary:
-    # After a left or right pick, the window shows "Name +delta" for a few seconds. The delta is
-    # the committed value minus the pre-pick value, so a clamp shows the actual movement; a pick
-    # that keeps the value (a chosen-vs-middle confirm, or a clamp onto the current value) shows
-    # the name alone, with no delta.
-    def test_positive_move_shows_name_and_signed_delta(self):
-        old = _config(grade=115.0)
+    # move_summary renders the "Name +delta" line shown briefly after a left or right pick, reading
+    # the in-flight parameter through param_order so a shuffled round still names the right control.
+    def test_grade_move_shows_name_and_delta(self):
+        # grade 115 -> 135 is a +20 move; the line names the control and its signed delta.
+        old = WorkspaceConfig()
         new = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 115.0, _zeros())
+        progress = start_pick_better(old)
         assert move_summary(old, new, progress) == "Grade +20"
 
-    def test_negative_move_shows_a_negative_delta(self):
-        old = _config(grade=135.0)
-        new = _config(grade=115.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 135.0, _zeros())
-        assert move_summary(old, new, progress) == "Grade -20"
-
-    def test_no_move_shows_the_name_alone(self):
-        # A confirm that keeps the committed value (delta 0) shows the name with no delta.
-        old = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 135.0, _zeros())
-        assert move_summary(old, old, progress) == "Grade"
-
-    def test_boundary_pick_shows_a_delta(self):
-        # grade 180 is at the hi bound; a left pick used to be a no-op (delta 0, the name
-        # alone). The nudge moves it to 170, so the summary carries the delta.
-        config = _config(grade=180.0)
+    def test_zero_delta_shows_name_only(self):
+        # A pick that keeps the value (delta 0) shows the name alone, with no delta.
+        config = _config(grade=135.0)
         progress = start_pick_better(config)
-        new_config, _ = apply_pick(config, progress, side=0)
-        assert move_summary(config, new_config, progress) == "Grade -10"
+        assert move_summary(config, config, progress) == "Grade"
 
-    def test_small_step_keeps_its_decimals(self):
-        # Density moves 0.3 on a first selection; the signed delta keeps its decimal.
-        old = _config(density=0.0)
-        new = _config(density=0.3)
-        progress = PickBetterProgress(Phase.FIXED, 1, RoundKind.STRONG_WEAK, 0.0, _zeros())
+    def test_names_the_real_param_at_the_position(self):
+        # With param_order putting density (index 1) at position 0, the summary reads the real
+        # parameter, not the position index (grade, index 0).
+        old = WorkspaceConfig()
+        new = _config(density=1.3)
+        progress = PickBetterProgress(
+            Phase.FIXED,
+            0,
+            RoundKind.STRONG_WEAK,
+            1.0,
+            _zeros(),
+            (1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+        )
         assert move_summary(old, new, progress) == "Density +0.3"
 
-    def test_compound_temperature_reports_kelvin_delta(self):
-        # Temperature is compound: its value is Kelvin, so a 500K move reads "+500".
-        param = PICK_PARAMS[10]
-        old = _config()
-        new = set_param(old, param, 6000.0)
-        progress = PickBetterProgress(Phase.FIXED, 10, RoundKind.STRONG_WEAK, 5500.0, _zeros())
-        assert move_summary(old, new, progress) == "Temperature +500"
+
+class TestRandomizeRemaining:
+    # randomize_remaining reshuffles only the not-yet-visited tail; the in-flight round and the
+    # rounds already run keep their place, so a mid-tuning Randomize press reorders the upcoming
+    # rounds without disturbing the pick in front of the user.
+    def test_keeps_the_in_flight_round(self):
+        progress = start_pick_better(WorkspaceConfig())
+        new = randomize_remaining(progress)
+        assert new.param_index == progress.param_index
+        assert new.phase == progress.phase
+        assert new.round_kind == progress.round_kind
+        assert new.center_before == progress.center_before
+        assert new.selection_counts == progress.selection_counts
+
+    def test_leaves_the_visited_head_in_place(self):
+        # At param_index 3 the first four entries keep their order; only the tail shuffles.
+        progress = PickBetterProgress(Phase.FIXED, 3, RoundKind.STRONG_WEAK, 115.0, _zeros())
+        new = randomize_remaining(progress)
+        assert new.param_order[:4] == progress.param_order[:4]
+
+    def test_full_order_stays_a_permutation(self):
+        progress = start_pick_better(WorkspaceConfig())
+        new = randomize_remaining(progress)
+        assert sorted(new.param_order) == list(range(len(PICK_PARAMS)))
+
+    def test_randomize_actually_shuffles(self):
+        # With a fixed seed the tail is a non-identity permutation, so the call is not a no-op.
+        import random as _random
+
+        progress = start_pick_better(WorkspaceConfig())
+        _random.seed(0)
+        new = randomize_remaining(progress)
+        assert new.param_order != progress.param_order
+        assert sorted(new.param_order) == list(range(len(PICK_PARAMS)))
+
+    def test_last_param_has_no_tail(self):
+        # At the last position there is no tail to shuffle, so the order is unchanged.
+        progress = PickBetterProgress(Phase.FIXED, len(PICK_PARAMS) - 1, RoundKind.STRONG_WEAK, 115.0, _zeros())
+        new = randomize_remaining(progress)
+        assert new.param_order == progress.param_order

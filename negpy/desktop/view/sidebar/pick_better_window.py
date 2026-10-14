@@ -3,12 +3,13 @@
 Shows three equal frames in a row: the current committed edit in the centre, bracketed by
 the two proposed candidates (the stronger on the left, the weaker on the right). Each frame is
 captioned above: "A" over the stronger left, "Skip" over the centre and "B" over the weaker
-right. A click on a
-candidate commits it; a click on the centre current photo rejects both candidates and advances
-to the next proposal; Undo re-shows the pair the last pick came from; OK ends the mode and
-closes the window. A hover draws a red selection ring around the frame under the cursor. The
-window floats over the editor panels and each label letterboxes its frame, so a preview keeps
-its aspect ratio — it is never stretched and never width-capped.
+right. The in-flight parameter name floats above the centre "Skip" caption and is always shown.
+A click on a candidate commits it; a click on the centre current photo rejects both candidates
+and advances to the next proposal; Undo re-shows the pair the last pick came from; OK ends the
+mode and closes the window. A hover draws a red selection ring around the frame under the cursor.
+A Difference slider widens or narrows the A/B spread live, and a Randomize toggle reshuffles the
+round order. The window floats over the editor panels and each label letterboxes its frame, so a
+preview keeps its aspect ratio — it is never stretched and never width-capped.
 """
 
 from typing import Optional
@@ -25,23 +26,24 @@ from PyQt6.QtWidgets import (
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
 from negpy.desktop.view.styles.templates import (
     caption_label,
-    hint_label,
     labeled_action,
+    labeled_toggle,
     pin_dialog_default,
 )
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.floating_panel import float_over_app
+from negpy.desktop.view.widgets.sliders import CompactSlider
 
 #: The window sits one notch smaller than the main window: 0.8 of its size, floored so a
 #: small main window does not shrink the three previews below a usable size.
 _SIZE_FACTOR = 0.8
-_MIN_W, _MIN_H = 640, 480
-#: How long the 'Grade +20' move summary stays on screen after a left or right pick.
-_MOVE_CLEAR_MS = 3000
-#: Top margin of the 'Grade +20' summary as it floats over the top of the photos.
-_MOVE_TOP_MARGIN = 12
+#: Floor for the 0.8x-main size: three full previews plus room for the name and the control row.
+_MIN_W, _MIN_H = 1200, 760
 #: Gap between a caption's bottom edge and its photo's top edge.
 _CAPTION_GAP = 4
+#: The move summary's clear delay and its margin from the panel's top edge.
+_MOVE_CLEAR_MS = 3000
+_MOVE_TOP_MARGIN = 12
 
 
 class PickBetterWindow(QDialog):
@@ -51,6 +53,8 @@ class PickBetterWindow(QDialog):
     rejected = pyqtSignal()
     undoRequested = pyqtSignal()
     closed = pyqtSignal()
+    diffChanged = pyqtSignal(float)  # the Difference slider's A/B spread multiplier
+    randomizeChanged = pyqtSignal(bool)  # the Randomize toggle's state
 
     def __init__(self, parent=None, *, repo=None) -> None:
         super().__init__(parent)
@@ -64,8 +68,7 @@ class PickBetterWindow(QDialog):
         layout.setSpacing(10)
 
         # Three equal frames in a row: the current committed edit in the centre, bracketed by the
-        # two candidates (the stronger on the left, the weaker on the right), in a panel the move
-        # summary floats over at the top.
+        # two candidates (the stronger on the left, the weaker on the right).
         self._image_panel = QWidget(self)
         image_row = QHBoxLayout(self._image_panel)
         image_row.setSpacing(10)
@@ -89,15 +92,33 @@ class PickBetterWindow(QDialog):
             cap.setParent(self._image_panel)
             cap.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-        # The 'Grade +20' move summary floats over the top of the photos, centred on the panel.
-        # It passes mouse events through, so a click in its band still reaches the photo beneath.
-        self._move_label = hint_label("")
+        # The in-flight parameter name floats above the centre "Skip" caption, always shown. It
+        # passes mouse events through, so a click in its band still reaches the photo beneath.
+        self._name_label = caption_label("")
+        self._name_label.setParent(self._image_panel)
+        self._name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        # The move summary floats at the panel's top: the "Name +delta" line shown for a few
+        # seconds after a left or right pick. A single-shot timer clears it.
+        self._move_label = caption_label("")
         self._move_label.setParent(self._image_panel)
         self._move_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._move_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._move_timer = QTimer(self)
         self._move_timer.setSingleShot(True)
         self._move_timer.timeout.connect(lambda: self._move_label.setText(""))
+
+        # A control row under the photos: the Difference slider widens or narrows the A/B spread
+        # live, and the Randomize toggle reshuffles the round order.
+        control_row = QHBoxLayout()
+        self._diff_slider = CompactSlider("Difference", 0.25, 4.0, 1.0, step=0.05, unit="×")
+        self._diff_slider.valueChanged.connect(self.diffChanged)
+        self._randomize_toggle = labeled_toggle("fa5s.random", "Randomize", False, "Randomize the tuning order")
+        self._randomize_toggle.toggled.connect(self.randomizeChanged)
+        control_row.addWidget(self._diff_slider, 1)
+        control_row.addWidget(self._randomize_toggle)
+        layout.addLayout(control_row)
 
         # Bottom-right: Undo (re-show the previous pair) and OK (close = end the mode).
         button_row = QHBoxLayout()
@@ -118,7 +139,6 @@ class PickBetterWindow(QDialog):
         pin_dialog_default(self.ok_btn, self.undo_btn)
 
         remember_dialog_geometry(self, repo, "pick_better")
-        self._reposition_move_label()
         self._schedule_reposition()
 
     def set_images(self, current: QPixmap, left: QPixmap, right: QPixmap) -> None:
@@ -128,15 +148,24 @@ class PickBetterWindow(QDialog):
         self.right_label.set_frame(right)
         self._schedule_reposition()
 
+    def set_param_name(self, text: str) -> None:
+        """The always-on in-flight parameter name, shown above the centre Skip caption."""
+        self._name_label.setText(text)
+        self._schedule_reposition()
+
     def show_move(self, text: str) -> None:
-        """Show the 'Name +delta' line at the top of the photos, then clear it after a few seconds."""
+        """Show the "Name +delta" move summary for a few seconds, then clear it."""
         self._move_label.setText(text)
         self._reposition_move_label()
         self._move_timer.start(_MOVE_CLEAR_MS)
 
     def _reposition_move_label(self) -> None:
-        """Centre the move summary over the top of the photos, so it tracks a panel resize."""
+        """Centre the move summary at the panel's top; it hides itself when empty."""
+        if not self._move_label.text():
+            self._move_label.hide()
+            return
         self._move_label.adjustSize()
+        self._move_label.show()
         x = (self._image_panel.width() - self._move_label.width()) // 2
         self._move_label.move(max(0, x), _MOVE_TOP_MARGIN)
         self._move_label.raise_()
@@ -159,6 +188,18 @@ class PickBetterWindow(QDialog):
             x = origin.x() + rect.x() + (rect.width() - cap.width()) // 2
             y = origin.y() + rect.y() - cap.height() - _CAPTION_GAP
             cap.move(x, y)
+            # The parameter name floats above the centre "Skip" caption, centred on the same photo.
+        if self._cap_center.isVisible():
+            self._name_label.adjustSize()
+            self._name_label.show()
+            x = self._cap_center.x() + (self._cap_center.width() - self._name_label.width()) // 2
+            y = self._cap_center.y() - self._name_label.height() - _CAPTION_GAP
+            self._name_label.move(x, y)
+            self._name_label.raise_()
+        else:
+            self._name_label.hide()
+        # The move summary floats at the panel's top; re-centre it on every resize and new frame.
+        self._reposition_move_label()
 
     def _schedule_reposition(self) -> None:
         # A label gets its final size only after the layout runs, which is after this event
@@ -167,7 +208,6 @@ class PickBetterWindow(QDialog):
 
     def resizeEvent(self, ev) -> None:
         super().resizeEvent(ev)
-        self._reposition_move_label()
         self._schedule_reposition()
 
     def showEvent(self, ev) -> None:
