@@ -308,3 +308,29 @@ def confirm_undiptych(parent) -> bool:
 def warn_invalid_roll_name(parent, title: str) -> None:
     """The one wording for a roll name the library cannot store, wherever it is typed."""
     QMessageBox.warning(parent, title, 'A roll name cannot contain / \\ : * ? " < > | or start or end with a dot.')
+
+
+def confirm_move_to_trash(parent, count: int) -> bool:
+    """Ask before frames' files leave the disk for the OS Trash."""
+    text = f"Move the {count_of(count, 'selected frame')} to the Trash?" if count > 1 else "Move this frame to the Trash?"
+    return _confirm_with_verb(
+        parent,
+        "Move to Trash",
+        text,
+        "The source files and their sidecars go to the Trash. The edits stay in the database, so a restored file keeps its edit.",
+        "Move to Trash",
+    )
+
+
+def warn_trash_composite(parent) -> None:
+    """A frame made from several files, or one file split in two, does not go to the Trash."""
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Information)
+    box.setWindowTitle("Move to Trash")
+    box.setText("Stitches, HDR merges, trichromes and half-frame scans cannot go to the Trash.")
+    box.setInformativeText(
+        "Dissolve them first: Unstitch, Unmerge Exposures, Unsplit Diptych, "
+        "or turn off Trichrome Mode or Half Frame Mode on the Roll tab. Then move their files to the Trash."
+    )
+    box.setStandardButtons(QMessageBox.StandardButton.Close)
+    box.exec()

@@ -21,6 +21,7 @@ from negpy.desktop.view.shortcut_registry import (
 from negpy.desktop.view.slider_shortcut_groups import SLIDER_GROUP_BY_ACTION, SLIDER_GROUPS, SliderShortcutGroup, sign_for_action
 from negpy.desktop.view.frame_merge_action import SCOPE_FRAME, SCOPE_ROLL, SCOPE_SELECTION, merge_to_tiff
 from negpy.desktop.view.sidecar_action import load_edit_from_sidecar
+from negpy.desktop.view.file_actions import move_selected_to_trash, show_current_in_folder
 from negpy.desktop.view.slider_targets import slider_widget_map
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating
 
@@ -423,6 +424,8 @@ class ShortcutManager:
             "sync_bounds": lambda: open_sync_bounds_dialog(self.window, controller.session),
             "reset_roll": lambda: _reset_roll(self.window, controller),
             "close_roll": lambda: _close_roll(self.window, controller),
+            "show_in_folder": lambda: show_current_in_folder(controller),
+            "move_to_trash": lambda: move_selected_to_trash(self.window, controller),
             "reset_tab": lambda: _fire_tab_header(right, "reset"),
             "reset_tab_to_roll": lambda: _fire_tab_header(right, "revert"),
             "reset_to_roll": controller.revert_frame_to_roll,

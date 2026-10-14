@@ -278,6 +278,8 @@ The right-click menu also has:
 *   **Update Thumbnail(s)**: re-renders the selection's thumbnails. **Update Thumbnails** on the toolbar re-renders every stale one in the roll. Sharpening, chroma denoise, dust and heal repairs, demosaic, display profile and soft proof do not make a thumbnail stale.
 *   **Reset Roll to Defaults…**, and per-frame export.
 *   **Edit Independently in This Roll** / **Use the Shared Edit Again** ([Rolls that are not folders](#rolls-that-are-not-folders)).
+*   **Show in Folder**: opens the system file manager on the frame's folder, with the file selected.
+*   **Move to Trash…**: moves the selection's files and sidecars to the system Trash and unloads them; the edits stay, so a restored file keeps its edit. A file on a drive with no Trash stays. Stitches, HDR merges, trichromes and half-frame scans must be dissolved first.
 
 #### Scenes
 

@@ -279,6 +279,8 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "sync_bounds": ShortcutEntry("", "Sync bounds to other frames…", "Actions"),
     "reset_roll": ShortcutEntry("", "Reset roll to defaults", "Actions"),
     "close_roll": ShortcutEntry("", "Close the roll, or unload every frame", "Actions"),
+    "show_in_folder": ShortcutEntry("", "Show the frame's file in its folder", "Actions"),
+    "move_to_trash": ShortcutEntry("", "Move the selected frames' files to the Trash…", "Actions"),
     "reset_tab": ShortcutEntry("", "Reset this tab to defaults", "Actions"),
     "reset_tab_to_roll": ShortcutEntry("", "Reset this tab to the roll's settings", "Actions"),
     "reset_to_roll": ShortcutEntry("", "Reset this frame to the roll's settings", "Actions"),

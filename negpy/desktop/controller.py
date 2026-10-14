@@ -8,7 +8,7 @@ from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple, 
 
 import cv2
 import numpy as np
-from PyQt6.QtCore import Q_ARG, QFile, QMetaObject, QObject, Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtCore import Q_ARG, QMetaObject, QObject, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap, QTransform
 from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QMessageBox
 
@@ -17,6 +17,7 @@ from negpy.kernel.system.text import count_of, plural
 from negpy.kernel.image.logic import apply_exif_orientation, working_oetf_encode
 from negpy.desktop.auto_sliders import record_meters
 from negpy.desktop.converters import ImageConverter
+from negpy.desktop.file_manager import move_to_trash
 from negpy.desktop.render_memo import RenderMemo
 from negpy.desktop.session import (
     AppState,
@@ -221,12 +222,6 @@ _BUSY_TOAST_MS = 30000
 # Batch owners that share norm_thread (and its CPU) with the background thumbnail
 # refresh — the only ones a running refresh actually needs to get out of the way of.
 _NORM_THREAD_BATCH_OWNERS = frozenset({"autocrop", "normalization"})
-
-
-def _move_to_trash(path: str) -> bool:
-    """False, with the file left in place, when the volume has no Trash."""
-    ok, _trashed = QFile.moveToTrash(path)
-    return bool(ok)
 
 
 # A keep_preview reload (same file, e.g. a mode switch) skips the spinner so a fast
@@ -5884,6 +5879,35 @@ class AppController(QObject):
                 mergeable.append(i)
         return mergeable, skipped
 
+    def move_frames_to_trash(self, indices: list[int]) -> None:
+        """Move each plain frame's file and its sidecar to the Trash and unload it. A file the
+        Trash refuses stays loaded. Edits stay in the database, so a restored file finds its edit."""
+        frames = [(i, self.state.uploaded_files[i]) for i in indices if 0 <= i < len(self.state.uploaded_files)]
+        if not frames or any(composite_kind(f) for _, f in frames):
+            return
+        self.session.save_active_edit()
+        trashed: list[int] = []
+        kept = 0
+        for i, f in frames:
+            path = f["path"]
+            if os.path.exists(path) and not move_to_trash(path):
+                kept += 1
+                logger.warning("Move to Trash could not move %s", path)
+                continue
+            sidecar = sidecar_path_for(path)
+            if os.path.exists(sidecar) and not move_to_trash(sidecar):
+                kept += 1
+                logger.warning("Move to Trash could not move the sidecar %s", sidecar)
+            trashed.append(i)
+        self.session.remove_files(trashed)
+        if kept:
+            message = f"{count_of(kept, 'file')} could not go to the Trash"
+            if trashed:
+                message = f"Moved {count_of(len(trashed), 'frame')} to the Trash, {message}"
+            self.set_status(message, 8000, kind="warning")
+        else:
+            self.set_status(f"Moved {count_of(len(trashed), 'frame')} to the Trash", 4000)
+
     def request_frame_merge(self, paths: list[str], trash: bool) -> None:
         """With *trash*, the sources go to the Trash once the edit has moved. Paths, not indices:
         a discovery during the confirm dialog can shift the indices."""
@@ -5983,7 +6007,7 @@ class AppController(QObject):
                 replacements[index_by_path[primary]] = new_asset
             if self._frame_merge_trash:
                 for path in (primary, *parts, *sidecars):
-                    if os.path.exists(path) and not _move_to_trash(path):
+                    if os.path.exists(path) and not move_to_trash(path):
                         kept += 1
                         logger.warning("Merge to TIFF Negative could not move %s to the Trash", path)
         if self._frame_merge_trash:
