@@ -176,8 +176,7 @@ def _validate_params(params: ScanParams, *, model: Any | None = None) -> None:
         ir_resolutions = getattr(model, "infrared_resolutions_dpi", None)
         if isinstance(ir_resolutions, (tuple, list)) and ir_resolutions and dpi not in ir_resolutions:
             raise RuntimeError(
-                f"{getattr(model, 'model', 'device')} scans infrared at "
-                f"{', '.join(str(d) for d in sorted(ir_resolutions))} dpi"
+                f"{getattr(model, 'model', 'device')} scans infrared at {', '.join(str(d) for d in sorted(ir_resolutions))} dpi"
             )
     mode = params.multi_exposure_mode
     if mode != MultiExposureMode.OFF and model is not None and not getattr(model, "exposure_long", None):
