@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 import qtawesome as qta
-from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QLineF, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QImage, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -39,6 +39,8 @@ from negpy.features.exposure.analysis import (
     strip_nearest_cell,
     zone_anchors,
     zone_field,
+    zone_grid,
+    zone_region_labels,
     zone_shares,
 )
 from negpy.features.exposure.densitometer import zone_roman
@@ -103,7 +105,9 @@ def _tint_qimage(layers: List[Tuple[np.ndarray, QColor]], alpha: int) -> QImage:
     return QImage(buf.data, gw, gh, gw * 4, QImage.Format.Format_RGBA8888_Premultiplied).copy()
 
 
+_ZONE_LINE_ALPHA = 150
 _ZONE_LINE_SHADOW_ALPHA = 110  # dark underlay so the white edges hold over blown highlights
+_ZONE_LABEL_MIN_PX = 16.0  # below this cell size the numerals collide into noise
 _ZONE_TINT_ALPHA = 153  # False Color lets the photo show through
 _ZONE_CLIP_ALPHA = 230  # paper black / paper white read as flat paper
 _ZONE_SPOT_DIM_ALPHA = 190
@@ -114,6 +118,9 @@ _ZONE_OUTLINE_MIN_AREA = 20.0  # field px; smaller specks are noise, not regions
 def zone_colors(style: str, color_vision: str) -> List[Tuple[QColor, int]]:
     """(color, alpha) per zone 0..10 for a Zone Overlay look; the canvas and its legend share it."""
     palette = palette_for(color_vision)
+    if style == "grid":
+        grays = [QColor.fromRgbF(encoded_of_zone(z), encoded_of_zone(z), encoded_of_zone(z)) for z in range(1, 10)]
+        return [(_ZONE_CLIP_COLOR, 255), *((g, 255) for g in grays), (_ZONE_CLIP_COLOR, 255)]
     if style == "zone_map":
         shadow, highlight = palette.pair
         grays = [QColor.fromRgbF(encoded_of_zone(z), encoded_of_zone(z), encoded_of_zone(z)) for z in range(1, 10)]
@@ -451,6 +458,9 @@ class CanvasOverlay(QWidget):
         self._zone_anchors: List[Tuple[int, int, int, float]] = []
         self._zone_image: Optional[Tuple[tuple, QImage]] = None
         self._zone_outlines: Dict[int, List[QPolygonF]] = {}
+        # The Grid look's cells and one numeral anchor per region, also rebuilt per frame.
+        self._zone_cells: Optional[np.ndarray] = None
+        self._zone_labels: List[Tuple[int, int, int]] = []
         self._zone_hover: Optional[int] = None
         # Clipping Overlay and zone-highlight washes for the displayed frame, keyed by what they mark.
         self._frame_washes: Dict[tuple, Optional[QImage]] = {}
@@ -758,6 +768,7 @@ class CanvasOverlay(QWidget):
         self._zone_field = None  # rebuilt lazily on the next zones paint
         self._zone_image = None
         self._zone_outlines = {}
+        self._zone_cells = None
         self._frame_washes = {}
         # Kept so a strip mosaic gets the same display transform as this buffer did.
         self._display_cs = color_space
@@ -1698,9 +1709,15 @@ class CanvasOverlay(QWidget):
         rect = self._content_view_rect()
         if zones is None or rect.isEmpty():
             return
-        painter.drawImage(rect, self._zone_map_image(zones))
+        grid = self.state.zones_style == "grid"
+        if grid:
+            self._draw_zone_grid(painter)
+        else:
+            painter.drawImage(rect, self._zone_map_image(zones))
         if self._zone_hover is not None:
             self._draw_zone_outline(painter, zones, rect, self._zone_hover)
+        if grid:
+            return
 
         h, w = zones.shape
         sx, sy = rect.width() / w, rect.height() / h
@@ -1716,6 +1733,74 @@ class CanvasOverlay(QWidget):
             painter.setPen(QColor(0, 0, 0, 160))
             painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
             painter.setPen(QColor(255, 255, 255, 235))
+            painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
+        painter.restore()
+
+    def _draw_zone_grid(self, painter: QPainter) -> None:
+        """Adams-zone map over the image content: a fixed grid whose internal edges are
+        drawn only where the zone changes, so neighbouring cells of the same zone merge
+        into one region carrying a single numeral. Paper black (0) and paper white (X)
+        are flagged red.
+
+        ponytail: the grid is image-space, built once per render, so it scales with zoom
+        instead of reflowing under the cursor while panning; zoom deep enough and you're
+        inside one cell. Rebuild from the visible sub-rect if that ever matters."""
+        if self._zone_cells is None:
+            src = self._content_host_buffer()
+            if src is None:
+                return
+            self._zone_cells = zone_grid(src)
+            if self._zone_cells is None:
+                return
+            self._zone_labels = zone_region_labels(self._zone_cells)
+
+        zones = self._zone_cells
+        rows, cols = zones.shape
+        rect = self._content_view_rect()
+        cw = rect.width() / cols
+        ch = rect.height() / rows
+
+        edges: List[QLineF] = []
+        for r in range(rows):
+            y0, y1 = rect.y() + r * ch, rect.y() + (r + 1) * ch
+            for c in range(1, cols):
+                if zones[r, c] != zones[r, c - 1]:
+                    x = rect.x() + c * cw
+                    edges.append(QLineF(QPointF(x, y0), QPointF(x, y1)))
+        for r in range(1, rows):
+            y = rect.y() + r * ch
+            for c in range(cols):
+                if zones[r, c] != zones[r - 1, c]:
+                    x0 = rect.x() + c * cw
+                    edges.append(QLineF(QPointF(x0, y), QPointF(x0 + cw, y)))
+
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for color, width in (
+            (QColor(0, 0, 0, _ZONE_LINE_SHADOW_ALPHA), 3.5),
+            (QColor(255, 255, 255, _ZONE_LINE_ALPHA), 1.5),
+        ):
+            pen = QPen(color, width)
+            pen.setCosmetic(True)
+            painter.setPen(pen)
+            painter.drawRect(rect)
+            painter.drawLines(edges)
+
+        if min(cw, ch) < _ZONE_LABEL_MIN_PX:
+            return
+        widget_rect = QRectF(self.rect())
+        label_white = QColor(255, 255, 255, 230)
+        shadow = QColor(0, 0, 0, 160)
+        painter.save()
+        painter.setFont(_overlay_label_font(painter))
+        for col, row, zone in self._zone_labels:
+            cell = QRectF(rect.x() + col * cw, rect.y() + row * ch, cw, ch)
+            if not widget_rect.intersects(cell):
+                continue
+            label = zone_roman(float(zone))
+            # Drop shadow first, or white numerals vanish against a blown highlight.
+            painter.setPen(shadow)
+            painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
+            painter.setPen(_ZONE_CLIP_COLOR if zone in (0, 10) else label_white)
             painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
         painter.restore()
 

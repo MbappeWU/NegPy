@@ -72,7 +72,7 @@ class ToolMode(Enum):
 UNCROPPED_PREVIEW_TOOLS = frozenset({ToolMode.CROP_MANUAL, ToolMode.ANALYSIS_DRAW, ToolMode.KEYSTONE_LINES})
 
 # Zone Overlay looks, by stored key and menu label.
-ZONE_STYLES = {"false_color": "False Color", "zone_map": "Zone Map"}
+ZONE_STYLES = {"false_color": "False Color", "zone_map": "Zone Map", "grid": "Grid"}
 
 
 @dataclass
@@ -234,7 +234,7 @@ class AppState:
 
     # Adams-zone overlay on the canvas: display-only and session-only, never persisted.
     zones_overlay: bool = False
-    # Its look, "false_color" or "zone_map" (ZONE_STYLES). A persisted preference.
+    # Its look, a ZONE_STYLES key. A persisted preference.
     zones_style: str = "false_color"
     # Clipping Overlay (paper black and paper white marked on the frame) and the zone the
     # zone strip's hover lights up. Display-only, session-only.

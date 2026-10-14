@@ -3142,7 +3142,7 @@ class AppController(QObject):
         self.zones_overlay_changed.emit(self.state.zones_overlay)
 
     def set_zones_style(self, style: str) -> None:
-        """Zone Overlay look: "false_color" or "zone_map". Repaint only."""
+        """Zone Overlay look, a ZONE_STYLES key. Repaint only."""
         self.state.zones_style = style
         self.session.repo.save_global_setting("zones_style", style)
         self.zones_style_changed.emit(style)

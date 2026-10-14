@@ -806,6 +806,8 @@ class TestZoneRow(unittest.TestCase):
         tb.controller.toggle_zones_overlay.assert_called_with(force=False)
         tb.zone_style.setCurrentIndex(1)
         tb.controller.set_zones_style.assert_called_with("zone_map")
+        tb.zone_style.setCurrentIndex(2)
+        tb.controller.set_zones_style.assert_called_with("grid")
 
     def test_legend_hover_highlights_whatever_the_strip_setting(self):
         tb = _make_toolbar()

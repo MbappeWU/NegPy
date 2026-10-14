@@ -190,3 +190,10 @@ def test_highlight_zone_ignores_the_strip_hover_setting():
     AppController.highlight_zone(ctrl, 4)
     assert ctrl.state.zone_highlight == 4
     ctrl.zone_highlight_changed.emit.assert_called_once()
+
+
+def test_the_grid_look_draws_the_grid_not_the_map(qapp):
+    overlay = _overlay("grid")
+    _paint(overlay)
+    assert overlay._zone_cells is not None
+    assert overlay._zone_image is None
