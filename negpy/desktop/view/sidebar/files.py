@@ -494,6 +494,10 @@ class ThumbnailGridView(QListView):
         self._pre_press_selection: set[QPersistentModelIndex] = set()
         self._placing_scenes = False
         self._scene_bands: list[tuple[int, int, int, QRect]] = []  # (ordinal, first row, last row, band)
+        # Hover tracks the pointer, not only a scroll. The macOS style turns on neither, so a
+        # plain move never reaches the view.
+        self.setMouseTracking(True)
+        self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         # Reserve the vertical scrollbar permanently so the viewport width is stable. Otherwise
         # scaling toggles the scrollbar, which changes the width, flips the column count back
         # and flickers.
