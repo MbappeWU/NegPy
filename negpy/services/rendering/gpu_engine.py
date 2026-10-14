@@ -503,15 +503,23 @@ class GPUEngine:
         # Bind groups keyed by id() never match a destroyed view again; drop, don't leak.
         self._bind_group_cache.clear()
 
-    def requires_tiling(self, img: np.ndarray, settings: WorkspaceConfig) -> bool:
-        """True when a direct texture chain exceeds a device or working-set limit."""
+    def requires_tiling(self, img: np.ndarray, settings: WorkspaceConfig, render_size_ref: Optional[float] = None) -> bool:
+        """True when a direct texture chain exceeds a device or working-set limit.
+
+        An export paper larger than the texture limit tiles too: the tiled path assembles
+        it in host memory, so the export keeps the size the user asked for."""
         h, w = img.shape[:2]
         max_tex = self.gpu.limits.get("max_texture_dimension_2d", 8192)
         if APP_CONFIG.max_texture_size is not None:
             max_tex = min(max_tex, APP_CONFIG.max_texture_size)
         rot = settings.geometry.rotation % 4
         w_rot, h_rot = (h, w) if rot in (1, 3) else (w, h)
-        return w_rot > max_tex or h_rot > max_tex or w * h > TILING_THRESHOLD_PX
+        if w_rot > max_tex or h_rot > max_tex or w * h > TILING_THRESHOLD_PX:
+            return True
+        if render_size_ref:
+            return False
+        paper_w, paper_h, *_ = self._calculate_layout_dims(settings, w_rot, h_rot, None)
+        return max(paper_w, paper_h) > max_tex
 
     def _release_texture_pool(self, retain: Optional[GPUTexture] = None) -> None:
         """Destroy pooled textures after their submitted work is complete."""
@@ -2298,7 +2306,10 @@ class GPUEngine:
         self, settings: WorkspaceConfig, cw: int, ch: int, size_ref: Optional[float]
     ) -> Tuple[int, int, int, int, int, int, int]:
         """Calculates final paper and image dimensions based on print settings.
-        Returns (paper_w, paper_h, content_w, content_h, off_x, off_y, dpi)."""
+        Returns (paper_w, paper_h, content_w, content_h, off_x, off_y, dpi).
+
+        Only a preview paper is capped to max_texture_size; an export paper over the cap
+        tiles instead (``requires_tiling``)."""
         mode = settings.export.export_resolution_mode
 
         # Preview path: size_ref is the desired paper long edge. Derive virtual DPI from it
@@ -2376,7 +2387,7 @@ class GPUEngine:
             fit = min(cw / content_w, ch / content_h)
             return self._calculate_layout_dims(settings, cw, ch, size_ref * fit)
 
-        max_tex = APP_CONFIG.max_texture_size
+        max_tex = APP_CONFIG.max_texture_size if size_ref else None
         if max_tex is not None:
             long_edge = max(paper_w, paper_h)
             if long_edge > max_tex:
@@ -2570,7 +2581,7 @@ class GPUEngine:
         """High-level processing entry point with automatic tiling."""
         self._init_resources()
         self.evict_stale_textures()
-        if self.requires_tiling(img, settings):
+        if self.requires_tiling(img, settings, render_size_ref):
             return self._process_tiled(
                 img,
                 settings,
@@ -2662,7 +2673,13 @@ class GPUEngine:
         # is the one they share. Taken from here rather than from the last preview, which
         # may belong to another image or to settings the export has since moved past.
         _, metrics_ref = self.process_to_texture(
-            img_small, settings, scale_factor=scale_factor, cam_xyz=cam_xyz, camera_wb=camera_wb, readback_metrics=readback_metrics
+            img_small,
+            settings,
+            scale_factor=scale_factor,
+            cam_xyz=cam_xyz,
+            camera_wb=camera_wb,
+            readback_metrics=readback_metrics,
+            apply_layout=False,
         )
 
         global_cdfs = self._readback_clahe_cdf()
