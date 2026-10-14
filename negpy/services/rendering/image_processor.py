@@ -843,7 +843,7 @@ class ImageProcessor:
         if self._is_flat(settings):
             prefer_gpu = False
 
-        needs_tiling = bool(prefer_gpu and self.engine_gpu and self.engine_gpu.requires_tiling(img, settings))
+        needs_tiling = bool(prefer_gpu and self.engine_gpu and self.engine_gpu.requires_tiling(img, settings, render_size_ref))
         if needs_tiling and crop_preview_full:
             prefer_gpu = False
 
