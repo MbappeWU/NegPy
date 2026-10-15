@@ -1,20 +1,23 @@
-import pytest
 from dataclasses import replace
+
+import pytest
 
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.pickbetter.logic import (
+    DEFAULT_ROUTE,
     apply_pick,
     current_pair,
+    effective_order,
     is_finished,
     move_summary,
     param_value,
-    randomize_remaining,
     reject_and_advance,
     set_param,
+    shuffle_order,
     start_pick_better,
     step_for,
 )
-from negpy.features.pickbetter.models import Phase, PICK_PARAMS, PickBetterProgress, RoundKind
+from negpy.features.pickbetter.models import Phase, PICK_PARAMS, PickBetterProgress
 
 
 def _config(**exposure_fields) -> WorkspaceConfig:
@@ -36,10 +39,14 @@ class TestStart:
         progress = start_pick_better(WorkspaceConfig())
         assert progress.phase == Phase.FIXED
         assert progress.param_index == 0
-        assert progress.round_kind == RoundKind.STRONG_WEAK
+        # round_number is 1-based and counts the rounds run; the first round is 1.
+        assert progress.round_number == 1
         # First selection of a parameter is bold: the step is its full strong_step.
         assert step_for(PICK_PARAMS[0], progress.selection_counts[0]) == PICK_PARAMS[0].strong_step
-        assert progress.center_before == 115.0  # default grade
+        # The route is DEFAULT_ROUTE; randomize is off and its shuffled copy is the identity too.
+        assert progress.param_order == DEFAULT_ROUTE
+        assert progress.randomize is False
+        assert progress.randomize_order == tuple(range(len(PICK_PARAMS)))
 
 
 class TestFixedSequence:
@@ -49,71 +56,42 @@ class TestFixedSequence:
         assert left.exposure.grade == 135.0  # 115 + 20
         assert right.exposure.grade == 95.0  # 115 - 20
 
-    def test_strong_weak_advances_to_chosen_middle(self):
+    def test_strong_weak_advances_to_next_param(self):
         progress = start_pick_better(WorkspaceConfig())
         new_config, next_progress = apply_pick(WorkspaceConfig(), progress, side=0)
         assert new_config.exposure.grade == 135.0  # left committed
-        assert next_progress.round_kind == RoundKind.CHOSEN_MIDDLE
-        assert next_progress.param_index == 0
-        assert next_progress.center_before == 115.0
-        # A strong-vs-weak pick counts one selection of the in-flight parameter.
+        # A fixed pick moves to the next parameter, bumps the round count, and counts one selection
+        # of the in-flight parameter.
+        assert next_progress.phase == Phase.FIXED
+        assert next_progress.param_index == 1
+        assert next_progress.round_number == 2
         assert next_progress.selection_counts[0] == 1
 
-    def test_chosen_middle_pair_is_committed_vs_center_before(self):
-        # After settling grade to 135, the chosen-vs-middle round nudges the committed value a half step further (140) on the left, and
-        # offers the pre-tuning value (center_before, 115) on the right.
-        config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.CHOSEN_MIDDLE, 115.0, _count_at(0, 1))
-        left, right = current_pair(config, progress)
-        assert left.exposure.grade == 140.0  # 135 + step/2 (step 10 at the second selection)
-        assert right.exposure.grade == 115.0
-
-    def test_chosen_middle_advances_to_next_param(self):
-        config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.CHOSEN_MIDDLE, 115.0, _count_at(0, 1))
-        _, next_progress = apply_pick(config, progress, side=0)
-        assert next_progress.param_index == 1  # density
-        assert next_progress.round_kind == RoundKind.STRONG_WEAK
-        assert step_for(PICK_PARAMS[1], next_progress.selection_counts[1]) == PICK_PARAMS[1].strong_step
-        assert next_progress.center_before == 1.0  # default density, unchanged by the grade pick
-
-    def test_full_fixed_sequence_order(self):
-        # 22 rounds: each of the 11 params gets a strong-weak then a chosen-middle round, in order.
+    def test_full_fixed_sequence_visits_each_param_once(self):
+        # The fixed phase runs one round per parameter, in route order; after the eleventh it opens
+        # the refinement back at the first parameter.
         config = WorkspaceConfig()
         progress = start_pick_better(config)
         seen = []
-        for _ in range(len(PICK_PARAMS) * 2):
-            seen.append((progress.param_index, progress.round_kind))
+        for _ in range(len(PICK_PARAMS)):
+            seen.append(effective_order(progress)[progress.param_index])
             config, progress = apply_pick(config, progress, side=0)
-        expected = []
-        for i in range(len(PICK_PARAMS)):
-            expected.append((i, RoundKind.STRONG_WEAK))
-            expected.append((i, RoundKind.CHOSEN_MIDDLE))
-        assert seen == expected
-        # The 23rd round opens the endless refinement, back at param 0.
+        assert sorted(seen) == list(range(len(PICK_PARAMS)))
         assert progress.phase == Phase.REFINE
         assert progress.param_index == 0
-        assert progress.round_kind == RoundKind.STRONG_WEAK
+        assert progress.round_number == len(PICK_PARAMS) + 1
 
-    def test_chosen_value_carries_forward(self):
-        # The chosen-vs-middle left pick nudges grade a half step further (135 -> 140), the next param's baseline.
+    def test_no_consecutive_same_param_in_fixed(self):
+        # Two consecutive fixed rounds name different parameters: the route is a permutation and the
+        # cursor advances one each round.
         config = WorkspaceConfig()
         progress = start_pick_better(config)
-        config, progress = apply_pick(config, progress, side=0)  # grade -> 135, chosen-middle
-        config, progress = apply_pick(config, progress, side=0)  # grade -> 140, advance to density
-        assert config.exposure.grade == 140.0
-        assert progress.param_index == 1
-
-    def test_chosen_middle_left_pick_always_moves(self):
-        # A chosen-vs-middle A pick must change the value: the committed value (135) equaled the
-        # Skip frame, so a plain pick would be a no-op. A left pick nudges a half step further.
-        config = WorkspaceConfig()
-        progress = start_pick_better(config)
-        config, progress = apply_pick(config, progress, side=0)  # STRONG_WEAK -> 135
-        chosen_middle = progress  # the in-flight CHOSEN_MIDDLE round
-        before = config.exposure.grade
-        new_config, _ = apply_pick(config, chosen_middle, side=0)  # CHOSEN_MIDDLE A -> 140
-        assert new_config.exposure.grade != before
+        prev = effective_order(progress)[progress.param_index]
+        for _ in range(len(PICK_PARAMS)):
+            config, progress = apply_pick(config, progress, side=0)
+            real = effective_order(progress)[progress.param_index]
+            assert real != prev
+            prev = real
 
 
 class TestClamping:
@@ -128,7 +106,7 @@ class TestClamping:
     def test_candidate_clamps_to_lo(self):
         # highlight_density -0.4 - 0.2 = -0.6 clamps to lo -0.5.
         config = _config(highlight_density=-0.4)
-        progress = PickBetterProgress(Phase.FIXED, 4, RoundKind.STRONG_WEAK, -0.4, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 4, 5, _zeros())
         left, right = current_pair(config, progress)
         assert left.exposure.highlight_density == -0.2
         assert right.exposure.highlight_density == -0.5
@@ -136,7 +114,7 @@ class TestClamping:
     def test_dye_separation_clamps_to_hi(self):
         # dye_separation 1.45 + 0.1 = 1.55 clamps to hi 1.5; 1.45 - 0.1 = 1.35 stays in range.
         config = _config(dye_separation=1.45)
-        progress = PickBetterProgress(Phase.FIXED, 7, RoundKind.STRONG_WEAK, 1.45, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 7, 8, _zeros())
         left, right = current_pair(config, progress)
         assert left.exposure.dye_separation == 1.5
         assert right.exposure.dye_separation == pytest.approx(1.35)
@@ -144,7 +122,7 @@ class TestClamping:
     def test_preflash_clamps_to_lo(self):
         # preflash 0.05 - 0.1 = -0.05 clamps to lo 0.0; 0.05 + 0.1 = 0.15 stays in range.
         config = _config(preflash=0.05)
-        progress = PickBetterProgress(Phase.FIXED, 6, RoundKind.STRONG_WEAK, 0.05, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 6, 7, _zeros())
         left, right = current_pair(config, progress)
         assert left.exposure.preflash == pytest.approx(0.15)
         assert right.exposure.preflash == 0.0
@@ -197,130 +175,131 @@ class TestCompoundTemperature:
 
 
 class TestStepShrinksWithSelections:
-    # A strong-vs-weak step is bold on a parameter's first selection and halves on each later
-    # selection of the same parameter, never below the floor.
-    def test_grade_step_halves_per_selection(self):
-        # grade strong_step 20, floor 1: 20, 10, 5, 2.5, 1.25, then the floor (1.0) holds.
+    # A step is bold on a parameter's first selection and ×2/3 on each later selection of the
+    # same parameter, never below the floor.
+    def test_grade_step_reduces_to_two_thirds_per_selection(self):
+        # grade strong_step 20, floor 1: ×2/3 each selection; the floor (1.0) first holds at selection 8.
         param = PICK_PARAMS[0]
         assert step_for(param, 0) == 20.0
-        assert step_for(param, 1) == 10.0
-        assert step_for(param, 2) == 5.0
-        assert step_for(param, 3) == 2.5
-        assert step_for(param, 4) == 1.25
-        assert step_for(param, 5) == 1.0  # 20/32 -> clamped to the floor
+        assert step_for(param, 1) == pytest.approx(20 * 2 / 3)
+        assert step_for(param, 2) == pytest.approx(20 * (2 / 3) ** 2)
+        assert step_for(param, 3) == pytest.approx(20 * (2 / 3) ** 3)
+        assert step_for(param, 4) == pytest.approx(20 * (2 / 3) ** 4)
+        assert step_for(param, 8) == 1.0  # 20*(2/3)^8 is below the floor, so 1.0 holds
         assert step_for(param, 9) == 1.0  # the floor holds for any larger count
 
     def test_second_density_selection_is_smaller_than_the_first(self):
-        # The user's example: after one density selection, the next density proposal is bolder-then-smaller.
+        # After one density selection, the next density proposal is bolder-then-smaller.
         param = PICK_PARAMS[1]  # density
         assert step_for(param, 0) > step_for(param, 1)
         assert step_for(param, 0) == 0.3
-        assert step_for(param, 1) == pytest.approx(0.15)
+        assert step_for(param, 1) == pytest.approx(0.2)
 
 
 class TestRefinement:
-    def test_step_halves_to_floor(self):
-        # grade: strong_step 20, floor 1. Each refine pick halves the step; when it reaches the
-        # floor the next pick advances to the next param.
+    # The refinement runs the eleven parameters in round-robin, one per round, wrapping after the
+    # last; each visit 2/3 of the prior step, keyed by that parameter's own selection count.
+    def test_refine_visits_params_in_round_robin(self):
+        # From param_index 0, the round-robin visits 0..10 then wraps back to 0.
         config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.REFINE, 0, RoundKind.STRONG_WEAK, 115.0, _zeros())
-        steps = []
-        for _ in range(5):
-            steps.append(step_for(PICK_PARAMS[0], progress.selection_counts[0]))
+        progress = PickBetterProgress(Phase.REFINE, 0, 12, _zeros())
+        seen = []
+        for _ in range(13):
+            seen.append(effective_order(progress)[progress.param_index])
             config, progress = apply_pick(config, progress, side=0)
-        assert steps == [20.0, 10.0, 5.0, 2.5, 1.25]
-        assert progress.param_index == 1  # at the floor, the 6th round moves on
+        assert seen == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1]
+        assert progress.phase == Phase.REFINE
 
-    def test_at_floor_advances_to_next_param(self):
-        # At the floor (the step for the current count is the floor), the next pick moves to the
-        # next param, restarting its halving from the bold step.
+    def test_refine_step_reduces_to_two_thirds_per_visit(self):
+        # A parameter's step is its bold step on the first visit and ×2/3 on the second, since the
+        # round-robin revisits it once every full cycle and the count grows once per visit.
         config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.REFINE, 0, RoundKind.STRONG_WEAK, 115.0, _count_at(0, 5))
+        progress = PickBetterProgress(Phase.REFINE, 0, 12, _zeros())
+        steps = []
+        for _ in range(12):
+            real = effective_order(progress)[progress.param_index]
+            steps.append(step_for(PICK_PARAMS[real], progress.selection_counts[real]))
+            config, progress = apply_pick(config, progress, side=0)
+        assert steps[0] == PICK_PARAMS[0].strong_step  # first visit of grade
+        assert steps[11] == pytest.approx(PICK_PARAMS[0].strong_step * 2 / 3)  # second visit of grade
+
+    def test_refine_wraps_to_zero(self):
+        config = WorkspaceConfig()
+        progress = PickBetterProgress(Phase.REFINE, 10, 12, _zeros())
         _, next_progress = apply_pick(config, progress, side=0)
         assert next_progress.phase == Phase.REFINE
-        assert next_progress.param_index == 1  # density
-        assert step_for(PICK_PARAMS[1], next_progress.selection_counts[1]) == PICK_PARAMS[1].strong_step
+        assert next_progress.param_index == 0
 
-    def test_density_floor_advances_to_param_two(self):
+    def test_no_consecutive_same_param_in_refine(self):
+        # Two consecutive refine rounds never share a parameter: the round-robin moves one each time.
         config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.REFINE, 1, RoundKind.STRONG_WEAK, 1.0, _count_at(1, 5))
-        _, next_progress = apply_pick(config, progress, side=0)
-        assert next_progress.param_index == 2  # highlight_grade
-        assert next_progress.phase == Phase.REFINE
-        assert step_for(PICK_PARAMS[2], next_progress.selection_counts[2]) == PICK_PARAMS[2].strong_step
-
-    def test_toe_step_halves_to_floor(self):
-        # toe: strong_step 0.1, floor 0.01. Halving 0.1 -> 0.05 -> 0.025 -> 0.0125, then the step
-        # reaches the floor and the next pick advances to the next param.
-        config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.REFINE, 9, RoundKind.STRONG_WEAK, 0.0, _zeros())
-        steps = []
-        for _ in range(4):
-            steps.append(step_for(PICK_PARAMS[9], progress.selection_counts[9]))
+        progress = PickBetterProgress(Phase.REFINE, 0, 12, _zeros())
+        prev = effective_order(progress)[progress.param_index]
+        for _ in range(20):
             config, progress = apply_pick(config, progress, side=0)
-        assert steps == [0.1, 0.05, 0.025, 0.0125]
-        assert progress.param_index == 10  # temperature
+            real = effective_order(progress)[progress.param_index]
+            assert real != prev
+            prev = real
 
 
 class TestReject:
-    # A click on the centre current photo rejects both candidates: the config stays put (the
-    # current value is kept), the selection counts do not increment, and the cursor advances to
-    # the next parameter's STRONG_WEAK round, uniform across the fixed and refine phases.
+    # A click on the centre current photo rejects both candidates: the config stays put, the
+    # selection counts do not increment, and the cursor advances to the next parameter's round,
+    # uniform across the fixed and refine phases.
     def test_config_unchanged_and_counts_do_not_increment(self):
-        # Rejecting the grade strong-vs-weak round keeps the current grade and leaves the count at 0.
+        # Rejecting the grade round keeps the current grade and leaves the count at 0.
         config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 115.0, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros())
         new_config, next_progress = reject_and_advance(config, progress)
         assert new_config.exposure.grade == 135.0
         assert next_progress.selection_counts == _zeros()
         assert next_progress.selection_counts[0] == 0
 
-    def test_fixed_advances_to_next_param_strong_weak(self):
+    def test_fixed_advances_to_next_param(self):
         config = WorkspaceConfig()
         progress = start_pick_better(config)
         _, next_progress = reject_and_advance(config, progress)
         assert next_progress.phase == Phase.FIXED
         assert next_progress.param_index == 1
-        assert next_progress.round_kind == RoundKind.STRONG_WEAK
+        assert next_progress.round_number == 2
         # The next param opens at its bold step, since the reject added no selection.
         assert step_for(PICK_PARAMS[1], next_progress.selection_counts[1]) == PICK_PARAMS[1].strong_step
-
-    def test_fixed_from_chosen_middle_still_advances_to_next_param(self):
-        # A reject mid-way through a parameter (the chosen-vs-middle round) still moves on to the
-        # next parameter, skipping the rest of the current one.
-        config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.CHOSEN_MIDDLE, 115.0, _count_at(0, 1))
-        _, next_progress = reject_and_advance(config, progress)
-        assert next_progress.param_index == 1
-        assert next_progress.round_kind == RoundKind.STRONG_WEAK
 
     def test_fixed_last_param_enters_refine(self):
         # Rejecting the last fixed param (temperature, index 10) opens the refine at param 0.
         config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.FIXED, 10, RoundKind.STRONG_WEAK, 5500.0, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 10, 11, _zeros())
         _, next_progress = reject_and_advance(config, progress)
         assert next_progress.phase == Phase.REFINE
         assert next_progress.param_index == 0
-        assert next_progress.round_kind == RoundKind.STRONG_WEAK
 
     def test_refine_advances_to_next_param_wrapping(self):
         # In the refine, a reject moves to the next parameter; at the last param it wraps to 0.
         config = WorkspaceConfig()
-        progress = PickBetterProgress(Phase.REFINE, 9, RoundKind.STRONG_WEAK, 0.0, _zeros())
+        progress = PickBetterProgress(Phase.REFINE, 9, 12, _zeros())
         _, next_progress = reject_and_advance(config, progress)
         assert next_progress.phase == Phase.REFINE
         assert next_progress.param_index == 10
-        progress_last = PickBetterProgress(Phase.REFINE, 10, RoundKind.STRONG_WEAK, 5500.0, _zeros())
+        progress_last = PickBetterProgress(Phase.REFINE, 10, 12, _zeros())
         _, wrapped = reject_and_advance(config, progress_last)
         assert wrapped.param_index == 0
 
     def test_does_not_mutate_inputs(self):
         config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 115.0, _count_at(0, 2))
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _count_at(0, 2))
         reject_and_advance(config, progress)
         # The frozen config and progress are returned unchanged; only the new progress differs.
         assert config.exposure.grade == 135.0
         assert progress.selection_counts == _count_at(0, 2)
+
+    def test_fixed_to_refine_boundary_is_no_consecutive(self):
+        # The last fixed round (param_index 10) hands off to the first refine round (param_index 0);
+        # both read distinct entries of the route, so they name different parameters.
+        progress = PickBetterProgress(Phase.FIXED, 10, 11, _zeros())
+        last_fixed = effective_order(progress)[progress.param_index]
+        refine = PickBetterProgress(Phase.REFINE, 0, 12, _zeros())
+        first_refine = effective_order(refine)[refine.param_index]
+        assert last_fixed != first_refine
 
 
 class TestUndo:
@@ -339,7 +318,7 @@ class TestUndo:
 
     def test_apply_pick_does_not_mutate_inputs(self):
         config = _config(grade=135.0)
-        progress = PickBetterProgress(Phase.FIXED, 0, RoundKind.STRONG_WEAK, 135.0, _zeros())
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros())
         apply_pick(config, progress, side=0)
         # The frozen config and progress are returned unchanged; only the new pair differs.
         assert config.exposure.grade == 135.0
@@ -349,7 +328,7 @@ class TestUndo:
 class TestFinished:
     def test_is_finished_is_always_false(self):
         assert is_finished(start_pick_better(WorkspaceConfig())) is False
-        assert is_finished(PickBetterProgress(Phase.REFINE, 5, RoundKind.STRONG_WEAK, 0.0, _zeros())) is False
+        assert is_finished(PickBetterProgress(Phase.REFINE, 5, 12, _zeros())) is False
 
 
 class TestDifferenceScale:
@@ -378,37 +357,51 @@ class TestDifferenceScale:
         assert new_config.exposure.grade == 155.0
 
 
-class TestRandomizeOrder:
-    # randomize shuffles param_order once at start; selection_counts stay keyed by the real
-    # parameter index, so a shuffle reorders the rounds but each parameter's step still shrinks by
-    # its own count.
-    def test_default_order_is_identity(self):
+class TestRandomize:
+    # randomize_order is the shuffled copy used when randomize is on; param_order is the
+    # drag-and-drop route used when randomize is off. effective_order picks between them, so
+    # turning randomize off restores the drag-and-drop route, and a fresh shuffle seeds a new copy.
+    def test_effective_order_uses_param_order_when_randomize_off(self):
         progress = start_pick_better(WorkspaceConfig())
-        assert progress.param_order == tuple(range(len(PICK_PARAMS)))
+        assert effective_order(progress) == progress.param_order
 
-    def test_randomized_order_is_a_permutation(self):
-        progress = start_pick_better(WorkspaceConfig(), randomize=True)
-        assert len(progress.param_order) == len(PICK_PARAMS)
-        assert sorted(progress.param_order) == list(range(len(PICK_PARAMS)))
+    def test_effective_order_uses_randomize_order_when_randomize_on(self):
+        order = shuffle_order()
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros(), randomize=True, randomize_order=order)
+        assert effective_order(progress) == order
+
+    def test_turning_randomize_off_restores_the_route(self):
+        # The randomize flag alone decides which order effective_order reads; clearing it keeps the
+        # shuffled copy but reads the drag-and-drop route again.
+        order = shuffle_order()
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros(), randomize=True, randomize_order=order)
+        restored = replace(progress, randomize=False)
+        assert effective_order(restored) == progress.param_order
+        assert restored.randomize_order == order
+
+    def test_shuffle_order_is_a_full_permutation(self):
+        order = shuffle_order()
+        assert len(order) == len(PICK_PARAMS)
+        assert sorted(order) == list(range(len(PICK_PARAMS)))
 
     def test_shuffled_fixed_run_visits_all_params(self):
-        # 22 fixed rounds over a shuffled order still cover every one of the eleven parameters once
-        # in a strong-weak round.
+        # 11 fixed rounds over a shuffled route still cover every one of the eleven parameters once.
         config = WorkspaceConfig()
-        progress = start_pick_better(config, randomize=True)
-        seen = set()
-        for _ in range(len(PICK_PARAMS) * 2):
-            if progress.round_kind == RoundKind.STRONG_WEAK:
-                seen.add(progress.param_order[progress.param_index])
+        order = shuffle_order()
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros(), randomize=True, randomize_order=order)
+        seen = []
+        for _ in range(len(PICK_PARAMS)):
+            seen.append(effective_order(progress)[progress.param_index])
             config, progress = apply_pick(config, progress, side=0)
-        assert seen == set(range(len(PICK_PARAMS)))
+        assert sorted(seen) == list(range(len(PICK_PARAMS)))
 
     def test_selection_count_tracks_the_real_param(self):
-        # After a strong-vs-weak pick at a shuffled position, the count increments on that
-        # position's real parameter, not on the position index.
+        # After a pick at a shuffled position, the count increments on that position's real parameter,
+        # not on the position index.
         config = WorkspaceConfig()
-        progress = start_pick_better(config, randomize=True)
-        real = progress.param_order[progress.param_index]
+        order = shuffle_order()
+        progress = PickBetterProgress(Phase.FIXED, 0, 1, _zeros(), randomize=True, randomize_order=order)
+        real = effective_order(progress)[progress.param_index]
         _, next_progress = apply_pick(config, progress, side=0)
         assert next_progress.selection_counts[real] == 1
         assert sum(next_progress.selection_counts) == 1
@@ -416,7 +409,7 @@ class TestRandomizeOrder:
 
 class TestMoveSummary:
     # move_summary renders the "Name +delta" line shown briefly after a left or right pick, reading
-    # the in-flight parameter through param_order so a shuffled round still names the right control.
+    # the in-flight parameter through the active order so a shuffled round still names the right control.
     def test_grade_move_shows_name_and_delta(self):
         # grade 115 -> 135 is a +20 move; the line names the control and its signed delta.
         old = WorkspaceConfig()
@@ -438,50 +431,8 @@ class TestMoveSummary:
         progress = PickBetterProgress(
             Phase.FIXED,
             0,
-            RoundKind.STRONG_WEAK,
-            1.0,
+            1,
             _zeros(),
-            (1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+            param_order=(1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10),
         )
         assert move_summary(old, new, progress) == "Density +0.3"
-
-
-class TestRandomizeRemaining:
-    # randomize_remaining reshuffles only the not-yet-visited tail; the in-flight round and the
-    # rounds already run keep their place, so a mid-tuning Randomize press reorders the upcoming
-    # rounds without disturbing the pick in front of the user.
-    def test_keeps_the_in_flight_round(self):
-        progress = start_pick_better(WorkspaceConfig())
-        new = randomize_remaining(progress)
-        assert new.param_index == progress.param_index
-        assert new.phase == progress.phase
-        assert new.round_kind == progress.round_kind
-        assert new.center_before == progress.center_before
-        assert new.selection_counts == progress.selection_counts
-
-    def test_leaves_the_visited_head_in_place(self):
-        # At param_index 3 the first four entries keep their order; only the tail shuffles.
-        progress = PickBetterProgress(Phase.FIXED, 3, RoundKind.STRONG_WEAK, 115.0, _zeros())
-        new = randomize_remaining(progress)
-        assert new.param_order[:4] == progress.param_order[:4]
-
-    def test_full_order_stays_a_permutation(self):
-        progress = start_pick_better(WorkspaceConfig())
-        new = randomize_remaining(progress)
-        assert sorted(new.param_order) == list(range(len(PICK_PARAMS)))
-
-    def test_randomize_actually_shuffles(self):
-        # With a fixed seed the tail is a non-identity permutation, so the call is not a no-op.
-        import random as _random
-
-        progress = start_pick_better(WorkspaceConfig())
-        _random.seed(0)
-        new = randomize_remaining(progress)
-        assert new.param_order != progress.param_order
-        assert sorted(new.param_order) == list(range(len(PICK_PARAMS)))
-
-    def test_last_param_has_no_tail(self):
-        # At the last position there is no tail to shuffle, so the order is unchanged.
-        progress = PickBetterProgress(Phase.FIXED, len(PICK_PARAMS) - 1, RoundKind.STRONG_WEAK, 115.0, _zeros())
-        new = randomize_remaining(progress)
-        assert new.param_order == progress.param_order

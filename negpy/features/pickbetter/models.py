@@ -9,13 +9,6 @@ class Phase(StrEnum):
     REFINE = "refine"
 
 
-class RoundKind(StrEnum):
-    """The kind of pair a fixed-phase round proposes."""
-
-    STRONG_WEAK = "strong_weak"
-    CHOSEN_MIDDLE = "chosen_middle"
-
-
 @dataclass(frozen=True)
 class PickParam:
     """One tunable Exposure control the picker proposes.
@@ -34,8 +27,8 @@ class PickParam:
     compound: bool = False
 
 
-# The eleven tunable Exposure controls, in proposal order: Contrast (grade) and Exposure
-# (density) first, then the split grade and split density trims, then Preflash, Dye
+# The eleven tunable Exposure controls, by parameter index (0 to 10): Contrast (grade) and
+# Exposure (density) first, then the split grade and split density trims, then Preflash, Dye
 # Separation, Snap, Toe and Temperature. The excluded controls (Luma/Color Clip, Crop,
 # Crosstalk, Cast Removal, Hue Trim, Black/White Point) never appear here.
 PICK_PARAMS: tuple[PickParam, ...] = (
@@ -58,18 +51,21 @@ class PickBetterProgress:
     """The iteration cursor the controller advances after each pick.
 
     `selection_counts` holds, per parameter, how many times that parameter has been committed;
-    the proposed step shrinks with the count (bold at first, smaller on each later selection of
-    the same parameter). `center_before` is the value the in-flight field held when its tuning
-    started; it is the "middle" the chosen-vs-middle round compares the committed pick against.
-    The refine phase runs STRONG_WEAK rounds only, so `center_before` is carried but unused there.
+    the proposed step shrinks with the count (bold at first, smaller on each later visit of the
+    same parameter). `round_number` is the 1-based count of rounds run, shown at the head of the
+    in-flight parameter name. `param_order` is the Custom Routing route (the order the rounds visit
+    the eleven parameters); `randomize_order` is a shuffled copy used for picking when `randomize`
+    is on, so the route keeps the randomize-off order.
     """
 
     phase: Phase
     param_index: int
-    round_kind: RoundKind
-    center_before: float
+    round_number: int
     selection_counts: tuple[int, ...]
-    # The order the rounds visit the eleven parameters; a randomized run shuffles it once at
-    # start. selection_counts stays keyed by the real parameter index, so a shuffle reorders
-    # rounds but each parameter's step still shrinks by its own count.
+    # The Custom Routing route: the order the rounds visit the eleven parameters. A drag-and-drop
+    # reorder sets it; a randomized run shuffles a copy into randomize_order and leaves it untouched.
+    # selection_counts stays keyed by the real parameter index, so a reorder reorders rounds but each
+    # parameter's step still shrinks by its own count.
     param_order: tuple[int, ...] = tuple(range(len(PICK_PARAMS)))
+    randomize: bool = False
+    randomize_order: tuple[int, ...] = tuple(range(len(PICK_PARAMS)))

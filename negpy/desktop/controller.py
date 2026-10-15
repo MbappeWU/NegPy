@@ -203,9 +203,10 @@ from negpy.features.retouch.models import HEAL_SIZE_MAX, HEAL_SIZE_MIN, RetouchC
 from negpy.features.pickbetter.logic import (
     apply_pick,
     current_pair,
+    effective_order,
     move_summary,
-    randomize_remaining,
     reject_and_advance,
+    shuffle_order,
     start_pick_better,
 )
 from negpy.features.pickbetter.models import PICK_PARAMS, PickBetterProgress
@@ -791,8 +792,6 @@ class AppController(QObject):
         # so a render that lands after the slider moved can re-request at the new spread.
         self._pick_better_diff_scale: float = 1.0
         self._pick_better_request_scale: float = 1.0
-        # The Randomize toggle: shuffle the 22-round order on the next start.
-        self._pick_better_randomize: bool = False
 
         self._render_debounce = QTimer()
         self._render_debounce.setSingleShot(True)
@@ -3666,12 +3665,12 @@ class AppController(QObject):
         if self.state.preview_raw is None or self._pick_better_progress is None:
             return
         progress = self._pick_better_progress
-        real = progress.param_order[progress.param_index]
+        real = effective_order(progress)[progress.param_index]
         left, right = current_pair(self.state.config, progress, scale=self._pick_better_diff_scale)
         # Record the spread this render ran at, so a render that lands after the Difference slider
         # moved can re-request at the new spread instead of showing a stale pair.
         self._pick_better_request_scale = self._pick_better_diff_scale
-        self.pick_better_param.emit(PICK_PARAMS[real].name)
+        self.pick_better_param.emit(f"Round {progress.round_number} · {PICK_PARAMS[real].name}")
         cam_xyz, camera_wb = self._effective_cam_xyz()
         self.state.pick_better_pending = True
         self.set_status("Printing Pick Better…", 2500)
@@ -3706,7 +3705,7 @@ class AppController(QObject):
         if self.state.preview_raw is None:
             return
         self.exit_compare()
-        self._pick_better_progress = start_pick_better(self.state.config, randomize=self._pick_better_randomize)
+        self._pick_better_progress = start_pick_better(self.state.config)
         self._request_pick_better_pair()
 
     def _clear_pick_better(self) -> None:
@@ -3795,15 +3794,26 @@ class AppController(QObject):
         if self._pick_better_progress is not None and not self.state.pick_better_pending:
             self._request_pick_better_pair()
 
-    def pick_better_set_randomize(self, on: bool) -> None:
-        """On turning the mode on, reshuffle only the rounds after the current one, keeping the
-        in-flight round in place; the choice is remembered for the next fresh start."""
-        self._pick_better_randomize = on
-        if not on:
-            return
+    def pick_better_set_route(self, param_order: tuple[int, ...], randomize: bool) -> None:
+        """Apply the Custom Routing window's route: set the round order and the randomize choice,
+        then re-request the in-flight pair so the new order shows at once.
+
+        The route is the randomize-off order the drag-and-drop sets; turning randomize on shuffles
+        a copy into randomize_order and leaves the route untouched, so turning it off restores it.
+        """
         if self._pick_better_progress is None or not (self.state.pick_better or self.state.pick_better_pending):
             return
-        self._pick_better_progress = randomize_remaining(self._pick_better_progress)
+        progress = self._pick_better_progress
+        randomize_order = shuffle_order() if randomize else progress.randomize_order
+        self._pick_better_progress = replace(progress, param_order=tuple(param_order), randomize=randomize, randomize_order=randomize_order)
+        self._request_pick_better_pair()
+
+    def pick_better_route(self) -> tuple[tuple[int, ...], bool]:
+        """The current round order and randomize choice, to seed the Custom Routing window."""
+        progress = self._pick_better_progress
+        if progress is None:
+            return tuple(range(len(PICK_PARAMS))), False
+        return progress.param_order, progress.randomize
 
     def _on_pick_better_error(self, _message: str) -> None:
         """A render that errors never reaches on_pick_better_finished, and the stuck `pending`

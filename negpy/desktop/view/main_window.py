@@ -30,6 +30,7 @@ from negpy.desktop.view.canvas.widget import ImageCanvas
 from negpy.desktop.view.keyboard_shortcuts import SpacePanKeyFilter, setup_keyboard_shortcuts
 from negpy.desktop.view.mac_menu_bar import install_mac_menus
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
+from negpy.desktop.view.sidebar.custom_routing_dialog import CustomRoutingDialog
 from negpy.desktop.view.sidebar.pick_better_window import PickBetterWindow
 from negpy.desktop.view.sidebar.right_panel import RightPanel
 from negpy.desktop.view.sidebar.session_panel import SessionPanel
@@ -634,7 +635,7 @@ class MainWindow(QMainWindow):
         self.controller.pick_better_param.connect(self._pick_better_window.set_param_name)
         self.controller.pick_better_moved.connect(self._pick_better_window.show_move)
         self._pick_better_window.diffChanged.connect(self.controller.pick_better_set_diff)
-        self._pick_better_window.randomizeChanged.connect(self.controller.pick_better_set_randomize)
+        self._pick_better_window.customRoutingClicked.connect(self._on_custom_routing_clicked)
         self.controller.local_drag_changed.connect(self.canvas.overlay.set_local_slider_drag)
         self.controller.zone_pins_changed.connect(self.canvas.overlay.update)
         self.controller.zone_arm_changed.connect(self._on_zone_armed)
@@ -665,6 +666,13 @@ class MainWindow(QMainWindow):
             self._to_pick_better_pixmap(left, display_cs, monitor, proof),
             self._to_pick_better_pixmap(right, display_cs, monitor, proof),
         )
+
+    def _on_custom_routing_clicked(self) -> None:
+        """Open the Custom Routing window seeded with the current route; on Apply, commit it."""
+        order, randomize = self.controller.pick_better_route()
+        dialog = CustomRoutingDialog(self, order, randomize, repo=self.controller.session.repo)
+        if dialog.exec():
+            self.controller.pick_better_set_route(dialog.route(), dialog.randomize_on())
 
     @staticmethod
     def _to_pick_better_pixmap(arr, display_cs, monitor, proof) -> QPixmap:

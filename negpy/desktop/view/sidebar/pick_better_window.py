@@ -7,9 +7,10 @@ right. The in-flight parameter name floats above the centre "Skip" caption and i
 A click on a candidate commits it; a click on the centre current photo rejects both candidates
 and advances to the next proposal; Undo re-shows the pair the last pick came from; OK ends the
 mode and closes the window. A hover draws a red selection ring around the frame under the cursor.
-A Difference slider widens or narrows the A/B spread live, and a Randomize toggle reshuffles the
-round order. The window floats over the editor panels and each label letterboxes its frame, so a
-preview keeps its aspect ratio — it is never stretched and never width-capped.
+A Difference slider widens or narrows the A/B spread live, and a Custom Routing button opens a
+window that reorders which parameter each round proposes. The window floats over the editor panels
+and each label letterboxes its frame, so a preview keeps its aspect ratio — it is never stretched
+and never width-capped.
 """
 
 from typing import Optional
@@ -27,7 +28,6 @@ from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
 from negpy.desktop.view.styles.templates import (
     caption_label,
     labeled_action,
-    labeled_toggle,
     pin_dialog_default,
 )
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
@@ -54,7 +54,7 @@ class PickBetterWindow(QDialog):
     undoRequested = pyqtSignal()
     closed = pyqtSignal()
     diffChanged = pyqtSignal(float)  # the Difference slider's A/B spread multiplier
-    randomizeChanged = pyqtSignal(bool)  # the Randomize toggle's state
+    customRoutingClicked = pyqtSignal()  # open the Custom Routing window
 
     def __init__(self, parent=None, *, repo=None) -> None:
         super().__init__(parent)
@@ -110,14 +110,16 @@ class PickBetterWindow(QDialog):
         self._move_timer.timeout.connect(lambda: self._move_label.setText(""))
 
         # A control row under the photos: the Difference slider widens or narrows the A/B spread
-        # live, and the Randomize toggle reshuffles the round order.
+        # live, and the Custom Routing button opens a window to reorder the round order.
         control_row = QHBoxLayout()
         self._diff_slider = CompactSlider("Difference", 0.25, 4.0, 1.0, step=0.05, unit="×")
         self._diff_slider.valueChanged.connect(self.diffChanged)
-        self._randomize_toggle = labeled_toggle("fa5s.random", "Randomize", False, "Randomize the tuning order")
-        self._randomize_toggle.toggled.connect(self.randomizeChanged)
+        self._custom_routing_btn = labeled_action(
+            "fa5s.route", "Custom Routing", "Open the window that reorders which parameter each round proposes"
+        )
+        self._custom_routing_btn.clicked.connect(self.customRoutingClicked)
         control_row.addWidget(self._diff_slider, 1)
-        control_row.addWidget(self._randomize_toggle)
+        control_row.addWidget(self._custom_routing_btn)
         layout.addLayout(control_row)
 
         # Bottom-right: Undo (re-show the previous pair) and OK (close = end the mode).
