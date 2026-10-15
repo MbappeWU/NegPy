@@ -5887,21 +5887,21 @@ class AppController(QObject):
             return
         self.session.save_active_edit()
         trashed: list[int] = []
-        kept = 0
+        errors: list[str] = []
         for i, f in frames:
             path = f["path"]
-            if os.path.exists(path) and not move_to_trash(path):
-                kept += 1
-                logger.warning("Move to Trash could not move %s", path)
+            if os.path.exists(path) and (error := move_to_trash(path)):
+                errors.append(error)
+                logger.warning("Move to Trash could not move %s: %s", path, error)
                 continue
             sidecar = sidecar_path_for(path)
-            if os.path.exists(sidecar) and not move_to_trash(sidecar):
-                kept += 1
-                logger.warning("Move to Trash could not move the sidecar %s", sidecar)
+            if os.path.exists(sidecar) and (error := move_to_trash(sidecar)):
+                errors.append(error)
+                logger.warning("Move to Trash could not move the sidecar %s: %s", sidecar, error)
             trashed.append(i)
         self.session.remove_files(trashed)
-        if kept:
-            message = f"{count_of(kept, 'file')} could not go to the Trash"
+        if errors:
+            message = f"{count_of(len(errors), 'file')} could not go to the Trash: {errors[0]}"
             if trashed:
                 message = f"Moved {count_of(len(trashed), 'frame')} to the Trash, {message}"
             self.set_status(message, 8000, kind="warning")
@@ -6007,9 +6007,9 @@ class AppController(QObject):
                 replacements[index_by_path[primary]] = new_asset
             if self._frame_merge_trash:
                 for path in (primary, *parts, *sidecars):
-                    if os.path.exists(path) and not move_to_trash(path):
+                    if os.path.exists(path) and (error := move_to_trash(path)):
                         kept += 1
-                        logger.warning("Merge to TIFF Negative could not move %s to the Trash", path)
+                        logger.warning("Merge to TIFF Negative could not move %s to the Trash: %s", path, error)
         if self._frame_merge_trash:
             self.session.replace_assets(replacements)
         else:

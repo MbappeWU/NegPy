@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 
-from PyQt6.QtCore import QFile, QUrl
+from PyQt6.QtCore import QFile, QStorageInfo, QUrl
 from PyQt6.QtGui import QDesktopServices
 
 from negpy.kernel.system.logging import get_logger
@@ -55,12 +55,24 @@ def _windows_bin_takes(path: str) -> bool:
     return capacity_mb is None or os.path.getsize(path) <= capacity_mb * 1024 * 1024
 
 
-def move_to_trash(path: str) -> bool:
-    """False, with the file left in place, when the Trash cannot take it. Never deletes for good."""
+def _linux_trash_error(path: str, qt_error: str) -> str:
+    """Qt reports a stale errno when the drive's Trash folder belongs to another user, as on an
+    NTFS or FAT drive mounted without uid=."""
+    uid = os.getuid()
+    trash = os.path.join(QStorageInfo(path).rootPath(), f".Trash-{uid}")
+    if os.path.isdir(trash) and os.stat(trash).st_uid != uid:
+        return f"{trash} belongs to another user. Mount its drive with uid={uid}"
+    return qt_error
+
+
+def move_to_trash(path: str) -> str:
+    """Empty when *path* went to the Trash, else why it stayed. Never deletes for good."""
     if sys.platform == "win32" and not _windows_bin_takes(path):
-        return False
-    ok, _trashed = QFile.moveToTrash(path)
-    return bool(ok)
+        return "the Recycle Bin would delete it for good"
+    f = QFile(path)
+    if f.moveToTrash():
+        return ""
+    return _linux_trash_error(path, f.errorString()) if sys.platform.startswith("linux") else f.errorString()
 
 
 def _linux_show_items(path: str) -> bool:

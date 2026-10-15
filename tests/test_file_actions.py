@@ -16,22 +16,36 @@ def _file(tmp_path, name="IMG_1.ARW") -> str:
     return path
 
 
+def _qt_refuses(error: str):
+    return lambda path: SimpleNamespace(moveToTrash=lambda: False, errorString=lambda: error)
+
+
 def test_windows_never_trashes_on_a_drive_without_a_recycle_bin(tmp_path, monkeypatch):
     path = _file(tmp_path)
-    qt_trash = MagicMock(return_value=(True, ""))
+    qt_file = MagicMock()
     monkeypatch.setattr(file_manager.sys, "platform", "win32")
     monkeypatch.setattr(file_manager, "_windows_bin_takes", lambda p: False)
-    monkeypatch.setattr(file_manager.QFile, "moveToTrash", qt_trash)
-    assert file_manager.move_to_trash(path) is False
-    qt_trash.assert_not_called()
+    monkeypatch.setattr(file_manager, "QFile", qt_file)
+    assert file_manager.move_to_trash(path) == "the Recycle Bin would delete it for good"
+    qt_file.assert_not_called()
     assert os.path.exists(path)
 
 
 @pytest.mark.parametrize("platform", ["darwin", "linux"])
-def test_other_platforms_ask_qt(tmp_path, monkeypatch, platform):
+def test_other_platforms_report_the_qt_error(tmp_path, monkeypatch, platform):
     monkeypatch.setattr(file_manager.sys, "platform", platform)
-    monkeypatch.setattr(file_manager.QFile, "moveToTrash", lambda p: (False, ""))
-    assert file_manager.move_to_trash(_file(tmp_path)) is False
+    monkeypatch.setattr(file_manager, "QFile", _qt_refuses("Permission denied"))
+    assert file_manager.move_to_trash(_file(tmp_path)) == "Permission denied"
+
+
+def test_linux_names_a_drive_trash_owned_by_another_user(tmp_path, monkeypatch):
+    (tmp_path / ".Trash-4242").mkdir()
+    monkeypatch.setattr(file_manager.sys, "platform", "linux")
+    monkeypatch.setattr(file_manager.os, "getuid", lambda: 4242, raising=False)
+    monkeypatch.setattr(file_manager, "QStorageInfo", lambda p: SimpleNamespace(rootPath=lambda: str(tmp_path)))
+    monkeypatch.setattr(file_manager, "QFile", _qt_refuses("No such file or directory"))
+    error = file_manager.move_to_trash(_file(tmp_path))
+    assert error == f"{tmp_path / '.Trash-4242'} belongs to another user. Mount its drive with uid=4242"
 
 
 @pytest.mark.parametrize(
@@ -99,7 +113,7 @@ def test_trashing_moves_sidecars_and_unloads_only_what_moved(tmp_path, monkeypat
     ok, refused = _file(tmp_path, "ok.ARW"), _file(tmp_path, "refused.ARW")
     open(sidecar_path_for(ok), "w").close()
     trashed: list = []
-    monkeypatch.setattr("negpy.desktop.controller.move_to_trash", lambda p: p != refused and (trashed.append(p) or True))
+    monkeypatch.setattr("negpy.desktop.controller.move_to_trash", lambda p: "refused" if p == refused else trashed.append(p) or "")
     ctrl = MagicMock()
     ctrl.state.uploaded_files = [{"path": ok}, {"path": refused}]
     AppController.move_frames_to_trash(ctrl, [0, 1])
@@ -112,10 +126,10 @@ def test_a_sidecar_the_trash_refuses_is_reported(tmp_path, monkeypatch):
     path = _file(tmp_path)
     sidecar = sidecar_path_for(path)
     open(sidecar, "w").close()
-    monkeypatch.setattr("negpy.desktop.controller.move_to_trash", lambda p: p != sidecar)
+    monkeypatch.setattr("negpy.desktop.controller.move_to_trash", lambda p: "refused" if p == sidecar else "")
     ctrl = MagicMock()
     ctrl.state.uploaded_files = [{"path": path}]
     AppController.move_frames_to_trash(ctrl, [0])
     ctrl.session.remove_files.assert_called_once_with([0])
-    assert "1 file could not go to the Trash" in ctrl.set_status.call_args.args[0]
+    assert "1 file could not go to the Trash: refused" in ctrl.set_status.call_args.args[0]
     assert ctrl.set_status.call_args.kwargs["kind"] == "warning"
