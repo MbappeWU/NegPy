@@ -78,6 +78,7 @@ from negpy.desktop.view.styles.templates import (
 from negpy.desktop.view.styles.theme import THEME, scene_color
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.sidecar_action import LABEL as SIDECAR_LABEL, load_edit_from_sidecar
+from negpy.desktop.view.file_actions import SHOW_LABEL, TRASH_LABEL, move_selected_to_trash, show_current_in_folder
 from negpy.desktop.view.widgets.rgb_triplet_dialog import open_triplet_dialog
 from negpy.desktop.view.widgets.roll_settings_dialog import RollSettingsDialog
 from negpy.services.assets import rolls
@@ -1874,6 +1875,14 @@ class FileBrowser(QWidget):
                     )
         if state.active_roll_id:
             self._add_scene_menu(menu, [state.uploaded_files[i] for i in targets], multi)
+        menu.addSeparator()
+        if not multi:
+            menu.addAction(label_with_shortcut(SHOW_LABEL, "show_in_folder")).triggered.connect(
+                lambda: show_current_in_folder(self.controller)
+            )
+        menu.addAction(label_with_shortcut(TRASH_LABEL, "move_to_trash")).triggered.connect(
+            lambda: move_selected_to_trash(self, self.controller)
+        )
         menu.addSeparator()
         unload_label = "Unload Selected…" if multi else "Unload…"
         menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)

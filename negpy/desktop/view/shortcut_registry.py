@@ -288,6 +288,8 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "reset_to_roll": ShortcutEntry("", "Reset this frame to the roll's settings", "Actions"),
     "undo_roll_push": ShortcutEntry("", "Undo Apply to Roll", "Actions"),
     "load_sidecar": ShortcutEntry("", "Load this frame's edit from a sidecar…", "Actions"),
+    "show_in_folder": ShortcutEntry("", "Show the frame's file in its folder", "Actions"),
+    "move_to_trash": ShortcutEntry("", "Move the selected frames' files to the Trash…", "Actions"),
     "apply_tab": ShortcutEntry("", "Apply this tab to the roll…", "Actions"),
     "toggle_tab_cards": ShortcutEntry("", "Expand or collapse this tab's cards", "Actions"),
     "roll_batch_analysis": ShortcutEntry("", "Roll Analysis (measure the roll's baseline)", "Actions"),
