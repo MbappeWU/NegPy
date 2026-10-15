@@ -300,6 +300,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "persistent_settings": ShortcutEntry("", "Choose which settings carry to the next file", "Actions"),
     "open_preferences": ShortcutEntry("Ctrl+,", "Open Preferences", "Actions"),
     "save_work_print": ShortcutEntry("Ctrl+Shift+S", "Save the current edit as a named work print", "Actions"),
+    "apply_work_print_metadata": ShortcutEntry("", "When a work print loads, restore its saved metadata", "Actions"),
     "undo": ShortcutEntry("Ctrl+Z", "Undo", "Actions"),
     "redo": ShortcutEntry("Ctrl+Y", "Redo", "Actions"),
     "live_view_scan": ShortcutEntry("S", "Scan, or stop the capture", "Camera Live View", LIVE_VIEW),

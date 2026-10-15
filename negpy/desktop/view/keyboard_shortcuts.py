@@ -548,6 +548,7 @@ class ShortcutManager:
             "persistent_settings": lambda: open_sticky_dialog(self.window, controller),
             "open_preferences": lambda: _open_preferences(self.window, controller),
             "save_work_print": self.window.right_panel.history_panel.save_work_print,
+            "apply_work_print_metadata": lambda: self.window.right_panel.history_panel.apply_metadata_btn.click(),
             "undo": lambda: _context_undo(controller),
             "redo": controller.session.redo,
             "show_shortcuts": lambda: _show_shortcuts(self.window),

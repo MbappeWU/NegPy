@@ -1874,13 +1874,24 @@ class DesktopSessionManager(QObject):
         self.repo.save_work_print(self.state.current_file_hash, name, self.state.config)
         self.work_prints_changed.emit()
 
+    def work_print_apply_metadata(self) -> bool:
+        """The Read Metadata global toggle: on restores a work print's saved metadata, off
+        (the default) keeps the metadata on screen now and drops the print's."""
+        return bool(self.repo.get_global_setting("work_print_apply_metadata", False))
+
+    def set_work_print_apply_metadata(self, enabled: bool) -> None:
+        self.repo.save_global_setting("work_print_apply_metadata", bool(enabled))
+
     def load_work_print(self, name: str) -> None:
         """Make a named version live. Committed through update_config, so it lands on the
-        undo stack and a plain Ctrl+Z puts back what was on screen before."""
+        undo stack and a plain Ctrl+Z puts back what was on screen before. Read Metadata
+        (off by default) keeps the live metadata; on restores the print's."""
         if not self.state.current_file_hash:
             return
         config = self.repo.load_work_print(self.state.current_file_hash, name)
         if config is not None:
+            if not self.work_print_apply_metadata():
+                config = replace(config, metadata=self.state.config.metadata)
             self.update_config(config, persist=True)
             self._relock_diverged_cards()
 
