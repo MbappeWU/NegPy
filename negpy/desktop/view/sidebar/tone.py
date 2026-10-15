@@ -6,7 +6,7 @@ from negpy.desktop.auto_sliders import shown_values, stored_value
 from negpy.desktop.view.confirm import warn_targets_affect_unbaked
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.base import BaseSidebar
-from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, hint_label, wrap_tooltip
+from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, TEST_STRIP_SWEEP, gradient_icon, hint_label, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
@@ -96,6 +96,7 @@ class ToneSidebar(BaseSidebar):
         self.auto_density_action.setChecked(conf.auto_exposure)
         self.auto_grade_action.setChecked(conf.auto_normalize_contrast)
         self.test_strip_btn = self._tool_toggle("mdi.view-grid-outline", "", self._test_strip_tooltip())
+        self.test_strip_btn.setIcon(gradient_icon("mdi.view-grid-outline", TEST_STRIP_SWEEP))
         self.test_strip_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.test_strip_btn.clicked.connect(lambda checked: self.controller.toggle_test_strip(force=checked))
 

@@ -153,6 +153,28 @@ class TestStripTask:
 
 
 @dataclass(frozen=True)
+class PickBetterTask:
+    """Request to render the Pick Better proof as three frames: the committed current edit
+    plus the two candidates the user is choosing between. `left_config` is the stronger
+    candidate, `right_config` the weaker; `current_config` is the live committed edit shown as
+    the reference above the pair. Each is rendered as a full frame, not joined."""
+
+    buffer: np.ndarray
+    source_hash: str
+    preview_size: float
+    current_config: WorkspaceConfig
+    left_config: WorkspaceConfig
+    right_config: WorkspaceConfig
+    gpu_enabled: bool = True
+    ir_buffer: Optional[np.ndarray] = None
+    detect_buffer: Optional[np.ndarray] = None
+    # Decoder XYZ->camera matrix for this source; only the transparency transfer reads it.
+    cam_xyz: Optional[list] = None
+    # As-shot WB multipliers, needed only when the buffer was decoded without WB.
+    camera_wb: Optional[list] = None
+
+
+@dataclass(frozen=True)
 class ThumbnailUpdateTask:
     """Request to update the filmstrip thumbnail from a rendered buffer."""
 
@@ -309,6 +331,7 @@ class RenderWorker(QObject):
     metrics_updated = pyqtSignal(dict)  # Late-arriving metrics (histogram, etc.)
     strip_finished = pyqtSignal(object, object)  # (one mosaic ndarray per quarter-turn, content_rect|None)
     strip_progress = pyqtSignal(int, int)  # (patches printed, total)
+    pick_better_finished = pyqtSignal(object, object, object)  # (current, left, right ndarrays)
     busy = pyqtSignal(str)  # a slow uncached pipeline step is starting
     error = pyqtSignal(str)
 
@@ -506,6 +529,42 @@ class RenderWorker(QObject):
 
         except Exception as e:
             logger.exception("Test strip render failed")
+            self.error.emit(str(e))
+
+    @pyqtSlot(PickBetterTask)
+    def build_pick_better(self, task: PickBetterTask) -> None:
+        """Render the Pick Better proof as three frames: the committed current edit plus the
+        two candidates, each a full frame at one ExposureConfig field's value. The three
+        configs differ only in the exposure stage, which the analysis cache keys on, so the
+        per-frame metering is reused. Metrics are dropped: these are proofs, and the real
+        render owns the writeback, like the test strip."""
+        try:
+            rendered = []
+            for config in (task.current_config, task.left_config, task.right_config):
+                result, _ = self._processor.run_pipeline(
+                    task.buffer,
+                    config,
+                    task.source_hash,
+                    render_size_ref=task.preview_size,
+                    prefer_gpu=task.gpu_enabled,
+                    readback_metrics=False,
+                    ir_buffer=task.ir_buffer,
+                    detect_buffer=task.detect_buffer,
+                    wants_uv_grid=False,
+                    cam_xyz=task.cam_xyz,
+                    camera_wb=task.camera_wb,
+                )
+                if isinstance(result, GPUTexture):
+                    result = result.readback()
+                if isinstance(result, np.ndarray) and result.ndim == 3 and result.shape[2] >= 4:
+                    result = np.ascontiguousarray(result[:, :, :3])
+                rendered.append(result)
+
+            current, left, right = rendered
+            self.pick_better_finished.emit(current, left, right)
+
+        except Exception as e:
+            logger.exception("Pick Better render failed")
             self.error.emit(str(e))
 
 

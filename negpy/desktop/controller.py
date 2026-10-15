@@ -52,6 +52,7 @@ from negpy.desktop.workers.render import (
     NormalizationInput,
     NormalizationTask,
     NormalizationWorker,
+    PickBetterTask,
     PreviewLoadTask,
     PreviewLoadState,
     PreviewLoadWorker,
@@ -199,6 +200,16 @@ from negpy.services.assets import semantic_model
 from negpy.kernel.system.paths import get_default_user_dir, get_resource_path
 from negpy.features.retouch.logic import downsample_ir, trace_scratch
 from negpy.features.retouch.models import HEAL_SIZE_MAX, HEAL_SIZE_MIN, RetouchConfig
+from negpy.features.pickbetter.logic import (
+    apply_pick,
+    current_pair,
+    effective_order,
+    move_summary,
+    reject_and_advance,
+    shuffle_order,
+    start_pick_better,
+)
+from negpy.features.pickbetter.models import PICK_PARAMS, PickBetterProgress
 from negpy.features.toning.models import ToningConfig
 from negpy.infrastructure.capture.settings import WhiteCaptureMode
 from negpy.infrastructure.display.color_spaces import ColorSpaceRegistry
@@ -475,7 +486,12 @@ class AppController(QObject):
     canvas_info_changed = pyqtSignal(int)
     printing_notes_requested = pyqtSignal()  # the canvas holds the annotated pixels
     strip_requested = pyqtSignal(TestStripTask)
-    test_strip_changed = pyqtSignal(bool)  # True = mosaic is up, False = cleared or building
+    test_strip_changed = pyqtSignal(bool)  # True = mosaic is up, False = cleared
+    pick_better_requested = pyqtSignal(PickBetterTask)
+    pick_better_changed = pyqtSignal(bool)  # True = the window is up, False = cleared
+    pick_better_ready = pyqtSignal(object, object, object)  # (current, left, right ndarrays)
+    pick_better_param = pyqtSignal(str)  # the in-flight parameter name, shown above the Skip caption
+    pick_better_moved = pyqtSignal(str)  # the "Name +delta" summary, shown briefly after a pick
     zone_pins_changed = pyqtSignal()
     rgb_scan_mode_changed = pyqtSignal(bool)  # the mode changed from somewhere other than its button
     half_frame_mode_changed = pyqtSignal(bool)  # a roll became active; each remembers its own toggle
@@ -768,6 +784,15 @@ class AppController(QObject):
         self._strip_memo = RenderMemo()
         self._strip_memo.large_entries = True
 
+        # The iteration cursor for the active Pick Better session; None when the mode is off.
+        self._pick_better_progress: Optional[PickBetterProgress] = None
+        # Pre-pick (config, progress) snapshots for Undo: each pop re-proposes that pair.
+        self._pick_better_undo: list = []
+        # The Difference slider's A/B spread multiplier, and the scale the last pair rendered at,
+        # so a render that lands after the slider moved can re-request at the new spread.
+        self._pick_better_diff_scale: float = 1.0
+        self._pick_better_request_scale: float = 1.0
+
         self._render_debounce = QTimer()
         self._render_debounce.setSingleShot(True)
         self._render_debounce.setInterval(50)
@@ -925,14 +950,17 @@ class AppController(QObject):
     def _connect_signals(self) -> None:
         self.render_requested.connect(self.render_worker.process)
         self.strip_requested.connect(self.render_worker.build_strip)
+        self.pick_better_requested.connect(self.render_worker.build_pick_better)
         self._render_cleanup_requested.connect(self.render_worker.cleanup)
         self.render_worker.strip_finished.connect(self.on_strip_finished)
+        self.render_worker.pick_better_finished.connect(self.on_pick_better_finished)
         self.render_worker.strip_progress.connect(self.on_strip_progress)
         self.render_worker.busy.connect(self._on_render_busy)
         self.render_worker.finished.connect(self._on_render_finished)
         self.render_worker.metrics_updated.connect(self._on_metrics_updated)
         self.render_worker.error.connect(self._on_render_error)
         self.render_worker.error.connect(self._on_strip_error)
+        self.render_worker.error.connect(self._on_pick_better_error)
 
         self.export_worker.progress.connect(self.export_progress.emit)
         self.export_worker.progress.connect(self._on_batch_progress)
@@ -3627,6 +3655,171 @@ class AppController(QObject):
         self._clear_test_strip()
         self.session.update_config(replace(self.state.config, exposure=new_exposure), persist=True)
         self.request_render()
+
+    def _request_pick_better_pair(self) -> None:
+        """Render the in-flight pair plus the committed edit and show all three in the Pick Better window.
+
+        The two-up replaces the frame, so a real render drops it like the test strip; each pick
+        re-requests the next pair, so the mode never renders a plain frame between picks.
+        """
+        if self.state.preview_raw is None or self._pick_better_progress is None:
+            return
+        progress = self._pick_better_progress
+        real = effective_order(progress)[progress.param_index]
+        left, right = current_pair(self.state.config, progress, scale=self._pick_better_diff_scale)
+        # Record the spread this render ran at, so a render that lands after the Difference slider
+        # moved can re-request at the new spread instead of showing a stale pair.
+        self._pick_better_request_scale = self._pick_better_diff_scale
+        self.pick_better_param.emit(f"Round {progress.round_number} · {PICK_PARAMS[real].name}")
+        cam_xyz, camera_wb = self._effective_cam_xyz()
+        self.state.pick_better_pending = True
+        self.set_status("Printing Pick Better…", 2500)
+        self.status_progress_requested.emit(0, 2)
+        self.pick_better_requested.emit(
+            PickBetterTask(
+                buffer=self.state.preview_raw,
+                source_hash=self.state.current_file_hash or "preview",
+                preview_size=float(APP_CONFIG.preview_render_size),
+                current_config=self.state.config,
+                left_config=left,
+                right_config=right,
+                gpu_enabled=self.state.gpu_enabled,
+                ir_buffer=self.state.preview_ir,
+                detect_buffer=self.state.preview_detect,
+                cam_xyz=cam_xyz,
+                camera_wb=camera_wb,
+            )
+        )
+
+    def toggle_pick_better(self, force: Optional[bool] = None) -> None:
+        """Print (or clear) the Pick Better two-up.
+
+        Entering starts the fixed sequence and then the endless refinement; a pick commits
+        one field and proposes the next pair. The Finish button or this toggle ends it.
+        """
+        showing = self.state.pick_better or self.state.pick_better_pending
+        target = (not showing) if force is None else bool(force)
+        if not target:
+            self._clear_pick_better()
+            return
+        if self.state.preview_raw is None:
+            return
+        self.exit_compare()
+        self._pick_better_progress = start_pick_better(self.state.config)
+        self._request_pick_better_pair()
+
+    def _clear_pick_better(self) -> None:
+        """Drop the two-up and its cursor; silent when there was nothing up."""
+        if not (self.state.pick_better or self.state.pick_better_pending):
+            return
+        if self.state.pick_better_pending:
+            self.status_progress_requested.emit(0, 0)  # total <= 0 hides the bar
+        self.state.pick_better = False
+        self.state.pick_better_pending = False
+        self._pick_better_progress = None
+        self._pick_better_undo.clear()
+        self.pick_better_changed.emit(False)
+
+    def on_pick_better_finished(self, current: Any, left: Any, right: Any) -> None:
+        if not self.state.pick_better_pending:
+            return
+        self.state.pick_better_pending = False
+        # The user may have moved the Difference slider while this render was in flight, so the
+        # frame shows the old spread. Re-request at the new spread and drop this stale one; a
+        # settled frame is shown, and the window appears only on the first finish.
+        if self._pick_better_diff_scale != self._pick_better_request_scale:
+            self._request_pick_better_pair()
+            return
+        already_up = self.state.pick_better
+        self.state.pick_better = True
+        self.pick_better_ready.emit(current, left, right)
+        if not already_up:
+            self.pick_better_changed.emit(True)
+        self.set_status("Pick Better ready — click the better candidate", 4000)
+
+    def pick_better_select(self, side: int) -> None:
+        """Commit the chosen candidate's field, then propose the next pair.
+
+        A pick never ends the session: the user ends via the Finish button or the toggle, so every
+        pick advances the cursor and re-renders the next pair.
+        """
+        if not self.state.pick_better or self._pick_better_progress is None:
+            return
+        self._pick_better_undo.append((self.state.config, self._pick_better_progress))
+        old = self.state.config
+        progress = self._pick_better_progress
+        new_config, next_progress = apply_pick(old, progress, side, scale=self._pick_better_diff_scale)
+        self.session.update_config(new_config, persist=True)
+        self._pick_better_progress = next_progress
+        self.pick_better_moved.emit(move_summary(old, new_config, progress))
+        self._request_pick_better_pair()
+
+    def pick_better_reject(self) -> None:
+        """Reject both candidates (keep the middle current photo) and advance to the next parameter.
+
+        A reject is not a selection: the config and the selection counts stay put, so the next
+        parameter's first round still opens at its bold step.
+        """
+        if not self.state.pick_better or self._pick_better_progress is None:
+            return
+        self._pick_better_undo.append((self.state.config, self._pick_better_progress))
+        _, next_progress = reject_and_advance(self.state.config, self._pick_better_progress)
+        self._pick_better_progress = next_progress
+        self._request_pick_better_pair()
+
+    def pick_better_finish(self) -> None:
+        """End Pick Better, leaving the committed config as the final edit."""
+        if not (self.state.pick_better or self.state.pick_better_pending):
+            return
+        self._clear_pick_better()
+        self.request_render()
+
+    def pick_better_undo(self) -> None:
+        """Revert the last pick and re-propose the pair it was chosen from.
+
+        The pair is deterministic from (config, progress), so restoring both reproduces the exact
+        two candidates; the current-edit preview reflects the restored config.
+        """
+        if not self.state.pick_better or not self._pick_better_undo:
+            return
+        config, progress = self._pick_better_undo.pop()
+        self.session.update_config(config, persist=True)
+        self._pick_better_progress = progress
+        self._request_pick_better_pair()
+
+    def pick_better_set_diff(self, scale: float) -> None:
+        """Scale the A/B spread live. A render already in flight re-requests on finish, so the
+        new spread is shown without waiting for a pick; a settled pair re-renders at once."""
+        self._pick_better_diff_scale = scale
+        if self._pick_better_progress is not None and not self.state.pick_better_pending:
+            self._request_pick_better_pair()
+
+    def pick_better_set_route(self, param_order: tuple[int, ...], randomize: bool) -> None:
+        """Apply the Custom Routing window's route: set the round order and the randomize choice,
+        then re-request the in-flight pair so the new order shows at once.
+
+        The route is the randomize-off order the drag-and-drop sets; turning randomize on shuffles
+        a copy into randomize_order and leaves the route untouched, so turning it off restores it.
+        """
+        if self._pick_better_progress is None or not (self.state.pick_better or self.state.pick_better_pending):
+            return
+        progress = self._pick_better_progress
+        randomize_order = shuffle_order() if randomize else progress.randomize_order
+        self._pick_better_progress = replace(progress, param_order=tuple(param_order), randomize=randomize, randomize_order=randomize_order)
+        self._request_pick_better_pair()
+
+    def pick_better_route(self) -> tuple[tuple[int, ...], bool]:
+        """The current round order and randomize choice, to seed the Custom Routing window."""
+        progress = self._pick_better_progress
+        if progress is None:
+            return tuple(range(len(PICK_PARAMS))), False
+        return progress.param_order, progress.randomize
+
+    def _on_pick_better_error(self, _message: str) -> None:
+        """A render that errors never reaches on_pick_better_finished, and the stuck `pending`
+        flag holds the progress bar open and blocks a reprint."""
+        if self.state.pick_better_pending:
+            self._clear_pick_better()
 
     def handle_crop_rect_changed(self, nx1: float, ny1: float, nx2: float, ny2: float, persist: bool) -> None:
         """Live-updates (persist=False) or commits (persist=True) the manual crop rect

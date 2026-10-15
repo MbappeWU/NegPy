@@ -101,6 +101,9 @@ def _context_cancel(controller, window) -> None:
     if controller.state.test_strip or controller.state.test_strip_pending:
         controller.toggle_test_strip(force=False)
         return
+    if controller.state.pick_better or controller.state.pick_better_pending:
+        controller.toggle_pick_better(force=False)
+        return
     if controller.state.negative_peek:
         controller.toggle_negative_peek(force=False)
         return
@@ -488,6 +491,9 @@ class ShortcutManager:
             "toggle_clipping_overlay": controller.toggle_clipping_overlay,
             "toggle_zone_hover_highlight": controller.toggle_zone_hover_highlight,
             "toggle_test_strip": controller.toggle_test_strip,
+            "toggle_pick_better": controller.toggle_pick_better,
+            "finish_pick_better": controller.pick_better_finish,
+            "undo_pick_better": controller.pick_better_undo,
             "toggle_ring_around": controller.toggle_ring_around,
             "toggle_grain_focuser": controller.toggle_grain_focuser,
             "toggle_lith": controller.toggle_lith,
