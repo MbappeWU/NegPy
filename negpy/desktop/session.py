@@ -2349,7 +2349,7 @@ class DesktopSessionManager(QObject):
         self.remove_files(self.state.selected_indices)
 
     def remove_files(self, indices: List[int]) -> None:
-        """Removes the frames at *indices* from the session."""
+        """Removes the files at *indices* from the session."""
         indices = sorted(set(indices), reverse=True)
         if not indices:
             return

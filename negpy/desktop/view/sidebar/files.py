@@ -1875,11 +1875,12 @@ class FileBrowser(QWidget):
             menu.addAction(label_with_shortcut(SHOW_LABEL, "show_in_folder")).triggered.connect(
                 lambda: show_current_in_folder(self.controller)
             )
-        unload_label = "Unload Selected…" if multi else "Unload…"
-        menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)
         menu.addAction(label_with_shortcut(TRASH_LABEL, "move_to_trash")).triggered.connect(
             lambda: move_selected_to_trash(self, self.controller)
         )
+        menu.addSeparator()
+        unload_label = "Unload Selected…" if multi else "Unload…"
+        menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)
         return menu
 
     def _add_scene_menu(self, menu: QMenu, frames: List[dict], multi: bool) -> None:
