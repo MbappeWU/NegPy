@@ -543,6 +543,8 @@ class AppController(QObject):
     scan_batch_finished = pyqtSignal(list)  # batch: all completed rgb paths
     scan_batch_requested = pyqtSignal(BatchRequest)
     scan_eject_requested = pyqtSignal(str)
+    scan_media_poll_requested = pyqtSignal(str)
+    scan_media_polled = pyqtSignal(str, object)  # device id; True, False, or None where the backend cannot tell
     scan_roll_preview_requested = pyqtSignal(RollPreviewRequest)
     scan_roll_preview_ready = pyqtSignal(object)  # one RollPreview per strip slot
     scan_roll_preview_finished = pyqtSignal()
@@ -1028,6 +1030,8 @@ class AppController(QObject):
         self.scan_requested.connect(self.scan_worker.run_scan)
         self.scan_batch_requested.connect(self.scan_worker.run_batch)
         self.scan_eject_requested.connect(self.scan_worker.eject)
+        self.scan_media_poll_requested.connect(self.scan_worker.poll_media)
+        self.scan_worker.media_polled.connect(self.scan_media_polled.emit)
         self.scan_worker.cancelled.connect(self.scan_cancelled.emit)
         self.scan_worker.frame_done.connect(self._on_scan_frame_done)
         self.scan_worker.batch_finished.connect(self._on_scan_batch_finished)
@@ -5786,6 +5790,10 @@ class AppController(QObject):
     def eject_scanner(self, device_id: str) -> None:
         """Trigger the scanner's eject action on the worker thread."""
         self.scan_eject_requested.emit(device_id)
+
+    def poll_scanner_media(self, device_id: str) -> None:
+        """Ask on the worker thread whether film is loaded (result via scan_media_polled)."""
+        self.scan_media_poll_requested.emit(device_id)
 
     def cancel_scan(self) -> None:
         self.scan_worker.cancel()
