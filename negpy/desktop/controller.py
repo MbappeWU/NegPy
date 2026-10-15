@@ -103,7 +103,7 @@ from negpy.domain.models import (
     preset_from_export_config,
     resolve_preset_export,
 )
-from negpy.services.assets.composites import forget_composite, restore_maps
+from negpy.services.assets.composites import forget_composite, restore_maps, source_files
 from negpy.services.assets.triplets import saved_triplets
 from negpy.services.assets import rolls
 from negpy.services.assets.sensor import SensorProfiles
@@ -342,6 +342,7 @@ class _DiscoveryRequest:
     half_frame_profile: Optional[dict] = None  # {crop_rect, split_x, gutter_thickness}
     half_frame_overrides: Optional[dict] = None  # {base_hash: {crop_rect, split_x, gutter_thickness}}
     hot_folder: bool = False
+    skip_paths: frozenset = frozenset()
 
 
 # Sections a scan peek shows itself or that never reach the pixels; an edit to any other section ends the peek.
@@ -1624,6 +1625,7 @@ class AppController(QObject):
             half_frame_profile=self.half_frame_profile(),
             half_frame_overrides=self.half_frame_overrides(),
             hot_folder=hot_folder,
+            skip_paths=rolls.excluded_paths(self.session.repo, [p for p in paths if os.path.isdir(p)]),
         )
         if self._discovery_running:
             self._pending_asset_discoveries.append(request)
@@ -1678,6 +1680,7 @@ class AppController(QObject):
             restore_hdr=merges,
             half_frame_profile=request.half_frame_profile,
             half_frame_overrides=request.half_frame_overrides,
+            skip_paths=request.skip_paths,
         )
         self.asset_discovery_requested.emit(task)
 
@@ -2392,7 +2395,12 @@ class AppController(QObject):
         # Files appended (not replaced) while a roll is active join its membership, so
         # reopening that roll later still shows what was added by hand.
         if not replace_existing and self.state.active_roll_id:
-            rolls.add_extra_members(self.session.repo, self.state.active_roll_id, [a["path"] for a in valid_assets if a.get("path")])
+            rolls.add_extra_members(
+                self.session.repo,
+                self.state.active_roll_id,
+                [a["path"] for a in valid_assets if a.get("path")],
+                parts=[p for a in valid_assets for p in source_files(a)],
+            )
         pending_scan = getattr(self, "_pending_scanned_file", None)
 
         if replace_existing and valid_assets:
@@ -6321,6 +6329,32 @@ class AppController(QObject):
         if forked_hash == self.state.current_file_hash:
             self._reselect_active_frame()
         self.set_status("Reverted to this roll's shared edit", 3000)
+
+    def roll_removal(self, indices: List[int]) -> List[int]:
+        """Every loaded frame that goes when the frames at *indices* leave the roll: a
+        composite's files and both halves of a half-frame scan go together."""
+        files = self.state.uploaded_files
+        picked = [files[i] for i in indices if 0 <= i < len(files)]
+        gone = {p for a in picked for p in source_files(a)}
+        return [i for i, a in enumerate(files) if a.get("path") in gone] if self.state.active_roll_id else []
+
+    def request_remove_from_roll(self, indices: List[int]) -> None:
+        """Take the frames at *indices* out of the active roll and the Film Strip, with
+        their locks, scenes and forks in that roll."""
+        roll_id = self.state.active_roll_id
+        drop = self.roll_removal(indices)
+        if not roll_id or not drop:
+            return
+        frames = [self.state.uploaded_files[i] for i in drop]
+        paths = list(dict.fromkeys(p for a in frames for p in source_files(a)))
+        hashes = [rolls.unforked_hash(a["hash"]) for a in frames]
+        forked = rolls.remove_members(self.session.repo, roll_id, paths, hashes)
+        # After the unload: leaving the active frame saves its edit, which would write a fork back.
+        self.session.remove_files(drop)
+        for from_hash in forked:
+            self.session.repo.delete_file_settings(rolls.roll_edit_hash(from_hash, roll_id))
+        self.session.files_changed.emit()
+        self.set_status(f"Removed {count_of(len(drop), 'frame')} from the roll", 3000)
 
     def _reselect_active_frame(self) -> None:
         """Re-enter the active frame after its hash changed, so edits save under the new

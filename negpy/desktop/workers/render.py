@@ -256,6 +256,7 @@ class AssetDiscoveryTask:
     restore_hdr: dict | None = None  # {reference_path: {paths, ratios, align, hash}} (session restore).
     half_frame_profile: dict | None = None  # {crop_rect, split_x, gutter_thickness, split_axis} override
     half_frame_overrides: dict | None = None  # {base_hash: {crop_rect, split_x, gutter_thickness, split_axis}} per-file overrides
+    skip_paths: frozenset = frozenset()  # Files a folder walk leaves out, normcased: those removed from the roll.
 
 
 @dataclass(frozen=True)
@@ -808,8 +809,12 @@ class AssetDiscoveryWorker(QObject):
                     for f in os.listdir(path):
                         if is_hidden_path(f):
                             continue
-                        if f.lower().endswith(task.supported_extensions):
-                            discovered_paths.append(os.path.join(path, f))
+                        found = os.path.join(path, f)
+                        if (
+                            f.lower().endswith(task.supported_extensions)
+                            and os.path.normcase(os.path.normpath(found)) not in task.skip_paths
+                        ):
+                            discovered_paths.append(found)
                 else:
                     if not is_hidden_path(path) and path.lower().endswith(task.supported_extensions):
                         discovered_paths.append(path)

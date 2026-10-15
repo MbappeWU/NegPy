@@ -2361,7 +2361,11 @@ class DesktopSessionManager(QObject):
         """
         Removes all currently selected files from the session.
         """
-        indices = sorted(set(self.state.selected_indices), reverse=True)
+        self.remove_files(self.state.selected_indices)
+
+    def remove_files(self, indices: List[int]) -> None:
+        """Removes the files at *indices* from the session."""
+        indices = sorted(set(indices), reverse=True)
         if not indices:
             return
 

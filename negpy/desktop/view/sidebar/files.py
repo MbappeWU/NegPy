@@ -59,7 +59,7 @@ from negpy.desktop.view.frame_merge_action import (
     merge_to_tiff,
     mergeable_in,
 )
-from negpy.desktop.view.keyboard_shortcuts import _close_roll, _reset_roll, _reset_selected, close_roll_label
+from negpy.desktop.view.keyboard_shortcuts import _close_roll, _reset_roll, _reset_selected, close_roll_label, remove_from_roll
 from negpy.features.hdr.logic import anchor_choices
 from negpy.features.hdr.models import hdr_frame_paths
 from negpy.desktop.view.widgets.elided_label import ElidedLabel
@@ -1602,7 +1602,8 @@ class FileBrowser(QWidget):
         # what is loaded would re-offer it every poll: hash it, turn it away, repeat.
         existing = {f["path"] for f in self.session.state.uploaded_files} | self.session.state.duplicate_paths
 
-        new_files = FolderWatchService.scan_for_new_files(folder_path, existing)
+        removed = rolls.excluded_paths(self.session.repo, [folder_path])
+        new_files = [p for p in FolderWatchService.scan_for_new_files(folder_path, existing) if not rolls.is_excluded_key(p, removed)]
         if new_files:
             self.controller.request_asset_discovery(new_files, hot_folder=True)
 
@@ -1876,6 +1877,10 @@ class FileBrowser(QWidget):
         menu.addSeparator()
         unload_label = "Unload Selected…" if multi else "Unload…"
         menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)
+        if state.active_roll_id:
+            menu.addAction(label_with_shortcut("Remove from Roll…", "remove_from_roll")).triggered.connect(
+                lambda: remove_from_roll(self, self.controller)
+            )
         return menu
 
     def _add_scene_menu(self, menu: QMenu, frames: List[dict], multi: bool) -> None:
