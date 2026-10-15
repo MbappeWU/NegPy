@@ -20,6 +20,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
+    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -174,7 +175,14 @@ class PickBetterWindow(QDialog):
 
     def _reposition_captions(self) -> None:
         """Sit each caption just above its photo's top edge, tracking a resize or a new frame; the
-        photo's top is a paint-time letterbox position, not a fixed layout slot."""
+        photo's top is a paint-time letterbox position, not a fixed layout slot.
+
+        The move summary holds a band at the panel's top, so the caption and name stack is clamped
+        to begin below that band: a short window, whose letterbox lifts the photos toward the top,
+        would otherwise pull the stack up into the move summary."""
+        band_bottom = _MOVE_TOP_MARGIN + self._line_height() + _CAPTION_GAP
+        # Each caption's natural position sits just above its photo's top edge.
+        cap_pos: dict[QLabel, tuple[int, int]] = {}
         for label, cap in (
             (self.left_label, self._cap_left),
             (self.current_label, self._cap_center),
@@ -185,23 +193,36 @@ class PickBetterWindow(QDialog):
                 cap.hide()
                 continue
             cap.adjustSize()
-            cap.show()
             origin = label.mapTo(self._image_panel, QPoint(0, 0))
             x = origin.x() + rect.x() + (rect.width() - cap.width()) // 2
             y = origin.y() + rect.y() - cap.height() - _CAPTION_GAP
-            cap.move(x, y)
-            # The parameter name floats above the centre "Skip" caption, centred on the same photo.
-        if self._cap_center.isVisible():
+            cap_pos[cap] = (x, y)
+        # The in-flight parameter name sits just above the centre Skip caption.
+        name_visible = False
+        name_x = name_y = 0
+        if self._cap_center in cap_pos:
+            cx, cy = cap_pos[self._cap_center]
             self._name_label.adjustSize()
+            name_x = cx + (self._cap_center.width() - self._name_label.width()) // 2
+            name_y = cy - self._name_label.height() - _CAPTION_GAP
+            name_visible = True
+        # Clamp the whole stack below the move band so a short window cannot lift it into the move summary.
+        top = name_y if name_visible else min((y for _x, y in cap_pos.values()), default=0)
+        shift = max(0, band_bottom - top)
+        for cap, (x, y) in cap_pos.items():
+            cap.show()
+            cap.move(x, y + shift)
+        if name_visible:
             self._name_label.show()
-            x = self._cap_center.x() + (self._cap_center.width() - self._name_label.width()) // 2
-            y = self._cap_center.y() - self._name_label.height() - _CAPTION_GAP
-            self._name_label.move(x, y)
+            self._name_label.move(name_x, name_y + shift)
             self._name_label.raise_()
         else:
             self._name_label.hide()
-        # The move summary floats at the panel's top; re-centre it on every resize and new frame.
         self._reposition_move_label()
+
+    def _line_height(self) -> int:
+        """One caption's line height, the reserved height of the move summary's band at the panel top."""
+        return self._cap_center.sizeHint().height()
 
     def _schedule_reposition(self) -> None:
         # A label gets its final size only after the layout runs, which is after this event
