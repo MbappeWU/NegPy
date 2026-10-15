@@ -412,7 +412,7 @@ This is not a pipeline stage. Every repair is baked into the **linear source bef
 
 Steps, in order:
 
-1.  **Chroma Denoise**: a bilateral filter on the A and B channels in LAB. Its range term (`CHROMA_DENOISE_SIGMA_R` $= 15$ in $a^{\ast}b^{\ast}$) rejects taps of a different color, so a saturated object keeps its color inside its edge. L stays untouched.
+1.  **Chroma Denoise**: a band split of $a^{\ast}b^{\ast}$ (Fuji, US 5,739,922). The low band is a Gaussian blur of $\sigma$ = Chroma Denoise × scale factor (`chroma_denoise_sigma`), with `gaussian_kernel_1d` taps on both engines (`chroma_lowpass_h/v.wgsl`). Chroma above it is grain or scan noise, and only an edge keeps it: $ab' = \text{low} + k\,(ab - \text{low})$, $k = \text{smoothstep}(1.0, 2.5, \sigma\,|\nabla \text{low}|)$ (`CHROMA_EDGE_LO`/`HI`, central differences on the edge-replicated low band). L stays untouched, so grain stays as luminance grain. Below $\sigma = 0.25$ px the stage is skipped.
 
 2.  **Global Saturation**: a lightness-preserving chroma scale ($a^{\ast}/b^{\ast}$) in CIELAB, independent of the print curve.
 

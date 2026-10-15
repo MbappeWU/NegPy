@@ -807,7 +807,7 @@ class ControlsPanel(QWidget):
         )
         lab.chroma_denoise_slider.setToolTip(
             tooltip_with_shortcut(
-                "Chroma denoise in Lab space — smooths color noise while preserving luminance grain",
+                "Removes color speckle finer than this radius and keeps color edges; luminance grain stays",
                 ["chroma_denoise_inc", "chroma_denoise_dec"],
             )
         )

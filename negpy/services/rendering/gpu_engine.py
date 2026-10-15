@@ -57,7 +57,7 @@ from negpy.features.geometry.logic import (
     get_manual_rect_coords,
 )
 from negpy.features.geometry.models import GeometryConfig
-from negpy.features.lab.logic import gaussian_kernel_1d, rl_iterations
+from negpy.features.lab.logic import chroma_denoise_sigma, gaussian_kernel_1d, rl_iterations
 from negpy.features.lab.models import SharpenMethod
 from negpy.features.altprocess.models import AltProcess
 from negpy.features.cyanotype.logic import CYANOTYPE_CONSTANTS, sensitizer_constants
@@ -302,6 +302,8 @@ class GPUEngine:
             "clahe_apply": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "clahe_apply.wgsl")),
             "lab_sharpen_h": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "lab_sharpen_h.wgsl")),
             "lab_sharpen_v": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "lab_sharpen_v.wgsl")),
+            "chroma_lowpass_h": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "chroma_lowpass_h.wgsl")),
+            "chroma_lowpass_v": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "chroma_lowpass_v.wgsl")),
             "rl_init": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "rl_init.wgsl")),
             "rl_blur_h": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "rl_blur_h.wgsl")),
             "rl_div_v": get_resource_path(os.path.join("negpy", "features", "lab", "shaders", "rl_div_v.wgsl")),
@@ -384,6 +386,10 @@ class GPUEngine:
         self._sabattier_kernel_key: Optional[float] = None
         # (method, radius, dims) of the blur state in the sharpen textures; None once their input moved.
         self._sharpen_state_key: Optional[tuple] = None
+        # The sigma of the Chroma Denoise taps currently in chroma_k.
+        self._chroma_kernel_key: Optional[float] = None
+        # (sigma, dims) of the low-pass in the chroma textures; None once their input moved.
+        self._chroma_state_key: Optional[tuple] = None
 
         # Bind groups reference resources, not contents, so they survive across frames.
         # Cache and reuse them (cleared in cleanup()): about 28 fewer wgpu calls per frame.
@@ -498,6 +504,8 @@ class GPUEngine:
             self._local_ev_key = None
         if labels & {"rl_a", "rl_b", "sharpen_h", "sharpen_v"}:
             self._sharpen_state_key = None
+        if labels & {"chroma_h", "chroma_v"}:
+            self._chroma_state_key = None
         if "contrast_mask" in labels:
             self._mask_tex_key = None
         # Bind groups keyed by id() never match a destroyed view again; drop, don't leak.
@@ -534,6 +542,7 @@ class GPUEngine:
         self._local_ev_key = None
         self._mask_tex_key = None
         self._sharpen_state_key = None
+        self._chroma_state_key = None
 
     def _init_resources(self) -> None:
         """Initializes hardware pipelines and persistent buffers."""
@@ -541,6 +550,7 @@ class GPUEngine:
             return
         # Buffers are recreated below, so force the next kernel upload.
         self._sharpen_kernel_key = None
+        self._chroma_kernel_key = None
         t0 = time.perf_counter()
         device = self.gpu.device
         self._sampler = device.create_sampler(min_filter="linear", mag_filter="linear")
@@ -565,6 +575,8 @@ class GPUEngine:
         )
         # Sharpen blur taps (gaussian_kernel_1d): 1024 f32 covers radius <= 511.
         self._buffers["sharpen_k"] = GPUBuffer(4096, wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_DST)
+        # Chroma Denoise low-pass taps, the same helper's.
+        self._buffers["chroma_k"] = GPUBuffer(4096, wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_DST)
         # The Mackie-line blur taps, the same helper's, for the Sabattier passes.
         self._buffers["sabattier_k"] = GPUBuffer(4096, wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_DST)
         # Filed-carrier jitter profiles are a fixed table, so upload once.
@@ -1301,6 +1313,7 @@ class GPUEngine:
 
         if start_stage <= 2:
             self._sharpen_state_key = None
+            self._chroma_state_key = None
         if start_stage <= 4:
             # Sharpen state (USM blur or RL deconvolution) feeds the lab pass; a 1x1 dummy keeps binding 3 valid when it is
             # off. The blur reads only its input, radius and kernel, so a lab-only change reuses the last one.
@@ -1337,6 +1350,23 @@ class GPUEngine:
                     )
             else:
                 tex_sharpen_v = self._get_intermediate_texture(1, 1, usage, "sharpen_v")
+            # The Chroma Denoise low-pass reads only its input and sigma, so a lab-only change reuses it too.
+            chroma_sigma = chroma_denoise_sigma(settings.lab.chroma_denoise, scale_factor)
+            if chroma_sigma > 0.0:
+                tex_chroma_h = self._get_intermediate_texture(w_rot, h_rot, usage, "chroma_h")
+                tex_chroma_v = self._get_intermediate_texture(w_rot, h_rot, usage, "chroma_v")
+                chroma_key = (chroma_sigma, w_rot, h_rot)
+                if chroma_key != self._chroma_state_key:
+                    ck = self._buffers["chroma_k"]
+                    self._dispatch_pass(
+                        enc, "chroma_lowpass_h", [(0, prev_tex.view), (1, tex_chroma_h.view), (2, lab_u), (3, ck)], w_rot, h_rot
+                    )
+                    self._dispatch_pass(
+                        enc, "chroma_lowpass_v", [(0, tex_chroma_h.view), (1, tex_chroma_v.view), (2, lab_u), (3, ck)], w_rot, h_rot
+                    )
+                    self._chroma_state_key = chroma_key
+            else:
+                tex_chroma_v = self._get_intermediate_texture(1, 1, usage, "chroma_v")
             self._dispatch_pass(
                 enc,
                 "lab",
@@ -1345,6 +1375,7 @@ class GPUEngine:
                     (1, tex_lab.view),
                     (2, lab_u),
                     (3, tex_sharpen_v.view),
+                    (4, tex_chroma_v.view),
                 ],
                 w_rot,
                 h_rot,
@@ -2128,23 +2159,29 @@ class GPUEngine:
             if self._sharpen_kernel_key != kernel_key:
                 self._buffers["sharpen_k"].upload(kernel)
                 self._sharpen_kernel_key = kernel_key
-        l_data = (
-            struct.pack(
-                "ffffffffff",
-                float(lab.sharpen),
-                float(lab.chroma_denoise),
-                float(lab.saturation),
-                float(lab.glow_amount),
-                float(lab.halation_strength),
-                # Chroma-denoise scales its blur radius by the preview downsample ratio,
-                # like the CPU path (radius * scale_factor).
-                float(scale_factor),
-                float(sharpen_radius_px),
-                float(lab.sharpen_masking),
-                1.0 if lab.sharpen_method == SharpenMethod.RL else 0.0,
-                float(lab.skin_protection),
-            )
-            + b"\x00" * 8
+        chroma_radius_px = 0
+        chroma_sigma = chroma_denoise_sigma(lab.chroma_denoise, scale_factor)
+        if chroma_sigma > 0.0:
+            chroma_kernel = gaussian_kernel_1d(chroma_sigma)
+            chroma_radius_px = len(chroma_kernel) // 2
+            if self._chroma_kernel_key != chroma_sigma:
+                self._buffers["chroma_k"].upload(chroma_kernel)
+                self._chroma_kernel_key = chroma_sigma
+        l_data = struct.pack(
+            "ffffffffffff",
+            float(lab.sharpen),
+            float(lab.chroma_denoise),
+            float(lab.saturation),
+            float(lab.glow_amount),
+            float(lab.halation_strength),
+            # Chroma Denoise's sigma is chroma_denoise * scale_factor, as on the CPU.
+            float(scale_factor),
+            float(sharpen_radius_px),
+            float(lab.sharpen_masking),
+            1.0 if lab.sharpen_method == SharpenMethod.RL else 0.0,
+            float(lab.skin_protection),
+            float(chroma_radius_px),
+            0.0,
         )
 
         is_bw = 1 if settings.process.process_mode == ProcessMode.BW else 0
@@ -2859,9 +2896,10 @@ class GPUEngine:
             halo = max(halo, int(np.ceil(max(3.0, 15.0 * scale_factor))))
         if settings.lab.halation_strength > 0.0:
             halo = max(halo, int(np.ceil(max(5.0, 25.0 * scale_factor))))
-        # Chroma Denoise taps reach 2 * chroma_denoise * scale_factor px (lab.wgsl).
-        if settings.lab.chroma_denoise > 0.0:
-            halo = max(halo, int(np.ceil(2.0 * settings.lab.chroma_denoise * scale_factor)) + 1)
+        # Chroma Denoise reads its low-pass kernel's half-width, plus one for the edge test's neighbors.
+        chroma_sigma = chroma_denoise_sigma(settings.lab.chroma_denoise, scale_factor)
+        if chroma_sigma > 0.0:
+            halo = max(halo, len(gaussian_kernel_1d(chroma_sigma)) // 2 + 2)
         # The Mackie-line blur reads its kernel's half-width each side, sigma from the whole
         # frame's short side, so every tile draws the frame's line.
         sabattier_sigma = None
