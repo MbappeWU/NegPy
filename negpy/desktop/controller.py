@@ -169,7 +169,14 @@ from negpy.features.geometry.logic import (
     has_manual_crop,
     solve_keystone_from_edges,
 )
-from negpy.features.geometry.models import FINE_ROTATION_LIMIT, AutocropMode, squares_on_arm, with_auto_crop, with_auto_crop_field
+from negpy.features.geometry.models import (
+    FINE_ROTATION_LIMIT,
+    AutocropMode,
+    crops_frame,
+    squares_on_arm,
+    with_auto_crop,
+    with_auto_crop_field,
+)
 from negpy.features.geometry.skew import squared_geometry
 from negpy.features.geometry.processor import CropProcessor, GeometryProcessor
 from negpy.domain.interfaces import PipelineContext
@@ -8411,6 +8418,7 @@ class AppController(QObject):
             self.state.last_metrics["splash"] = False
 
         self._freeze_resolved_auto_crop(metrics)
+        self._freeze_resolved_meter(metrics)
         record_meters(self.state.auto_meters, self.state.current_file_hash or "", metrics)
 
         result = metrics.get("base_positive")
@@ -8502,6 +8510,28 @@ class AppController(QObject):
         self.session.update_config(replace(self.state.config, geometry=new_geo), persist=True, render=False, record_history=False)
         self._carry_render_identity(before)
         self.config_updated.emit()
+
+    def _freeze_resolved_meter(self, metrics: Dict[str, Any]) -> None:
+        """Store the meter rect this render resolved, so nothing detects it a second time. The render
+        metered inside it, so bounds stored from before it are dropped; no render is requested."""
+        box = metrics.get("meter_resolved")
+        # Like measured bounds: a proxy or one diptych half is not this frame's picture.
+        if box is None or metrics.get("ephemeral") or metrics.get("interactive") or metrics.get("diptych"):
+            return
+        geom, proc = self.state.config.geometry, self.state.config.process
+        if crops_frame(geom) or geom.crop_from_auto or proc.analysis_rect is not None:
+            return
+        if autocrop_detection_key(geom) != box.geometry_key or proc.meter_key == box.key:
+            return
+        stale = invalidate_local_bounds(proc) if box.rect != proc.meter_rect else {}
+        before = self.state.config
+        self.session.update_config(
+            replace(before, process=replace(proc, meter_rect=box.rect, meter_key=box.key, **stale)),
+            persist=self._may_persist_measured_bounds(),
+            render=False,
+            record_history=False,
+        )
+        self._carry_render_identity(before)
 
     def _carry_render_identity(self, before: WorkspaceConfig) -> None:
         """Call after a write that leaves the pixels as they are. Identity, not equality: an edit since the render breaks the chain."""

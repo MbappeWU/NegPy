@@ -56,7 +56,7 @@ from negpy.features.geometry.logic import (
     compute_geometry_crop_rect,
     get_manual_rect_coords,
 )
-from negpy.features.geometry.models import GeometryConfig
+from negpy.features.geometry.models import GeometryConfig, crops_frame
 from negpy.features.lab.logic import chroma_denoise_sigma, gaussian_kernel_1d, rl_iterations
 from negpy.features.lab.models import SharpenMethod
 from negpy.features.altprocess.models import AltProcess
@@ -154,6 +154,7 @@ def _build_analysis_source(
     analysis_rect: Optional[tuple],
     tiling_mode: bool,
     max_size: int,
+    meter_rect: Optional[tuple] = None,
 ) -> Tuple[np.ndarray, float]:
     """The shared meter grid's own buffer: oriented, downsampled (only a meter reads it), warped and sliced once for every
     meter reading it. The whole frame is warped before the ROI is cut, as on the CPU and in the print stage: a crop rotated
@@ -179,8 +180,13 @@ def _build_analysis_source(
         sy, sx = analysis_source.shape[0] / full_h, analysis_source.shape[1] / full_w
         y1, y2, x1, x2 = roi
         base_roi = (round(y1 * sy), round(y2 * sy), round(x1 * sx), round(x2 * sx))
+    meter_rect = meter_rect if not tiling_mode else None
     analysis_roi, an_buffer = resolve_analysis_region(
-        analysis_source.shape, base_roi, analysis_buffer, analysis_rect if not tiling_mode else None
+        analysis_source.shape,
+        None if meter_rect is not None else base_roi,
+        analysis_buffer,
+        analysis_rect if not tiling_mode else None,
+        meter_rect,
     )
     if analysis_roi is not None:
         ay1, ay2, ax1, ax2 = analysis_roi
@@ -217,6 +223,7 @@ def _analysis_cache_key(settings: WorkspaceConfig, analysis_source_hash: str) ->
         p.process_mode,
         p.analysis_buffer,
         p.analysis_rect,
+        p.meter_rect,
         p.luma_range_clip,
         p.color_range_clip,
         p.use_luma_average,
@@ -801,6 +808,7 @@ class GPUEngine:
                     roi,
                     p.analysis_buffer,
                     p.analysis_rect,
+                    p.meter_rect,
                     p.crosstalk_strength,
                     p.crosstalk_matrix,
                     p.crosstalk_process,
@@ -824,6 +832,7 @@ class GPUEngine:
                     settings.process.analysis_rect,
                     tiling_mode,
                     APP_CONFIG.preview_render_size,
+                    meter_rect=None if crops_frame(settings.geometry) else settings.process.meter_rect,
                 )
                 # Shared prefilter, once for all five meters (ROI already applied).
                 # Unmixed like the CPU path so every meter reads the unmixed film.
@@ -2755,8 +2764,13 @@ class GPUEngine:
         analysis_roi = (int(y1 * a_scale), int(y2 * a_scale), int(x1 * a_scale), int(x2 * a_scale))
         analysis_shape = (int(ah * a_scale), int(aw * a_scale))
         # Freehand analysis_rect wins over the crop ROI + centered buffer here too.
+        meter_rect = None if crops_frame(settings.geometry) else settings.process.meter_rect
         meter_roi, meter_buffer = resolve_analysis_region(
-            analysis_shape, analysis_roi, settings.process.analysis_buffer, settings.process.analysis_rect
+            analysis_shape,
+            None if meter_rect is not None else analysis_roi,
+            settings.process.analysis_buffer,
+            settings.process.analysis_rect,
+            meter_rect,
         )
         analysis_small: Optional[np.ndarray] = None
 

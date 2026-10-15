@@ -32,6 +32,8 @@ These steps run in order. Each stage passes its buffer to the next. A helper nam
 
 **Note:** the crop *selection* resolves here and becomes the analysis ROI. The pixels are cropped only **after Toning**, before Finish, so Lab and the preview overlays see the full frame. The "Analysis buffer" option excludes the outer X% from analysis, and a freehand **analysis region** (`analysis_rect`) sets exactly what the meters read.
 
+A frame with no crop meters a **meter rect** (`process.meter_rect`) in place of the whole frame: the rect Auto Crop would keep, but only when its detector finds the film inside an opaque holder or on bare light (`resolve_meter_rect`). An opaque holder is denser than any film, so in the meters it takes the print's white point. A frame the film fills keeps whole-frame metering. `ImageProcessor` resolves the rect once ahead of both engines, and the controller freezes it with its key (`meter_detection_key`: the detection key plus the source's aspect). A new rect drops per-frame bounds measured without it. Roll Analysis reads the same rect.
+
 ---
 
 ## 2. Scan Normalization

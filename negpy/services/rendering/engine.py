@@ -190,6 +190,7 @@ class DarkroomEngine:
             geometry_key,
             settings.process.analysis_buffer,
             settings.process.analysis_rect,
+            settings.process.meter_rect,
             settings.process.luma_range_clip,
             settings.process.color_range_clip,
             settings.process.use_luma_average,

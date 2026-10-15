@@ -812,7 +812,7 @@ How this frame is measured into a positive's tonal bounds.
 
 **Analysis** sets where the black and white points are metered.
 
-*   **Analysis Buffer** (0.0 to 0.25): insets the measurement window so rebate, sprocket holes and scanner borders do not skew it.
+*   **Analysis Buffer** (0.0 to 0.25): insets the measurement window so rebate, sprocket holes and scanner borders do not skew it. With no crop, the window is the picture Auto Crop would keep when the film sits in a holder or on bare light, so the holder never sets the exposure.
 *   **Reanalyze Frame**: measures this frame again from its current crop, buffer and region.
 *   **Draw Region** / **Clear Region**: draw a freehand region to meter *exactly* that area, in place of the buffer. Double-click inside to confirm.
 *   **Clipping**: the print's shadow and highlight clipping shares, as in the Analysis panel's row.
