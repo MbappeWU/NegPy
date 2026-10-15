@@ -437,6 +437,7 @@ Color timing, like enlarger dichroic filters. The **Global / Shadows / Highlight
 *   **Print Density** (0.0 to 2.0): overall brightness (enlarger time). Lower is brighter.
 *   **ISO-R Grade** (50 to 180): contrast as paper ISO-R. R110 is about grade 2; lower R is harder. In R/G/B mode a **Grade** trim rotates one layer's slope about the midtone.
 *   **Shadows Density** / **Highlights Density** (±1.0 ΔD): brighten or darken only the shadows or highlights, within paper black and white. With Auto Grade on, each shows its automatic share. They also work on slides.
+    *   **Hold Black** (off, hidden on slides): a negative Shadows Density fades out toward paper black, so the shadows open and the black point barely moves.
 *   **Shadows Grade** / **Highlights Grade** (split grade, ±50 ISO-R): local contrast in the deep shadows or highlights.
 *   **Preflash** (0 to 1): an even flash over the sheet, as a fraction of the paper's threshold exposure. It pulls highlight detail off paper white and softens the print slightly. Hidden on slides.
 *   **Diffusion** (0 to 1, hidden in Transparency): a diffuser under the enlarger lens (a Softar, a stocking). Shadows bleed into highlights and edges soften; flat areas print as before. Grays out in R/G/B mode.

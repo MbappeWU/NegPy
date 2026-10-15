@@ -39,6 +39,14 @@ def _fast_sigmoid(x: float) -> float:
 
 
 @njit(inline="always")
+def _black_hold(v: float, d_max_eff: float, taper: float) -> float:
+    """Hold Black's weight on a shadow lift: 1 below `taper` under paper black, smoothstep to 0 at it.
+    Falls only where the lift is negative, so the lifted curve gets steeper and stays monotone."""
+    t = min(max((d_max_eff - v) / taper, 0.0), 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+@njit(inline="always")
 def _softplus(x: float) -> float:
     """
     Numerically stable softplus: log(1 + exp(x)). Antiderivative of the sigmoid.
@@ -190,6 +198,7 @@ def _apply_print_curve_kernel(
     diff_range: np.ndarray,
     use_diff: bool,
     bpc: bool = False,
+    black_hold: float = 0.0,
 ) -> np.ndarray:
     """
     Asymmetric H&D print curve: a straight line of slope `slope` through the
@@ -348,6 +357,8 @@ def _apply_print_curve_kernel(
                 # weights centred in the three-quarter/quarter tones.
                 if shadow_density != 0.0 or highlight_density != 0.0:
                     w_zsh = _fast_sigmoid(zone_k * (v - zone_sh_center))
+                    if black_hold > 0.0 and shadow_density < 0.0:
+                        w_zsh = w_zsh * _black_hold(v, d_max_eff[ch], black_hold)
                     w_zhi = 1.0 - _fast_sigmoid(zone_k * (v - zone_hi_center))
                     v = v + shadow_density * w_zsh + highlight_density * w_zhi
 
@@ -421,6 +432,7 @@ class CharacteristicCurve:
         curvature: float = 0.0,
         preflash: float = 0.0,
         grade: float = 115.0,
+        black_hold: float = 0.0,
     ):
         c = effective_constants(paper)
         ts = float(c["toe_shoulder_strength"])
@@ -438,6 +450,7 @@ class CharacteristicCurve:
         self.zone_k = float(c["zone_density_sharpness"])
         self.shadow_density = float(shadow_density)
         self.highlight_density = float(highlight_density)
+        self.black_hold = float(black_hold)
         self.shadow_grade_delta = float(shadow_grade_delta)
         self.highlight_grade_delta = float(highlight_grade_delta)
         self.d_max = float(c["d_max"])
@@ -482,6 +495,9 @@ class CharacteristicCurve:
             )
         if self.shadow_density != 0.0 or self.highlight_density != 0.0:
             w_zsh = _expit(self.zone_k * (v - self.zone_sh_center))
+            if self.black_hold > 0.0 and self.shadow_density < 0.0:
+                t = np.clip((self.d_max_eff - v) / self.black_hold, 0.0, 1.0)
+                w_zsh = w_zsh * t * t * (3.0 - 2.0 * t)
             w_zhi = 1.0 - _expit(self.zone_k * (v - self.zone_hi_center))
             v = v + self.shadow_density * w_zsh + self.highlight_density * w_zhi
         v1 = self.d_min_eff + np.logaddexp(0.0, self.a_hl * (v - self.d_min_eff)) / self.a_hl
@@ -493,6 +509,11 @@ class CharacteristicCurve:
             res = -np.log10(np.maximum(t, 1e-12))
 
         return ensure_image(res)
+
+
+def black_hold_taper(exposure: Any, paper: Optional[PaperProfile] = None) -> float:
+    """Hold Black's taper span for the kernels; 0 turns it off."""
+    return float(effective_constants(paper)["zone_black_hold_taper"]) if exposure.hold_black else 0.0
 
 
 def print_curve(
@@ -543,6 +564,7 @@ def print_curve(
         curvature=curvature,
         preflash=exposure.preflash,
         grade=exposure.grade,
+        black_hold=black_hold_taper(exposure, profile),
     )
 
 
@@ -691,6 +713,7 @@ def apply_characteristic_curve(
     diffusion_plane: Optional[np.ndarray] = None,
     diffusion_rect: Optional[Tuple[float, float, float, float]] = None,
     diffusion_range: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    black_hold: float = 0.0,
 ) -> ImageBuffer:
     """Applies the asymmetric H&D print curve per channel in log-density space.
 
@@ -811,6 +834,7 @@ def apply_characteristic_curve(
         diff_range=np.array(diffusion_range, dtype=np.float64),
         use_diff=use_diff,
         bpc=bool(bpc),
+        black_hold=float(black_hold),
     )
     return ensure_image(res)
 

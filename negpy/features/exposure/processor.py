@@ -6,6 +6,7 @@ from negpy.domain.interfaces import PipelineContext
 from negpy.domain.types import ImageBuffer
 from negpy.features.exposure.analysis import density_histogram
 from negpy.features.exposure.logic import (
+    black_hold_taper,
     apply_characteristic_curve,
     apply_flat_curve,
     cast_solve_inputs,
@@ -344,6 +345,7 @@ class PhotometricProcessor:
             ev_scale=local_ev_scale(final_bounds),
             grade_map=grade_map,
             bpc=not self.config.paper_black,
+            black_hold=black_hold_taper(self.config, paper),
             toe_trims=(self.config.toe_trim_red, self.config.toe_trim_green, self.config.toe_trim_blue),
             shoulder_trims=(self.config.shoulder_trim_red, self.config.shoulder_trim_green, self.config.shoulder_trim_blue),
             snap_trims=(
