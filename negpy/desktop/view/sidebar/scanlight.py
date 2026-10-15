@@ -34,6 +34,7 @@ from negpy.desktop.view.styles.templates import (
     field_row,
     header_row,
     hint_label,
+    ICON_BUTTON_WIDTH,
     icon_button,
     labeled_action,
     labeled_toggle,
@@ -41,6 +42,7 @@ from negpy.desktop.view.styles.templates import (
     section_subheader,
     set_hint_kind,
     StatusStrip,
+    tool_toggle,
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
@@ -399,10 +401,19 @@ class ScanlightSidebar(QWidget):
         self.status_strip = StatusStrip()
         foot.addWidget(self.status_strip)
         self.lv_btn = labeled_toggle("fa5s.video", " Live View", False, "Open the live view to frame and focus")
-        self.retake_btn = labeled_action("fa5s.redo", " Retake", "Capture the last frame again, without advancing the frame number")
+        self.retake_btn = icon_button("fa5s.redo", "Retake: capture the last frame again, without advancing the frame number")
+        self.keep_light_btn = tool_toggle(
+            "fa5s.lightbulb",
+            "",
+            "Keep Light On: keep the Scanlight lit after each scan, to frame the next one on the camera's screen. "
+            "Live View re-lights it without this.",
+        )
+        self.keep_light_btn.setChecked(self._settings.keep_light_on)
+        self.keep_light_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         actions = QHBoxLayout()
         actions.addWidget(self.lv_btn, 1)
-        actions.addWidget(self.retake_btn, 1)
+        actions.addWidget(self.retake_btn)
+        actions.addWidget(self.keep_light_btn)
         foot.addLayout(actions)
         self.scan_btn = QPushButton(" Scan")
         self.scan_btn.setObjectName("scan_btn")
@@ -410,13 +421,6 @@ class ScanlightSidebar(QWidget):
         self.scan_btn.setProperty("scanning", "false")
         self.scan_btn.setIcon(qta.icon("fa5s.camera", color=THEME.text_on_accent))
         foot.addWidget(self.scan_btn)
-        self.keep_light_btn = labeled_toggle(
-            "fa5s.lightbulb",
-            " Keep Light On",
-            self._settings.keep_light_on,
-            "Keep the Scanlight lit after each scan, to frame the next one on the camera's screen. Live View re-lights it without this.",
-        )
-        foot.addWidget(self.keep_light_btn)
         layout.addWidget(self.footer)
 
         self._apply_gating()
