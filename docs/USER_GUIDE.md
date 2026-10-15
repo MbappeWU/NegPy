@@ -655,7 +655,7 @@ A **work print** is a named version of this frame, like the test prints kept on 
 *   **Save Work Print** (**Ctrl+Shift+S**) keeps the current edit under a name.
 *   **Click** one to make it live. That is an edit, so **Ctrl+Z** restores the previous state.
 *   **Right-click** for **Export This Version…**, **Rename…** or **Delete**.
-*   **Read Metadata** (off by default; a global setting, the same for every frame and roll) restores a work print's saved metadata when you load it; off keeps the metadata on screen now and ignores the print's.
+*   **Load Metadata** (off by default; a global setting, the same for every frame and roll) restores a work print's saved metadata when you load it; off keeps the metadata on screen now and ignores the print's.
 
 Work prints are never pruned. They live in the database, not in `.negpy` sidecars.
 

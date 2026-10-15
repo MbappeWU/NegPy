@@ -36,7 +36,7 @@ class HistoryPanel(BaseSidebar):
         # Global setting, default off; the toggle stays in view even when the print list is empty.
         self.apply_metadata_btn = self._labeled_toggle(
             "",
-            "Read Metadata",
+            "Load Metadata",
             self.controller.session.work_print_apply_metadata(),
             "When a work print loads, restore its saved metadata. Off (the default) keeps the metadata on screen now.",
         )

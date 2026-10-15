@@ -1875,7 +1875,7 @@ class DesktopSessionManager(QObject):
         self.work_prints_changed.emit()
 
     def work_print_apply_metadata(self) -> bool:
-        """The Read Metadata global toggle: on restores a work print's saved metadata, off
+        """The Load Metadata global toggle: on restores a work print's saved metadata, off
         (the default) keeps the metadata on screen now and drops the print's."""
         return bool(self.repo.get_global_setting("work_print_apply_metadata", False))
 
@@ -1884,7 +1884,7 @@ class DesktopSessionManager(QObject):
 
     def load_work_print(self, name: str) -> None:
         """Make a named version live. Committed through update_config, so it lands on the
-        undo stack and a plain Ctrl+Z puts back what was on screen before. Read Metadata
+        undo stack and a plain Ctrl+Z puts back what was on screen before. Load Metadata
         (off by default) keeps the live metadata; on restores the print's."""
         if not self.state.current_file_hash:
             return
