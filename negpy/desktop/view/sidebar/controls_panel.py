@@ -569,6 +569,7 @@ class ControlsPanel(QWidget):
             (self.tone_sidebar.auto_density_action, "toggle_auto_density"),
             (self.tone_sidebar.auto_grade_action, "toggle_auto_grade"),
             (self.tone_sidebar.auto_both_action, "toggle_auto_both"),
+            (self.tone_sidebar.hold_black_action, "toggle_hold_black"),
             (self.presets_sidebar.apply_btn, "preset_apply"),
             (self.presets_sidebar.save_btn, "preset_save"),
         ):

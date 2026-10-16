@@ -91,6 +91,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_auto_density": ShortcutEntry("", "Toggle Auto Density", "Exposure"),
     "toggle_auto_grade": ShortcutEntry("", "Toggle Auto Grade", "Exposure"),
     "toggle_auto_both": ShortcutEntry("", "Toggle Auto Density and Auto Grade together", "Exposure"),
+    "toggle_hold_black": ShortcutEntry("", "Toggle Hold Black (a shadow lift keeps the black point)", "Exposure"),
     "preset_apply": ShortcutEntry("", "Apply the selected preset", "Actions"),
     "preset_save": ShortcutEntry("", "Save a preset from the current settings", "Actions"),
     "toggle_test_strip": ShortcutEntry("Shift+T", "Density × grade test strip", "Tools"),

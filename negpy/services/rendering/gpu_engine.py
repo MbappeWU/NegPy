@@ -1796,6 +1796,7 @@ class GPUEngine:
             per_channel_dye_separation,
             per_channel_toe_shoulder,
             grade_coupled_shape,
+            black_hold_taper,
             channel_density_ranges,
             local_ev_scale,
             paper_dmin_rgb,
@@ -2117,8 +2118,9 @@ class GPUEngine:
             + struct.pack("ffff", plane_rect_v[2], plane_rect_v[3], 0.0, 0.0)
             + key_rows.tobytes()
             + key_meta
-            # Diffusion: each channel's log range, one normalized unit of val in density.
-            + struct.pack("ffff", *channel_density_ranges(LogNegativeBounds(adj_floors, adj_ceils)), 0.0)
+            # Diffusion: each channel's log range, one normalized unit of val in density; w = the
+            # Hold Black taper span (0 = off).
+            + struct.pack("ffff", *channel_density_ranges(LogNegativeBounds(adj_floors, adj_ceils)), black_hold_taper(exp, paper))
         )
 
         cls = float(settings.lab.clahe_strength)

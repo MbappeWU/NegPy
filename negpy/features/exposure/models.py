@@ -44,6 +44,8 @@ class ExposureConfig:
     # Ranges are asymmetric: density is log10, so an equal ΔD reads smaller near d_max.
     shadow_density: float = 0.0
     highlight_density: float = 0.0
+    # A shadow lift fades to nothing at paper black, so the black point barely moves.
+    hold_black: bool = False
     # Unsharp mask gamma: positive sandwiches a blurred positive and reduces contrast,
     # negative a blurred negative and increases it. [-0.5, 0.5]; 0 = no mask.
     contrast_mask: float = 0.0
@@ -133,6 +135,8 @@ EXPOSURE_CONSTANTS: Dict[str, Any] = {
     "zone_density_sharpness": 4.0,
     "zone_density_shadow_offset": 0.75,
     "zone_density_highlight_offset": -0.40,
+    # Hold Black: the density span below the paper-black ceiling over which a shadow lift fades.
+    "zone_black_hold_taper": 0.6,
     # Default normalized midtone reference in [0,1] log space (auto_exposure off).
     "assumed_anchor": 0.46,
     # ISO R bounds: hardest and softest grade allowed.
