@@ -284,49 +284,6 @@ def to_log_density(image: ImageBuffer) -> ImageBuffer:
     return np.log10(np.fmin(np.fmax(image, epsilon), 1.0))
 
 
-def measure_shadow_refs_from_log(
-    img_log: ImageBuffer,
-    roi: Optional[tuple[int, int, int, int]] = None,
-    analysis_buffer: float = 0.0,
-    sorted_grid: Optional[np.ndarray] = None,
-) -> Tuple[float, float, float]:
-    """
-    Per-channel shadow reference density: a high percentile of the prefiltered
-    log image — the tones just inside print black (thin negative side for C-41).
-    Channel differences here are the residual shadow cast that auto
-    shadow-neutral cancels.
-    """
-    from negpy.features.exposure.models import EXPOSURE_CONSTANTS
-
-    if roi or analysis_buffer > 0:
-        sorted_grid = None
-    if roi:
-        y1, y2, x1, x2 = roi
-        img_log = img_log[y1:y2, x1:x2]
-    if analysis_buffer > 0:
-        img_log = get_analysis_crop(img_log, analysis_buffer)
-
-    p = float(EXPOSURE_CONSTANTS["shadow_neutral_percentile"])
-    if sorted_grid is not None:
-        refs = [float(v) for v in percentile_from_sorted(sorted_grid, p)]
-    else:
-        img_log = _block_median_grid(img_log)
-        refs = [float(np.percentile(img_log[:, :, ch], p)) for ch in range(3)]
-    return (refs[0], refs[1], refs[2])
-
-
-def measure_shadow_log_refs(
-    image: ImageBuffer,
-    roi: Optional[tuple[int, int, int, int]] = None,
-    analysis_buffer: float = 0.0,
-) -> Tuple[float, float, float]:
-    """
-    Linear-image wrapper around measure_shadow_refs_from_log.
-    """
-    img_log = to_log_density(image)
-    return measure_shadow_refs_from_log(img_log, roi, analysis_buffer)
-
-
 def _rms_chroma(triplets: np.ndarray) -> np.ndarray:
     """Distance from the neutral axis in normalized-density space (pairwise RMS):
     rotation-symmetric around grey, so the near-neutral ranking is hue-uniform

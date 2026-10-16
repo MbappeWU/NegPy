@@ -170,16 +170,12 @@ EXPOSURE_CONSTANTS: Dict[str, Any] = {
     # Neutral per-tail clip for per-channel balance (orange-mask cast removal),
     # independent of luma range. The slider spans percentiles around this.
     "base_color_clip": 1.0,
-    # Percentile sampled as the per-channel shadow reference for cast detection.
-    "shadow_neutral_percentile": 98.0,
     # Scan-exposure warning: linear level treated as sensor-white clipping. Film
     # base and scene shadows sit near sensor white, so clipped pixels collapse
     # distinct densities to D=0.
     "scan_clip_level": 0.99,
     # Per-channel clipped fraction above which the Analysis panel warns.
     "scan_clip_warn": 0.01,
-    # Max normalized shadow cast (green - channel) that Cast Removal corrects.
-    "cast_removal_max_offset": 0.1,
     # Cast Removal neutral axis: per-channel refs at a highlight/midtone/shadow luma
     # band, each over the band's lowest-chroma pixels. R/B fit green's axis with a
     # quadratic through all three, else a line through mid+shadow. Bands are

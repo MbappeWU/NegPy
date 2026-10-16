@@ -35,7 +35,6 @@ from negpy.features.exposure.normalization import (
     measure_anchor_from_log,
     measure_clip_fractions,
     measure_neutral_axis_from_log,
-    measure_shadow_refs_from_log,
     effective_crosstalk_matrix,
     unmix_log_image,
     measure_highlight_point_from_log,
@@ -255,14 +254,13 @@ def _analysis_cache_key(settings: WorkspaceConfig, analysis_source_hash: str) ->
     )
 
 
-def _fill_analysis_overrides(cache, key, bounds, refs, anchor, textural, neutral, shadow, highlight):
+def _fill_analysis_overrides(cache, key, bounds, anchor, textural, neutral, shadow, highlight):
     """Fill the None overrides from the cache when its key matches; caller overrides win."""
     if cache is None or cache[0] != key:
-        return bounds, refs, anchor, textural, neutral, shadow, highlight
-    _, cb, cr, ca, ct, cn, cs, ch = cache
+        return bounds, anchor, textural, neutral, shadow, highlight
+    _, cb, ca, ct, cn, cs, ch = cache
     return (
         bounds if bounds is not None else cb,
-        refs if refs is not None else cr,
         anchor if anchor is not None else ca,
         textural if textural is not None else ct,
         neutral if neutral is not None else cn,
@@ -271,16 +269,15 @@ def _fill_analysis_overrides(cache, key, bounds, refs, anchor, textural, neutral
     )
 
 
-def _update_analysis_cache(cache, key, bounds, refs, anchor, textural, neutral, shadow, highlight):
+def _update_analysis_cache(cache, key, bounds, anchor, textural, neutral, shadow, highlight):
     """Store the resolved analysis under key, merging (a frame may compute only a subset)."""
     if cache is None or cache[0] != key:
-        cb = cr = ca = ct = cn = cs = ch = None
+        cb = ca = ct = cn = cs = ch = None
     else:
-        _, cb, cr, ca, ct, cn, cs, ch = cache
+        _, cb, ca, ct, cn, cs, ch = cache
     return (
         key,
         bounds if bounds is not None else cb,
-        refs if refs is not None else cr,
         anchor if anchor is not None else ca,
         textural if textural is not None else ct,
         neutral if neutral is not None else cn,
@@ -373,8 +370,8 @@ class GPUEngine:
         self._current_source_hash: Optional[str] = None
         # Once-per-source guard so the analysis timing log fires on load, not every slider.
         self._analysis_timing_hash: Optional[str] = None
-        # (key, bounds, shadow_refs, metered_anchor, textural_range, neutral_axis): the
-        # per-source meter cache, so creative-slider previews skip the analysis.
+        # (key, bounds, metered_anchor, textural_range, neutral_axis, shadow_point,
+        # highlight_point): the per-source meter cache, so creative-slider previews skip the analysis.
         self._analysis_cache: Optional[tuple] = None
         # (analysis_key, per-channel clipped fractions) for the scan-exposure warning.
         self._clip_cache: Optional[tuple] = None
@@ -638,7 +635,6 @@ class GPUEngine:
         global_offset: Tuple[int, int] = (0, 0),
         full_dims: Optional[Tuple[int, int]] = None,
         clahe_cdf_override: Optional[np.ndarray] = None,
-        shadow_refs_override: Optional[Tuple[float, float, float]] = None,
         metered_anchor_override: Optional[float] = None,
         textural_range_override: Optional[float] = None,
         neutral_axis_override: Optional[tuple] = None,
@@ -745,7 +741,6 @@ class GPUEngine:
             analysis_key = _analysis_cache_key(settings, analysis_source_hash)
             (
                 bounds_override,
-                shadow_refs_override,
                 metered_anchor_override,
                 textural_range_override,
                 neutral_axis_override,
@@ -755,7 +750,6 @@ class GPUEngine:
                 self._analysis_cache,
                 analysis_key,
                 bounds_override,
-                shadow_refs_override,
                 metered_anchor_override,
                 textural_range_override,
                 neutral_axis_override,
@@ -765,8 +759,6 @@ class GPUEngine:
 
         analysis_t0 = time.perf_counter()
         cast_on = settings.exposure.cast_removal_strength > 0.0 and not tiling_mode
-        # The P98 shadow tie is calibrated for a negative, so it stays Color Negative only.
-        needs_refs = shadow_refs_override is None and cast_on and settings.process.process_mode == ProcessMode.C41
         # The neutral axis runs on both colour processes; B&W has no channels to balance.
         needs_axis = neutral_axis_override is None and cast_on and settings.process.process_mode != ProcessMode.BW
         _roll_luma = settings.process.use_luma_average and settings.process.is_locked_initialized
@@ -790,7 +782,7 @@ class GPUEngine:
         # The transparency curve reads working space, so its meter must too: the same
         # camera matrix TransparencyBaseProcessor applies, on the grid.
         cam_m = camera_to_working_matrix(cam_xyz, camera_wb if should_fold_camera_wb(settings.process) else None) if transfer else None
-        if needs_bounds_analysis or needs_refs or needs_axis or needs_anchor or needs_textural or needs_shadow or needs_highlight:
+        if needs_bounds_analysis or needs_axis or needs_anchor or needs_textural or needs_shadow or needs_highlight:
             # Keyed without the clip sliders: a clip drag reuses the grid and
             # re-runs only the percentile analysis.
             p = settings.process
@@ -882,10 +874,6 @@ class GPUEngine:
             bounds, base_bounds = resolve_bounds_detailed(settings.process, _analyze_bounds)
             anchor_bounds = luma_source_bounds(settings.process, base_bounds)
 
-        shadow_refs = shadow_refs_override
-        if needs_refs and prefiltered is not None:
-            shadow_refs = measure_shadow_refs_from_log(prefiltered, None, 0.0, sorted_grid=_sorted())
-
         # Neutral axis for the two-point Cast Removal; normalized at consumption. The
         # transparency curve renders through the fixed window, so the axis is measured
         # against it and on the working-space grid the curve consumes.
@@ -926,7 +914,6 @@ class GPUEngine:
                 self._analysis_cache,
                 analysis_key,
                 bounds,
-                shadow_refs,
                 metered_anchor,
                 textural_range,
                 neutral_axis_refs,
@@ -1047,10 +1034,10 @@ class GPUEngine:
         if analysis_source is not None and analysis_source_hash is not None and analysis_source_hash != self._analysis_timing_hash:
             self._analysis_timing_hash = analysis_source_hash
             logger.info(
-                "load-timing analysis %.0fms (bounds=%s refs=%s anchor=%s textural=%s)",
+                "load-timing analysis %.0fms (bounds=%s axis=%s anchor=%s textural=%s)",
                 (time.perf_counter() - analysis_t0) * 1000,
                 needs_bounds_analysis,
-                needs_refs,
+                needs_axis,
                 needs_anchor,
                 needs_textural,
             )
@@ -1070,7 +1057,6 @@ class GPUEngine:
             scale_factor,
             vignette_full_crop=vignette_full_crop,
             full_frame=full_frame,
-            shadow_refs=shadow_refs,
             metered_anchor=metered_anchor,
             textural_range=textural_range,
             neutral_axis_refs=neutral_axis_refs,
@@ -1626,7 +1612,6 @@ class GPUEngine:
             "highlight_point": highlight_point,
             "scan_clip_fractions": scan_clip_fractions,
             # Raw cast refs so the chart can re-solve the exact render curves.
-            "shadow_log_refs": shadow_refs,
             "neutral_axis_refs": neutral_axis_refs,
         }
 
@@ -1716,7 +1701,6 @@ class GPUEngine:
         scale_factor: float,
         vignette_full_crop: Optional[Tuple[int, int, int, int]] = None,
         full_frame: bool = False,
-        shadow_refs: Optional[Tuple[float, float, float]] = None,
         metered_anchor: Optional[float] = None,
         textural_range: Optional[float] = None,
         neutral_axis_refs: Optional[
@@ -1842,11 +1826,9 @@ class GPUEngine:
         t_wb_c, t_wb_k = wb_split_geometry()
         t_cmy_m = EXPOSURE_CONSTANTS["cmy_max_density"]
         # Cast Removal on the transparency curve: a per-channel affine on density, since
-        # this curve has no per-channel slope to re-solve. Shadow refs stay out — the P98
-        # tie is calibrated for a negative. Identity when there is no axis.
-        t_strength, _t_shadow, t_axis = cast_solve_inputs(
+        # this curve has no per-channel slope to re-solve. Identity when there is no axis.
+        t_strength, t_axis = cast_solve_inputs(
             LogNegativeBounds(adj_floors, adj_ceils),
-            None,
             neutral_axis_refs,
             settings.exposure.cast_removal_strength,
         )
@@ -1939,10 +1921,9 @@ class GPUEngine:
         render_anchor = metered_anchor if exp.auto_exposure else None
         lum_range = luminance_density_range(bounds)
         # adj_floors/adj_ceils (packed above) are the final bounds the shader normalizes
-        # with, shared by the Cast Removal shadow refs.
-        strength, shadow_refs_norm, neutral_axis_norm = cast_solve_inputs(
+        # with, shared by the Cast Removal neutral axis.
+        strength, neutral_axis_norm = cast_solve_inputs(
             LogNegativeBounds(adj_floors, adj_ceils),
-            shadow_refs,
             neutral_axis_refs,
             exp.cast_removal_strength,
         )
@@ -1952,7 +1933,6 @@ class GPUEngine:
             exp.auto_normalize_contrast,
             strength,
             lum_range,
-            shadow_refs_norm,
             textural_range,
             d_min=d_min,
             anchor=render_anchor,
@@ -2036,7 +2016,6 @@ class GPUEngine:
             "textural_range": textural_range,
             "shadow_point": shadow_point,
             "highlight_point": highlight_point,
-            "shadow_log_refs": shadow_refs,
             "neutral_axis_refs": neutral_axis_refs,
         }
         key_params = limited_mask_params(settings.local, exp, settings.process.process_mode, curve_metrics)
@@ -2834,11 +2813,8 @@ class GPUEngine:
 
         meter_bounds = LogNegativeBounds(*transfer_bounds()) if transfer else global_anchor_bounds
 
-        global_shadow_refs = None
         global_neutral_axis = None
         if settings.exposure.cast_removal_strength > 0.0 and settings.process.process_mode != ProcessMode.BW:
-            if settings.process.process_mode == ProcessMode.C41:
-                global_shadow_refs = measure_shadow_refs_from_log(_prefiltered(), None, 0.0, sorted_grid=_sorted())
             axis_bounds = meter_bounds if transfer else global_bounds
             global_neutral_axis = measure_neutral_axis_from_log(_meter_grid(), axis_bounds, None, 0.0, exclude_subjects=not transfer)
             pooled_axis = pooled_neutral_axis(settings.process)
@@ -2956,7 +2932,6 @@ class GPUEngine:
                     scale_factor=scale_factor,
                     tiling_mode=True,
                     bounds_override=global_bounds,
-                    shadow_refs_override=global_shadow_refs,
                     metered_anchor_override=global_metered_anchor,
                     textural_range_override=global_textural_range,
                     neutral_axis_override=global_neutral_axis,

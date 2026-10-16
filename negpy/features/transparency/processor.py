@@ -165,11 +165,9 @@ class TransferProcessor:
             self.config.highlight_magenta * cmy_max,
             self.config.highlight_yellow * cmy_max,
         )
-        # Shadow refs stay out: the P98 tie is calibrated for a negative. With no neutral
-        # axis this solves to the identity and the capture passes through.
-        strength, _shadow_refs_norm, neutral_axis_norm = cast_solve_inputs(
+        # With no neutral axis this solves to the identity and the capture passes through.
+        strength, neutral_axis_norm = cast_solve_inputs(
             final_bounds,
-            None,
             context.metrics.get("neutral_axis_refs"),
             self.config.cast_removal_strength,
         )
