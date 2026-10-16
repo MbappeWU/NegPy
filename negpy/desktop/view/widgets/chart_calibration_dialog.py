@@ -13,7 +13,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.workers.chart_fit import ChartFitWorker, ChartSource
-from negpy.features.process.chart import CHARTS, ChartFit, patch_centers, sample_radius
+from negpy.features.process.chart import CHARTS, ChartFit, grid_corners, patch_centers, sample_radius
 from negpy.features.process.models import ProcessMode
 from negpy.services.assets.crosstalk import CrosstalkProfiles, CrosstalkType
 
@@ -100,7 +100,7 @@ class _ChartCornersLabel(QLabel):
         for x, y in patch_centers(px):
             painter.drawRect(QRectF(r.x() + x - half, r.y() + y - half, 2 * half, 2 * half))
         painter.setPen(QPen(QColor(THEME.status_success), 1.5))
-        pts = [self._to_widget(r, c) for c in self._corners]
+        pts = [self._to_widget(r, c) for c in grid_corners(self._corners)]
         for a, b in zip(pts, pts[1:] + pts[:1]):
             painter.drawLine(a, b)
         painter.setBrush(QColor(THEME.status_success))
@@ -136,7 +136,8 @@ class ChartCalibrationDialog(QDialog):
         root.setSpacing(THEME.space_md)
         intro = hint_label(
             "Use a frame of a SpyderCheckr 24 or a ColorChecker 24 shot on this film and scanned on this rig. "
-            "Drag the four green dots onto the centers of the chart's corner patches, in any order. NegPy then "
+            "Drag the four green dots onto the centers of the chart's corner patches, in any order. The chart "
+            "can sit any way up, sideways or mirrored. NegPy reads its orientation from the colors, then "
             "finds the Crosstalk matrix that brings the patches nearest the chart's published colors, through "
             "the frame's own render."
         )

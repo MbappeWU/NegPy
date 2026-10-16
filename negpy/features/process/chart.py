@@ -131,9 +131,19 @@ def delta_e2000(lab1: np.ndarray, lab2: np.ndarray, k_l: float = 1.0) -> np.ndar
     return np.sqrt(dl**2 + dc**2 + dhh**2 + r_t * dc * dhh)
 
 
+def grid_corners(corners: np.ndarray) -> np.ndarray:
+    """The four corner-patch centers in any order, as clockwise from the end of a long (6-patch) side.
+
+    ORIENTATIONS then covers every way the chart can sit in the frame, sideways included."""
+    c = np.asarray(corners, dtype=np.float64)
+    d = c - c.mean(axis=0)
+    c = c[np.argsort(np.arctan2(d[:, 1], d[:, 0]))]
+    return np.roll(c, -1, axis=0) if np.linalg.norm(c[1] - c[0]) < np.linalg.norm(c[2] - c[1]) else c
+
+
 def patch_centers(corners: np.ndarray) -> np.ndarray:
-    """(24, 2) patch centers, row-major, from the four corner-patch centers (TL, TR, BR, BL), bilinear."""
-    tl, tr, br, bl = np.asarray(corners, dtype=np.float64)
+    """(24, 2) patch centers, row-major, from the four corner-patch centers, bilinear."""
+    tl, tr, br, bl = grid_corners(corners)
     u = np.linspace(0.0, 1.0, COLS)[None, :, None]
     v = np.linspace(0.0, 1.0, ROWS)[:, None, None]
     top = tl + (tr - tl) * u
@@ -143,7 +153,7 @@ def patch_centers(corners: np.ndarray) -> np.ndarray:
 
 def sample_radius(corners: np.ndarray) -> float:
     """Half-width of each patch's sample box, in the corners' units."""
-    tl, tr, br, bl = np.asarray(corners, dtype=np.float64)
+    tl, tr, br, bl = grid_corners(corners)
     pitch_x = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / (2.0 * (COLS - 1))
     pitch_y = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / (2.0 * (ROWS - 1))
     return float(0.5 * _SAMPLE_FRACTION * min(pitch_x, pitch_y))

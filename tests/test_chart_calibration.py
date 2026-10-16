@@ -62,6 +62,23 @@ def test_patch_centers_span_the_corners_row_major() -> None:
     assert np.allclose(centers[7], (1, 1))
 
 
+@pytest.mark.parametrize("perm", [(0, 1, 2, 3), (2, 0, 3, 1), (3, 2, 1, 0)])
+def test_patch_centers_take_the_corners_in_any_order_and_any_way_up(perm) -> None:
+    sideways = np.array([[0.0, 0.0], [3.0, 0.0], [3.0, 5.0], [0.0, 5.0]])[list(perm)]
+    centers = {tuple(np.round(c, 6)) for c in ch.patch_centers(sideways)}
+    assert centers == {(float(x), float(y)) for x in range(4) for y in range(6)}
+
+
+def test_a_sideways_chart_with_crossed_dots_reads_its_colors() -> None:
+    chart = ch.COLORCHECKER_24
+    img = _chart_image(_reference_rgb(chart))
+    width = img.shape[1]
+    corners = np.array([(y, width - 1 - x) for x, y in _corners_px()])[[0, 2, 1, 3]]
+    enc = working_oetf_encode(np.ascontiguousarray(np.rot90(img)))
+    lab = ch.measure_lab(enc, corners, chart, ch.detect_orientation(enc, corners, chart))
+    assert ch.delta_e2000(ch.reference_lab(chart), lab).mean() < 1.0
+
+
 @pytest.mark.parametrize("which", range(4))
 def test_orientation_is_found_from_the_colors(which: int) -> None:
     chart = ch.COLORCHECKER_24

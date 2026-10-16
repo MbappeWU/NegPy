@@ -187,9 +187,9 @@ A chart shot on the film is the one reference that settles a matrix. Shoot a Spy
 a ColorChecker 24 in daylight on a frame of the roll, scan it on your rig, and open it. The
 **swatch button** beside the dropdown opens **Measure from Chart** (Color Negative only).
 
-1. Drag the four dots onto the centers of the chart's four corner patches. The order does not
-   matter: NegPy reads the grid all four ways, a mirrored scan included, and keeps the one whose
-   colors match the chart.
+1. Drag the four dots onto the centers of the chart's four corner patches. The dot order and the
+   chart's way up do not matter: NegPy reads the grid every way, sideways and mirrored included,
+   and keeps the one whose colors match the chart.
 2. Name the profile after the combination and press **Measure and Save**.
 
 The fit starts from identity and runs the frame's own render for every trial matrix, so
