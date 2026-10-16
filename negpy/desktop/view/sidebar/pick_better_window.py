@@ -250,18 +250,30 @@ class PickBetterWindow(QDialog):
         self._sized = False  # a new session's first frame re-sizes to its image
 
     def _size_to_image(self, pw: int, ph: int) -> None:
-        """The smallest window the three photos fit at full scale, capped to the monitor. A
-        photo's label needs pw + 2*ring by ph + 2*ring to draw at scale 1, so the layout's
-        minimum size is that, plus the captions, the control row and the button row."""
+        """Size the window so the three photos fill their frames at the largest scale that
+        fits the monitor, with no black gap between them. A smaller monitor down-scales the
+        photos rather than leaving black beside them."""
         ring = 2 * _RING_MARGIN
+        gap = 10  # the image row's spacing between the three frames
+        margin = 10  # the panel's left and right content margin
         labels = (self.left_label, self.current_label, self.right_label)
         for label in labels:
             label.setMinimumSize(pw + ring, ph + ring)
         self.layout().activate()
-        w = self.layout().minimumSize().width()
-        h = self.layout().minimumSize().height()
+        # The band the photos do not occupy: the reserved top, the control row, the button
+        # row, and the panel's margins and inter-row spacing.
+        fixed_h = self.layout().minimumSize().height() - (ph + ring)
+        # Largest per-photo width that keeps the window inside the monitor in both axes; pw
+        # (full resolution) when the full-res size already fits.
         screen = QApplication.primaryScreen()
         avail = screen.availableGeometry() if screen is not None else None
+        s = float(pw)
+        if avail is not None:
+            s = min(s, (avail.width() - 2 * margin - 2 * gap - 3 * ring) / 3.0)
+            s = min(s, (avail.height() - fixed_h - ring) * pw / ph)
+        s = max(s, 1.0)
+        w = int(3 * (s + ring) + 2 * gap + 2 * margin)
+        h = int(s * ph / pw + ring + fixed_h)
         if avail is not None:
             w = min(w, avail.width())
             h = min(h, avail.height())
