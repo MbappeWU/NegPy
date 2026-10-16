@@ -110,6 +110,12 @@ class PickBetterWindow(QDialog):
         self._move_timer.setSingleShot(True)
         self._move_timer.timeout.connect(lambda: self._move_label.setText(""))
 
+        # The photos inset from the panel's top by the reserved band — the move summary, the in-flight
+        # name and the A/Skip/B captions — so a caption that hugs a photo's top edge sits clear of
+        # both the move summary and the photo, even when a short window's letterbox lifts the photos
+        # up toward the top.
+        image_row.setContentsMargins(0, self._reserved_top(), 0, 0)
+
         # A control row under the photos: the Difference slider widens or narrows the A/B spread
         # live, and the Custom Routing button opens a window to reorder the round order.
         control_row = QHBoxLayout()
@@ -177,10 +183,10 @@ class PickBetterWindow(QDialog):
         """Sit each caption just above its photo's top edge, tracking a resize or a new frame; the
         photo's top is a paint-time letterbox position, not a fixed layout slot.
 
-        The move summary holds a band at the panel's top, so the caption and name stack is clamped
-        to begin below that band: a short window, whose letterbox lifts the photos toward the top,
-        would otherwise pull the stack up into the move summary."""
-        band_bottom = _MOVE_TOP_MARGIN + self._line_height() + _CAPTION_GAP
+        The photos inset from the panel's top by the reserved band (the move summary, the in-flight
+        name and the A/Skip/B captions), so a caption that hugs a photo's top edge sits clear of
+        both the move summary and the photo, even when a short window's letterbox lifts the photos
+        toward the top."""
         # Each caption's natural position sits just above its photo's top edge.
         cap_pos: dict[QLabel, tuple[int, int]] = {}
         for label, cap in (
@@ -206,15 +212,12 @@ class PickBetterWindow(QDialog):
             name_x = cx + (self._cap_center.width() - self._name_label.width()) // 2
             name_y = cy - self._name_label.height() - _CAPTION_GAP
             name_visible = True
-        # Clamp the whole stack below the move band so a short window cannot lift it into the move summary.
-        top = name_y if name_visible else min((y for _x, y in cap_pos.values()), default=0)
-        shift = max(0, band_bottom - top)
         for cap, (x, y) in cap_pos.items():
             cap.show()
-            cap.move(x, y + shift)
+            cap.move(x, y)
         if name_visible:
             self._name_label.show()
-            self._name_label.move(name_x, name_y + shift)
+            self._name_label.move(name_x, name_y)
             self._name_label.raise_()
         else:
             self._name_label.hide()
@@ -223,6 +226,12 @@ class PickBetterWindow(QDialog):
     def _line_height(self) -> int:
         """One caption's line height, the reserved height of the move summary's band at the panel top."""
         return self._cap_center.sizeHint().height()
+
+    def _reserved_top(self) -> int:
+        """The band at the panel's top the move summary, the in-flight name and the A/Skip/B captions
+        occupy; the photos inset by this much so a caption that hugs a photo's top edge sits clear
+        of both the move summary and the photo."""
+        return _MOVE_TOP_MARGIN + 3 * _CAPTION_GAP + 3 * self._line_height()
 
     def _schedule_reposition(self) -> None:
         # A label gets its final size only after the layout runs, which is after this event
