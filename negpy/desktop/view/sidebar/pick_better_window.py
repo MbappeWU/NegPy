@@ -30,7 +30,6 @@ from negpy.desktop.view.styles.templates import (
     labeled_action,
     pin_dialog_default,
 )
-from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.floating_panel import float_over_app
 from negpy.desktop.view.widgets.sliders import CompactSlider
 
@@ -51,14 +50,14 @@ class PickBetterWindow(QDialog):
     diffChanged = pyqtSignal(float)  # the Difference slider's A/B spread multiplier
     customRoutingClicked = pyqtSignal()  # open the Custom Routing window
 
-    def __init__(self, parent=None, *, repo=None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Pick Better")
         self.setModal(False)
         float_over_app(self)  # must precede the first show(): the panel flags hide a visible window
         self._sized = False  # the first frame sizes the window to the image
 
-        self._last_pw = 0  # the last frame's size; re-applied on show to beat a restored geometry
+        self._last_pw = 0  # the last frame's size; a show before set_images re-sizes to it
         self._last_ph = 0
 
         layout = QVBoxLayout(self)
@@ -144,7 +143,6 @@ class PickBetterWindow(QDialog):
         # Pin OK as the dialog's one Enter target; Undo opts out.
         pin_dialog_default(self.ok_btn, self.undo_btn)
 
-        remember_dialog_geometry(self, repo, "pick_better")
         self._schedule_reposition()
 
     def set_images(self, current: QPixmap, left: QPixmap, right: QPixmap) -> None:
@@ -249,16 +247,14 @@ class PickBetterWindow(QDialog):
 
     def showEvent(self, ev) -> None:
         super().showEvent(ev)
-        # Re-size to the image on show: a geometry restored at construction (a stale size from a
-        # prior version) or an unavailable screen at set_images time is overridden here, where the
-        # window is up and the screen is available.
-        if self._last_pw > 0:
+        # Size to the image only on a first show, where the window has not yet been sized; a later
+        # show keeps the size the last close left, and an app exit drops it (no disk persistence).
+        if not self._sized and self._last_pw > 0:
             self._size_to_image(self._last_pw, self._last_ph)
         self._schedule_reposition()
 
     def hideEvent(self, ev) -> None:
         super().hideEvent(ev)
-        self._sized = False  # a new session's first frame re-sizes to its image
 
     def _size_to_image(self, pw: int, ph: int) -> None:
         """Size the window so the three photos fill their frames at the largest scale that

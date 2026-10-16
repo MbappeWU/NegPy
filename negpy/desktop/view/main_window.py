@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
 
         self._init_ui()
-        self._pick_better_window = PickBetterWindow(self, repo=self.controller.session.repo)
+        self._pick_better_window = PickBetterWindow(self)
         self._connect_signals()
         self.shortcut_manager = setup_keyboard_shortcuts(self)
         self.space_pan_filter = SpacePanKeyFilter(self)
