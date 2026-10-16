@@ -212,7 +212,8 @@ class ChartCalibrationDialog(QDialog):
         self._show_result(
             f"<b>Saved “{name}”</b>. Mean ΔE00 over the 24 patches: {fit.before.mean():.1f} without the matrix, "
             f"{fit.after.mean():.1f} with it. Farthest patch: {chart.patch_names[worst]}, {fit.after[worst]:.1f}. "
-            "Re-run Roll Analysis on the roll's other frames."
+            "Re-run Roll Analysis on the roll's other frames. The matrix holds over the frame's current sensor "
+            "profile: measure again if you change it."
         )
         self._pin_close()
         self._refresh()
