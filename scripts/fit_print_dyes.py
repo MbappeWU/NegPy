@@ -4,28 +4,33 @@ Dev tool, not shipped. Turns a print medium's published dye curves into the `dye
 PaperProfile in negpy/features/exposure/papers.py: a density-domain coupling (rows sum to 1) in the
 print kernel's `dye_mix` slot, read out as Adobe RGB like every other print.
 
-Data (scripts/print_dyes/, our own digitization, 5 nm):
+Data (scripts/print_dyes/, 5 nm):
     kodak_ra4_e4070.csv        Kodak E-4070 Endura Premier, "Spectral-Dye-Density Curves", vector
                                paths (E-7020 Ektacolor Edge prints the same curves).
+    kodak_ra4_e4021.csv        Kodak E-4021 Portra and Supra Endura (2009 issue), spektrafilm's
+                               trace (CC BY-SA 4.0, see NOTICE.md).
     fujicolor_ca_af3_198e.csv  Fujifilm AF3-198E Crystal Archive bulletin, "Spectral Dye Density
                                Curves" (spectral reflection density), vector paths.
     kodak_2383_h1_2383.csv     Kodak H-1-2383 (2026 issue), "Spectral Dye Density Curves", raster,
                                traced and checked against the sheet's own visual neutral curve.
+    kodak_2393_h1_2393.csv     Kodak H-1-2393t (1998), spektrafilm's trace (CC BY-SA 4.0).
 
 Usage:
     uv run python scripts/fit_print_dyes.py [--cie-dir DIR]
 
-The CIE 1931 2° observer and the D50/D55/D65 tables come from files.cie.co.at and are cached in
---cie-dir. The model: an END triplet (equivalent neutral density per dye, solved so equal amounts
-print a visual neutral) gives T(λ) = 10^-(Σ amount·dye(λ)), viewed under D50 for paper (the
-datasheets' 5000 K) and D55 for projected print film (xenon has no CIE table). Colorimetry is
-media-relative and Bradford-adapted to D65. A density matrix A is fitted by Levenberg–Marquardt on
-CIEDE2000 between Adobe(10^-(A·END)) and that spectral print, over near-neutral triplets and
-saturated one- and two-dye ramps. Densities outside a sheet's plotted range hold its edge value.
+The CIE 1931 2° observer and the D50/D65 tables come from files.cie.co.at, and the Kinoton 75P
+xenon projector from colour-science's light-source data; all are cached in --cie-dir. The model:
+an END triplet (equivalent neutral density per dye, solved so equal amounts print a visual
+neutral) gives T(λ) = 10^-(Σ amount·dye(λ)), viewed under D50 for paper (the datasheets' 5000 K)
+and the xenon projector for print film. Colorimetry is media-relative and Bradford-adapted to D65.
+A density matrix A is fitted by Levenberg–Marquardt on CIEDE2000 between Adobe(10^-(A·END)) and
+that spectral print, over near-neutral triplets and saturated one- and two-dye ramps. Densities
+outside a sheet's plotted range hold its edge value.
 """
 
 import argparse
 import pathlib
+import re
 import urllib.request
 
 import numpy as np
@@ -34,14 +39,17 @@ from negpy.features.exposure.papers import PAPER_PROFILES
 
 DATA = pathlib.Path(__file__).with_name("print_dyes")
 CIE_URL = "https://files.cie.co.at/Publications-datasets/"
-CIE_FILES = {"cmf": "CIE_xyz_1931_2deg.csv", "D50": "CIE_std_illum_D50.csv", "D55": "CIE_illum_D55.csv", "D65": "CIE_std_illum_D65.csv"}
+CIE_FILES = {"cmf": "CIE_xyz_1931_2deg.csv", "D50": "CIE_std_illum_D50.csv", "D65": "CIE_std_illum_D65.csv"}
+COLOUR_LIGHTS = "https://raw.githubusercontent.com/colour-science/colour/v0.4.6/colour/colorimetry/datasets/light_sources/sds.py"
 WL = np.arange(380, 781, 5.0)
 
 # key -> (csv, viewing light, paper profile that ships the fitted matrix)
 MEDIA = {
     "kodak_ra4": ("kodak_ra4_e4070.csv", "D50", "kodak_endura"),
+    "kodak_e4021": ("kodak_ra4_e4021.csv", "D50", "kodak_portra_endura"),
     "fuji_ra4": ("fujicolor_ca_af3_198e.csv", "D50", "fuji_crystal"),
-    "kodak_2383": ("kodak_2383_h1_2383.csv", "D55", "kodak_2383"),
+    "kodak_2383": ("kodak_2383_h1_2383.csv", "K75P", "kodak_2383"),
+    "kodak_2393": ("kodak_2393_h1_2393.csv", "K75P", "kodak_2393"),
 }
 
 ADOBE_XY = ((0.64, 0.33), (0.21, 0.71), (0.15, 0.06))
@@ -65,6 +73,21 @@ def cie_table(cie_dir, name, cols):
         path.write_bytes(urllib.request.urlopen(req, timeout=60).read())
     a = np.genfromtxt(path, delimiter=",")
     return np.stack([np.interp(WL, a[:, 0], a[:, k]) for k in range(1, cols + 1)], 1).squeeze()
+
+
+def viewing_light(cie_dir, name):
+    if name != "K75P":
+        return cie_table(cie_dir, name, 1)
+    path = cie_dir / "kinoton_75p.csv"
+    if not path.exists():
+        req = urllib.request.Request(COLOUR_LIGHTS, headers={"User-Agent": "Mozilla/5.0"})
+        src = urllib.request.urlopen(req, timeout=60).read().decode()
+        block = src[src.index('"Kinoton 75P": {') :]
+        rows = re.findall(r"(\d+):\s*([0-9.eE+-]+)", block[: block.index("}")])
+        cie_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(f"{w},{v}\n" for w, v in rows))
+    a = np.genfromtxt(path, delimiter=",")
+    return np.interp(WL, a[:, 0], a[:, 1])
 
 
 def lab(xyz):
@@ -178,7 +201,7 @@ def main():
     both = np.vstack([near, ramps])
     truths = {}
     for key, (csv, light_name, paper_key) in MEDIA.items():
-        truth, weights = spectral_print(csv, cie_table(args.cie_dir, light_name, 1), cmf)
+        truth, weights = spectral_print(csv, viewing_light(args.cie_dir, light_name), cmf)
         truths[key] = truth
         target = lab(truth(both))
         off = levenberg_marquardt(lambda o: de2000(render(both, coupling(o)), target), np.zeros(6))

@@ -41,13 +41,21 @@ LithPath = Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], 
 _DEFAULT_LITH_PATH: LithPath = ((4.0, 8.0), (2.0, 8.0), (-1.0, 4.0), (0.0, 0.0))
 
 # Dye couplings are fitted by scripts/fit_print_dyes.py to a datasheet's spectral dye density
-# curves, so the print read as Adobe RGB takes that medium's colors. Every Kodak RA4 paper shares
-# E-4070 Endura Premier's: the 2003 sheets (E-4021, E-4020) draw each dye over a density floor in
-# every band, which fitted as-is desaturates past any RA4 print.
+# curves, so the print read as Adobe RGB takes that medium's colors. Ultra Endura borrows E-4070
+# Endura Premier's: its E-4020 sheet draws each dye over a density floor in every band, which
+# fitted as-is desaturates past any RA4 print, and spektrafilm's Ultra Endura is the later High
+# Definition paper (E-4044).
 _ENDURA_DYE: DyeMatrix = (
     (0.8363, 0.1960, -0.0322),
     (0.1469, 0.7744, 0.0787),
     (0.0272, 0.1056, 0.8671),
+)
+
+# E-4021 Portra and Supra Endura: spektrafilm's trace of the 2009 sheet (CC BY-SA 4.0, NOTICE.md).
+_E4021_DYE: DyeMatrix = (
+    (0.8545, 0.1800, -0.0345),
+    (0.1649, 0.7673, 0.0678),
+    (0.0454, 0.0981, 0.8565),
 )
 
 # Paper-character keys a profile overrides in the effective constants dict.
@@ -207,7 +215,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.89,
         channel_gamma=(0.968, 1.0, 1.013),
         base_tint_cmy=(-0.002, 0.012, -0.009),
-        dye_matrix=_ENDURA_DYE,
+        dye_matrix=_E4021_DYE,
     ),
     "kodak_supra_endura": PaperProfile(
         label="Kodak Supra Endura",
@@ -220,7 +228,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.62,
         channel_gamma=(1.008, 1.0, 1.0),
         base_tint_cmy=(0.011, -0.009, -0.003),
-        dye_matrix=_ENDURA_DYE,
+        dye_matrix=_E4021_DYE,
     ),
     # Fitted to Kodak E-4020 (Status A R/G/B).
     "kodak_ultra_endura": PaperProfile(
@@ -239,9 +247,9 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
     # ── Color print film (kind "ra4": the kind gates the C-41 mode) ─────────
     # Fitted to Kodak H-1-2383 (Status A R/G/B) with the `print` fit, which scales the
     # projection Dmax (near 4) into the paper range. The datasheet draws one shared base, so
-    # no tint. Dyes from its spectral dye density curves, viewed on D55 in place of the xenon arc.
+    # no tint. Dyes from its spectral dye density curves, viewed under a xenon projector.
     "kodak_2383": PaperProfile(
-        label="Kodak Vision Color Print 2383",
+        label="Kodak Vision 2383",
         kind="ra4",
         d_max=2.29,
         d_min=0.065,
@@ -251,9 +259,27 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.31,
         channel_gamma=(1.034, 1.0, 0.989),
         dye_matrix=(
-            (0.8005, 0.2137, -0.0142),
-            (0.1389, 0.7941, 0.0670),
-            (0.0695, 0.1231, 0.8074),
+            (0.7810, 0.2337, -0.0147),
+            (0.1421, 0.7897, 0.0682),
+            (0.0685, 0.1249, 0.8066),
+        ),
+    ),
+    # Fitted like 2383 to Kodak H-1-2393t (1998); its curves and dyes are spektrafilm's trace of
+    # that sheet (CC BY-SA 4.0, NOTICE.md). The base tint is within the trace's noise.
+    "kodak_2393": PaperProfile(
+        label="Kodak Vision Premier 2393",
+        kind="ra4",
+        d_max=2.25,
+        d_min=0.025,
+        toe_sharpness_base=3.22,
+        shoulder_sharpness_base=2.28,
+        paper_midtone_gamma=0.074,
+        paper_gamma_width=0.58,
+        channel_gamma=(1.075, 1.0, 1.049),
+        dye_matrix=(
+            (0.7676, 0.2591, -0.0267),
+            (0.1406, 0.7832, 0.0762),
+            (0.0733, 0.1207, 0.8060),
         ),
     ),
 }

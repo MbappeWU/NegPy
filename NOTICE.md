@@ -25,3 +25,17 @@ Relevant upstream areas include (non-exhaustive): backend/genesys USB protocol,
 register tables, motor/sensor/frontend tables, and image pipeline helpers.
 Plustek, OpticFilm, and related names are trademarks of their respective owners;
 NegPy is not affiliated with or endorsed by Plustek Inc.
+
+The spectral dye density curves in scripts/print_dyes/kodak_ra4_e4021.csv (Kodak
+E-4021, 2009) and scripts/print_dyes/kodak_2393_h1_2393.csv (Kodak H-1-2393t,
+1998), and the 2393 characteristic curves that the Kodak Vision Premier 2393
+profile in negpy/features/exposure/papers.py is fitted to, are derived from
+spektrafilm by Andrea Volpato, licensed CC BY-SA 4.0:
+
+  https://github.com/andreavolpato/spektrafilm
+  https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt
+
+Modified by NegPy: the CSVs keep each profile's channel_density on its 5 nm grid
+where all three dyes are defined, and papers.py holds the dye matrices and tone
+constants fitted to that data. NegPy distributes them under the GPL v3, which
+Creative Commons lists as a BY-SA compatible license.
