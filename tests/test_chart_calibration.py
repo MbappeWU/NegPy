@@ -153,7 +153,10 @@ def test_dialog_saves_a_measured_profile(monkeypatch, tmp_path) -> None:
     dlg.profile_saved.connect(saved.append)
     m = np.eye(3).ravel()
     m[1] = -0.1
-    dlg._on_fitted(ch.ChartFit(tuple(m), np.full(24, 9.0), np.full(24, 3.0), ch.ORIENTATIONS[0]))
+    after = np.round(np.linspace(0.5, 7.4, 24), 1)
+    dlg._on_fitted(ch.ChartFit(tuple(m), np.full(24, 9.0), after, ch.ORIENTATIONS[1]))
+    assert np.array_equal(dlg.view._scores, after[ch.ORIENTATIONS[1]])
+    assert "6 within 2, 10 within 5, 8 beyond" in dlg.result_label.text()
     assert saved == ["Test Rig"]
     assert CrosstalkProfiles.get_type("Test Rig") == "measured"
     assert CrosstalkProfiles.get_matrix("Test Rig")[1] == pytest.approx(-0.1)

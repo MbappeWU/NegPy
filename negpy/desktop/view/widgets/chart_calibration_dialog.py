@@ -21,6 +21,13 @@ _MEASURE_LABEL = "Measure and Save"
 _HANDLE_R = 6
 _GRAB_PX = 14
 _START_CORNERS = ((0.2, 0.25), (0.8, 0.25), (0.8, 0.75), (0.2, 0.75))
+# ΔE00 tiers of a patch after the fit: close, then noticeable side by side, then far.
+_DE_CLOSE = 2.0
+_DE_NOTICEABLE = 5.0
+
+
+def _tier_color(de: float) -> QColor:
+    return QColor(THEME.status_success if de <= _DE_CLOSE else THEME.warn_amber if de <= _DE_NOTICEABLE else THEME.error)
 
 
 class _ChartCornersLabel(QLabel):
@@ -36,9 +43,15 @@ class _ChartCornersLabel(QLabel):
         self._pixmap: Optional[QPixmap] = None
         self._corners = np.array(_START_CORNERS, dtype=np.float64)
         self._drag: Optional[int] = None
+        self._scores: Optional[np.ndarray] = None
 
     def set_frame(self, pixmap: QPixmap) -> None:
         self._pixmap = pixmap
+        self.update()
+
+    def set_scores(self, scores: Optional[np.ndarray]) -> None:
+        """ΔE00 per sample box, in the boxes' order; None hides them."""
+        self._scores = scores
         self.update()
 
     def corners(self) -> np.ndarray:
@@ -74,6 +87,7 @@ class _ChartCornersLabel(QLabel):
             min(1.0, max(0.0, (pos.x() - r.x()) / r.width())),
             min(1.0, max(0.0, (pos.y() - r.y()) / r.height())),
         )
+        self._scores = None
         self.update()
 
     def mouseReleaseEvent(self, _ev: QMouseEvent) -> None:
@@ -95,10 +109,13 @@ class _ChartCornersLabel(QLabel):
         scale = np.array([r.width(), r.height()])
         px = self._corners * scale
         half = sample_radius(px)
-        painter.setPen(QPen(QColor(THEME.warn_amber), 1.5))
+        boxes = [QRectF(r.x() + x - half, r.y() + y - half, 2 * half, 2 * half) for x, y in patch_centers(px)]
+        scores = self._scores
+        colors = [QColor(THEME.warn_amber)] * len(boxes) if scores is None else [_tier_color(float(v)) for v in scores]
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for x, y in patch_centers(px):
-            painter.drawRect(QRectF(r.x() + x - half, r.y() + y - half, 2 * half, 2 * half))
+        for box, color in zip(boxes, colors):
+            painter.setPen(QPen(color, 1.5))
+            painter.drawRect(box)
         painter.setPen(QPen(QColor(THEME.status_success), 1.5))
         pts = [self._to_widget(r, c) for c in grid_corners(self._corners)]
         for a, b in zip(pts, pts[1:] + pts[:1]):
@@ -107,7 +124,26 @@ class _ChartCornersLabel(QLabel):
         painter.setPen(Qt.PenStyle.NoPen)
         for p in pts:
             painter.drawEllipse(p, _HANDLE_R, _HANDLE_R)
+        if scores is not None:
+            self._paint_scores(painter, boxes, colors, scores)
         painter.end()
+
+    def _paint_scores(self, painter: QPainter, boxes: list[QRectF], colors: list[QColor], scores: np.ndarray) -> None:
+        """Each box's ΔE00 on a dark chip, over the outline and handles so none hides a number."""
+        font = painter.font()
+        font.setPixelSize(THEME.font_size_small)
+        painter.setFont(font)
+        backdrop = QColor(THEME.bg_dark)
+        backdrop.setAlpha(200)
+        for box, color, score in zip(boxes, colors, scores):
+            text = f"{score:.1f}"
+            label = QRectF(painter.fontMetrics().boundingRect(text)).adjusted(-THEME.space_sm, 0, THEME.space_sm, 0)
+            label.moveCenter(box.center())
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(backdrop)
+            painter.drawRoundedRect(label, THEME.radius_sm, THEME.radius_sm)
+            painter.setPen(color)
+            painter.drawText(label, Qt.AlignmentFlag.AlignCenter, text)
 
 
 class ChartCalibrationDialog(QDialog):
@@ -209,9 +245,17 @@ class ChartCalibrationDialog(QDialog):
         CrosstalkProfiles.save(name, list(fit.matrix), CrosstalkType.MEASURED, process=ProcessMode.C41)
         chart = CHARTS[self.chart_choice.currentIndex()]
         worst = int(np.argmax(fit.after))
+        # Tiers and counts use the value as shown, so a "2.0" chip counts within 2.
+        shown = np.round(fit.after, 1)
+        # The boxes are read in grid order; fit.order gives the printed patch each one holds.
+        self.view.set_scores(shown[fit.order])
+        close = int((shown <= _DE_CLOSE).sum())
+        far = int((shown > _DE_NOTICEABLE).sum())
         self._show_result(
             f"<b>Saved “{name}”</b>. Mean ΔE00 over the 24 patches: {fit.before.mean():.1f} without the matrix, "
-            f"{fit.after.mean():.1f} with it. Farthest patch: {chart.patch_names[worst]}, {fit.after[worst]:.1f}. "
+            f"{fit.after.mean():.1f} with it. Per patch, on the frame: {close} within {_DE_CLOSE:g}, "
+            f"{shown.size - close - far} within {_DE_NOTICEABLE:g}, {far} beyond. "
+            f"Farthest patch: {chart.patch_names[worst]}, {fit.after[worst]:.1f}. "
             "Re-run Roll Analysis on the roll's other frames. The matrix holds over the frame's current sensor "
             "profile: measure again if you change it."
         )
