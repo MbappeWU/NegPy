@@ -58,6 +58,9 @@ class PickBetterWindow(QDialog):
         float_over_app(self)  # must precede the first show(): the panel flags hide a visible window
         self._sized = False  # the first frame sizes the window to the image
 
+        self._last_pw = 0  # the last frame's size; re-applied on show to beat a restored geometry
+        self._last_ph = 0
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
@@ -151,6 +154,9 @@ class PickBetterWindow(QDialog):
         self.current_label.set_frame(current)
         self.left_label.set_frame(left)
         self.right_label.set_frame(right)
+        if not current.isNull():
+            self._last_pw = current.width()
+            self._last_ph = current.height()
         if not self._sized and not current.isNull():
             self._size_to_image(current.width(), current.height())
             self._sized = True
@@ -243,6 +249,11 @@ class PickBetterWindow(QDialog):
 
     def showEvent(self, ev) -> None:
         super().showEvent(ev)
+        # Re-size to the image on show: a geometry restored at construction (a stale size from a
+        # prior version) or an unavailable screen at set_images time is overridden here, where the
+        # window is up and the screen is available.
+        if self._last_pw > 0:
+            self._size_to_image(self._last_pw, self._last_ph)
         self._schedule_reposition()
 
     def hideEvent(self, ev) -> None:
@@ -266,6 +277,9 @@ class PickBetterWindow(QDialog):
         # Largest per-photo width that keeps the window inside the monitor in both axes; pw
         # (full resolution) when the full-res size already fits.
         screen = QApplication.primaryScreen()
+        if screen is None:
+            screens = QApplication.screens()
+            screen = screens[0] if screens else None
         avail = screen.availableGeometry() if screen is not None else None
         s = float(pw)
         if avail is not None:
