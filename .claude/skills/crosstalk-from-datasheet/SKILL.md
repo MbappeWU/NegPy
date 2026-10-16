@@ -63,9 +63,13 @@ only the off-diagonal/diagonal *ratios* matter — absolute row scale is irrelev
    band (Vision3 magenta at 450 nm): read that value as negative, do not clamp it to 0.
 
    - **Tier 1:** read all nine values off the separated curves.
-   - **Tier 2:** diagonal = own band; estimate the off-diagonals from the visible secondary
-     humps in the aggregate curve plus known dye chemistry (magenta's unwanted *blue* and some
-     *red*; cyan a little *green/blue*; yellow nearly clean). Name it `"… (approx)"`.
+   - **Tier 2:** trace the midscale-neutral and Minimum Density curves into
+     `scripts/crosstalk_dyes/<film>_neutral.csv` (`wavelength_nm,midscale,minimum`) and run
+     `uv run python scripts/fit_crosstalk_estimates.py`. It fits their difference with Kodak's
+     Vision3 dye curves and prints the readings. Do not guess the off-diagonals from dye
+     chemistry: the masking couplers of a C-41 or ECN-2 negative cancel most of the unwanted
+     absorptions that the dyes alone have. The estimate assumes the film's masking matches
+     Vision3's, which fits Kodak films best. Name it `"… (approx)"`.
    - **Tier 3:** stop. State that the datasheet lacks dye-density data. Optionally emit a
      conservative starter close to NegPy's Default, named `"… (approx, starter)"`, and suggest
      chart-based calibration instead. Never invent precision.
@@ -123,26 +127,26 @@ only the off-diagonal/diagonal *ratios* matter — absolute row scale is irrelev
 ## Worked example — Kodak Gold 200 (Tier 2)
 
 `Read` the datasheet PDF pages as images. The CURVES section has Characteristic, Spectral-
-Sensitivity, and Spectral-Dye-Density plots — but the dye-density plot is a single *aggregate*
-"midscale neutral" curve → **Tier 2**. Diagonals = `1.0`; estimate off-diagonals from the
-curve's secondary absorptions + dye chemistry (magenta's unwanted blue is the biggest term):
+Sensitivity, and Spectral-Dye-Density plots — but the dye-density plot holds only the
+*aggregate* midscale neutral and the Minimum Density curve → **Tier 2**. Kodak's PDFs draw
+both as vector paths: read them exactly into `scripts/crosstalk_dyes/kodak_gold_200_neutral.csv`
+and run the estimator, which prints:
 
 ```
-A (rows R/G/B, cols C/M/Y):   R:[1.0,  0.06, 0.02]
-                              G:[0.04, 1.0,  0.05]
-                              B:[0.02, 0.12, 1.0 ]
+{"name": "kodak_gold_200", "readings": [[0.7727, 0.069, 0.0056], [0.0797, 0.9412, 0.0686], [0.0804, -0.0046, 1.0018]]}
 ```
 
-Run the deriver → emitted TOML (note `name` flags it approximate):
+Pipe that line to the deriver → emitted TOML (note `name` flags it approximate):
 
 ```toml
 name = "Kodak Gold 200 (approx)"
 matrix = [
-  [1.0000,  -0.0579,  -0.0171],
-  [-0.0390,   1.0000,  -0.0492],
-  [-0.0152,  -0.1191,   1.0000],
+  [1.0000,  -0.0733,  -0.0006],
+  [-0.0961,   1.0000,  -0.0679],
+  [-0.1054,   0.0126,   1.0000],
 ]
 ```
 
-The strong `B,−0.119(G)` term is the magenta-dye unwanted-blue correction. Validate it loads,
-then write it to `crosstalk/kodak_gold_200.toml` (contribute) or the Documents folder (personal).
+The magenta → blue term is small and positive: Vision3's masking couplers remove more blue
+density than the magenta dye adds. Validate it loads, then write it to
+`crosstalk/kodak_gold_200.toml` (contribute) or the Documents folder (personal).
