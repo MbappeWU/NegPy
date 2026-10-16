@@ -70,6 +70,7 @@ from negpy.desktop.workers.scan_worker import BatchRequest, MeterRequest, Presca
 from negpy.desktop.workers.library import LibrarySearchTask, LibrarySearchWorker
 from negpy.desktop.workers.hdr import HdrTask, HdrWorker
 from negpy.desktop.workers.stitch import StitchTask, StitchWorker
+from negpy.desktop.workers.chart_fit import ChartSource
 from negpy.desktop.workers.frame_merge import FrameMergeTask, FrameMergeWorker
 from negpy.features.hdr.models import ANCHOR_EV_UNSET, hdr_frame_paths, hdr_hash, hdr_name
 from negpy.features.process.capture_color import apply_camera_matrix, camera_to_working_matrix, lightbox_level, wb_only_cam_xyz
@@ -6770,6 +6771,22 @@ class AppController(QObject):
         if self.effective_input_icc():
             cam_xyz = wb_only_cam_xyz(cam_xyz)
         return cam_xyz, self.state.preview_camera_wb
+
+    def chart_fit_source(self) -> Optional[ChartSource]:
+        """The open frame as the preview renders it, for Measure from Chart; None with no frame or on a diptych."""
+        raw = self.state.preview_proxy if self.state.preview_proxy is not None else self.state.preview_raw
+        if raw is None or self.active_diptych() is not None:
+            return None
+        cam_xyz, camera_wb = self._effective_cam_xyz()
+        return ChartSource(
+            buffer=raw,
+            config=self.state.config,
+            source_hash=self.state.current_file_hash or "preview",
+            cam_xyz=cam_xyz,
+            camera_wb=camera_wb,
+            gain_slices=self._preview_gain_slices(None),
+            orientation=self.state.preview_orientation,
+        )
 
     def display_transform_params(
         self, splash: bool = False, proofed: bool = True, process: Optional[ProcessConfig] = None
