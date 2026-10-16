@@ -366,7 +366,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         step(
             PRINTING,
             "Paper Response",
-            "A <b>paper profile</b> takes a real paper's curve from its datasheet. <b>Toe</b> and "
+            "A <b>print stock</b> takes a real paper's or print film's curve and dyes from its datasheet. <b>Toe</b> and "
             "<b>Shoulder</b> shape the curve's ends, <b>Snap</b> the midtones, <b>Dye Separation</b> the "
             "color strength. <b>Paper White</b> and <b>Paper Black</b> show the paper's base and deepest "
             "black.",

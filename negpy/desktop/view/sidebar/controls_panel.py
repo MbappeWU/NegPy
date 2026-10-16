@@ -829,7 +829,7 @@ class ControlsPanel(QWidget):
         paper.dye_separation_slider.setToolTip(
             tooltip_with_shortcut(
                 "Pushes density apart before decode. On a print, in the same matrix slot as the "
-                "paper's own dye crosstalk — so it responds to the paper profile and eases off where the "
+                "paper's own dye crosstalk — so it responds to the print stock and eases off where the "
                 "curve is already compressed at toe and shoulder, and takes per-layer R/G/B trims. On a "
                 "slide, applied directly with no paper matrix or trims. Chroma in "
                 "Color is the flat version: an even a*/b* scale after decode. 1.0 = off/identity",
