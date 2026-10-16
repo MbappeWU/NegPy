@@ -654,7 +654,6 @@ class MainWindow(QMainWindow):
         if not up:
             self._pick_better_window.hide()
             return
-        self._pick_better_window.size_and_center_to(self)
         self._pick_better_window.show()
         self._pick_better_window.raise_()
 

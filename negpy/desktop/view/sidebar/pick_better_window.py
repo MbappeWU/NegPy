@@ -13,11 +13,10 @@ and each label letterboxes its frame, so a preview keeps its aspect ratio — it
 and never width-capped.
 """
 
-from typing import Optional
-
-from PyQt6.QtCore import Qt, QPoint, QRect, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
+    QApplication,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -25,7 +24,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
+from negpy.desktop.view.sidebar.roi_image import RoiImageLabel, _RING_MARGIN
 from negpy.desktop.view.styles.templates import (
     caption_label,
     labeled_action,
@@ -35,11 +34,6 @@ from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.floating_panel import float_over_app
 from negpy.desktop.view.widgets.sliders import CompactSlider
 
-#: The window sits one notch smaller than the main window: 0.8 of its size, floored so a
-#: small main window does not shrink the three previews below a usable size.
-_SIZE_FACTOR = 0.8
-#: Floor for the 0.8x-main size: three full previews plus room for the name and the control row.
-_MIN_W, _MIN_H = 1200, 760
 #: Gap between a caption's bottom edge and its photo's top edge.
 _CAPTION_GAP = 4
 #: The move summary's clear delay and its margin from the panel's top edge.
@@ -62,7 +56,7 @@ class PickBetterWindow(QDialog):
         self.setWindowTitle("Pick Better")
         self.setModal(False)
         float_over_app(self)  # must precede the first show(): the panel flags hide a visible window
-        self._last_main_geo: Optional[QRect] = None
+        self._sized = False  # the first frame sizes the window to the image
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -151,10 +145,15 @@ class PickBetterWindow(QDialog):
         self._schedule_reposition()
 
     def set_images(self, current: QPixmap, left: QPixmap, right: QPixmap) -> None:
-        """Push the three rendered frames onto their labels (each letterboxes to fit)."""
+        """Push the three rendered frames onto their labels (each letterboxes to fit). The first
+        frame of a session also sizes the window to the image so the three show at full scale;
+        later frames only update the frames, keeping any size the user has set."""
         self.current_label.set_frame(current)
         self.left_label.set_frame(left)
         self.right_label.set_frame(right)
+        if not self._sized and not current.isNull():
+            self._size_to_image(current.width(), current.height())
+            self._sized = True
         self._schedule_reposition()
 
     def set_param_name(self, text: str) -> None:
@@ -246,19 +245,38 @@ class PickBetterWindow(QDialog):
         super().showEvent(ev)
         self._schedule_reposition()
 
-    def size_and_center_to(self, main: QWidget) -> None:
-        """One notch smaller than, and centred on, the main window — 0.8 of its current size,
-        floored so a small main window does not shrink the previews below a usable size. A
-        re-centre runs only when the main window moved or resized, so a pick (which leaves the
-        main window untouched) never resets a position the user has set."""
-        geo = main.geometry()
-        if geo == self._last_main_geo:
-            return
-        self._last_main_geo = geo
-        w = max(int(geo.width() * _SIZE_FACTOR), _MIN_W)
-        h = max(int(geo.height() * _SIZE_FACTOR), _MIN_H)
+    def hideEvent(self, ev) -> None:
+        super().hideEvent(ev)
+        self._sized = False  # a new session's first frame re-sizes to its image
+
+    def _size_to_image(self, pw: int, ph: int) -> None:
+        """The smallest window the three photos fit at full scale, capped to the monitor. A
+        photo's label needs pw + 2*ring by ph + 2*ring to draw at scale 1, so the layout's
+        minimum size is that, plus the captions, the control row and the button row."""
+        ring = 2 * _RING_MARGIN
+        labels = (self.left_label, self.current_label, self.right_label)
+        for label in labels:
+            label.setMinimumSize(pw + ring, ph + ring)
+        self.layout().activate()
+        w = self.layout().minimumSize().width()
+        h = self.layout().minimumSize().height()
+        screen = QApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen is not None else None
+        if avail is not None:
+            w = min(w, avail.width())
+            h = min(h, avail.height())
+        parent = self.parent()
+        if parent is not None:
+            geo = parent.geometry()
+            x = geo.x() + (geo.width() - w) // 2
+            y = geo.y() + (geo.height() - h) // 2
+            if avail is not None:
+                x = max(avail.x(), min(x, avail.x() + avail.width() - w))
+                y = max(avail.y(), min(y, avail.y() + avail.height() - h))
+            self.move(x, y)
+        for label in labels:
+            label.setMinimumSize(0, 160)
         self.resize(w, h)
-        self.move(geo.x() + (geo.width() - w) // 2, geo.y() + (geo.height() - h) // 2)
 
     def done(self, result: int) -> None:
         # Esc reaches here without a closeEvent, so the session cleanup hangs off done().
