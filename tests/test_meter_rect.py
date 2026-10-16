@@ -127,3 +127,19 @@ def test_a_holder_frame_with_no_crop_prints_like_its_auto_crop(tmp_path):
     no_crop = picture_lightness(WorkspaceConfig(), picture)
     auto_crop = picture_lightness(with_auto_crop(WorkspaceConfig(), True))
     assert abs(no_crop - auto_crop) < 1.0
+
+
+def test_a_source_is_detected_once_across_renders_that_never_froze(monkeypatch):
+    """A drag before the freeze lands, or a caller with no controller, renders the same unfrozen edit again."""
+    import negpy.services.rendering.image_processor as ip
+
+    calls = []
+    real = ip.resolve_meter_rect
+    monkeypatch.setattr(ip, "resolve_meter_rect", lambda *a, **k: calls.append(1) or real(*a, **k))
+    proc = ip.ImageProcessor()
+    img = _frame(True)
+    for density in (1.0, 1.2, 1.4):
+        cfg = WorkspaceConfig()
+        cfg = replace(cfg, exposure=replace(cfg.exposure, density=density))
+        proc.run_pipeline(img, cfg, "meter-memo", render_size_ref=900.0, prefer_gpu=False)
+    assert len(calls) == 1
