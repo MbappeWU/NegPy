@@ -5785,6 +5785,26 @@ class TestCompareFlatPeekInteraction(unittest.TestCase):
         self.assertFalse(metrics["splash"])
         self.assertFalse(metrics["proof"])
 
+    def test_negative_peek_crops_like_the_render(self):
+        """The crop margin scales with the buffer the render crops, not the full-res file."""
+        import numpy as np
+
+        from negpy.features.geometry.logic import get_manual_rect_coords
+        from negpy.kernel.system.config import APP_CONFIG
+
+        source = np.full((400, 600, 3), 0.5, dtype=np.float32)
+        state = self.controller.state
+        state.preview_raw = source
+        state.original_res = (4000, 6000)
+        rect = (0.1, 0.1, 0.9, 0.9)
+        state.config = replace(state.config, geometry=replace(state.config.geometry, crop_rect=rect, autocrop_offset=10))
+
+        self.controller.toggle_negative_peek(force=True)
+
+        scale = max(source.shape[:2]) / float(APP_CONFIG.preview_render_size)
+        y1, y2, x1, x2 = get_manual_rect_coords(source, rect, offset_px=10, scale_factor=scale)
+        self.assertEqual(state.peek_frame["base_positive"].shape[:2], (y2 - y1, x2 - x1))
+
     def test_leaving_the_negative_peek_re_renders_the_edit(self):
         self.controller.state.negative_peek = True
         with patch.object(self.controller, "request_render") as rr:

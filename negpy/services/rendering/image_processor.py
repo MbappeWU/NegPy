@@ -12,7 +12,7 @@ from functools import lru_cache
 from PIL import Image, ImageCms
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 from negpy.kernel.system.logging import get_logger
-from negpy.kernel.system.config import APP_CONFIG
+from negpy.kernel.system.config import APP_CONFIG, render_scale_factor
 from negpy.domain.types import ImageBuffer
 from negpy.domain.models import (
     WorkspaceConfig,
@@ -841,7 +841,7 @@ class ImageProcessor:
 
         source_hash = base_hash + hair_token + f"|res{w_cols}x{h_orig}" + _camera_token(cam_xyz, camera_wb)
 
-        scale_factor = max(h_orig, w_cols) / float(APP_CONFIG.preview_render_size)
+        scale_factor = render_scale_factor(img.shape)
 
         settings, resolved_crop = _resolve_armed_autocrop(img, settings)
         settings, resolved_meter = _resolve_meter_rect(img, settings, self._meter_memo, source_hash)
@@ -1445,7 +1445,7 @@ class ImageProcessor:
         color_space = str(target_cs)
 
         h_raw, w_raw = f32_buffer.shape[:2]
-        export_scale = max(h_raw, w_raw) / float(APP_CONFIG.preview_render_size)
+        export_scale = render_scale_factor(f32_buffer.shape)
 
         # Only hits detection for an edit never previewed (armed by copy-settings or an old
         # sidecar); a previewed edit arrives with its rect frozen, so the export matches it.

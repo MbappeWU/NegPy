@@ -224,7 +224,7 @@ from negpy.infrastructure.filesystem.watcher import FolderWatchService
 from negpy.infrastructure.gpu.device import GPUDevice
 from negpy.infrastructure.gpu.resources import GPUTexture
 from negpy.infrastructure.storage.local_asset_store import LocalAssetStore
-from negpy.kernel.system.config import APP_CONFIG, DEFAULT_WORKSPACE_CONFIG
+from negpy.kernel.system.config import APP_CONFIG, DEFAULT_WORKSPACE_CONFIG, render_scale_factor
 from negpy.kernel.system.logging import get_logger
 from negpy.services.rendering.prefetch_policy import MIN_RAM_RESERVE_BYTES
 from negpy.services.rendering.preview_manager import PreviewManager
@@ -7244,6 +7244,17 @@ class AppController(QObject):
         else:
             self.request_render()
 
+    def _peek_context(self, source: np.ndarray) -> PipelineContext:
+        """A geometry-only context scaled from the buffer the peek crops, as the render scales its own."""
+        height, width = source.shape[:2]
+        return PipelineContext(
+            original_size=(height, width),
+            scale_factor=render_scale_factor(source.shape),
+            process_mode=self.state.config.process.process_mode,
+            crop_preview_full=self.state.active_tool in UNCROPPED_PREVIEW_TOOLS,
+            wants_uv_grid=False,
+        )
+
     def _paint_negative_peek(self) -> None:
         """Put the decoded source on the canvas: un-inverted, un-normalized, no tone edits.
 
@@ -7270,14 +7281,7 @@ class AppController(QObject):
         if source is None:
             return
         geometry = self.state.config.geometry
-        original = self.state.original_res if any(self.state.original_res) else source.shape[:2]
-        context = PipelineContext(
-            original_size=(original[0], original[1]),
-            scale_factor=max(original) / float(APP_CONFIG.preview_render_size),
-            process_mode=self.state.config.process.process_mode,
-            crop_preview_full=self.state.active_tool in UNCROPPED_PREVIEW_TOOLS,
-            wants_uv_grid=False,
-        )
+        context = self._peek_context(source)
         img = GeometryProcessor(geometry).process(source, context)
         process = self.state.config.process
         decoded_without_wb = effective_linear_raw(process) and not highlight_reconstruction_bakes_wb(process)
@@ -7352,21 +7356,13 @@ class AppController(QObject):
         clipping, and none of NegPy's decode. Nothing is measured from it: the analysis chart
         keeps reading the frame's own metrics.
 
-        Geometry runs against the preview's own pixel grid, which is not the raw's, so the
-        context is built from its shape rather than `original_res`.
+        Geometry runs against the preview's own pixel grid, which is not the raw's.
         """
         source = self._load_embedded_preview()
         if source is None:
             return
         geometry = self.state.config.geometry
-        height, width = source.shape[:2]
-        context = PipelineContext(
-            original_size=(height, width),
-            scale_factor=max(height, width) / float(APP_CONFIG.preview_render_size),
-            process_mode=self.state.config.process.process_mode,
-            crop_preview_full=self.state.active_tool in UNCROPPED_PREVIEW_TOOLS,
-            wants_uv_grid=False,
-        )
+        context = self._peek_context(source)
         img = GeometryProcessor(geometry).process(source, context)
         if not context.crop_preview_full:
             img = CropProcessor(geometry).process(img, context)
