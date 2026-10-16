@@ -181,6 +181,26 @@ The **sliders icon** beside the dropdown opens the **matrix editor**:
   in the dropdown.
 - **Apply & Close** keeps what you were previewing. **Cancel** reverts.
 
+### Measuring from a chart
+
+A chart shot on the film is the one reference that settles a matrix. Shoot a SpyderCheckr 24 or
+a ColorChecker 24 in daylight on a frame of the roll, scan it on your rig, and open it. The
+**swatch button** beside the dropdown opens **Measure from Chart** (Color Negative only).
+
+1. Drag the four dots onto the centers of the chart's four corner patches. The order does not
+   matter: NegPy reads the grid all four ways, a mirrored scan included, and keeps the one whose
+   colors match the chart.
+2. Name the profile after the combination and press **Measure and Save**.
+
+The fit starts from identity and runs the frame's own render for every trial matrix, so
+normalization and Cast Removal re-meter each time. It minimizes CIEDE2000 against the chart's
+published values (D50, adapted to the render's D65), with lightness at half weight because the
+print curve owns tone, and a small pull toward identity. One exposure gain matches the mid grays
+first. The result is saved with `type = "measured"` and applied at Strength 1. Re-run **Roll
+Analysis** on the other frames.
+
+A matrix measured on one stock under one light describes that pair only.
+
 ## Contributing a matrix
 
 Add your `.toml` to the repo's [`crosstalk/`](../crosstalk/) folder and open a PR.

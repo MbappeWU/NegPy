@@ -157,7 +157,10 @@ class SensorSidebar(BaseSidebar):
         self.manage_crosstalk_btn = self._icon_action(
             "fa5s.sliders-h", "Open the crosstalk matrix editor — view, copy and edit density-unmix profiles"
         )
-        self.layout.addLayout(header_row(self.crosstalk_header, self.manage_crosstalk_btn))
+        self.measure_chart_btn = self._icon_action(
+            "mdi6.palette-swatch-outline", "Measure a matrix from a color chart shot on this film and scanned on this rig…"
+        )
+        self.layout.addLayout(header_row(self.crosstalk_header, self.measure_chart_btn, self.manage_crosstalk_btn))
         matrix_row.addWidget(self.crosstalk_label)
         matrix_row.addWidget(self.crosstalk_combo, 1)
         self.layout.addLayout(matrix_row)
@@ -302,6 +305,7 @@ class SensorSidebar(BaseSidebar):
 
         self.crosstalk_combo.currentTextChanged.connect(self._on_crosstalk_profile_changed)
         self.manage_crosstalk_btn.clicked.connect(self._open_crosstalk_editor)
+        self.measure_chart_btn.clicked.connect(self._open_chart_calibration)
         self.crosstalk_strength_slider.valueChanged.connect(lambda v: self._on_crosstalk_strength_changed(v, persist=False))
         self.crosstalk_strength_slider.valueCommitted.connect(lambda v: self._on_crosstalk_strength_changed(v, persist=True))
 
@@ -397,6 +401,28 @@ class SensorSidebar(BaseSidebar):
         dlg.finished.connect(lambda result: self._on_crosstalk_editor_finished(dlg, result))
         self._crosstalk_dialog = dlg  # keep a reference so the modeless dialog isn't GC'd
         dlg.show()
+
+    def _open_chart_calibration(self) -> None:
+        from negpy.desktop.view.widgets.chart_calibration_dialog import ChartCalibrationDialog
+
+        source = self.controller.chart_fit_source()
+        if source is None:
+            self.controller.set_status("Open a whole frame of the chart to measure it.", 4000, "warning")
+            return
+        dlg = ChartCalibrationDialog(source, self.state.workspace_color_space, parent=self, repo=self.controller.session.repo)
+        dlg.profile_saved.connect(self._on_chart_profile_saved)
+        dlg.exec()
+
+    def _on_chart_profile_saved(self, name: str) -> None:
+        self.controller.set_roll_default(
+            "sensor",
+            crosstalk_profile=name,
+            crosstalk_matrix=CrosstalkProfiles.get_matrix(name),
+            crosstalk_process=CrosstalkProfiles.get_process(name),
+            crosstalk_strength=1.0,
+            **invalidate_local_bounds(self.state.config.process),
+        )
+        self.sync_ui()
 
     def _on_crosstalk_preview(self, matrix: object, strength: float, process: str) -> None:
         # The process rides along: the render gates the unmix on it, so a preview without it shows
@@ -528,6 +554,8 @@ class SensorSidebar(BaseSidebar):
             for w in (self.crosstalk_header, self.crosstalk_label, self.crosstalk_combo, self.manage_crosstalk_btn):
                 w.setVisible(not is_bw)
             self.crosstalk_strength_rail.setVisible(not is_bw)
+            # The charts' published colors are for a print of the scene, which only a negative makes.
+            self.measure_chart_btn.setVisible(conf.process_mode == ProcessMode.C41)
             # Colour only, in the render as well as here: B&W collapses to a single density
             # before the curve, so the solve has nothing to balance. Safe to hide rather than disable.
             self.cast_removal_slider.setValue(self.state.config.exposure.cast_removal_strength)
