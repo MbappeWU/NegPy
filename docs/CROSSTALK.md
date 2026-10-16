@@ -157,8 +157,8 @@ You need no spectral data or spectrophotometer to beat *Generic C41*:
 2. Start on **Generic C41** and raise **Strength** until the colors separate, before they
    go garish. On many rigs this is enough.
 3. Still wrong in a specific way? Open the matrix editor, press **Make Editable Copy**, and
-   change the off-diagonal term for the pair that is off. Green leaking into red is
-   `out R / in G`. Change one term at a time, in small steps. `0.02` is visible.
+   change the mixing term for the pair that is off. Green leaking into red is **Red ›
+   From Green**. Change one term at a time, in small steps. `0.02` is visible.
 4. Name it after the **combination**, for example `Gold 200 + Spectracolor`. Re-run **Roll
    Analysis** and check it on a second frame.
 
@@ -172,10 +172,10 @@ The **sliders icon** beside the dropdown opens the **matrix editor**:
 
 - Browse every profile. Bundled matrices and **Generic C41** show a lock and are
   **read-only**. Your own profiles are editable.
-- Drag the off-diagonal grid sliders (`out R/G/B` × `in R/G/B`) and the preview updates live.
-  Row normalization makes the diagonal redundant, so only the six mixing terms are
-  editable. The **Preview strength** slider controls only this preview. The sidebar
-  **Strength** slider applies the matrix.
+- Each channel (**Red**, **Green**, **Blue**) has two sliders, **From** each other channel,
+  from −1 to 1, and the preview updates live. Row normalization makes the diagonal
+  redundant, so only the six mixing terms are editable. The **Preview Strength** slider
+  controls only this preview. The sidebar **Strength** slider applies the matrix.
 - **Make Editable Copy** clones the selected locked matrix into an editable profile.
 - **Save** writes the profile as a `.toml` into `<Documents>/NegPy/crosstalk/`, so it shows
   in the dropdown.
