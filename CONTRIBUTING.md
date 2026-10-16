@@ -160,7 +160,7 @@ Every developer command runs through `uv run`:
 
 Wrap display text in `tr("English source", name=value)` and translate the whole template before inserting values. Use `mark` for catalog labels that also serve as lookup keys, then call `tr` when displaying them. Keep enum values, settings keys, paths and user text unchanged. Language is an application preference and takes effect after a restart.
 
-Run `make translations` to update `negpy/translations/zh_CN.json` and its source references. Fill new entries, then run `make translations-check` to check coverage and placeholders. Localized panel guides use the same `<!-- panel:key -->` markers as `docs/USER_GUIDE.md`; missing panels fall back to English. Include new catalog and guide files in the packaged resources.
+Register languages in `LANGUAGES` (`negpy/kernel/system/i18n.py`), using the matching Qt catalog locale, and set their count forms in `kernel/system/text.py`. `make translations` updates every registered JSON catalog under `negpy/translations/` and the shared source references. Fill new entries, then run `make translations-check` to check coverage and placeholders for all catalogs. Localized panel guides use the same `<!-- panel:key -->` markers as `docs/USER_GUIDE.md`; missing panels fall back to English. Include new catalog and guide files in the packaged resources.
 
 ## Building and Packaging
 

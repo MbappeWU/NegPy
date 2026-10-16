@@ -84,7 +84,7 @@ Every feature lives in `negpy/features/<name>/`:
 
 ### Desktop (MVC)
 
-- **Internationalization** (`kernel/system/i18n.py`): load the saved `ui_language` before importing desktop modules. Language changes require a restart. Wrap display strings in `tr`, interpolate named values after translation, and use `mark` for labels also used as lookup keys. Keep enum values, settings keys, paths and user text untranslated. `make translations` updates `negpy/translations/zh_CN.json` and `sources.json`; `make translations-check` checks coverage and placeholders. Localized panel guides live beside the catalogs and fall back to `docs/USER_GUIDE.md` per panel. Ship the catalogs and guides in `build.py` and package data.
+- **Internationalization** (`kernel/system/i18n.py`): load the saved `ui_language` before importing desktop modules. Language changes require a restart. Wrap display strings in `tr`, interpolate named values after translation, and use `mark` for labels also used as lookup keys. Keep enum values, settings keys, paths and user text untranslated. Register English, Simplified Chinese, Japanese and Korean in `LANGUAGES`; `make translations` updates each registered catalog under `negpy/translations/` and `sources.json`. `make translations-check` checks coverage and placeholders across all catalogs. Localized panel guides live beside the catalogs and fall back to `docs/USER_GUIDE.md` per panel. Ship the catalogs and guides in `build.py` and package data.
 
 - `AppState` (`negpy/desktop/session.py`): mutable session state
 - `AppController` (`negpy/desktop/controller.py`): the single controller; all UI interactions call it; emits `config_updated` / `image_updated`

@@ -3140,8 +3140,8 @@
     "negpy/desktop/view/shortcut_registry.py:247"
   ],
   "Find a control, card or action…": [
-    "negpy/desktop/view/widgets/command_palette.py:223",
-    "negpy/desktop/view/widgets/command_palette.py:202"
+    "negpy/desktop/view/widgets/command_palette.py:235",
+    "negpy/desktop/view/widgets/command_palette.py:214"
   ],
   "Find and remove dust specks on the visible scan by local contrast — no infrared channel needed. Set sensitivity with Threshold and Size below. Right-drag on the canvas to hold the detector off marks it is over-cleaning: whatever the band touches comes back whole. Toggling this button clears every band.": [
     "negpy/desktop/view/sidebar/retouch.py:31"
@@ -7651,9 +7651,9 @@
   ],
   "Temperature": [
     "negpy/desktop/view/sidebar/color.py:46",
-    "negpy/desktop/view/widgets/command_palette.py:32",
-    "negpy/desktop/view/widgets/command_palette.py:33",
-    "negpy/desktop/view/widgets/command_palette.py:35"
+    "negpy/desktop/view/widgets/command_palette.py:44",
+    "negpy/desktop/view/widgets/command_palette.py:45",
+    "negpy/desktop/view/widgets/command_palette.py:47"
   ],
   "Temperature (°C)": [
     "negpy/desktop/view/sidebar/metadata.py:272",
@@ -8250,7 +8250,7 @@
     "negpy/desktop/controller.py:1865"
   ],
   "Type a slider, card or action, or another editor's word for it: contrast, white balance.": [
-    "negpy/desktop/view/widgets/command_palette.py:235"
+    "negpy/desktop/view/widgets/command_palette.py:247"
   ],
   "UI scale": [
     "negpy/desktop/view/widgets/preferences_dialog.py:235"

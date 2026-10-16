@@ -17,7 +17,7 @@ def mark(source: str) -> str:
     return source
 
 
-LANGUAGES = (("system", mark("System Default")), ("en", "English"), ("zh_CN", "简体中文"))
+LANGUAGES = (("system", mark("System Default")), ("en", "English"), ("zh_CN", "简体中文"), ("ja", "日本語"), ("ko", "한국어"))
 _language = "en"
 _messages: dict[str, str] = {}
 _formatter = Formatter()
@@ -33,7 +33,11 @@ def resolve_language(choice: str, system_languages: list[str] | None = None) -> 
             system_languages = QLocale.system().uiLanguages()
         choice = next(iter(system_languages), "en")
     tag = choice.replace("-", "_").lower()
-    return "zh_CN" if tag in {"zh", "zh_cn", "zh_sg", "zh_hans", "zh_hans_cn", "zh_hans_sg"} else "en"
+    if tag in {"zh", "zh_cn", "zh_sg", "zh_hans", "zh_hans_cn", "zh_hans_sg"}:
+        return "zh_CN"
+    base = tag.split("_", 1)[0]
+    supported = {locale.lower(): locale for locale, _ in LANGUAGES if locale != "system"}
+    return supported.get(tag, supported.get(base, "en"))
 
 
 def fields(text: str) -> list[tuple[str, str, str | None]]:
