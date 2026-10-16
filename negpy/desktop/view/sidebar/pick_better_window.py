@@ -263,17 +263,18 @@ class PickBetterWindow(QDialog):
     def _size_to_image(self, pw: int, ph: int) -> None:
         """Size the window so the three photos fill their frames at the largest scale that
         fits the monitor, with no black gap between them. A smaller monitor down-scales the
-        photos rather than leaving black beside them."""
+        photos rather than leaving black beside them. The photo row is measured at zero height
+        so the window minimum size stays small and the final resize is not clamped by it."""
         ring = 2 * _RING_MARGIN
         gap = 10  # the image row's spacing between the three frames
         margin = 10  # the panel's left and right content margin
         labels = (self.left_label, self.current_label, self.right_label)
         for label in labels:
-            label.setMinimumSize(pw + ring, ph + ring)
+            label.setMinimumSize(0, 0)
         self.layout().activate()
         # The band the photos do not occupy: the reserved top, the control row, the button
         # row, and the panel's margins and inter-row spacing.
-        fixed_h = self.layout().minimumSize().height() - (ph + ring)
+        fixed_h = self.layout().minimumSize().height()
         # Largest per-photo width that keeps the window inside the monitor in both axes; pw
         # (full resolution) when the full-res size already fits.
         screen = QApplication.primaryScreen()
