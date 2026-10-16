@@ -39,3 +39,9 @@ Modified by NegPy: the CSVs keep each profile's channel_density on its 5 nm grid
 where all three dyes are defined, and papers.py holds the dye matrices and tone
 constants fitted to that data. NegPy distributes them under the GPL v3, which
 Creative Commons lists as a BY-SA compatible license.
+
+scripts/crosstalk_dyes/kodak_vision3_dyes.csv is the mean of spektrafilm's
+traces of the Kodak VISION3 50D, 200T, 250D and 500T dye curves (H-1-5203,
+H-1-5207, H-1-5213, H-1-5219), resampled to 5 nm, under the same license. The
+Kodak consumer and VERITA 200D crosstalk estimates in crosstalk/ are fitted with
+it.

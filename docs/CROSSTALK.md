@@ -57,7 +57,9 @@ the camera in the linear capture. **Hue Trim** rotates hue for an odd light spec
 >   **Single-Shot Narrowband Calibration** applied. A broadband light and a Bayer sensor
 >   add mixing that a dyes-only matrix cannot model.
 > - Consumer datasheets usually publish one *aggregate* midscale-neutral curve, not
->   separate C/M/Y curves, so even the dye part is read off a plot by eye.
+>   separate C/M/Y curves. For the Kodak films, Kodak's Vision3 dye curves are fitted to
+>   that curve, which assumes the film's masking couplers match Vision3's. The other
+>   consumer matrices are read off the plot by eye.
 >
 > On a narrowband rig they still beat identity, but a matrix you tune yourself is more
 > trustworthy. Bundled matrices are read-only. Use **Make Editable Copy** to start from one.
