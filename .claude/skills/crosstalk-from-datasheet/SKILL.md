@@ -54,8 +54,13 @@ only the off-diagonal/diagonal *ratios* matter — absolute row scale is irrelev
 3. **Read the leakage values into matrix `A`** (rows = R/G/B measurement bands, cols = C/M/Y
    dyes). Dye→channel: **cyan↔Red, magenta↔Green, yellow↔Blue**. Sample each dye's diffuse
    density at band centers **R≈650 / G≈550 / B≈450 nm** (datasheets use Status M). Each dye's
-   own-band value is the diagonal; the other two are its unwanted absorption (positive).
+   own-band value is the diagonal; the other two are its unwanted absorption.
    Reading a graph by eye is ±~0.05 density — fine, the result gets row-normalized.
+
+   Read the dyes **above D-min**. Kodak motion-picture sheets say "D-mins subtracted" on the
+   plot; if a sheet draws each dye over the Minimum Density curve, subtract that curve first.
+   A net curve includes the masking couplers, so it can dip slightly **below zero** in another
+   band (Vision3 magenta at 450 nm): read that value as negative, do not clamp it to 0.
 
    - **Tier 1:** read all nine values off the separated curves.
    - **Tier 2:** diagonal = own band; estimate the off-diagonals from the visible secondary
@@ -77,8 +82,10 @@ only the off-diagonal/diagonal *ratios* matter — absolute row scale is irrelev
 5. **Review & self-validate** — never trust the loader's silence (it skips malformed files
    without error):
    - 3×3 numeric, no booleans.
-   - Diagonal `1.0`; off-diagonals **negative** (a correction *subtracts* contamination) and
-     small — flag anything `|·| > 0.2` as a likely misread/transpose.
+   - Diagonal `1.0`; off-diagonals mostly **negative** (a correction *subtracts* contamination)
+     and small — flag anything `|·| > 0.2` as a likely misread/transpose. A small positive term
+     (up to ~0.05) is correct where a reading was negative: the masking coupler removed more
+     density in that band than the dye added.
    - Confirm it actually loads:
      ```bash
      uv run python -c "from negpy.services.assets.crosstalk import CrosstalkProfiles as C; \
@@ -105,7 +112,10 @@ only the off-diagonal/diagonal *ratios* matter — absolute row scale is irrelev
 
 - **Transposing rows/cols** — `A` is bands×dyes; the output is out-channels×in-channels. Keep
   R/G/B order throughout.
-- **Positive off-diagonals in the output** — wrong sign; a correction must *subtract* leakage.
+- **Large positive off-diagonals in the output** — wrong sign; a correction must *subtract*
+  leakage. Only a below-zero reading on a net curve gives a small positive term.
+- **Reading over D-min** — a dye curve drawn on top of the Minimum Density curve inflates every
+  unwanted absorption; subtract D-min first.
 - **Using sensitivity curves as dye density** — they measure different things; not interchangeable.
 - **Over-claiming precision** — an aggregate (Tier 2) curve gives an estimate; say so in the name.
 - **Forgetting it's density-domain** — read *density* off the dye-density plot, not transmittance.
