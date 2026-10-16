@@ -193,7 +193,8 @@ a ColorChecker 24 in daylight on a frame of the roll, scan it on your rig, and o
 2. Name the profile after the combination and press **Measure and Save**.
 
 The fit starts from identity and runs the frame's own render for every trial matrix, so
-normalization and Cast Removal re-meter each time. It minimizes CIEDE2000 against the chart's
+normalization and Cast Removal re-meter each time. It prints on the Digital stock, so a paper's dyes
+stay out of the rig's matrix. It minimizes CIEDE2000 against the chart's
 published values (D50, adapted to the render's D65), with lightness at half weight because the
 print curve owns tone, and a small pull toward identity. One exposure gain matches the mid grays
 first. The result is saved with `type = "measured"` and applied at Strength 1. Re-run **Roll
