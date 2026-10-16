@@ -244,18 +244,19 @@ class ChartCalibrationDialog(QDialog):
         name = self.name_edit.text().strip()
         CrosstalkProfiles.save(name, list(fit.matrix), CrosstalkType.MEASURED, process=ProcessMode.C41)
         chart = CHARTS[self.chart_choice.currentIndex()]
-        worst = int(np.argmax(fit.after))
+        worst = int(np.argmax(fit.after_color))
         # Tiers and counts use the value as shown, so a "2.0" chip counts within 2.
-        shown = np.round(fit.after, 1)
+        shown = np.round(fit.after_color, 1)
         # The boxes are read in grid order; fit.order gives the printed patch each one holds.
         self.view.set_scores(shown[fit.order])
         close = int((shown <= _DE_CLOSE).sum())
         far = int((shown > _DE_NOTICEABLE).sum())
         self._show_result(
-            f"<b>Saved “{name}”</b>. Mean ΔE00 over the 24 patches: {fit.before.mean():.1f} without the matrix, "
-            f"{fit.after.mean():.1f} with it. Per patch, on the frame: {close} within {_DE_CLOSE:g}, "
-            f"{shown.size - close - far} within {_DE_NOTICEABLE:g}, {far} beyond. "
-            f"Farthest patch: {chart.patch_names[worst]}, {fit.after[worst]:.1f}. "
+            f"<b>Saved “{name}”</b>. Mean color ΔE00 (hue and chroma) over the 24 patches: "
+            f"{fit.before_color.mean():.1f} without the matrix, {fit.after_color.mean():.1f} with it; "
+            f"{fit.before.mean():.1f} and {fit.after.mean():.1f} with lightness. Per patch, on the frame: "
+            f"{close} within {_DE_CLOSE:g}, {shown.size - close - far} within {_DE_NOTICEABLE:g}, {far} beyond. "
+            f"Farthest patch: {chart.patch_names[worst]}, {fit.after_color[worst]:.1f}. "
             "Re-run Roll Analysis on the roll's other frames. The matrix holds over the frame's current sensor "
             "profile: measure again if you change it."
         )

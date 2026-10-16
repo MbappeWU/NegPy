@@ -43,6 +43,13 @@ def test_delta_e2000_matches_the_published_pairs(lab1, lab2, expected) -> None:
     assert ch.delta_e2000(np.array([lab1]), np.array([lab2]))[0] == pytest.approx(expected, abs=1e-4)
 
 
+def test_color_only_delta_e_leaves_lightness_out() -> None:
+    ref = np.array([[50.0, 20.0, -10.0], [50.0, 20.0, -10.0]])
+    lab = np.array([[70.0, 20.0, -10.0], [80.0, 26.0, -4.0]])
+    assert ch.delta_e_color(ref, lab)[0] == 0.0
+    assert ch.delta_e_color(ref, lab)[1] == pytest.approx(ch.delta_e2000(ref[1:], np.array([[50.0, 26.0, -4.0]]))[0])
+
+
 def test_reference_lab_keeps_a_neutral_neutral() -> None:
     spec = ch.ChartSpec("gray", ("g",) * 24, ((50.0, 0.0, 0.0),) * 24, (0,))
     assert np.abs(ch.reference_lab(spec)[0] - (50.0, 0.0, 0.0)).max() < 0.05
@@ -101,6 +108,8 @@ def test_fit_undoes_a_known_density_mix() -> None:
     assert np.array_equal(fit.order, ch.ORIENTATIONS[1])
     assert fit.before.mean() > 4.0
     assert fit.after.mean() < 0.4 * fit.before.mean()
+    assert fit.after_color.mean() < 0.4 * fit.before_color.mean()
+    assert np.all(fit.after_color <= fit.after + 1e-9)
     assert np.allclose(np.reshape(fit.matrix, (3, 3)).diagonal(), 1.0)
 
 
@@ -154,7 +163,7 @@ def test_dialog_saves_a_measured_profile(monkeypatch, tmp_path) -> None:
     m = np.eye(3).ravel()
     m[1] = -0.1
     after = np.round(np.linspace(0.5, 7.4, 24), 1)
-    dlg._on_fitted(ch.ChartFit(tuple(m), np.full(24, 9.0), after, ch.ORIENTATIONS[1]))
+    dlg._on_fitted(ch.ChartFit(tuple(m), np.full(24, 9.0), after + 3.0, ch.ORIENTATIONS[1], np.full(24, 8.0), after))
     assert np.array_equal(dlg.view._scores, after[ch.ORIENTATIONS[1]])
     assert "6 within 2, 10 within 5, 8 beyond" in dlg.result_label.text()
     assert saved == ["Test Rig"]

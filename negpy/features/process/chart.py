@@ -82,7 +82,7 @@ _FIT_KL = 2.0
 # Pull toward identity, per off-diagonal term, in ΔE00 units per unit of the term.
 _RIDGE = 0.5
 _FD_STEP = 0.01
-_MAX_ITERATIONS = 12
+_MAX_ITERATIONS = 48
 _MIN_STEP = 2e-3
 
 
@@ -129,6 +129,14 @@ def delta_e2000(lab1: np.ndarray, lab2: np.ndarray, k_l: float = 1.0) -> np.ndar
     r_t = -2.0 * np.sqrt(c_bar_p**7 / (c_bar_p**7 + 25.0**7)) * np.sin(np.radians(60.0 * np.exp(-(((h_bar - 275.0) / 25.0) ** 2))))
     dl, dc, dhh = (l2 - l1) / (k_l * s_l), (c2p - c1p) / s_c, d_hp / s_h
     return np.sqrt(dl**2 + dc**2 + dhh**2 + r_t * dc * dhh)
+
+
+def delta_e_color(ref: np.ndarray, lab: np.ndarray) -> np.ndarray:
+    """CIEDE2000 with the lightness difference left out: the hue and chroma error. The print
+    curve, not the matrix, sets a patch's lightness."""
+    lab = np.array(lab, dtype=np.float64)
+    lab[:, 0] = np.asarray(ref, dtype=np.float64)[:, 0]
+    return delta_e2000(ref, lab)
 
 
 def grid_corners(corners: np.ndarray) -> np.ndarray:
@@ -206,6 +214,8 @@ class ChartFit:
     before: np.ndarray  # ΔE00 per patch, printed order, identity matrix
     after: np.ndarray  # ΔE00 per patch with the fitted matrix
     order: np.ndarray  # grid reading used
+    before_color: np.ndarray  # delta_e_color per patch, identity matrix
+    after_color: np.ndarray  # delta_e_color per patch with the fitted matrix
 
 
 class FitCancelled(Exception):
@@ -259,5 +269,12 @@ def fit_chart_matrix(
             progress((it + 1) / _MAX_ITERATIONS)
         if mu >= 1e6 or np.max(np.abs(step)) < _MIN_STEP:
             break
-    after = delta_e2000(ref, lab_for(p))
-    return ChartFit(tuple(float(v) for v in matrix_from_offdiagonal(p).ravel()), delta_e2000(ref, lab0), after, order)
+    lab1 = lab_for(p)
+    return ChartFit(
+        tuple(float(v) for v in matrix_from_offdiagonal(p).ravel()),
+        delta_e2000(ref, lab0),
+        delta_e2000(ref, lab1),
+        order,
+        delta_e_color(ref, lab0),
+        delta_e_color(ref, lab1),
+    )

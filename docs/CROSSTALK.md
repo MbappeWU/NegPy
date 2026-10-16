@@ -199,8 +199,9 @@ print curve owns tone, and a small pull toward identity. One exposure gain match
 first. The result is saved with `type = "measured"` and applied at Strength 1. Re-run **Roll
 Analysis** on the other frames.
 
-After the fit, each sample box shows its patch's ΔE00 to the chart's value: green within 2, amber
-within 5, red beyond. Moving a dot clears them.
+After the fit, each sample box shows its patch's color ΔE00 to the chart's value: the hue and
+chroma difference, with lightness left out because the print curve sets it. Green is within 2,
+amber within 5, red beyond. Moving a dot clears them.
 
 A matrix measured on one stock under one light describes that pair only. The sensor unmix runs
 before Crosstalk, so the fit measures only what the frame's sensor profile leaves; measure again

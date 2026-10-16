@@ -745,7 +745,7 @@ CAMERA_SCANNING.md has a workflow for each way to build and assign a profile.
 
 *   **Matrix**: matrices for the current film process, grouped by source. *Generic C41* is built in; custom `.toml` matrices go in `<Documents>/NegPy/crosstalk/` (see [CROSSTALK.md](CROSSTALK.md)). The slider button opens the editor; **+** makes one for the current process.
 *   **Strength** (0.0 to 1.0): how much unmix to apply.
-*   **Measure from Chart…** (the swatch button, Color Negative only): measures a matrix from a frame of a SpyderCheckr 24 or ColorChecker 24 shot on the film. Drag the four dots onto the corner patches, in any order, with the chart any way up; NegPy fits the six mixing terms through the frame's own render, saves a *Measured* profile, applies it at full Strength and shows each patch's ΔE00 to its target on the frame.
+*   **Measure from Chart…** (the swatch button, Color Negative only): measures a matrix from a frame of a SpyderCheckr 24 or ColorChecker 24 shot on the film. Drag the four dots onto the corner patches, in any order, with the chart any way up; NegPy fits the six mixing terms through the frame's own render, saves a *Measured* profile, applies it at full Strength and shows each patch's color difference to its target (ΔE00 without lightness) on the frame.
 
 > The bundled film matrices, marked *(approx)*, come from spec sheets and describe the dyes alone. They fully correct only a capture that reads each dye cleanly (a Narrowband Scanner, Trichrome, a calibrated single-shot narrowband rig); for broadband light and a Bayer sensor they are a starting point.
 
