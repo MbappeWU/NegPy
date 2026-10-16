@@ -200,6 +200,10 @@ EXPOSURE_CONSTANTS: Dict[str, Any] = {
     # t = (dR + dB) / 2 and s = (dR - dB) / 2 the offsets from green: 0 is green, 45 yellow.
     "neutral_axis_foliage_chroma": 0.03,
     "neutral_axis_foliage_hue": (-25.0, 80.0),
+    # Sky and water sector, the same rule from azure to blue. A clear sky pales toward the horizon,
+    # so its palest cells are a band's lowest-chroma set; the floor sits above a film or process cast.
+    "neutral_axis_sky_chroma": 0.06,
+    "neutral_axis_sky_hue": (-150.0, -60.0),
     # Confidence sample-size half-point: the size term is n / (n + this).
     "neutral_axis_confidence_n0": 256,
     # Mid/shadow deviation-difference dead zone (a plausible crossover passes free)

@@ -335,18 +335,23 @@ def _rms_chroma(triplets: np.ndarray) -> np.ndarray:
     return np.sqrt(((r - g) ** 2 + (g - b) ** 2 + (r - b) ** 2) / 3.0)
 
 
-def _foliage_cells(norm_f: np.ndarray) -> np.ndarray:
-    """Cells in the foliage sector. In a frame with no grays the lowest-chroma cells are
-    desaturated leaves, and neutralizing them prints magenta (a printer's subject failure)."""
+def _subject_cells(norm_f: np.ndarray) -> np.ndarray:
+    """Cells in the foliage or the sky sector. In a frame with no grays the lowest-chroma cells are
+    desaturated leaves or pale sky, and neutralizing them prints magenta or yellow (a printer's
+    subject failure)."""
     from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 
     c = EXPOSURE_CONSTANTS
     dr = norm_f[:, 0] - norm_f[:, 1]
     db = norm_f[:, 2] - norm_f[:, 1]
     t, s = (dr + db) / 2.0, (dr - db) / 2.0
-    lo, hi = c["neutral_axis_foliage_hue"]
     hue = np.degrees(np.arctan2(-s, t))
-    return (np.hypot(t, s) > float(c["neutral_axis_foliage_chroma"])) & (hue > float(lo)) & (hue < float(hi))
+    chroma = np.hypot(t, s)
+    cells = np.zeros(chroma.shape, dtype=bool)
+    for name in ("foliage", "sky"):
+        lo, hi = c[f"neutral_axis_{name}_hue"]
+        cells |= (chroma > float(c[f"neutral_axis_{name}_chroma"])) & (hue > float(lo)) & (hue < float(hi))
+    return cells
 
 
 def measure_neutral_axis_from_log(
@@ -355,13 +360,13 @@ def measure_neutral_axis_from_log(
     roi: Optional[tuple[int, int, int, int]] = None,
     analysis_buffer: float = 0.0,
     *,
-    exclude_foliage: bool = True,
+    exclude_subjects: bool = True,
 ) -> Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float], Optional[Tuple[float, float, float]], float]]:
     """Per-channel neutral axis: median raw-log density of the lowest-chroma pixels in a highlight, midtone and shadow band.
     Pass 1 uses a loose cap so a strong but correctable cast keeps the axis; its mid+shadow correction re-ranks chroma for a
     strict pass 2. Returns (midtone, shadow, highlight or None, confidence in [0, 1]); None without a midtone or shadow set.
-    `exclude_foliage` drops foliage-sector cells first. Only a per-channel stretch makes the window's neutral a gray, so a
-    caller metering against the slide's fixed window passes False."""
+    `exclude_subjects` drops foliage- and sky-sector cells first. Only a per-channel stretch makes the window's neutral a
+    gray, so a caller metering against the slide's fixed window passes False."""
     from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 
     if roi:
@@ -377,8 +382,8 @@ def measure_neutral_axis_from_log(
     flat_log = img_log.reshape(-1, 3)
     norm_f = norm.reshape(-1, 3)
     luma_f = luma.reshape(-1)
-    if exclude_foliage:
-        keep = ~_foliage_cells(norm_f)
+    if exclude_subjects:
+        keep = ~_subject_cells(norm_f)
         flat_log, norm_f, luma_f = flat_log[keep], norm_f[keep], luma_f[keep]
     chroma_f = _rms_chroma(norm_f)
 

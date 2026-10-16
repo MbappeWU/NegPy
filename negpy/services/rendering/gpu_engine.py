@@ -893,7 +893,7 @@ class GPUEngine:
         axis_grid = cam_prefiltered if transfer else prefiltered
         if needs_axis and axis_grid is not None:
             axis_bounds = LogNegativeBounds(*transfer_bounds()) if transfer else bounds
-            neutral_axis_refs = measure_neutral_axis_from_log(axis_grid, axis_bounds, None, 0.0, exclude_foliage=not transfer)
+            neutral_axis_refs = measure_neutral_axis_from_log(axis_grid, axis_bounds, None, 0.0, exclude_subjects=not transfer)
             pooled_axis = pooled_neutral_axis(settings.process)
             if pooled_axis is not None:
                 neutral_axis_refs = blend_neutral_axis(neutral_axis_refs, pooled_axis)
@@ -2840,7 +2840,7 @@ class GPUEngine:
             if settings.process.process_mode == ProcessMode.C41:
                 global_shadow_refs = measure_shadow_refs_from_log(_prefiltered(), None, 0.0, sorted_grid=_sorted())
             axis_bounds = meter_bounds if transfer else global_bounds
-            global_neutral_axis = measure_neutral_axis_from_log(_meter_grid(), axis_bounds, None, 0.0, exclude_foliage=not transfer)
+            global_neutral_axis = measure_neutral_axis_from_log(_meter_grid(), axis_bounds, None, 0.0, exclude_subjects=not transfer)
             pooled_axis = pooled_neutral_axis(settings.process)
             if pooled_axis is not None:
                 global_neutral_axis = blend_neutral_axis(global_neutral_axis, pooled_axis)

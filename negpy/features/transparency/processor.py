@@ -100,7 +100,7 @@ class TransparencyBaseProcessor:
         # perturb it.
         if self.cast_strength > 0.0:
             context.metrics["neutral_axis_refs"] = measure_neutral_axis_from_log(
-                prefiltered, pre_trim_bounds, None, 0.0, exclude_foliage=False
+                prefiltered, pre_trim_bounds, None, 0.0, exclude_subjects=False
             )
 
         # Auto Density and Auto Grade meter against the same fixed pre-trim window.
