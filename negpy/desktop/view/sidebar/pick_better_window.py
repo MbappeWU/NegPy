@@ -55,7 +55,8 @@ class PickBetterWindow(QDialog):
         self.setWindowTitle("Pick Better")
         self.setModal(False)
         float_over_app(self)  # must precede the first show(): the panel flags hide a visible window
-        self._sized = False  # the first frame sizes the window to the image
+        self._user_resized = False  # a manual drag is remembered for the app session, then the aspect follow stops
+        self._sizing = False  # a programmatic resize must not read as a user drag
 
         self._last_pw = 0  # the last frame's size; a show before set_images re-sizes to it
         self._last_ph = 0
@@ -146,18 +147,19 @@ class PickBetterWindow(QDialog):
         self._schedule_reposition()
 
     def set_images(self, current: QPixmap, left: QPixmap, right: QPixmap) -> None:
-        """Push the three rendered frames onto their labels (each letterboxes to fit). The first
-        frame of a session also sizes the window to the image so the three show at full scale;
-        later frames only update the frames, keeping any size the user has set."""
+        """Push the three rendered frames onto their labels (each letterboxes to fit). The window
+        follows each new image's aspect ratio unless the user has resized it, which is then kept for
+        the app session."""
         self.current_label.set_frame(current)
         self.left_label.set_frame(left)
         self.right_label.set_frame(right)
         if not current.isNull():
-            self._last_pw = current.width()
-            self._last_ph = current.height()
-        if not self._sized and not current.isNull():
-            self._size_to_image(current.width(), current.height())
-            self._sized = True
+            pw, ph = current.width(), current.height()
+            # Follow each new image's aspect unless the user has resized; a manual resize is kept for the app session.
+            if not self._user_resized and (pw, ph) != (self._last_pw, self._last_ph):
+                self._size_to_image(pw, ph)
+            self._last_pw = pw
+            self._last_ph = ph
         self._schedule_reposition()
 
     def set_param_name(self, text: str) -> None:
@@ -243,13 +245,17 @@ class PickBetterWindow(QDialog):
 
     def resizeEvent(self, ev) -> None:
         super().resizeEvent(ev)
+        # A spontaneous resize is a user drag, remembered for the app session; a programmatic resize from
+        # _size_to_image is not, so the aspect follow keeps working until the user drags.
+        if ev.spontaneous() and not self._sizing:
+            self._user_resized = True
         self._schedule_reposition()
 
     def showEvent(self, ev) -> None:
         super().showEvent(ev)
-        # Size to the image only on a first show, where the window has not yet been sized; a later
-        # show keeps the size the last close left, and an app exit drops it (no disk persistence).
-        if not self._sized and self._last_pw > 0:
+        # Follow the image's aspect on each open unless the user has resized; a manual resize is kept
+        # for the app session, and an app exit drops it (no disk persistence).
+        if not self._user_resized and self._last_pw > 0:
             self._size_to_image(self._last_pw, self._last_ph)
         self._schedule_reposition()
 
@@ -299,7 +305,9 @@ class PickBetterWindow(QDialog):
             self.move(x, y)
         for label in labels:
             label.setMinimumSize(0, 160)
+        self._sizing = True
         self.resize(w, h)
+        self._sizing = False
 
     def done(self, result: int) -> None:
         # Esc reaches here without a closeEvent, so the session cleanup hangs off done().
