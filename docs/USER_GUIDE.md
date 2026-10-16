@@ -491,7 +491,7 @@ What a lab scanner (Frontier or Noritsu) does automatically.
 
 *   **Chroma** (0.0 to 2.0): even color scale after decode; 1.0 is unchanged, 0 grayscale. For print-like saturation use **Dye Separation**.
 *   **Skin Protection** (0.0 to 1.0, default 0.5): caps skin-hued chroma; 1.0 leaves skin matte, 0 is off. Red coats, sunsets and brick stay out; wood, tan leather and sand soften with it.
-*   **Chroma Denoise** (0.0 to 5.0): smooths color noise, mainly in shadows; luminance grain stays.
+*   **Chroma Denoise** (0.0 to 5.0): removes color speckle finer than this radius (px of the full-size scan) and keeps sharp color edges; luminance grain stays.
 
 **Detail:**
 
@@ -812,7 +812,7 @@ How this frame is measured into a positive's tonal bounds.
 
 **Analysis** sets where the black and white points are metered.
 
-*   **Analysis Buffer** (0.0 to 0.25): insets the measurement window so rebate, sprocket holes and scanner borders do not skew it.
+*   **Analysis Buffer** (0.0 to 0.25): insets the measurement window so rebate, sprocket holes and scanner borders do not skew it. With no crop, the window is the picture Auto Crop would keep when the film sits in a holder or on bare light, so the holder never sets the exposure.
 *   **Reanalyze Frame**: measures this frame again from its current crop, buffer and region.
 *   **Draw Region** / **Clear Region**: draw a freehand region to meter *exactly* that area, in place of the buffer. Double-click inside to confirm.
 *   **Clipping**: the print's shadow and highlight clipping shares, as in the Analysis panel's row.
