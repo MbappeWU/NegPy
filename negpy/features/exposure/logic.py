@@ -574,19 +574,13 @@ def curve_params_from_metrics(
     d_min = profile.d_min if exposure.paper_dmin else 0.0
     anchor = metrics.get("metered_anchor") if exposure.auto_exposure else None
     bounds = metrics.get("final_bounds") or metrics.get("log_bounds")
-    strength, shadow_refs_norm, neutral_axis_norm = cast_solve_inputs(
-        bounds,
-        metrics.get("shadow_log_refs"),
-        metrics.get("neutral_axis_refs"),
-        exposure.cast_removal_strength,
-    )
+    strength, neutral_axis_norm = cast_solve_inputs(bounds, metrics.get("neutral_axis_refs"), exposure.cast_removal_strength)
     return per_channel_curve_params(
         exposure.grade,
         exposure.density,
         exposure.auto_normalize_contrast,
         strength,
         metrics.get("norm_density_range"),
-        shadow_refs_norm,
         metrics.get("textural_range"),
         d_min=d_min,
         anchor=anchor,
@@ -1198,7 +1192,7 @@ def normalize_refs(
     """
     Per-channel reference densities -> normalized [0, 1] position in the same
     floor->ceil stretch the image is normalized with. Shared by the CPU/GPU/chart
-    call sites (Cast Removal shadow refs) so they can't drift.
+    call sites (the Cast Removal neutral axis) so they can't drift.
     """
     epsilon = 1e-6
     out = []
@@ -1208,13 +1202,6 @@ def normalize_refs(
             denom = epsilon if denom >= 0 else -epsilon
         out.append((refs[ch] - floors[ch]) / denom)
     return (out[0], out[1], out[2])
-
-
-def normalized_shadow_refs(bounds: Any, refs: Optional[Tuple[float, float, float]]) -> Optional[Tuple[float, float, float]]:
-    """Shadow refs normalized against `bounds`, or None if either is missing."""
-    if bounds is None or refs is None:
-        return None
-    return normalize_refs(refs, bounds.floors, bounds.ceils)
 
 
 def normalized_neutral_axis(bounds: Any, refs: Any) -> Any:
@@ -1235,18 +1222,12 @@ def effective_cast_strength(strength: float, confidence: Optional[float]) -> flo
     return strength
 
 
-def cast_solve_inputs(
-    bounds: Any,
-    shadow_log_refs: Optional[Tuple[float, float, float]],
-    neutral_axis_refs: Any,
-    slider_strength: float,
-) -> Tuple[float, Optional[Tuple[float, float, float]], Any]:
-    """(effective strength, shadow_refs_norm, neutral_axis_norm) from raw metrics;
-    single source of truth for the CPU processor and the chart."""
-    shadow_refs_norm = normalized_shadow_refs(bounds, shadow_log_refs)
+def cast_solve_inputs(bounds: Any, neutral_axis_refs: Any, slider_strength: float) -> Tuple[float, Any]:
+    """(effective strength, neutral_axis_norm) from raw metrics; single source of truth for
+    the CPU processor and the chart."""
     neutral_axis_norm = normalized_neutral_axis(bounds, neutral_axis_refs)
     confidence = neutral_axis_refs[3] if neutral_axis_refs is not None else None
-    return effective_cast_strength(slider_strength, confidence), shadow_refs_norm, neutral_axis_norm
+    return effective_cast_strength(slider_strength, confidence), neutral_axis_norm
 
 
 def auto_base_slope(
@@ -1275,7 +1256,6 @@ def per_channel_curve_params(
     auto_normalize_contrast: bool,
     strength: float,
     lum_range: Optional[float],
-    shadow_refs_norm: Optional[Tuple[float, float, float]],
     textural_range: Optional[float],
     d_min: float = 0.0,
     anchor: Optional[float] = None,
@@ -1290,8 +1270,7 @@ def per_channel_curve_params(
 
     Cast Removal fits R/B to green's neutral axis (green is the reference; its pivot rides the
     luma anchor, so exposure is unchanged). neutral_axis_norm (midtone, shadow, highlight) ->
-    quadratic through all three; (midtone, shadow) -> line; shadow_refs_norm only -> one-point
-    shadow tie. Off / no refs (E6/B&W): one shared linear curve.
+    quadratic through all three; (midtone, shadow) -> line. Off or no axis: one shared linear curve.
     """
     c = effective_constants(paper)
     # Per-channel slope multipliers for the paper dye-layer contrast crossover. The pivot is
@@ -1360,31 +1339,7 @@ def per_channel_curve_params(
             curvs.append(curv_ch)
         return (slopes[0], slopes[1], slopes[2]), (pivots[0], pivots[1], pivots[2]), (curvs[0], curvs[1], curvs[2])
 
-    if strength > 0.0 and shadow_refs_norm is not None:
-        # Fallback one-point tie, used when there is no neutral axis: slope-tilt each channel
-        # so its shadow ref lands on green's, with the luma anchor pinning the midtone.
-        anchor_val = float(c["assumed_anchor"]) if anchor is None else float(anchor)
-        limit = float(c["cast_removal_max_offset"])
-        r_green = float(shadow_refs_norm[1])
-        numer = anchor_val - r_green
-
-        slopes = []
-        pivots = []
-        for ch in range(3):
-            # Clamp the shadow cast before solving, bounding the correction.
-            cast = min(max(strength * (r_green - float(shadow_refs_norm[ch])), -limit), limit)
-            denom = anchor_val - (r_green - cast)
-            if ch == 1 or abs(denom) < epsilon:
-                slope_ch = base_slope
-            else:
-                slope_ch = base_slope * numer / denom
-                slope_ch = min(max(slope_ch, slope_min), slope_max)
-            slope_ch = min(max(slope_ch * cg[ch], slope_min), slope_max)
-            slopes.append(slope_ch)
-            pivots.append(compute_pivot(slope_ch, density, d_min=d_min, anchor=anchor, paper=paper))
-        return (slopes[0], slopes[1], slopes[2]), (pivots[0], pivots[1], pivots[2]), (0.0, 0.0, 0.0)
-
-    # Base curve: Cast Removal off, or on with no measured refs (E6, B&W, no neutrals).
+    # Base curve: Cast Removal off, or no neutral axis (B&W, or a frame with no grays).
     s0 = min(max(base_slope * cg[0], slope_min), slope_max)
     s1 = min(max(base_slope * cg[1], slope_min), slope_max)
     s2 = min(max(base_slope * cg[2], slope_min), slope_max)

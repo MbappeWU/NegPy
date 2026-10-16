@@ -35,7 +35,6 @@ from negpy.features.exposure.normalization import (
     measure_highlight_point_from_log,
     measure_clip_fractions,
     measure_neutral_axis_from_log,
-    measure_shadow_refs_from_log,
     measure_shadow_point_from_log,
     measure_textural_range_from_log,
     normalize_log_image,
@@ -132,30 +131,6 @@ class NormalizationProcessor:
 
         context.metrics["norm_density_range"] = luminance_density_range(bounds)
 
-        if context.process_mode == ProcessMode.C41:
-            cached_ref_buffer = context.metrics.get("shadow_refs_buffer_val")
-            cached_ref_rect = context.metrics.get("shadow_refs_rect_val")
-            cached_ref_unmix = context.metrics.get("shadow_refs_crosstalk_val")
-            if (
-                "shadow_log_refs" not in context.metrics
-                or cached_ref_buffer is None
-                or abs(cached_ref_buffer - self.config.analysis_buffer) > 1e-5
-                or cached_ref_rect != region
-                or cached_ref_unmix != (self.config.crosstalk_strength, self.config.crosstalk_matrix, self.config.crosstalk_process)
-            ):
-                context.metrics["shadow_log_refs"] = measure_shadow_refs_from_log(
-                    prefiltered,
-                    None,
-                    0.0,
-                )
-                context.metrics["shadow_refs_buffer_val"] = self.config.analysis_buffer
-                context.metrics["shadow_refs_rect_val"] = region
-                context.metrics["shadow_refs_crosstalk_val"] = (
-                    self.config.crosstalk_strength,
-                    self.config.crosstalk_matrix,
-                    self.config.crosstalk_process,
-                )
-
         wp3, bp3 = per_channel_point_offsets(self.config)
         if any(v != 0.0 for v in wp3 + bp3):
             adj_floors = (
@@ -237,9 +212,8 @@ class PhotometricProcessor:
         anchor = context.metrics.get("metered_anchor") if self.config.auto_exposure else None
         lum_range = context.metrics.get("norm_density_range")
         final_bounds = context.metrics.get("final_bounds")
-        strength, shadow_refs_norm, neutral_axis_norm = cast_solve_inputs(
+        strength, neutral_axis_norm = cast_solve_inputs(
             final_bounds,
-            context.metrics.get("shadow_log_refs"),
             context.metrics.get("neutral_axis_refs"),
             self.config.cast_removal_strength,
         )
@@ -249,7 +223,6 @@ class PhotometricProcessor:
             self.config.auto_normalize_contrast,
             strength,
             lum_range,
-            shadow_refs_norm,
             context.metrics.get("textural_range"),
             d_min=d_min,
             anchor=anchor,

@@ -38,7 +38,6 @@ class TestPaperProfiles(unittest.TestCase):
             auto_normalize_contrast=False,
             strength=0.0,
             lum_range=1.3,
-            shadow_refs_norm=None,
             textural_range=None,
             d_min=d_min,
             paper=paper,
@@ -109,8 +108,8 @@ class TestPaperProfiles(unittest.TestCase):
 
     def test_channel_gamma_scales_slopes(self):
         paper = PAPER_PROFILES["fuji_crystal"]
-        slopes, _, _ = per_channel_curve_params(115.0, 1.0, False, False, 1.3, None, None, paper=paper)
-        base, _, _ = per_channel_curve_params(115.0, 1.0, False, False, 1.3, None, None)
+        slopes, _, _ = per_channel_curve_params(115.0, 1.0, False, False, 1.3, None, paper=paper)
+        base, _, _ = per_channel_curve_params(115.0, 1.0, False, False, 1.3, None)
         # Blue channel gamma > 1 → steeper blue slope than the neutral baseline.
         self.assertGreater(slopes[2], base[2])
 
