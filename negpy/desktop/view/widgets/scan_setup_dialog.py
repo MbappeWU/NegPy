@@ -1,3 +1,4 @@
+from negpy.kernel.system.i18n import tr
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -18,18 +19,18 @@ from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.features.process.models import scan_setup_values
 
 _CAPTURE = (
-    ("camera", "Digital camera", "A camera on a copy stand shooting the negative over a light source"),
-    ("scanner", "Film scanner", "A dedicated film scanner"),
+    ("camera", tr("Digital camera"), tr("A camera on a copy stand shooting the negative over a light source")),
+    ("scanner", tr("Film scanner"), tr("A dedicated film scanner")),
 )
 
 _LIGHT = {
     "camera": (
-        ("white", "White light", "A lightbox or high-CRI LED panel — one broadband exposure"),
-        ("narrowband", "Narrowband RGB", "A Scanlight or RGB-LED source — pure red, green and blue bands"),
+        ("white", tr("White light"), tr("A lightbox or high-CRI LED panel — one broadband exposure")),
+        ("narrowband", tr("Narrowband RGB"), tr("A Scanlight or RGB-LED source — pure red, green and blue bands")),
     ),
     "scanner": (
-        ("white", "White light", "A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds"),
-        ("narrowband", "Narrowband RGB", "RGB-LED illumination — Nikon Coolscan, Kodak Pakon"),
+        ("white", tr("White light"), tr("A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds")),
+        ("narrowband", tr("Narrowband RGB"), tr("RGB-LED illumination — Nikon Coolscan, Kodak Pakon")),
     ),
 }
 
@@ -43,7 +44,7 @@ class ScanSetupDialog(QDialog):
         self._capture = str((saved or {}).get("capture") or "camera")
         self._light = str((saved or {}).get("light") or "white")
 
-        self.setWindowTitle("Scanning Setup")
+        self.setWindowTitle(tr("Scanning Setup"))
         self.setMinimumWidth(460)
 
         root = QVBoxLayout(self)
@@ -70,7 +71,7 @@ class ScanSetupDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(THEME.space_md)
 
-        title = QLabel("HOW DO YOU SCAN?")
+        title = QLabel(tr("HOW DO YOU SCAN?"))
         title.setStyleSheet(pane_header_qss())
         layout.addWidget(title)
 
@@ -90,7 +91,7 @@ class ScanSetupDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(THEME.space_md)
 
-        title = QLabel("WHAT LIGHT SOURCE?")
+        title = QLabel(tr("WHAT LIGHT SOURCE?"))
         title.setStyleSheet(pane_header_qss())
         layout.addWidget(title)
 
@@ -110,11 +111,11 @@ class ScanSetupDialog(QDialog):
 
     def _build_footer(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        self.back_btn = QPushButton("← Back")
+        self.back_btn = QPushButton(tr("← Back"))
         self.back_btn.clicked.connect(self._back)
         row.addWidget(self.back_btn)
         row.addStretch()
-        cancel = QPushButton("Cancel")
+        cancel = QPushButton(tr("Cancel"))
         cancel.clicked.connect(self.reject)
         self.next_btn = QPushButton()
         self.next_btn.clicked.connect(self._advance)
@@ -154,12 +155,12 @@ class ScanSetupDialog(QDialog):
 
         on_light_page = self.pages.currentIndex() == 1
         self.back_btn.setVisible(on_light_page)
-        self.next_btn.setText("Apply" if on_light_page else "Next →")
+        self.next_btn.setText(tr("Apply") if on_light_page else tr("Next →"))
         linear_raw, narrowband = scan_setup_values(self._capture, self._light)
         self.summary.setText(
-            f"Sets Linear RAW {'on' if linear_raw else 'off'} · Narrowband {'on' if narrowband else 'off'}"
+            tr("Sets Linear RAW {value} · Narrowband {value1}", value="on" if linear_raw else "off", value1="on" if narrowband else "off")
             if on_light_page
-            else "Two questions — they set Linear RAW and Narrowband for your rig."
+            else tr("Two questions — they set Linear RAW and Narrowband for your rig.")
         )
 
     def choice(self) -> dict:

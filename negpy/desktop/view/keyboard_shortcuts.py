@@ -1,3 +1,4 @@
+from negpy.kernel.system.i18n import tr
 from collections.abc import Callable
 from typing import Optional
 
@@ -56,7 +57,7 @@ def _reset_roll(window, controller) -> None:
 
 
 def close_roll_label(state) -> str:
-    return "Close Roll…" if state.active_roll_id else "Unload All…"
+    return "Close Roll…" if state.active_roll_id else tr("Unload All…")
 
 
 def _close_roll(window, controller) -> None:
@@ -67,7 +68,7 @@ def _close_roll(window, controller) -> None:
     roll_id = session.state.active_roll_id
     name = None
     if roll_id:
-        name = (rolls.roll_for_id(session.repo, roll_id) or {}).get("name") or "this roll"
+        name = (rolls.roll_for_id(session.repo, roll_id) or {}).get("name") or tr("this roll")
     if confirm_close_roll(window, name):
         session.clear_files()
 
@@ -79,7 +80,7 @@ def remove_from_roll(window, controller) -> None:
         return
     indices = list(state.selected_indices) or [state.selected_file_idx]
     count = len(controller.roll_removal(indices))
-    name = (rolls.roll_for_id(controller.session.repo, state.active_roll_id) or {}).get("name") or "this roll"
+    name = (rolls.roll_for_id(controller.session.repo, state.active_roll_id) or {}).get("name") or tr("this roll")
     if count and confirm_remove_from_roll(window, count, name):
         controller.request_remove_from_roll(indices)
 
@@ -145,7 +146,7 @@ def _toggle_tool_button(window, tab_key: str, button) -> None:
     if button.isChecked() or (button.isEnabled() and not hidden_by_gating(button)):
         button.toggle()
     else:
-        window.controller.set_status(f"{button.text().strip()} not available", 1500, kind="warning")
+        window.controller.set_status(tr("{value} not available", value=button.text().strip()), 1500, kind="warning")
 
 
 def _slider_name(slider: object, group: SliderShortcutGroup) -> str:
@@ -390,7 +391,7 @@ class ShortcutManager:
             # A window-wide QShortcut fires from any tab, so the gating a mouse gets for free on a
             # disabled or mode-hidden control has to be applied here by hand.
             if not slider.isEnabled() or hidden_by_gating(slider):
-                self.window.controller.set_status(f"{_slider_name(slider, group)} not available", 1500, kind="warning")
+                self.window.controller.set_status(tr("{value} not available", value=_slider_name(slider, group)), 1500, kind="warning")
                 return
             step = slider_step_for(group.id, self.slider_steps)
             slider.adjust_by(step * sign_for_action(action_id))
