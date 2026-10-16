@@ -593,7 +593,7 @@ class ShortcutManager:
             "toggle_auto_density": controls.tone_sidebar.auto_density_action.trigger,
             "toggle_auto_grade": controls.tone_sidebar.auto_grade_action.trigger,
             "toggle_auto_both": controls.tone_sidebar.auto_both_action.trigger,
-            "toggle_hold_black": controls.tone_sidebar.hold_black_btn.click,
+            "toggle_hold_black": controls.tone_sidebar.hold_black_action.trigger,
             "preset_apply": controls.presets_sidebar.apply_btn.click,
             "preset_save": controls.presets_sidebar.save_btn.click,
         }

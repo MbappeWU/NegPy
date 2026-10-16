@@ -64,7 +64,9 @@ class ToneSidebar(BaseSidebar):
             )
             for ch in _CH_SUFFIX
         )
-        self.auto_btn = ToggleMenuButton("fa5s.magic", "", "Auto: automatic print density and grade, and the targets they aim for")
+        self.auto_btn = ToggleMenuButton(
+            "fa5s.magic", "", "Auto: automatic print density and grade, the targets they aim for, and Hold Black"
+        )
         self.auto_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.auto_density_action = self.auto_btn.add_toggle(
             "Auto Density",
@@ -80,6 +82,14 @@ class ToneSidebar(BaseSidebar):
         self.auto_both_action = self.auto_btn.choice_menu.addAction("Auto Density and Grade")
         self.auto_both_action.setCheckable(True)
         self.auto_both_action.plain_tooltip = "Turn Auto Density and Auto Grade on or off together"
+        self.auto_btn.choice_menu.addSeparator()
+        # Not an add_toggle option either: it meters nothing, so the button's look ignores it.
+        self.hold_black_action = self.auto_btn.choice_menu.addAction("Hold Black")
+        self.hold_black_action.setCheckable(True)
+        self.hold_black_action.setChecked(conf.hold_black)
+        self.hold_black_action.plain_tooltip = (
+            "Hold Black: a negative Shadows Density fades out toward paper black, so the shadows open and the black point barely moves."
+        )
         self.auto_btn.choice_menu.addSeparator()
         targets_action = self.auto_btn.choice_menu.addAction("Set Targets…")
         targets_action.setToolTip(
@@ -122,14 +132,7 @@ class ToneSidebar(BaseSidebar):
 
         self.shadow_density_slider = CompactSlider("Shadows Density", -1.0, 1.0, conf.shadow_density)
         self.highlight_density_slider = CompactSlider("Highlights Density", -1.0, 1.0, conf.highlight_density)
-        self.hold_black_btn = self._labeled_toggle(
-            "mdi.circle",
-            "Hold Black",
-            conf.hold_black,
-            "Hold Black: a negative Shadows Density fades out toward paper black, so the shadows "
-            "open and the black point barely moves.",
-        )
-        self.layout.addWidget(SliderGroup(self.shadow_density_slider, self.hold_black_btn, self.highlight_density_slider))
+        self.layout.addWidget(SliderGroup(self.shadow_density_slider, self.highlight_density_slider))
 
         grade_row = QVBoxLayout()
         grade_row.addWidget(self.grade_slider)
@@ -184,7 +187,6 @@ class ToneSidebar(BaseSidebar):
             self.test_strip_btn,
             self.auto_btn,
             self.shadow_density_slider,
-            self.hold_black_btn,
             self.highlight_density_slider,
             # A pan masking film is neutral: the mask is one plane subtracted as equal
             # density from every layer, so it has no per-channel form to trim.
@@ -271,7 +273,7 @@ class ToneSidebar(BaseSidebar):
             slider.dragStarted.connect(lambda f=field: self.controller.tone_drag_changed.emit(f))
             slider.dragEnded.connect(lambda: self.controller.tone_drag_changed.emit(""))
         self.controller.image_updated.connect(self._sync_driven)
-        self.hold_black_btn.toggled.connect(
+        self.hold_black_action.toggled.connect(
             lambda checked: self.update_config_section("exposure", render=True, persist=True, readback_metrics=True, hold_black=checked)
         )
 
@@ -395,7 +397,7 @@ class ToneSidebar(BaseSidebar):
                 self.diffusion_slider,
                 self.preflash_slider,
                 # The transfer curve always fades a lift at the bottom of its window.
-                self.hold_black_btn,
+                self.hold_black_action,
             ):
                 w.setVisible(not transfer)
             # Per-layer trims are meaningless on a single-emulsion B&W paper.
@@ -437,7 +439,7 @@ class ToneSidebar(BaseSidebar):
             self.mask_spacer_slider.setValue(conf.mask_spacer)
             self.diffusion_slider.setValue(conf.diffusion)
             self.preflash_slider.setValue(conf.preflash)
-            self.hold_black_btn.setChecked(conf.hold_black)
+            self.hold_black_action.setChecked(conf.hold_black)
             # Out of _global_only: that tuple means enabled exactly when global.
             self.mask_spacer_slider.setEnabled(global_mode and conf.contrast_mask != 0.0)
             self.auto_density_action.setChecked(conf.auto_exposure)
@@ -461,7 +463,7 @@ class ToneSidebar(BaseSidebar):
             self.mask_spacer_slider,
             self.diffusion_slider,
             self.preflash_slider,
-            self.hold_black_btn,
+            self.hold_black_action,
             self.auto_density_action,
             self.auto_grade_action,
             self.auto_both_action,
