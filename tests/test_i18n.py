@@ -171,6 +171,10 @@ assert form.values()['paper_aspect_ratio'] == 'Original'
 from negpy.desktop.view.sidebar.controls_panel import ControlsPanel
 controller = FakeController(FakeRepo())
 panel = ControlsPanel(controller)
+assert {page['key']: page['label'] for page in panel.pages} == {
+    'geometry': '几何', 'tone': '曝光', 'color': '风格', 'finish': '修饰',
+}
+assert panel.pages[0]['tooltip'] == '几何'
 controller.state.config = replace(controller.state.config, geometry=replace(controller.state.config.geometry, autocrop_ratio='6:7'))
 panel.geometry_sidebar.sync_ui()
 panel.autocrop_sidebar.sync_ui()

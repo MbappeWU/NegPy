@@ -2895,6 +2895,7 @@
     "negpy/desktop/view/shortcut_registry.py:180",
     "negpy/desktop/view/sidebar/altprocess.py:85",
     "negpy/desktop/view/sidebar/altprocess.py:135",
+    "negpy/desktop/view/sidebar/controls_panel.py:384",
     "negpy/desktop/view/sidebar/metadata.py:331",
     "negpy/desktop/view/sidebar/metadata.py:334",
     "negpy/desktop/view/sidebar/scan.py:372",
@@ -3167,6 +3168,9 @@
   ],
   "Fine rotation ↑/↓": [
     "negpy/desktop/view/slider_shortcut_groups.py:96"
+  ],
+  "Finish": [
+    "negpy/desktop/view/sidebar/controls_panel.py:398"
   ],
   "Finish Pick Better": [
     "negpy/desktop/view/shortcut_registry.py:101"
@@ -3478,6 +3482,8 @@
     "negpy/desktop/view/shortcut_registry.py:92",
     "negpy/desktop/view/shortcut_registry.py:93",
     "negpy/desktop/view/sidebar/controls_panel.py:170",
+    "negpy/desktop/view/sidebar/controls_panel.py:376",
+    "negpy/desktop/view/sidebar/controls_panel.py:377",
     "negpy/desktop/view/slider_shortcut_groups.py:95",
     "negpy/desktop/view/slider_shortcut_groups.py:96",
     "negpy/desktop/view/slider_shortcut_groups.py:97",
@@ -4403,6 +4409,9 @@
   ],
   "Long edge of the print": [
     "negpy/desktop/view/widgets/export_settings_form.py:275"
+  ],
+  "Look": [
+    "negpy/desktop/view/sidebar/controls_panel.py:391"
   ],
   "Look & Finish": [
     "negpy/desktop/view/widgets/tutorial_steps.py:21"
