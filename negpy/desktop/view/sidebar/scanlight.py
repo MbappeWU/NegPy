@@ -17,7 +17,6 @@ import qtawesome as qta
 from PyQt6.QtCore import QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QImage, QPixmap, QStandardItemModel
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QInputDialog,
     QMessageBox,
@@ -48,6 +47,7 @@ from negpy.desktop.view.styles.templates import (
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.sliders import CompactSlider
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure import simulated
 from negpy.infrastructure.capture.gphoto import default_settings_path
 from negpy.infrastructure.capture.settings import ScanlightSettings, WhiteCaptureMode
@@ -325,7 +325,7 @@ class ScanlightSidebar(QWidget):
         rgb.setContentsMargins(0, 0, 0, 0)
         rgb.setSpacing(THEME.space_md)
 
-        self.preset_combo = QComboBox()
+        self.preset_combo = StepCombo()
         self.preset_combo.setToolTip(
             wrap_tooltip(
                 "Pick a saved film-stock preset (RGB levels + ISO + shutter + aperture, shown read-only), a "

@@ -82,11 +82,12 @@ class PaperProfile:
     density floor (base tint, shows in highlights). dye_matrix — dye coupling
     D_rgb = M · D_dye above base, row-normalized at use.
     lith_path — the paper's lith color path, read by the Lith stage.
-    kind drives dropdown grouping.
+    kind picks the process mode the paper shows in; medium is its group in the dropdown.
     """
 
     label: str
     kind: str = "ra4"  # "default" | "bw" | "ra4"
+    medium: str = "paper"  # "digital" | "paper" | "film"
     d_max: float = EXPOSURE_CONSTANTS["d_max"]
     d_min: float = EXPOSURE_CONSTANTS["d_min"]
     toe_sharpness_base: float = EXPOSURE_CONSTANTS["toe_sharpness_base"]
@@ -102,12 +103,13 @@ class PaperProfile:
 
 
 PAPER_PROFILES: Dict[str, PaperProfile] = {
-    DEFAULT_PROFILE_KEY: PaperProfile(label="Digital (Adobe RGB)", kind="default"),
+    DEFAULT_PROFILE_KEY: PaperProfile(label="Digital (Adobe RGB)", kind="default", medium="digital"),
     # Digital's curve with a Pakon minilab's colors: the coupling is fitted by
     # scripts/fit_icc_dyes.py to RGBScan.icc read on Adobe RGB, which keeps neutrals.
     "pakon": PaperProfile(
         label="Digital (Pakon Minilab)",
         kind="ra4",
+        medium="digital",
         dye_matrix=(
             (0.7937, 0.2331, -0.0268),
             (0.0640, 0.8809, 0.0551),
@@ -262,6 +264,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
     "kodak_2383": PaperProfile(
         label="Kodak Vision 2383",
         kind="ra4",
+        medium="film",
         d_max=2.29,
         d_min=0.065,
         toe_sharpness_base=2.65,
@@ -280,6 +283,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
     "kodak_2393": PaperProfile(
         label="Kodak Vision Premier 2393",
         kind="ra4",
+        medium="film",
         d_max=2.25,
         d_min=0.025,
         toe_sharpness_base=3.22,
