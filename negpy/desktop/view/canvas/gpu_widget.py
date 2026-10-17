@@ -224,6 +224,9 @@ class GPUCanvasWidget(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
+        # Bitmap present paints the last frame stretched to the new size until a new one lands.
+        if self.current_texture_view is not None:
+            self.canvas.force_draw()
         self.resize_timer.start()
 
     def event(self, event) -> bool:
