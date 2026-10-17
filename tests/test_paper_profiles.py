@@ -1,5 +1,7 @@
+import os
 import unittest
 
+import imagecodecs
 import numpy as np
 
 from negpy.features.exposure.logic import (
@@ -18,7 +20,10 @@ from negpy.features.exposure.papers import (
     profiles_for_mode,
     resolve_paper,
 )
+from negpy.features.process.chart import delta_e2000
 from negpy.features.process.models import ProcessMode
+from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE, ColorSpaceRegistry
+from negpy.kernel.image.logic import rgb_to_lab_working
 
 
 class TestPaperProfiles(unittest.TestCase):
@@ -29,7 +34,7 @@ class TestPaperProfiles(unittest.TestCase):
         x = np.linspace(0.0, 1.0, 32, dtype=np.float32)
         return np.stack([x, x, x], axis=-1)[None, :, :]
 
-    def _render(self, profile_key: str) -> np.ndarray:
+    def _render(self, profile_key: str, img: np.ndarray | None = None) -> np.ndarray:
         paper = resolve_paper(profile_key)
         d_min = paper.d_min  # paper_dmin on
         slopes, pivots, _ = per_channel_curve_params(
@@ -44,7 +49,7 @@ class TestPaperProfiles(unittest.TestCase):
         )
         # Base tint + dye coupling ride the paper profile inside the curve.
         return apply_characteristic_curve(
-            self._ramp(),
+            self._ramp() if img is None else img,
             (pivots[0], slopes[0]),
             (pivots[1], slopes[1]),
             (pivots[2], slopes[2]),
@@ -98,12 +103,28 @@ class TestPaperProfiles(unittest.TestCase):
         np.testing.assert_allclose(prof, base, atol=1e-6)
 
     def test_profile_changes_curve(self):
-        default = self._render(DEFAULT_PROFILE_KEY)
+        # Chromatic, so a stock that keeps Digital's curve and changes only its dyes counts too.
+        ramp = self._ramp() * np.array([1.0, 0.8, 0.6], dtype=np.float32)
+        default = self._render(DEFAULT_PROFILE_KEY, ramp)
         for key in PAPER_PROFILES:
             if key == DEFAULT_PROFILE_KEY:
                 continue
-            out = self._render(key)
+            out = self._render(key, ramp)
             self.assertGreater(float(np.max(np.abs(out - default))), 1e-3, f"{key} did not change the curve")
+
+    def test_pakon_is_digital_with_its_profile_colors(self):
+        # Its color target is RGBScan.icc applied to a Digital print, as the export applies an input ICC.
+        np.testing.assert_allclose(self._render("pakon"), self._render(DEFAULT_PROFILE_KEY), atol=1e-6)
+        rng = np.random.default_rng(0)
+        img = (rng.uniform(0.2, 0.8, (1, 2000, 1)) + rng.uniform(-0.1, 0.1, (1, 2000, 3))).astype(np.float32)
+        digital, pakon = self._render(DEFAULT_PROFILE_KEY, img)[0], self._render("pakon", img)[0]
+        icc = open(os.path.join(os.path.dirname(__file__), "fixtures", "RGBScan.icc"), "rb").read()
+        adobe = open(ColorSpaceRegistry.get_icc_path(WORKING_COLOR_SPACE), "rb").read()
+        enc = np.round(np.clip(digital, 0, 1) ** (256 / 563) * 65535).astype(np.uint16)[:, None, :]
+        out = imagecodecs.cms_transform(enc, icc, adobe, colorspace="RGB", outcolorspace="RGB", intent=1, flags=0x2000)
+        target = rgb_to_lab_working((out[:, 0, :] / 65535.0) ** (563 / 256))
+        miss = delta_e2000(rgb_to_lab_working(pakon), target).mean()
+        self.assertLess(miss, 0.5 * delta_e2000(rgb_to_lab_working(digital), target).mean())
 
     def test_ra4_introduces_color_divergence(self):
         # Per-channel gamma + tint must make a neutral ramp non-grey on RA4 papers.
