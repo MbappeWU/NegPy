@@ -157,6 +157,7 @@ class ScanlightSidebar(QWidget):
         self._scanning = False
         self._camera_verified = False  # "Live View & Scan" is gated until Check confirms camera…
         self._light_verified = False  # …and light, plus a folder + a selected preset
+        self._white_offered = False  # white-light presets show once a poll reports a white LED
         self._rgb_mode = True  # Scanlight present → RGB (presets + sliders); else normal white-light scan
         self._manual_mode = False  # True while building a preset by hand (sliders + exposure editable)
         self._manual_populate_pending = False  # seed the sidebar exposure steppers from the body once, then let the user drive
@@ -1861,7 +1862,9 @@ class ScanlightSidebar(QWidget):
         LED) hides the W slider and the white-light presets, since neither can do anything. The
         presets show only once a poll has reported a white LED (v4 / Big)."""
         has_white = self._light_has_white
-        offer_white = self._light_verified and has_white
+        if self._light_verified:
+            self._white_offered = has_white  # a missed poll keeps the last reported answer
+        offer_white = self._white_offered
         rgb_only = self._light_verified and not has_white
         self.w_slider.setVisible(has_white)
         model = self.preset_combo.model()
@@ -1881,15 +1884,12 @@ class ScanlightSidebar(QWidget):
         # RGB-only body clears the setting itself and gets the default RGB light back.
         if rgb_only and self._settings.white_mode:
             defaults = ScanlightSettings.defaults()
-            levels = {"r_level": defaults.r_level, "g_level": defaults.g_level, "b_level": defaults.b_level, "w_level": 0}
-            for slider, key in (
-                (self.r_slider, "r_level"),
-                (self.g_slider, "g_level"),
-                (self.b_slider, "b_level"),
-                (self.w_slider, "w_level"),
-            ):
-                self._set_slider(slider, levels[key])
-            self._settings = replace(self._settings, white_mode=False, white_process_mode=defaults.white_process_mode, **levels)
+            r, g, b = defaults.r_level, defaults.g_level, defaults.b_level
+            for slider, value in ((self.r_slider, r), (self.g_slider, g), (self.b_slider, b), (self.w_slider, 0)):
+                self._set_slider(slider, value)
+            self._settings = replace(
+                self._settings, white_mode=False, white_process_mode=defaults.white_process_mode, r_level=r, g_level=g, b_level=b, w_level=0
+            )
             self._save_settings()
             self._refresh_preset_hint()
             self._apply_gating()

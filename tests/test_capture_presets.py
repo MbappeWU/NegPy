@@ -87,11 +87,12 @@ def test_store_knows_which_sensor_profiles_its_presets_own():
     assert not store.owns_sensor_profile("")
 
 
-def test_rgb_only_framing_raises_the_mix_to_the_floor_and_keeps_its_hue():
-    assert framing_levels(180, 185, 155, rgb_only=True) == (134, 137, 115)
+def test_rgb_only_framing_raises_each_dimmed_channel_to_the_floor():
+    assert framing_levels(180, 185, 155, rgb_only=True) == (115, 115, 115)
+    assert framing_levels(255, 230, 90, rgb_only=True) == (115, 115, 90)  # never above the recipe
 
 
-def test_rgb_only_framing_never_exceeds_the_recipe_levels():
+def test_rgb_only_framing_keeps_dark_channels_dark():
     assert framing_levels(100, 90, 0, rgb_only=True) == (100, 90, 0)
     assert framing_levels(0, 0, 0, rgb_only=True) == (0, 0, 0)
 

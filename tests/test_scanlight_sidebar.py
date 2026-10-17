@@ -2179,9 +2179,9 @@ def _rgb_only_poll():
     return _poll(usb_ok=True, usb_model="Canon", light_detail="Scanlight v2/v3 (fw5)") | {"light_has_white": False}
 
 
-@pytest.mark.parametrize(("has_white", "expected"), [(True, (25, 12, 11, 0)), (False, (200, 100, 90, 0))])
+@pytest.mark.parametrize(("has_white", "expected"), [(True, (25, 12, 11, 0)), (False, (115, 100, 90, 0))])
 def test_triplet_framing_on_an_rgb_only_scanlight_clears_its_floor(monkeypatch, has_white, expected):
-    # The v4 dims 3 stops; an RGB-only body's floor lifts this preset back to its own levels.
+    # The v4 dims 3 stops; an RGB-only body raises each channel to its floor, capped at the preset.
     w = _sidebar()
     w._light_has_white = has_white
     _select_stored(w, monkeypatch, _rgb_preset())
@@ -2237,3 +2237,21 @@ def test_a_sticky_white_mode_survives_until_the_light_reports():
     )
     w = ScanlightSidebar(ctrl)
     assert w._settings.white_mode  # a v4's white preset is not dropped before the first poll
+
+
+def test_rgb_only_framing_leaves_the_scan_at_the_preset_levels(tmp_path, monkeypatch):
+    w = _sidebar()
+    w._light_verified, w._light_has_white = True, False
+    _select_stored(w, monkeypatch, _rgb_preset())
+    assert w.controller.set_scanlight_color.call_args[0][:3] == (115, 100, 90)
+    w.output.folder_edit.setText(str(tmp_path))
+    w.output.roll_edit.setText("Roll001")
+    w._start_capture(retake=False)
+    assert w.controller.start_capture.call_args[0][0].levels == (200, 100, 90)
+
+
+def test_a_missed_poll_keeps_the_white_presets_offered():
+    w = _sidebar()
+    w._on_poll_status(_poll(usb_ok=True, usb_model="Canon") | {"light_has_white": True})
+    w._on_poll_status(_poll(usb_ok=True, usb_model="Canon", light_ok=False) | {"light_has_white": True})
+    assert not any(_white_rows_hidden(w))
