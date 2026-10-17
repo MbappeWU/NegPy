@@ -184,18 +184,18 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         channel_gamma=(1.04, 1.0, 0.98),
         dye_matrix=_ENDURA_DYE,
     ),
+    # Fuji publishes no characteristic curve. Fitted to the grey wedge koraks.nl measured on ADOX
+    # Color Mission, a Crystal Archive paper, with Dmax pinned to Fuji's AF3-198E calibration
+    # target. One neutral curve, so no layer crossover or tint.
     "fuji_crystal": PaperProfile(
         label="Fujicolor Crystal Archive",
-        toe_sharpness_base=4.0,
         kind="ra4",
-        # No published curve, so this is a rough estimate: brilliant whites, vivid blue and
-        # green, a slightly cool base. The tint is a per-channel density offset, where positive
-        # darkens that channel, so a negative M/Y lifts green and blue for the vivid look.
-        d_max=2.35,
-        d_min=0.03,
-        paper_midtone_gamma=0.15,
-        channel_gamma=(1.0, 1.03, 1.05),
-        base_tint_cmy=(0.0, -0.01, -0.015),
+        d_max=2.00,
+        d_min=0.120,
+        toe_sharpness_base=5.96,
+        shoulder_sharpness_base=2.89,
+        paper_midtone_gamma=-0.203,
+        paper_gamma_width=0.62,
         # Dyes from AF3-198E's spectral dye density curves.
         dye_matrix=(
             (0.8280, 0.1932, -0.0212),
