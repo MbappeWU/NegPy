@@ -173,10 +173,11 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         # Dyes from E-4070's spectral dye density curves, under D50.
         print_color=DyeLut("kodak_e4070"),
     ),
-    # Fuji publishes no characteristic curve. The knees and midtone are fitted to the grey wedge
-    # koraks.nl measured on ADOX Color Mission, a Crystal Archive paper. Paper white, base tint, Dmax
-    # and dyes come from Fujifilm's Frontier-PD profile for the paper; the HD and Pearl stocks keep
-    # these knees with their own profiles. Pearl keeps DPII's white: its measured white is the
+    # Fuji publishes no characteristic curve. The knees are fitted to the grey wedge koraks.nl
+    # measured on ADOX Color Mission, a Crystal Archive paper; the midtone takes Endura Premier's
+    # shape, a consumer RA4 paper of like contrast. Paper white, base tint, Dmax and dyes come from
+    # Fujifilm's Frontier-PD profile for the paper; the HD and Pearl stocks keep this curve with their
+    # own profiles. Pearl keeps DPII's white: its measured white is the
     # measuring angle on a pearl surface.
     "fuji_crystal": PaperProfile(
         label="Fujicolor Crystal Archive",
@@ -185,8 +186,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         d_min=0.083,
         toe_sharpness_base=5.96,
         shoulder_sharpness_base=2.89,
-        paper_midtone_gamma=-0.203,
-        paper_gamma_width=0.62,
+        paper_midtone_gamma=0.22,
         base_tint_cmy=(0.008, 0.007, -0.016),
         print_color=DyeLut("fuji_ca_dpii"),
     ),
@@ -197,8 +197,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         d_min=0.071,
         toe_sharpness_base=5.96,
         shoulder_sharpness_base=2.89,
-        paper_midtone_gamma=-0.203,
-        paper_gamma_width=0.62,
+        paper_midtone_gamma=0.22,
         base_tint_cmy=(0.015, 0.011, -0.026),
         print_color=DyeLut("fuji_ca_hd"),
     ),
@@ -209,8 +208,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         d_min=0.083,
         toe_sharpness_base=5.96,
         shoulder_sharpness_base=2.89,
-        paper_midtone_gamma=-0.203,
-        paper_gamma_width=0.62,
+        paper_midtone_gamma=0.22,
         base_tint_cmy=(0.008, 0.007, -0.016),
         print_color=DyeLut("fuji_ca_pearl"),
     ),
