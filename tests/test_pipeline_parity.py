@@ -209,6 +209,14 @@ class TestExposureParity:
         s = replace(s, exposure=replace(s.exposure, toe=-1.0, shadow_density=0.5))
         _assert_mostly_close(*self._render_both(s), atol=1e-2, rtol=0.0, max_violation_frac=0.01)
 
+    def test_lut_texture_replacement_drops_bind_groups(self, tmp_path, monkeypatch):
+        # Bind groups are keyed by id() of the view: a destroyed LUT's id can come back on a new view.
+        self._render_both(self._lut_stock(tmp_path, monkeypatch, "lut_r", 0.10))
+        assert self.gpu._bind_group_cache
+        load_print_lut.cache_clear()
+        self.gpu._lut_texture(load_print_lut("lut_r"))
+        assert not self.gpu._bind_group_cache
+
     def test_lut_stock_switch(self, tmp_path, monkeypatch):
         a = self._lut_stock(tmp_path, monkeypatch, "lut_a", 0.10)
         b = self._lut_stock(tmp_path, monkeypatch, "lut_b", 0.40)

@@ -3131,6 +3131,7 @@ class GPUEngine:
         if cached is None or cached[0] is not lut:
             if cached is not None:
                 cached[1].destroy()
+                self._bind_group_cache.clear()
             usage = wgpu.TextureUsage.TEXTURE_BINDING | wgpu.TextureUsage.COPY_DST
             if lut is None:
                 tex = GPUTexture(1, 1, usage=usage)
