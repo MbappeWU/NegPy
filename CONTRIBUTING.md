@@ -162,6 +162,9 @@ Wrap display text in `tr("English source", name=value)` and translate the whole 
 
 Register languages in `LANGUAGES` (`negpy/kernel/system/i18n.py`), using the matching Qt catalog locale, and set their count forms in `kernel/system/text.py`. `make translations` updates every registered JSON catalog under `negpy/translations/` and the shared source references. Fill new entries, then run `make translations-check` to check coverage and placeholders for all catalogs. Localized panel guides use the same `<!-- panel:key -->` markers as `docs/USER_GUIDE.md`; missing panels fall back to English. Include new catalog and guide files in the packaged resources.
 
+For translation updates after releases or upstream merges, use the
+[update-translations skill](.claude/skills/update-translations/SKILL.md).
+
 ## Building and Packaging
 
 To build the standalone application for your current OS with PyInstaller:
