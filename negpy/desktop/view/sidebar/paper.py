@@ -1,10 +1,17 @@
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout
+import qtawesome as qta
+from PyQt6.QtWidgets import QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.sidebar.tone import _CH_LABEL, _CH_SUFFIX, channel_selector
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_row
+from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.exposure.logic import per_channel_dye_separation
+from negpy.features.exposure.papers import DEFAULT_PROFILE_KEY, profiles_for_mode
+
+# Each PaperProfile.medium's (icon, header) in the Print stock list.
+_MEDIA = {"digital": ("mdi6.monitor", "Digital"), "paper": ("mdi6.file-image-outline", "Paper"), "film": ("mdi6.filmstrip", "Print film")}
 
 
 class PaperSidebar(BaseSidebar):
@@ -56,7 +63,7 @@ class PaperSidebar(BaseSidebar):
         ch_row.addWidget(self.paper_dmin_btn)
         self.layout.addLayout(ch_row)
 
-        self.paper_combo = QComboBox()
+        self.paper_combo = StepCombo()
         self.paper_combo.setToolTip(
             "Print stock: the paper or print film the negative is printed on. It sets the H&D curve and, "
             "on color stock, the colors its dyes make, from the datasheet; Grade, Density, Toe and "
@@ -126,16 +133,22 @@ class PaperSidebar(BaseSidebar):
 
     def _populate_paper_combo(self, process_mode: str) -> None:
         """Fill the paper dropdown with the papers valid for the current process
-        mode (the Digital default + the mode's kind)."""
-        from negpy.features.exposure.papers import profiles_for_mode
-
-        entries = [(prof.label, key) for key, prof in profiles_for_mode(process_mode)]
+        mode (the Digital default + the mode's kind), under a header per medium."""
+        entries: list[tuple[str, str | None, str]] = []
+        for key, prof in profiles_for_mode(process_mode):
+            if not entries or entries[-1][2] != prof.medium:
+                entries.append((_MEDIA[prof.medium][1], None, prof.medium))
+            entries.append((prof.label, key, prof.medium))
         current = [(self.paper_combo.itemText(i), self.paper_combo.itemData(i)) for i in range(self.paper_combo.count())]
-        if entries == current:
+        if [(label, key) for label, key, _ in entries] == current:
             return
         self.paper_combo.clear()
-        for label, key in entries:
-            self.paper_combo.addItem(label, key)
+        for label, key, medium in entries:
+            if key is None:
+                self.paper_combo.add_header(label)
+            else:
+                icon = qta.icon(_MEDIA[medium][0], color=THEME.text_primary, color_disabled=THEME.text_muted)
+                self.paper_combo.addItem(icon, label, key)
 
     def _on_paper_changed(self, _idx: int) -> None:
         key = self.paper_combo.currentData()
@@ -215,7 +228,7 @@ class PaperSidebar(BaseSidebar):
             mode = self.state.config.process.process_mode
             self._populate_paper_combo(mode)
             paper_idx = self.paper_combo.findData(conf.paper_profile)
-            self.paper_combo.setCurrentIndex(paper_idx if paper_idx >= 0 else 0)
+            self.paper_combo.setCurrentIndex(paper_idx if paper_idx >= 0 else self.paper_combo.findData(DEFAULT_PROFILE_KEY))
             self.paper_combo.setVisible(mode != ProcessMode.E6)
             self.paper_label.setVisible(mode != ProcessMode.E6)
 

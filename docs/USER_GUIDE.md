@@ -77,7 +77,7 @@ Tabs that do not change the render:
 | **Gear** | Gear library | Cameras, lenses, films, processes, scan setups |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
-On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
+On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
 
 ### What carries to the next frame
 
