@@ -199,7 +199,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             ROLL,
             "Calibration",
             "This card corrects the capture, not the look. The <b>bulb</b> asks how you scan, then sets "
-            "Linear RAW and <b>Narrowband</b> (RGB-LED light). <b>Single-Shot Narrowband Calibration</b> "
+            "<b>Camera WB</b> or <b>Linear RAW</b>. <b>Single-Shot Narrowband Calibration</b> "
             "removes sensor leak between bands. <b>Hue Trim</b> rotates hues for an unusual lamp.",
             lambda w: cp(w).sensor_section,
             focus=lambda w: cp(w).sensor_sidebar.scan_setup_btn,

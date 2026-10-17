@@ -719,18 +719,17 @@ These controls correct the capture, not the look.
 
 **Capture**:
 
-*   **Scanning setup**: a wizard (*how do you scan?*, *what light source?*) that sets Linear RAW and Narrowband. It runs once after the first-launch tour; open it again when your rig changes.
-*   **Linear RAW** (default off): decodes RAW with neutral multipliers; off uses the as-shot white balance. Locked on for a Trichrome triplet.
-*   **Narrowband**: corrects the oversaturation of narrowband (RGB-LED) capture with a bundled input profile; leave it off for broadband light. An Input ICC in Export overrides it.
+*   **Scanning setup**: a wizard (*how do you scan?*, *what light source?*) that sets Camera WB or Linear RAW. It runs once after the first-launch tour; open it again when your rig changes.
+*   **Camera WB / Linear RAW** (default Camera WB): how a RAW file decodes. *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
 
 What the wizard sets:
 
-| Capture | Light source | Linear RAW | Narrowband |
-| --- | --- | --- | --- |
-| Digital camera | White light (lightbox, CRI LED panel) | off | off |
-| Digital camera | Narrowband RGB (Scanlight, RGB LED) | on | on |
-| Film scanner | White light (Plustek, Epson, most flatbeds) | on | off |
-| Narrowband Scanner | Nikon Coolscan, Kodak Pakon | on | on |
+| Capture | Light source | Decode |
+| --- | --- | --- |
+| Digital camera | White light (lightbox, CRI LED panel) | Camera WB |
+| Digital camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW |
+| Film scanner | White light (Plustek, Epson, most flatbeds) | Linear RAW |
+| Narrowband Scanner | Nikon Coolscan, Kodak Pakon | Linear RAW |
 
 Applying it sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame).
 
@@ -762,7 +761,7 @@ To tune a matrix, adjust its six off-diagonal terms in the editor and save it as
 
 #### Narrowband and slides
 
-Narrowband and Single-Shot Narrowband Calibration do not apply to Transparency; they stay grayed out with their values for the next negative. For slides on a narrowband rig, use **Hue Trim**.
+Single-Shot Narrowband Calibration does not apply to Transparency; it stays grayed out with its values for the next negative. For slides on a narrowband rig, use **Hue Trim**.
 
 <!-- panel:autocrop -->
 ### 10.4 Crop
@@ -810,7 +809,7 @@ How this frame is measured into a positive's tonal bounds.
 *   **Auto Density** and **Auto Grade** start off on a slide; turn them on to meter a faded or expired one. On a merged bracket **Render exposure** sets the exposure instead.
 *   Lightroom mapping: **Exposure** → Print Density (lower is brighter), **Contrast** → ISO-R Grade (180 is softest), **Shadows** → Shadows Density, **Highlights** → Highlights Density. Positive adds density, so negative Shadows Density opens shadows. **Whites** and **Blacks** have no equivalent.
 *   A source with no camera matrix (a scanner TIFF, a JPEG) passes straight through. An Input ICC in Export replaces the camera matrix.
-*   **Linear RAW** is grayed out except with **Positive** on. **Narrowband** and **Single-Shot Narrowband Calibration** are grayed out ([Narrowband and slides](#narrowband-and-slides)).
+*   **Camera WB / Linear RAW** is grayed out except with **Positive** on. **Single-Shot Narrowband Calibration** is grayed out ([Narrowband and slides](#narrowband-and-slides)).
 
 **Analysis** sets where the black and white points are metered.
 
@@ -1101,7 +1100,7 @@ Copy-stand capture with a camera in **PC Remote** mode over USB (macOS/Linux): w
 *   **Meter** (white-light and camera-only scanning): one RAW probe sets the shutter so the region that must not clip (a negative's clear base, a slide's brightest highlights) lands just under clipping. The white-light preset's film type decides which. A clipped reading steps down two stops; meter again.
 *   **Scan** and **Retake**: **Scan** shoots the next frame, auto-numbered, and imports it; **Retake** (the redo arrow beside **Live View**) shoots the last frame again. In the Live View window, `S` scans and `R` retakes.
 *   **Keep Light On** (the bulb beside **Retake**, off by default): the Scanlight goes dark after each scan; this lights it again with the framing light, so you can frame the next shot on the camera's screen. Live View lights it again without this toggle.
-*   **Narrowband**: RGB-lit scans render more saturated; the Calibration card's **Narrowband** toggle corrects this.
+*   **Narrowband**: RGB-lit scans render more saturated than white light; a **Print stock** other than *Digital* prints them through real dyes.
 
 <!-- panel:scan_light -->
 ### Preset & Light

@@ -250,9 +250,8 @@ class ThumbnailRenderInput:
     file_info: dict
     config: WorkspaceConfig
     thumbnail_key: str
-    # Whether an Input ICC (explicit override or the implicit Narrowband Scan profile)
-    # applies to this frame — mirrors AppController.effective_input_icc, resolved at
-    # dispatch since the worker has no session state to check it itself.
+    # Whether an Input ICC applies to this frame — mirrors AppController.effective_input_icc,
+    # resolved at dispatch since the worker has no session state to check it itself.
     icc_input_active: bool = False
 
 

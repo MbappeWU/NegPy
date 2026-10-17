@@ -76,7 +76,7 @@ _SENSOR_FIELDS = (
 )
 # ProcessConfig is split across five cards. Each tuple is both the card's reset scope and
 # its modified count, so a field is resettable from the one card that counts it.
-# Linear RAW, Narrowband and the two demosaic choices are in none: they come from the scanning
+# Linear RAW and the two demosaic choices are in none: they come from the scanning
 # setup, which no card or frame reset changes (_with_scan_setup).
 # locked_floors/locked_ceils/locked_neutral_axis are in none: they are Roll Analysis's measured result.
 _FILM_FIELDS = (

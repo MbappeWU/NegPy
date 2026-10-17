@@ -35,8 +35,8 @@ _LIGHT = {
 
 
 class ScanSetupDialog(QDialog):
-    """Two-page wizard asking what rig the negatives were scanned on, so Linear RAW and
-    Narrowband can be set from the answer instead of by trial and error."""
+    """Two-page wizard asking what rig the negatives were scanned on, so Camera WB or Linear RAW
+    can be set from the answer instead of by trial and error."""
 
     def __init__(self, parent, saved: Optional[dict] = None, *, repo=None):
         super().__init__(parent)
@@ -155,11 +155,11 @@ class ScanSetupDialog(QDialog):
         on_light_page = self.pages.currentIndex() == 1
         self.back_btn.setVisible(on_light_page)
         self.next_btn.setText("Apply" if on_light_page else "Next →")
-        linear_raw, narrowband = scan_setup_values(self._capture, self._light)
+        linear_raw = scan_setup_values(self._capture, self._light)
         self.summary.setText(
-            f"Sets Linear RAW {'on' if linear_raw else 'off'} · Narrowband {'on' if narrowband else 'off'}"
+            f"Sets {'Linear RAW' if linear_raw else 'Camera WB'}"
             if on_light_page
-            else "Two questions — they set Linear RAW and Narrowband for your rig."
+            else "Two questions — they set Camera WB or Linear RAW for your rig."
         )
 
     def choice(self) -> dict:

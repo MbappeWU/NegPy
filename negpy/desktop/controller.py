@@ -78,7 +78,6 @@ from negpy.features.process.logic import (
     effective_highlight_reconstruction,
     effective_linear_raw,
     highlight_reconstruction_bakes_wb,
-    narrowband_profile_active,
 )
 from negpy.features.stitch.models import stitch_hash, stitch_name
 from negpy.desktop.workers.capture_worker import (
@@ -185,7 +184,6 @@ from negpy.features.lab.models import LabConfig
 from negpy.features.local.models import LocalAdjustmentsConfig
 from negpy.features.process.path import RenderPath, render_path
 from negpy.features.process.models import (
-    ProcessConfig,
     ProcessMode,
     cast_removal_for_mode,
     invalidate_local_bounds,
@@ -205,7 +203,7 @@ from negpy.services.assets.thumbnail_fingerprint import (
     thumbnail_fingerprint,
 )
 from negpy.services.assets import semantic_model
-from negpy.kernel.system.paths import get_default_user_dir, get_resource_path
+from negpy.kernel.system.paths import get_default_user_dir
 from negpy.features.retouch.logic import downsample_ir, trace_scratch
 from negpy.features.retouch.models import HEAL_SIZE_MAX, HEAL_SIZE_MIN, RetouchConfig
 from negpy.features.pickbetter.logic import (
@@ -1892,32 +1890,21 @@ class AppController(QObject):
     def set_rgb_scan_mode(self, enabled: bool) -> None:
         """Persist Trichrome Mode for the active roll and regroup the loaded files in place."""
         self._save_rgb_scan_mode(enabled, self.state.active_roll_id)
-        if enabled:
-            # RGB-scan triplets are captured with narrowband LEDs, and correcting for them
-            # is the point of the toggle, so switch it on together.
-            self.session.repo.save_global_setting("last_narrowband_scan", True)
         files = self.session.state.uploaded_files
         if not files:
             return
-        if enabled and not self.state.config.process.narrowband_scan:
-            self.session.update_config(
-                replace(self.state.config, process=replace(self.state.config.process, narrowband_scan=True)), persist=True
-            )
-            self.request_render()
         self.request_asset_discovery(
             _component_paths(files), replace_existing=True, reselect_path=self.state.current_file_path, announce_rgb=enabled
         )
 
     def apply_scan_setup(self, capture: str, light: str) -> None:
-        """Apply the scanning-setup wizard's answer: Linear RAW and Narrowband are rig
-        properties, so they land on the new-file defaults, the open frame and every
-        already-edited frame at once."""
-        linear_raw, narrowband = scan_setup_values(capture, light)
+        """Apply the scanning-setup wizard's answer: Linear RAW is a rig property, so it
+        lands on the new-file defaults, the open frame and every already-edited frame at once."""
+        linear_raw = scan_setup_values(capture, light)
         self.session.repo.save_global_settings(
             {
                 "scan_setup": {"capture": capture, "light": light},
                 "last_linear_raw": linear_raw,
-                "last_narrowband_scan": narrowband,
             }
         )
 
@@ -1929,7 +1916,6 @@ class AppController(QObject):
                 process=replace(
                     self.state.config.process,
                     linear_raw=linear_raw,
-                    narrowband_scan=narrowband,
                     **invalidate_local_bounds(self.state.config.process),
                 ),
             )
@@ -1952,7 +1938,6 @@ class AppController(QObject):
                 process=replace(
                     saved.process,
                     linear_raw=linear_raw,
-                    narrowband_scan=narrowband,
                     **invalidate_local_bounds(saved.process),
                 ),
             )
@@ -4347,7 +4332,7 @@ class AppController(QObject):
         return thumbnail_fingerprint(
             config,
             workspace_color_space=self.state.workspace_color_space,
-            input_icc_path=self.effective_input_icc(config.process),
+            input_icc_path=self.effective_input_icc(),
         )
 
     def thumbnail_is_stale(self, asset: dict) -> bool:
@@ -4444,7 +4429,7 @@ class AppController(QObject):
                     file_info=asset,
                     config=config,
                     thumbnail_key=key,
-                    icc_input_active=bool(self.effective_input_icc(config.process)),
+                    icc_input_active=bool(self.effective_input_icc()),
                 )
             )
 
@@ -4495,7 +4480,7 @@ class AppController(QObject):
         asset = next((a for a in self.state.uploaded_files if a.get("hash") == asset_hash), None)
         if asset is None or self._config_for_batch_asset(asset) != frame.config:
             return  # removed, or edited again since dispatch — this render is stale
-        cs, monitor_bytes, proof = self.display_transform_params(process=frame.config.process)
+        cs, monitor_bytes, proof = self.display_transform_params()
         self.thumbnail_update_requested.emit(
             ThumbnailUpdateTask(
                 file_hash=frame.thumbnail_key,
@@ -6748,20 +6733,9 @@ class AppController(QObject):
         proof answers "what will the file look like" until a print is named explicitly."""
         return self.state.proof_icc_path or self.effective_output_icc()
 
-    def effective_input_icc(self, process: Optional[ProcessConfig] = None) -> Optional[str]:
-        """Source profile for color management: an explicit Input ICC wins; else the
-        bundled RGBScan profile when Narrowband Scan applies; else None.
-
-        A transparency never takes the implicit profile — see narrowband_profile_active,
-        which owns that rule. An explicit Input ICC still wins there, being a deliberate
-        user choice about their own source.
-        """
-        p = process if process is not None else self.state.config.process
-        if self.state.icc_input_path:
-            return self.state.icc_input_path
-        if narrowband_profile_active(p):
-            return get_resource_path("icc/RGBScan.icc")
-        return None
+    def effective_input_icc(self) -> Optional[str]:
+        """Source profile for color management: the explicit Input ICC, else None."""
+        return self.state.icc_input_path
 
     def _effective_cam_xyz(self) -> tuple[Optional[list], Optional[list]]:
         """(cam_xyz, camera_wb) for the transparency transfer. With an Input ICC active,
@@ -6788,9 +6762,7 @@ class AppController(QObject):
             orientation=self.state.preview_orientation,
         )
 
-    def display_transform_params(
-        self, splash: bool = False, proofed: bool = True, process: Optional[ProcessConfig] = None
-    ) -> tuple[str, Optional[bytes], Optional[tuple]]:
+    def display_transform_params(self, splash: bool = False, proofed: bool = True) -> tuple[str, Optional[bytes], Optional[tuple]]:
         """Everything the display transform needs for the current render, as
         ``(color_space, monitor_icc_bytes, proof)``.
 
@@ -6802,26 +6774,18 @@ class AppController(QObject):
         untouched. ``splash`` marks the embedded camera thumbnail, already sRGB.
         ``proofed`` is False for a working-space buffer that is not a print: the
         negative peek shows the scan, which a paper simulation would misdescribe.
-        ``process`` overrides the active frame's for a background render of another
-        frame, whose narrowband-profile state can differ.
         """
         if splash:
             return ColorSpace.SRGB.value, self.state.monitor_icc_bytes, None
-        proof = self.proof_profiles(process) if proofed else None
+        proof = self.proof_profiles() if proofed else None
         return self.state.workspace_color_space, self.state.monitor_icc_bytes, proof
 
-    def proof_profiles(self, process: Optional[ProcessConfig] = None) -> Optional[ProofCondition]:
-        """The `ProofCondition` the preview simulates, or None when off.
-
-        Narrowband Scan supplies an implicit *input* profile whether or not the
-        soft-proof toggle is on; the output profile only applies with the toggle.
-        """
-        p = process if process is not None else self.state.config.process
-        proofing = self.state.soft_proof_enabled
-        if not (proofing or narrowband_profile_active(p)):
+    def proof_profiles(self) -> Optional[ProofCondition]:
+        """The `ProofCondition` the preview simulates, or None when off."""
+        if not self.state.soft_proof_enabled:
             return None
-        icc_input = self.effective_input_icc(p)
-        icc_output = self.effective_proof_icc() if proofing else None
+        icc_input = self.effective_input_icc()
+        icc_output = self.effective_proof_icc()
         if not (icc_input or icc_output):
             return None
         st = self.state
@@ -6910,10 +6874,7 @@ class AppController(QObject):
 
     def proof_active(self) -> bool:
         """True when the preview should soft-proof: the toggle is on and an input or
-        output profile is available, or Narrowband Scan supplies an implicit input
-        profile. Off → preview is the edit on the monitor."""
-        if self.effective_input_icc() and narrowband_profile_active(self.state.config.process):
-            return True
+        output profile is available. Off → preview is the edit on the monitor."""
         return self.state.soft_proof_enabled and bool(self.state.icc_input_path or self.effective_proof_icc())
 
     def set_soft_proof(self, enabled: bool) -> None:
@@ -7285,10 +7246,8 @@ class AppController(QObject):
         The source is in camera primaries, so the camera matrix runs here: painting those
         numbers as display RGB flattens the film base, which on a C-41 negative reads as a
         mask far weaker than the one in the file. The multipliers fold into the matrix
-        whenever the decode skipped them, narrowband included. That is wider than
-        `should_fold_camera_wb`, which refuses narrowband because the light has no color
-        temperature to reconstruct; this view only has to show the film the way a raw viewer
-        does, and unbalanced sensor RGB renders the mask green. Reconstruction can override
+        whenever the decode skipped them: unbalanced sensor RGB renders the mask green.
+        Reconstruction can override
         the decode to bake real white balance in instead (`highlight_reconstruction_bakes_wb`);
         folding it again here would double it, so the fold sits out whenever baking did.
         `lightbox_level` supplies the brightness a decode with no auto-brightness never gets.
@@ -7599,7 +7558,7 @@ class AppController(QObject):
         tasks = []
         for preset in presets:
             task_params, export_settings = resolve_preset_export(preset, params)
-            export_settings.icc_input_path = self.effective_input_icc(task_params.process)
+            export_settings.icc_input_path = self.effective_input_icc()
             tasks.append(
                 ExportTask(
                     file_info=file_info,
@@ -7834,7 +7793,7 @@ class AppController(QObject):
         export_conf = replace(
             self.state.config.export,
             export_path=export_path,
-            icc_input_path=self.effective_input_icc(params.process),
+            icc_input_path=self.effective_input_icc(),
             icc_output_path=self.state.icc_output_path,
         )
         if self.state.flat_output:
@@ -7927,7 +7886,7 @@ class AppController(QObject):
 
             final_export = replace(
                 params.export,
-                icc_input_path=self.effective_input_icc(params.process),
+                icc_input_path=self.effective_input_icc(),
                 icc_output_path=icc_output,
             )
 
