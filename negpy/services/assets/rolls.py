@@ -572,7 +572,6 @@ ROLL_DEFAULT_FIELDS: Dict[str, tuple] = {
         "process",
         (
             "linear_raw",
-            "narrowband_scan",
             "sensor_profile",
             "sensor_matrix",
             "sensor_unmix",

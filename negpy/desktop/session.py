@@ -1278,7 +1278,6 @@ class DesktopSessionManager(QObject):
                 STICKY_CONFIG_KEY: snapshot,
                 "last_export_config": asdict(config.export),
                 "last_linear_raw": config.process.linear_raw,
-                "last_narrowband_scan": config.process.narrowband_scan,
                 "last_demosaic_preview": str(config.process.demosaic_preview),
                 "last_demosaic_export": str(config.process.demosaic_export),
                 BRUSH_SIZE_KEY: int(config.retouch.manual_dust_size),

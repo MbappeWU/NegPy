@@ -2209,42 +2209,9 @@ class TestAppController(unittest.TestCase):
         self.assertTrue(self.controller.proof_active())
 
     def test_effective_input_icc(self):
-        """Explicit Input ICC wins; Narrowband Scan supplies the bundled RGBScan
-        profile when none is set; None when both are off."""
-        state = self.controller.state
+        """The explicit Input ICC, else None."""
         self.assertIsNone(self.controller.effective_input_icc())
-
-        state.config = replace(state.config, process=replace(state.config.process, narrowband_scan=True))
-        path = self.controller.effective_input_icc()
-        assert path is not None
-        self.assertTrue(path.endswith(os.path.join("icc", "RGBScan.icc")))
-        self.assertTrue(os.path.exists(path))
-
-        state.icc_input_path = "/custom.icc"
-        self.assertEqual(self.controller.effective_input_icc(), "/custom.icc")
-
-    def test_narrowband_profile_suppressed_by_any_transparency(self):
-        """The bundled profile describes narrowband capture of *negative* dyes, so it is
-        refused for a slide whatever Positive says. Narrowband is a sticky setting, so
-        this must hold without the user touching it."""
-        from negpy.features.process.models import ProcessMode
-
-        state = self.controller.state
-        state.config = replace(state.config, process=replace(state.config.process, narrowband_scan=True))
-        self.assertIsNotNone(self.controller.effective_input_icc())
-
-        for positive in (True, False):
-            state.config = replace(
-                state.config,
-                process=replace(state.config.process, process_mode=ProcessMode.E6, positive_source=positive),
-            )
-            self.assertIsNone(self.controller.effective_input_icc(), f"positive_source={positive}")
-            # ...and the preview must not claim a proof it no longer applies.
-            state.soft_proof_enabled = False
-            self.assertFalse(self.controller.proof_active(), f"positive_source={positive}")
-
-        # An explicit Input ICC is a deliberate choice about the source and still wins.
-        state.icc_input_path = "/custom.icc"
+        self.controller.state.icc_input_path = "/custom.icc"
         self.assertEqual(self.controller.effective_input_icc(), "/custom.icc")
 
     def test_effective_cam_xyz_stands_in_for_an_active_input_icc(self):
@@ -2271,14 +2238,13 @@ class TestAppController(unittest.TestCase):
         self.assertEqual(camera_wb, wb)
         np.testing.assert_allclose(camera_to_working_matrix(cam_xyz, wb), np.diag(np.array(wb) / wb[1]), atol=1e-5)
 
-    def _export_icc_input(self, **process):
+    def _export_icc_input(self):
         state = self.controller.state
         state.current_file_path = "/tmp/shot.dng"
         state.current_file_hash = "h1"
         state.flat_output = True
         state.config = replace(
             state.config,
-            process=replace(state.config.process, **process),
             export=replace(state.config.export, output_mode=ExportPresetOutputMode.SAME_AS_SOURCE, export_path="/tmp"),
         )
         self.controller._run_export_tasks = MagicMock()
@@ -2287,36 +2253,10 @@ class TestAppController(unittest.TestCase):
         (tasks,), _ = self.controller._run_export_tasks.call_args
         return tasks[0].export_settings.icc_input_path
 
-    def test_export_resolves_the_narrowband_profile_from_the_frames_own_process(self):
-        """Regression: request_export resolved the implicit ICC from the pre-flatten view
-        rather than the frame's settings, and silently dropped it from flat masters. The
-        answer must not depend on which view asked."""
-        path = self._export_icc_input(narrowband_scan=True)
-        self.assertTrue(
-            path is not None and path.endswith(os.path.join("icc", "RGBScan.icc")),
-            "flat export dropped the implicit Narrowband profile",
-        )
-
-    def test_a_flat_export_of_a_slide_still_refuses_the_narrowband_profile(self):
-        """The profile is refused for the dye set, not for the render, so flattening must not
-        smuggle it back in."""
-        from negpy.features.process.models import ProcessMode
-
-        self.assertIsNone(self._export_icc_input(narrowband_scan=True, process_mode=ProcessMode.E6))
-
-    def test_proof_active_with_narrowband_scan(self):
-        """Narrowband Scan forces proofing on even with the soft-proof toggle off."""
-        state = self.controller.state
-        state.soft_proof_enabled = False
-        self.assertFalse(self.controller.proof_active())
-        state.config = replace(state.config, process=replace(state.config.process, narrowband_scan=True))
-        self.assertTrue(self.controller.proof_active())
-
-    def test_narrowband_profile_hidden_from_dropdown(self):
-        from negpy.infrastructure.display.color_mgmt import ColorService
-
-        profiles = ColorService.get_available_profiles()
-        self.assertFalse(any(p.endswith("RGBScan.icc") for p in profiles))
+    def test_a_flat_export_carries_the_explicit_input_icc(self):
+        self.assertIsNone(self._export_icc_input())
+        self.controller.state.icc_input_path = "/custom.icc"
+        self.assertEqual(self._export_icc_input(), "/custom.icc")
 
     def test_load_file_preserve_zoom(self):
         """Test that load_file with preserve_zoom=True skips resetting zoom."""
@@ -4290,26 +4230,6 @@ class TestRgbScanModeReload(unittest.TestCase):
         self.mock_session_manager.repo.save_global_setting.assert_any_call("rgbscan_mode", True)
         self.controller.request_asset_discovery.assert_not_called()
 
-    def test_enabling_sets_sticky_narrowband_default(self):
-        self.controller.set_rgb_scan_mode(True)
-        self.mock_session_manager.repo.save_global_setting.assert_any_call("last_narrowband_scan", True)
-
-    def test_disabling_does_not_touch_narrowband(self):
-        self.controller.set_rgb_scan_mode(False)
-        calls = [c.args for c in self.mock_session_manager.repo.save_global_setting.call_args_list]
-        self.assertNotIn(("last_narrowband_scan", True), calls)
-
-    def test_enabling_forces_narrowband_on_active_config(self):
-        state = self.mock_session_manager.state
-        state.uploaded_files = [{"name": "a", "path": "/a.dng", "hash": "h1"}]
-        state.current_file_path = "/a.dng"
-        self.assertFalse(state.config.process.narrowband_scan)
-
-        self.controller.set_rgb_scan_mode(True)
-
-        updated_config = self.mock_session_manager.update_config.call_args.args[0]
-        self.assertTrue(updated_config.process.narrowband_scan)
-
     def test_toggle_with_loaded_files_rediscovers_all_exposures(self):
         state = self.mock_session_manager.state
         state.uploaded_files = [
@@ -5084,26 +5004,14 @@ class TestDisplayTransformParams(unittest.TestCase):
         self.assertIsNone(proof)
 
     def test_proof_profiles_follows_the_soft_proof_toggle(self):
+        """The Input ICC proofs only with the toggle on, like the output profile."""
         self.controller.state.soft_proof_enabled = False
-        self.controller.state.config = replace(
-            self.controller.state.config,
-            process=replace(self.controller.state.config.process, narrowband_scan=False),
-        )
+        self.controller.state.icc_input_path = "/custom.icc"
         self.assertIsNone(self.controller.proof_profiles())
         self.controller.state.soft_proof_enabled = True
-        self.assertIsNotNone(self.controller.proof_profiles())
-
-    def test_narrowband_supplies_an_input_profile_with_the_toggle_off(self):
-        """Narrowband Scan proofs through its own input profile regardless."""
-        self.controller.state.soft_proof_enabled = False
-        self.controller.state.config = replace(
-            self.controller.state.config,
-            process=replace(self.controller.state.config.process, narrowband_scan=True),
-        )
         proof = self.controller.proof_profiles()
         self.assertIsNotNone(proof)
-        self.assertTrue(proof[0], "narrowband must supply the input profile")
-        self.assertIsNone(proof[1], "the output profile stays gated on the toggle")
+        self.assertEqual(proof[0], "/custom.icc")
 
     def test_thumbnail_task_carries_the_same_params_as_the_canvas(self):
         """The actual regression: the thumbnail used to hardcode the working space."""
@@ -5265,24 +5173,6 @@ class TestNegativePeekColor(unittest.TestCase):
         without_wb = np.array(state.peek_frame["base_positive"])
 
         np.testing.assert_allclose(with_wb, without_wb, atol=1e-5)
-
-    def test_a_narrowband_capture_folds_the_multipliers_the_render_path_refuses(self):
-        """should_fold_camera_wb refuses them on narrowband, where no scene white balance
-        exists to reconstruct. The peek folds them anyway: it only has to show the film the
-        way every raw viewer does, and unbalanced sensor RGB renders an orange mask green."""
-        import numpy as np
-
-        from negpy.features.process.capture_color import apply_camera_matrix, camera_to_working_matrix, lightbox_level
-        from negpy.kernel.image.logic import working_oetf_encode
-
-        state = self.controller.state
-        state.config = replace(state.config, process=replace(state.config.process, linear_raw=True, narrowband_scan=True))
-        painted = self._paint(self.D3300, camera_wb=[1.891, 1.0, 1.578])["base_positive"]
-
-        source = state.preview_raw
-        matrix = camera_to_working_matrix(self.D3300, [1.891, 1.0, 1.578])
-        expected = working_oetf_encode(apply_camera_matrix(source, matrix) * lightbox_level(source, matrix))
-        np.testing.assert_allclose(painted, expected, atol=1e-5)
 
     def test_the_peek_clears_a_stale_interactive_flag(self):
         """Flat Peek renders with readback_metrics=False, which tags its metrics
