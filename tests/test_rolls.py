@@ -1067,3 +1067,19 @@ def test_next_roll_name_steps_a_counter_and_suffixes_any_other_name(name, follow
 def test_next_roll_name_skips_taken_names():
     assert next_roll_name("Roll001", {"Roll002", "Roll003"}.__contains__) == "Roll004"
     assert next_roll_name("portra", {"portra_2"}.__contains__) == "portra_3"
+
+
+def test_a_baseline_from_an_older_analysis_is_stale_for_the_frames_that_ride_it(monkeypatch):
+    from negpy.services.assets import rolls
+
+    repo = _repo()
+    roll_id = create_virtual_roll(repo, "Portra", [])
+    sid = create_scene(repo, roll_id, "Beach", ["a"])
+    rolls.set_roll_normalization(repo, roll_id, (0.1, 0.1, 0.1), (0.9, 0.9, 0.9))
+    set_scene_normalization(repo, roll_id, sid, (0.1, 0.1, 0.1), (0.9, 0.9, 0.9))
+    sources = (f"roll:{roll_id}", f"scene:{sid}", "frame:f003.tif", "")
+
+    assert not any(rolls.frame_baseline_stale(repo, ProcessConfig(baseline_source=s)) for s in sources)
+
+    monkeypatch.setattr(rolls, "BOUNDS_VERSION", rolls.BOUNDS_VERSION + 1)
+    assert [rolls.frame_baseline_stale(repo, ProcessConfig(baseline_source=s)) for s in sources] == [True, True, False, False]

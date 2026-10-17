@@ -359,6 +359,21 @@ def test_baseline_hint_names_where_the_bounds_came_from(qapp):
     assert sidebar.baseline_source_hint.text().startswith("No baseline yet")
 
 
+def test_baseline_hint_flags_a_roll_baseline_from_an_older_analysis(qapp):
+    from negpy.services.assets import rolls
+
+    controller, sidebar = _sidebar()
+    cfg = controller.state.config
+    riding = dict(use_luma_average=True, locked_floors=(0.1, 0.1, 0.1), locked_ceils=(0.9, 0.9, 0.9), baseline_source="roll:r1")
+    unstamped = {"name": "Tri-X", "normalization": {"floors": [0.1] * 3, "ceils": [0.9] * 3}}
+
+    with patch.object(rolls, "roll_for_id", return_value=unstamped):
+        controller.state.config = replace(cfg, process=replace(cfg.process, **riding))
+        sidebar.sync_ui()
+    assert sidebar.baseline_source_hint.text() == "Baseline: Roll “Tri-X”, from an older analysis"
+    assert sidebar.baseline_source_hint.property("hint") == "warning"
+
+
 def test_the_clipping_hint_reads_as_the_analysis_row_does():
     _controller, sidebar = _sidebar()
 

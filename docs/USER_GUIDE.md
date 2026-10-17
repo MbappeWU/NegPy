@@ -791,11 +791,11 @@ Meters the roll once and shares the result, so frames of one film match.
 *   **Use average: Luma**: takes the picked roll's tonal range; color stays per frame. Disables Luma Range Clip.
 *   **Use average: Color**: takes the picked roll's color balance; tonal range stays per frame. Disables Color Clip. Luma and Color on gives a consistent roll; both off gives per-image auto-exposure.
 *   **Use average: Cast** (Color Negative only): takes Cast Removal's gray balance from the roll or scene analysis, so frames under one light render alike. An analysis turns it on, except on frames far from the rest.
-*   **Baseline**: names the roll, scene or frame the baseline came from, and warns when there is none.
-*   **Rolls** (picker): every roll in your library; a ticked roll has a saved baseline. Defaults to the loaded roll.
+*   **Baseline**: names the roll, scene or frame the baseline came from, and warns when there is none or when an older version of the analysis measured it.
+*   **Rolls** (picker): every roll in your library; a ticked roll has a saved baseline. Defaults to the loaded roll. A baseline from an older analysis shows an amber hint until you run **Reanalyze**.
 *   **Reanalyze** (also in the Library, [§2](#2-film-strip-left-panel)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.4](#104-crop)) first for consistent crops.
 *   **Use This Frame**: saves this frame's bounds as the roll's baseline.
-*   **Scenes**: the loaded roll's [scenes](#scenes). **Analyze** runs Scene Analysis (Reanalyze over the scene only), **Select** selects its frames, and **Delete** forgets it.
+*   **Scenes**: the loaded roll's [scenes](#scenes). **Analyze** runs Scene Analysis (Reanalyze over the scene only), **Select** selects its frames, and **Delete** forgets it. An amber ✓ marks a scene baseline from an older analysis.
 
 <!-- panel:process -->
 ### 10.6 Metering: negative → positive

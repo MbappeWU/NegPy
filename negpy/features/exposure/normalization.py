@@ -14,6 +14,10 @@ from negpy.kernel.image.validation import ensure_image
 if TYPE_CHECKING:
     from negpy.features.process.models import ProcessConfig
 
+# Bump in any change that alters the bounds a frame measures for unchanged settings. Saved
+# per-frame bounds from an older version are dropped at startup (migrations/bounds.py).
+BOUNDS_VERSION = 1
+
 # Above this size the block-median is threaded over row strips (np.median frees the GIL).
 _BLOCK_MEDIAN_PARALLEL_MIN_PIXELS = 2_000_000
 
