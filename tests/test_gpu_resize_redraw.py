@@ -30,3 +30,13 @@ def test_a_resize_without_a_frame_draws_nothing(qapp):
     _resize(widget)
 
     widget.canvas.force_draw.assert_not_called()
+
+
+def test_a_resize_during_the_draw_does_not_draw_again(qapp):
+    widget = GPUCanvasWidget()
+    widget.current_texture_view = object()
+    widget.canvas.force_draw = MagicMock(side_effect=lambda: _resize(widget))
+
+    _resize(widget)
+
+    widget.canvas.force_draw.assert_called_once()
