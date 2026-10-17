@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.styles.templates import field_label, header_row, hint_label, icon_button, section_subheader, tool_toggle
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup, align_slider_columns
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import (
     EXPORT_COLOR_SPACES,
     JXL_TAGGABLE_SPACES,
@@ -117,7 +118,7 @@ class ExportSettingsForm(QWidget):
 
         fmt_row = QHBoxLayout()
         fmt_row.addWidget(self._row_label(tr("Format")))
-        self.fmt_combo = QComboBox()
+        self.fmt_combo = StepCombo()
         for f in ExportFormat:
             self.fmt_combo.addItem(choice_label(f.value), f.value)
         constrain_combo(self.fmt_combo)
@@ -133,7 +134,7 @@ class ExportSettingsForm(QWidget):
         depth_row = QHBoxLayout(self._depth_container)
         depth_row.setContentsMargins(0, 0, 0, 0)
         depth_row.addWidget(self._row_label(tr("Bit Depth")))
-        self.bit_depth_combo = QComboBox()
+        self.bit_depth_combo = StepCombo()
         for label, data in (("8-bit", 8), ("16-bit", 16)):
             self.bit_depth_combo.addItem(label, data)
         self.bit_depth_combo.setToolTip(tr("JPEG and WebP are 8-bit formats and ignore this"))
@@ -167,7 +168,7 @@ class ExportSettingsForm(QWidget):
         tiff_row = QHBoxLayout(self._tiff_container)
         tiff_row.setContentsMargins(0, 0, 0, 0)
         tiff_row.addWidget(self._row_label(tr("Compression")))
-        self.tiff_compression_combo = QComboBox()
+        self.tiff_compression_combo = StepCombo()
         for label, data in (
             (tr("Uncompressed"), TiffCompression.NONE),
             ("LZW", TiffCompression.LZW),
@@ -308,7 +309,7 @@ class ExportSettingsForm(QWidget):
         ratio_row = QHBoxLayout(self._ratio_row_widget)
         ratio_row.setContentsMargins(0, 0, 0, 0)
         ratio_row.addWidget(self._row_label(tr("Paper ratio")))
-        self.ratio_combo = QComboBox()
+        self.ratio_combo = StepCombo()
         ratios = [AspectRatio.ORIGINAL] + [r.value for r in AspectRatio if r != AspectRatio.ORIGINAL]
         add_choice_items(self.ratio_combo, ratios)
         constrain_combo(self.ratio_combo)
@@ -333,7 +334,7 @@ class ExportSettingsForm(QWidget):
 
         input_row = QHBoxLayout()
         input_row.addWidget(self._row_label(tr("Input ICC")))
-        self.input_combo = QComboBox()
+        self.input_combo = StepCombo()
         constrain_combo(self.input_combo)
         self.input_combo.setToolTip(
             tr(
@@ -350,7 +351,7 @@ class ExportSettingsForm(QWidget):
         # rows shows a live-looking selector that the other one silently voids.
         profile_row = QHBoxLayout()
         profile_row.addWidget(self._row_label(tr("Export profile")))
-        self.export_profile_combo = QComboBox()
+        self.export_profile_combo = StepCombo()
         constrain_combo(self.export_profile_combo)
         self.export_profile_combo.setToolTip(
             tr(
@@ -459,7 +460,7 @@ class ExportSettingsForm(QWidget):
 
         mode_row = QHBoxLayout()
         mode_row.addWidget(self._row_label(tr("Folder")))
-        self.output_mode_combo = QComboBox()
+        self.output_mode_combo = StepCombo()
         self.output_mode_combo.addItem(tr("Subfolder of source"), ExportPresetOutputMode.SUBFOLDER_OF_SOURCE)
         self.output_mode_combo.addItem(tr("Same as source"), ExportPresetOutputMode.SAME_AS_SOURCE)
         self.output_mode_combo.addItem(tr("Absolute path"), ExportPresetOutputMode.ABSOLUTE)

@@ -1,8 +1,9 @@
 from negpy.kernel.system.i18n import tr
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout
+from PyQt6.QtWidgets import QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, field_label, hint_label, section_subheader, wrap_tooltip
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.hdr.models import hdr_active
 from negpy.features.process.logic import VALID_HIGHLIGHT_LEVELS
 from negpy.features.process.models import DemosaicMode, ProcessMode
@@ -69,10 +70,10 @@ class DemosaicSidebar(BaseSidebar):
         conf = self.state.config.process
         modes = [str(m) for m in supported_demosaic_modes()]
 
-        self.preview_combo = QComboBox()
+        self.preview_combo = StepCombo()
         self.preview_combo.addItems(modes)
         self.preview_combo.setToolTip(_TIP)
-        self.export_combo = QComboBox()
+        self.export_combo = StepCombo()
         self.export_combo.addItems(modes)
         self.export_combo.setToolTip(_TIP)
 
@@ -97,7 +98,7 @@ class DemosaicSidebar(BaseSidebar):
         highlight_row = QHBoxLayout()
         self.highlight_label = field_label(tr("Recovery"), FIELD_LABEL_WIDTH)
         highlight_row.addWidget(self.highlight_label)
-        self.highlight_combo = QComboBox()
+        self.highlight_combo = StepCombo()
         self.highlight_combo.addItems([label for _level, label in _HIGHLIGHT_LEVELS])
         self.highlight_combo.setToolTip(wrap_tooltip(_HIGHLIGHT_TIP))
         self.highlight_combo.setCurrentIndex(_highlight_bucket(conf.highlight_reconstruction))

@@ -19,7 +19,6 @@ import qtawesome as qta
 from PyQt6.QtCore import QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QImage, QPixmap, QStandardItemModel
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QInputDialog,
     QMessageBox,
@@ -50,6 +49,7 @@ from negpy.desktop.view.styles.templates import (
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.sliders import CompactSlider
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure import simulated
 from negpy.infrastructure.capture.gphoto import default_settings_path
 from negpy.infrastructure.capture.settings import ScanlightSettings, WhiteCaptureMode
@@ -329,7 +329,7 @@ class ScanlightSidebar(QWidget):
         rgb.setContentsMargins(0, 0, 0, 0)
         rgb.setSpacing(THEME.space_md)
 
-        self.preset_combo = QComboBox()
+        self.preset_combo = StepCombo()
         self.preset_combo.setToolTip(
             wrap_tooltip(
                 tr(
@@ -1399,7 +1399,7 @@ class ScanlightSidebar(QWidget):
             if not self._settings_loaded:
                 stepper.blockSignals(True)
                 stepper.clear()
-                stepper.addItem("—", None)
+                stepper.addItem(tr("—"), None)
                 stepper.blockSignals(False)
             return
         stepper.setEnabled(bool(info.get("writable", False)))
@@ -1489,7 +1489,7 @@ class ScanlightSidebar(QWidget):
         self._calibrating_preset = ""
         label, _cause, fix = _EXPOSURE_WARNINGS.get(status, _EXPOSURE_WARNINGS["over"])
         self.calib_window.set_inputs_locked(False)  # re-enable name / ROI / ISO / aperture for the retry
-        self.calib_window.set_status(f"⚠ {label} — {fix}")
+        self.calib_window.set_status(tr("⚠ {value} — {value1}", value=label, value1=fix))
         self.calib_window.progress.setVisible(False)
         self._apply_gating()  # re-enable Scan — the capture thread is free again
         self.controller.set_scanlight_color(*REFERENCE_LEVELS, 0, self._settings.port)  # re-light for framing
@@ -1693,7 +1693,7 @@ class ScanlightSidebar(QWidget):
         self.lv_window.set_status(text)
 
     def _set_conn_status(self, label, state, short: str, detail: str = "") -> None:
-        label.setText(f"● {short}")
+        label.setText(tr("● {value}", value=short))
         set_hint_kind(label, "success" if state else ("error" if state is False else "muted"))
         label.setToolTip(detail or short)
 
@@ -1847,7 +1847,7 @@ class ScanlightSidebar(QWidget):
         )
         if missing:
             self.scan_btn.setToolTip(wrap_tooltip(tr("Can't scan yet — ") + "; ".join(missing)))
-            self.gate_hint.setText(tr("⚠ To scan: ") + ", ".join(missing) + ".")
+            self.gate_hint.setText(tr("⚠ To scan: ") + ", ".join(missing) + tr("."))
             self.gate_hint.setVisible(True)
         else:
             self.scan_btn.setToolTip(wrap_tooltip(tr("Capture the next frame into the roll, or stop the capture")))

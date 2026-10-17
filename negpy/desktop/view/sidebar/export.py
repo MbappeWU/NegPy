@@ -6,7 +6,6 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QActionGroup
 from PyQt6.QtWidgets import (
     QApplication,
-    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
@@ -37,6 +36,7 @@ from negpy.desktop.view.widgets.collapsible import make_section
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup, align_slider_columns
 from negpy.desktop.view.widgets.export_settings_form import ExportSettingsForm, constrain_combo
 from negpy.desktop.view.widgets.split_button import make_split_button
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import PROOF_INTENT_LABELS, ColorSpace, ProofIntent, preset_display_name
 from negpy.infrastructure.display.color_spaces import ColorSpaceRegistry
 
@@ -80,6 +80,7 @@ class ExportSidebar(BaseSidebar):
         self._add_soft_proof_section()
         self._add_contact_sheet_section()
         self._add_printing_notes_section()
+        self._add_bake_section()
         self._add_sidecars_section()
         self._sync_flat_enabled()
 
@@ -131,12 +132,25 @@ class ExportSidebar(BaseSidebar):
         self.sidecars_enabled_btn.toggled.connect(lambda _: self.update_timer.start())
         self.export_sidecars_btn.clicked.connect(self._on_export_sidecars)
 
+        self.bake_on_export_btn.toggled.connect(lambda checked: self.controller.set_bake_on_export(checked))
+        self.controller.bake_on_export_changed.connect(self._on_bake_on_export_changed)
+        self.bake_to_roll_btn.clicked.connect(self._on_bake_to_roll)
+
     def _on_export_sidecars(self) -> None:
         """One DB read plus one small write per visible frame, on the GUI thread — short,
         but long enough on a full roll to look frozen without a cursor."""
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             self.controller.export_edit_sidecars()
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _on_bake_to_roll(self) -> None:
+        """Freeze Auto Density/Grade for every visible frame now. The bake runs on the GUI
+        thread, so a wait cursor shows it is working while it loops the roll."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self.controller.bake_auto_density_grade_to_roll()
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -224,6 +238,11 @@ class ExportSidebar(BaseSidebar):
         self.printing_notes_preview_btn.blockSignals(True)
         self.printing_notes_preview_btn.setChecked(active)
         self.printing_notes_preview_btn.blockSignals(False)
+
+    def _on_bake_on_export_changed(self, active: bool) -> None:
+        self.bake_on_export_btn.blockSignals(True)
+        self.bake_on_export_btn.setChecked(active)
+        self.bake_on_export_btn.blockSignals(False)
 
     # --- Contact sheet -------------------------------------------------------
 
@@ -343,7 +362,7 @@ class ExportSidebar(BaseSidebar):
         fmt_row = QHBoxLayout()
         fmt_row.setContentsMargins(0, 0, 0, 0)
         fmt_row.addWidget(field_label(tr("Format"), FIELD_LABEL_WIDTH))
-        self.linear_format_combo = QComboBox()
+        self.linear_format_combo = StepCombo()
         self.linear_format_combo.addItem(tr("TIFF"), "tiff")
         self.linear_format_combo.addItem(tr("JPEG XL (lossless)"), "jxl")
         idx = self.linear_format_combo.findData(self.state.linear_format)
@@ -368,7 +387,7 @@ class ExportSidebar(BaseSidebar):
         expansion_row.setContentsMargins(0, 0, 0, 0)
         self.linear_expansion_label = field_label(tr("Expansion"), FIELD_LABEL_WIDTH)
         expansion_row.addWidget(self.linear_expansion_label)
-        self.linear_expansion_combo = QComboBox()
+        self.linear_expansion_combo = StepCombo()
         self.linear_expansion_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         expansion_row.addWidget(self.linear_expansion_combo)
         self.linear_expansion_row = QWidget()
@@ -435,7 +454,7 @@ class ExportSidebar(BaseSidebar):
         gamma_row.setContentsMargins(0, 0, 0, 0)
         self.linear_gamma_label = field_label(tr("Input gamma"), FIELD_LABEL_WIDTH)
         gamma_row.addWidget(self.linear_gamma_label)
-        self.linear_gamma_combo = QComboBox()
+        self.linear_gamma_combo = StepCombo()
         self.linear_gamma_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         gamma_row.addWidget(self.linear_gamma_combo)
         self.linear_gamma_row = QWidget()
@@ -494,6 +513,8 @@ class ExportSidebar(BaseSidebar):
             self._presets_section.setVisible(not linear_on)
         if hasattr(self, "_sidecars_section"):
             self._sidecars_section.setVisible(not linear_on)
+        if hasattr(self, "_bake_section"):
+            self._bake_section.setVisible(not linear_on)
         self._sync_flat_roll_warning()
         if hasattr(self, "form"):
             self._refresh_export_enabled()
@@ -744,7 +765,7 @@ class ExportSidebar(BaseSidebar):
         col.addWidget(self.soft_proof_btn)
 
         # Saved printer x paper conditions.
-        self.proof_condition_combo = QComboBox()
+        self.proof_condition_combo = StepCombo()
         constrain_combo(self.proof_condition_combo)
         self.proof_condition_combo.setToolTip(
             tr(
@@ -760,7 +781,7 @@ class ExportSidebar(BaseSidebar):
 
         # Proof profile: defaults to the export target, so the proof answers "what will the
         # file look like" until a print is named.
-        self.proof_profile_combo = QComboBox()
+        self.proof_profile_combo = StepCombo()
         constrain_combo(self.proof_profile_combo)
         self.proof_profile_combo.setToolTip(
             tr(
@@ -769,7 +790,7 @@ class ExportSidebar(BaseSidebar):
             )
         )
 
-        self.proof_intent_combo = QComboBox()
+        self.proof_intent_combo = StepCombo()
         constrain_combo(self.proof_intent_combo)
         for value, label in PROOF_INTENT_LABELS.items():
             self.proof_intent_combo.addItem(label, value)
@@ -840,7 +861,7 @@ class ExportSidebar(BaseSidebar):
             ColorSpace.PROPHOTO.value,
         ]
         self.display_map = [None] + self.display_spaces
-        self.display_combo = QComboBox()
+        self.display_combo = StepCombo()
         self.display_combo.addItems([tr("As detected")] + self.display_spaces)
         constrain_combo(self.display_combo)
         self.display_combo.setToolTip(tr("Monitor profile the preview is displayed on (affects preview only, not export)"))
@@ -1008,6 +1029,40 @@ class ExportSidebar(BaseSidebar):
 
         self._sidecars_section = make_section(self.controller.session.repo, tr("Sidecars"), "export_sidecars", content, "fa5s.file-export")
         self.layout.addWidget(self._sidecars_section)
+
+    def _add_bake_section(self) -> None:
+        """Collapsible BAKE AUTO DENSITY/GRADE section: on-export toggle + manual bake, side by side."""
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(6)
+
+        btn_row = QHBoxLayout()
+
+        self.bake_on_export_btn = self._small_toggle(
+            "fa5s.fire",
+            tr("Bake on Export"),
+            self.state.bake_on_export,
+            tr(
+                "When on, every export freezes Auto Density and Auto Grade into fixed values for each "
+                "frame it has metered, so the exported result does not re-run the meters."
+            ),
+        )
+        btn_row.addWidget(self.bake_on_export_btn)
+
+        self.bake_to_roll_btn = labeled_action(
+            "fa5s.magic",
+            tr("Bake to Roll"),
+            tr("Freeze Auto Density and Auto Grade into fixed values for every visible frame now"),
+        )
+        self.bake_to_roll_btn.setObjectName("bake_to_roll_btn")
+        btn_row.addWidget(self.bake_to_roll_btn)
+
+        content_layout.addLayout(btn_row)
+
+        self._bake_section = make_section(self.controller.session.repo, "Auto Density/Grade", "export_bake", content, "fa5s.fire")
+        self.layout.addWidget(self._bake_section)
 
     # --- Batch ---------------------------------------------------------------
 
@@ -1328,6 +1383,7 @@ class ExportSidebar(BaseSidebar):
             if not self.cs_output_path_edit.hasFocus():
                 self.cs_output_path_edit.setText(conf.contact_sheet_output_path)
             self.sidecars_enabled_btn.setChecked(conf.export_sidecars_enabled)
+            self.bake_on_export_btn.setChecked(self.state.bake_on_export)
             self.printing_notes_preview_btn.setChecked(self.state.printing_notes)
             self.intent_btn.setCurrentIndex(self._state_intent())
             self.flat_peek_btn.setChecked(self.state.flat_peek)
@@ -1359,6 +1415,7 @@ class ExportSidebar(BaseSidebar):
             self.display_combo,
             self.cs_output_path_edit,
             self.sidecars_enabled_btn,
+            self.bake_on_export_btn,
             self.flat_peek_btn,
             self.printing_notes_preview_btn,
             self.linear_wb_btn,

@@ -7,7 +7,6 @@ from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QDialog,
     QFrame,
     QGridLayout,
@@ -27,6 +26,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.semantic_download_dialog import ClipDownloadDialog
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.types import AppConfig
 from negpy.infrastructure.gpu.device import GPUDevice
 from negpy.kernel.system.config import APP_CONFIG
@@ -233,9 +233,9 @@ class PreferencesDialog(QDialog):
         row += 1
 
         grid.addWidget(field_label(tr("UI scale")), row, 0)
-        self.scale_combo = QComboBox()
+        self.scale_combo = StepCombo()
         for pct in UI_SCALES:
-            self.scale_combo.addItem(f"{pct}%", pct / 100.0)
+            self.scale_combo.addItem(tr("{value}%", value=pct), pct / 100.0)
         current = float(self.repo.get_global_setting("ui_scale", 1.0) or 1.0)
         self.scale_combo.setCurrentIndex(min(range(len(UI_SCALES)), key=lambda i: abs(UI_SCALES[i] / 100.0 - current)))
         self.scale_combo.currentIndexChanged.connect(self._on_ui_scale_changed)
@@ -294,7 +294,7 @@ class PreferencesDialog(QDialog):
     def _build_accessibility(self) -> QWidget:
         host, grid = self._grid()
         grid.addWidget(field_label(tr("Color vision")), 0, 0)
-        self.vision_combo = QComboBox()
+        self.vision_combo = StepCombo()
         for palette in PALETTES:
             swatch = QPixmap(16, 16)
             painter = QPainter(swatch)

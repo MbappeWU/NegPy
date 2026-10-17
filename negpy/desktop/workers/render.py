@@ -19,6 +19,7 @@ from negpy.features.exposure.analysis import (
     vectorscope_histogram,
     waveform,
     waveform_color,
+    waveform_parade,
 )
 from negpy.features.flatfield.models import FlatFieldConfig
 from negpy.features.lens.models import LensCorrections
@@ -128,6 +129,9 @@ class RenderTask:
     gain_slices: tuple = ()
     # EXIF orientation the decode baked into `buffer`, for the flat-field gain to take first.
     source_orientation: int = 1
+    # The roll's clear film base set with the Film Base tool, per-channel log10 transmittance;
+    # None lets the rebate reader stand in.
+    film_base: Optional[tuple] = None
 
 
 @dataclass(frozen=True)
@@ -250,9 +254,8 @@ class ThumbnailRenderInput:
     file_info: dict
     config: WorkspaceConfig
     thumbnail_key: str
-    # Whether an Input ICC (explicit override or the implicit Narrowband Scan profile)
-    # applies to this frame — mirrors AppController.effective_input_icc, resolved at
-    # dispatch since the worker has no session state to check it itself.
+    # Whether an Input ICC applies to this frame — mirrors AppController.effective_input_icc,
+    # resolved at dispatch since the worker has no session state to check it itself.
     icc_input_active: bool = False
 
 
@@ -394,6 +397,7 @@ class RenderWorker(QObject):
                 crop_preview_full=task.crop_preview_full,
                 cam_xyz=task.cam_xyz,
                 camera_wb=task.camera_wb,
+                film_base=task.film_base,
                 gain_slices=task.gain_slices + ((n, task.split_x, None, task.gutter_thickness, task.split_axis),),
                 source_orientation=task.source_orientation,
             )
@@ -407,7 +411,11 @@ class RenderWorker(QObject):
         metrics.pop("histogram_raw", None)
         metrics.pop("waveform", None)
         metrics.pop("waveform_color", None)
+        metrics.pop("waveform_parade", None)
         metrics.pop("vectorscope", None)
+        # No joined scan to rebin; None, not a pop, so the merged metrics drop the last frame's.
+        metrics["density_parade"] = None
+        metrics["scan_full_scale"] = None
         along = 1 if task.split_axis == "x" else 0
         gap = gap_px(left.shape[along], right.shape[along], task.gutter_thickness)
         return join_halves(left, right, gap, axis=task.split_axis), metrics
@@ -436,6 +444,7 @@ class RenderWorker(QObject):
                     camera_wb=task.camera_wb,
                     gain_slices=task.gain_slices,
                     source_orientation=task.source_orientation,
+                    film_base=task.film_base,
                 )
 
             # CPU renders have no in-shader histogram; bin the float output here.
@@ -444,6 +453,7 @@ class RenderWorker(QObject):
                 metrics["histogram_color"] = color_histogram(result)
                 metrics["waveform"] = waveform(result)
                 metrics["waveform_color"] = waveform_color(result)
+                metrics["waveform_parade"] = waveform_parade(result)
                 metrics["vectorscope"] = vectorscope_histogram(result)
 
             # The soft proof is not baked in: it rides the display LUT, so a GPU texture reaches

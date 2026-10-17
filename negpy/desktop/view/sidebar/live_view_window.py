@@ -11,9 +11,17 @@ from typing import Optional
 
 import numpy as np
 import qtawesome as qta
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QCursor, QKeySequence
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QToolButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from negpy.desktop.view.shortcut_registry import key_for, tooltip_with_shortcut
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
@@ -62,10 +70,10 @@ class SettingStepper(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(2)
         self._prev = QToolButton()
-        self._prev.setText("‹")
+        self._prev.setText(tr("‹"))
         self._next = QToolButton()
-        self._next.setText("›")
-        self._value = QLabel("—")
+        self._next.setText(tr("›"))
+        self._value = QLabel(tr("—"))
         self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._value.setMinimumWidth(64)
         self._value.setStyleSheet(f"color: {THEME.text_primary};")
@@ -89,7 +97,7 @@ class SettingStepper(QWidget):
 
     def _sync(self) -> None:
         on = self.isEnabled()
-        self._value.setText(self._items[self._index][0] if 0 <= self._index < len(self._items) else "—")
+        self._value.setText(self._items[self._index][0] if 0 <= self._index < len(self._items) else tr("—"))
         self._prev.setEnabled(on and self._index > 0)
         self._next.setEnabled(on and self._index < len(self._items) - 1)
 
@@ -272,11 +280,17 @@ class LiveViewWindow(QDialog):
         # Plain letter keys are safe: the pop-up has no text fields.
         self._key_buttons = {
             "live_view_scan": self.scan_btn,
+            "live_view_scan_space": self.scan_btn,
             "live_view_retake": self.retake_btn,
             "live_view_meter": self.meter_btn,
             "live_view_histogram": self.histogram_btn,
             "live_view_zebra": self.zebra_btn,
         }
+        # A focused button takes Space for itself, so a click on Retake or a toggle would leave
+        # Space working that control instead of its binding. The letters already reach the
+        # window; the stepper arrows keep Space, their only key.
+        for btn in self._key_buttons.values():
+            btn.installEventFilter(self)
         remember_dialog_geometry(self, repo, "live_view")
 
     def _remember(self, key: str, on: bool) -> None:
@@ -292,8 +306,9 @@ class LiveViewWindow(QDialog):
         self.histogram.update_data(bins)
 
     def apply_shortcut_tooltips(self) -> None:
-        for action_id, btn in self._key_buttons.items():
-            btn.setToolTip(wrap_tooltip(tooltip_with_shortcut(btn.plain_tooltip, action_id)))
+        for btn in dict.fromkeys(self._key_buttons.values()):
+            ids = [action_id for action_id, b in self._key_buttons.items() if b is btn]
+            btn.setToolTip(wrap_tooltip(tooltip_with_shortcut(btn.plain_tooltip, ids)))
 
     def _key_button(self, ev):
         modifiers = ev.modifiers() & ~Qt.KeyboardModifier.KeypadModifier
@@ -312,6 +327,13 @@ class LiveViewWindow(QDialog):
             super().keyPressEvent(ev)
         elif not ev.isAutoRepeat():
             btn.click()
+
+    def eventFilter(self, watched, ev) -> bool:
+        if ev.type() in (QEvent.Type.KeyPress, QEvent.Type.KeyRelease) and ev.key() == Qt.Key.Key_Space and self._key_button(ev):
+            if ev.type() == QEvent.Type.KeyPress:
+                self.keyPressEvent(ev)
+            return True
+        return super().eventFilter(watched, ev)
 
     def set_preview_available(self, available: bool, reason: str = "") -> None:
         """Swap the preview pane for an explanation on bodies that cannot stream.

@@ -3,7 +3,6 @@ from negpy.kernel.system.i18n import tr
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QLabel,
 )
@@ -15,6 +14,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_label, header_row, section_subheader, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.sliders import CompactSlider
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import CROP_RATIO_CHOICES, canonical_crop_ratio
 from negpy.features.geometry.logic import has_manual_crop
 from negpy.features.geometry.models import FINE_ROTATION_LIMIT
@@ -75,7 +75,7 @@ class GeometrySidebar(BaseSidebar):
         # The same roll field as the Crop card's Ratio: the crop tool snaps to it.
         ratio_row = QHBoxLayout()
         ratio_row.addWidget(self._field_label(tr("Ratio")))
-        self.ratio_combo = QComboBox()
+        self.ratio_combo = StepCombo()
         add_choice_items(self.ratio_combo, [r.value for r in CROP_RATIO_CHOICES])
         select_choice(self.ratio_combo, canonical_crop_ratio(conf.autocrop_ratio))
         self.ratio_combo.setToolTip(
@@ -86,7 +86,7 @@ class GeometrySidebar(BaseSidebar):
 
         guide_row = QHBoxLayout()
         guide_row.addWidget(self._field_label(tr("Guide")))
-        self.guide_combo = QComboBox()
+        self.guide_combo = StepCombo()
         for guide, label in GUIDE_LABELS.items():
             self.guide_combo.addItem(label, guide.value)
         self.guide_combo.setCurrentIndex(self.guide_combo.findData(self.state.crop_guide))

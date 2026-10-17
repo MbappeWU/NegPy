@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QAbstractButton, QAbstractSpinBox, QApplication, QCo
 
 from negpy.features.flatfield.logic import set_gain_provider
 from negpy.infrastructure.storage.repository import StorageRepository
+from negpy.services.assets.migrations.bounds import migrate_stale_frame_bounds
 from negpy.services.assets.migrations.cast_removal import migrate_legacy_slide_cast_removal
 from negpy.services.assets.crosstalk import CrosstalkProfiles
 from negpy.services.assets.flatfield import FlatFieldProfiles
@@ -314,6 +315,7 @@ def main() -> None:
         migrate_new_roll_field_locks(repo)
         migrate_cast_removal_roll_locks(repo)
         migrate_auto_crop_roll_locks(repo)
+        migrate_stale_frame_bounds(repo)
 
         scale = float(repo.get_global_setting("ui_scale", 1.0) or 1.0)
         scale = max(0.8, min(1.2, scale))

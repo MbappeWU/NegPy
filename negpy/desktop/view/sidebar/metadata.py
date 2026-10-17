@@ -5,7 +5,6 @@ from dataclasses import asdict, replace
 from typing import Optional
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -28,9 +27,10 @@ from negpy.desktop.view.styles.fonts import mono_font_family
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.controller import AppController
 from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, make_section
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.services.assets.rolls import ROLL_DEFAULT_FIELDS
 from negpy.desktop.view.widgets.tab_header import TabHeader
-from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
+from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_sequential_frame_dialog
 from negpy.desktop.settings_catalog import rows_for_fields
 from negpy.desktop.view.widgets.description_fields_dialog import DescriptionFieldsDialog
 from negpy.desktop.view.widgets.gear_catalog_dialog import resolve_other_gear_pick
@@ -74,6 +74,7 @@ from negpy.services.assets.presets import MetadataPresets
 
 PUSH_PULL_OPTIONS = [PUSH_PULL_LABELS[v] for v in PUSH_PULL_VALUES]
 _LOAD_TOOLTIP = "Write the selected preset's fields onto this frame"
+_SEQUENCE_TOOLTIP = tr("Assign sequential capture frame numbers to the selected frames or the whole roll")
 
 _CLEAR_TOOLTIPS = {
     "gear_clear_btn": (tr("Clear the camera, lens and film stock selections"), "metadata_clear_gear"),
@@ -217,7 +218,7 @@ class MetadataSidebar(BaseSidebar):
         proc.addWidget(self.process_combo)
 
         proc.addWidget(field_label(tr("Format")))
-        self.format_combo = QComboBox()
+        self.format_combo = StepCombo()
         self.format_combo.setToolTip(wrap_tooltip(tr("Film format written to the frame's metadata")))
         add_choice_items(self.format_combo, FORMAT_OPTIONS)
         self.format_combo.setCurrentIndex(max(0, self.format_combo.findData(format_label(conf.format))))
@@ -251,7 +252,7 @@ class MetadataSidebar(BaseSidebar):
         proc.addLayout(dev_name_row)
 
         proc.addWidget(field_label(tr("Push / Pull")))
-        self.push_pull_combo = QComboBox()
+        self.push_pull_combo = StepCombo()
         add_choice_items(self.push_pull_combo, PUSH_PULL_OPTIONS)
         idx = PUSH_PULL_VALUES.index(conf.push_pull) if conf.push_pull in PUSH_PULL_VALUES else 3
         self.push_pull_combo.setCurrentIndex(idx)
@@ -306,6 +307,9 @@ class MetadataSidebar(BaseSidebar):
         self.capture_roll_edit.setText(conf.capture_roll)
         self.capture_roll_edit.setToolTip(tr("Scan capture roll name (Scanlight). Used in export filename templates as {{ roll }}."))
         roll_col.addWidget(self.capture_roll_edit)
+        # The Frame column holds a third row (the Sequence… button) and is taller, so a
+        # trailing stretch keeps Roll's label and field at the top, aligned with Frame.
+        roll_col.addStretch()
         frame_col = QVBoxLayout()
         frame_col.setSpacing(THEME.space_md)
         frame_col.addWidget(field_label(tr("Frame")))
@@ -315,6 +319,8 @@ class MetadataSidebar(BaseSidebar):
             self.capture_frame_edit.setText(str(conf.capture_frame))
         self.capture_frame_edit.setToolTip(tr("Scan capture frame number. Used in export filename templates as {{ frame }}."))
         frame_col.addWidget(self.capture_frame_edit)
+        self.frame_sequence_btn = self._labeled_action("", "Sequence…", _SEQUENCE_TOOLTIP)
+        frame_col.addWidget(self.frame_sequence_btn)
         roll_row.addLayout(roll_col, 2)
         roll_row.addLayout(frame_col, 1)
         scan.addLayout(roll_row)
@@ -479,7 +485,7 @@ class MetadataSidebar(BaseSidebar):
 
         edit = QLineEdit()
         edit.setReadOnly(True)
-        edit.setPlaceholderText("—")
+        edit.setPlaceholderText(tr("—"))
         self._apply_lock_style(edit, locked=True)
 
         lock_btn = QToolButton()
@@ -534,6 +540,7 @@ class MetadataSidebar(BaseSidebar):
         self.gear_infer_btn.clicked.connect(self._on_gear_infer_from_folder)
         self.process_clear_btn.clicked.connect(self._on_process_clear)
         self.scan_clear_btn.clicked.connect(self._on_scanning_clear)
+        self.frame_sequence_btn.clicked.connect(self._open_sequence_dialog)
         self.camera_combo.selection_changed.connect(self._on_gear_changed)
         self.lens_combo.selection_changed.connect(self._on_gear_changed)
         self.film_stock_combo.selection_changed.connect(self._on_gear_changed)
@@ -759,6 +766,14 @@ class MetadataSidebar(BaseSidebar):
     def _on_scanning_clear(self) -> None:
         self._clear_fields(SCANNING_FIELDS)
 
+    def _open_sequence_dialog(self) -> None:
+        result = open_sequential_frame_dialog(self, self.controller.session)
+        if result is None:
+            return
+        self.controller.session.assign_sequential_frame_numbers(*result)
+        self._dirty = False
+        self.sync_ui()
+
     def _on_gear_changed(self, *_args) -> None:
         sender = self.sender()
         if sender is self.camera_combo:
@@ -797,6 +812,7 @@ class MetadataSidebar(BaseSidebar):
         """Re-read the binding: tooltips are built before saved overrides load, and again
         whenever the shortcut editor writes a new one."""
         self.metadata_preset_load_btn.setToolTip(tooltip_with_shortcut(_LOAD_TOOLTIP, "metadata_preset_load"))
+        self.frame_sequence_btn.setToolTip(tooltip_with_shortcut(_SEQUENCE_TOOLTIP, "assign_sequential_frame"))
         for attr, (text, action_id) in _CLEAR_TOOLTIPS.items():
             getattr(self, attr).setToolTip(tooltip_with_shortcut(text, action_id))
 

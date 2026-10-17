@@ -199,6 +199,7 @@ _TOOL_ROWS: dict[ToolMode, tuple[str, str, str]] = {
     ToolMode.LOCAL_OVAL: (tr("Oval Mask"), tr("Drag out an oval"), ""),
     ToolMode.LOCAL_GRADIENT: (tr("Card Edge"), tr("Drag from the full-exposure edge to where it fades out"), ""),
     ToolMode.ANALYSIS_DRAW: (tr("Draw Region"), tr("Drag the area the meters read"), ""),
+    ToolMode.FILM_BASE: (tr("Film Base"), tr("Click the clear rebate to set the roll's film base"), ""),
     ToolMode.STRAIGHTEN: (tr("Straighten"), tr("Draw a line along a horizon or an edge to level the frame"), _FINE_ROTATION),
     ToolMode.KEYSTONE_LINES: (
         tr("Keystone Lines"),
@@ -218,7 +219,8 @@ _CANVAS_TOOLS: tuple[tuple[ToolMode, str, str] | str, ...] = (
     (ToolMode.KEYSTONE_LINES, "keystone_lines", "controls_panel.geometry_sidebar.keystone_lines_btn"),
     tr("Metering"),
     (ToolMode.ANALYSIS_DRAW, "analysis_draw", "controls_panel.process_sidebar.analysis_region_btn"),
-    tr("Filtration"),
+    (ToolMode.FILM_BASE, "film_base", "controls_panel.process_sidebar.film_base_btn"),
+    "Filtration",
     (ToolMode.WB_PICK, "pick_wb", "controls_panel.color_sidebar.pick_wb_btn"),
     tr("Dodge & Burn"),
     (ToolMode.LOCAL_DRAW, "local_draw", "controls_panel.local_sidebar.draw_btn"),
@@ -383,7 +385,7 @@ class ActionToolbar(QWidget):
         self._label(self._zoom_fit_action, tr("Fit to Window"), "fit_view")
         zoom_menu.addSeparator()
         for percent in _ZOOM_PRESETS:
-            action = zoom_menu.addAction(f"{percent}%")
+            action = zoom_menu.addAction(tr("{value}%", value=percent))
             action.triggered.connect(lambda _checked=False, p=percent: self._on_zoom_preset(p))
             if percent == 100:
                 self._label(action, "100%", "zoom_100")
@@ -395,7 +397,7 @@ class ActionToolbar(QWidget):
         self._zoom_hq_action.triggered.connect(self.controller.toggle_hq_preview)
         self._label(self._zoom_hq_action, tr("HQ Preview"), "toggle_hq")
         # Sized for the common readouts, so zooming up to 1:1 does not move the row.
-        self.btn_zoom.setText("100%")
+        self.btn_zoom.setText(tr("100%"))
         self._zoom_min_width = self.btn_zoom.sizeHint().width()
         self.btn_zoom.setMinimumWidth(self._zoom_min_width)
 
@@ -900,7 +902,7 @@ class ActionToolbar(QWidget):
             name, hint, _path = spec
             button = self._find_widget(_TOOL_BUTTON_PATHS.get(mode, ""))
             self.tool_name.setIcon(button.icon() if button is not None else QIcon())
-            self.tool_name.setText(f" {name}" if button is not None else name)
+            self.tool_name.setText(tr(" {value}", value=name) if button is not None else name)
             self.tool_name.setMinimumWidth(self.tool_name.sizeHint().width())
             self.tool_hint.setText(_CLONE_SOURCE_HINT if mode == ToolMode.CLONE and state.clone_picking else hint)
             self.tool_name.setToolTip(self.tool_hint.text())
@@ -1140,7 +1142,7 @@ class ActionToolbar(QWidget):
 
     def _refresh_zoom_readout(self) -> None:
         hq = " HQ" if self.session.state.hq_preview else ""
-        self.btn_zoom.setText(f"{self._zoom_percent}%{hq}")
+        self.btn_zoom.setText(tr("{value}%{value1}", value=self._zoom_percent, value1=hq))
         # The pill is laid out from minimum widths and the canvas fixes its size, so a longer readout
         # raises the minimum and asks for a new layout, or it clips under the chevron.
         width = max(self._zoom_min_width, self.btn_zoom.sizeHint().width())

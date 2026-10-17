@@ -4,7 +4,6 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
-    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
@@ -14,6 +13,7 @@ from negpy.desktop.view.confirm import confirm_delete_named
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_label, hint_label
 from negpy.desktop.view.widgets.file_dialogs import last_open_folder, pick_start_dir
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure.loaders.helpers import get_supported_raw_wildcards
 
 _NONE_LABEL = tr("— None —")
@@ -30,7 +30,7 @@ class FlatFieldSidebar(BaseSidebar):
     def _init_ui(self) -> None:
         row = QHBoxLayout()
         row.addWidget(field_label(tr("Profile")))
-        self.profile_combo = QComboBox()
+        self.profile_combo = StepCombo()
         self.profile_combo.setToolTip(tr("Saved flat-field reference profiles (scan of the bare light source)"))
         row.addWidget(self.profile_combo, 1)
 

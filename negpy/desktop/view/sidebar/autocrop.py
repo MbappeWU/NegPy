@@ -1,9 +1,10 @@
 from negpy.desktop.view.styles.templates import add_choice_items, select_choice
 from negpy.kernel.system.i18n import tr
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QHBoxLayout, QLabel
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_label, header_row, section_subheader, wrap_tooltip
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import CROP_RATIO_CHOICES, canonical_crop_ratio
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.features.geometry.models import AutocropMode
@@ -25,7 +26,7 @@ class AutocropSidebar(BaseSidebar):
 
         ratio_row = QHBoxLayout()
         ratio_row.addWidget(self._field_label(tr("Ratio")))
-        self.ratio_combo = QComboBox()
+        self.ratio_combo = StepCombo()
         # One entry per shape (see CROP_RATIO_CHOICES). The crop tool auto-orients to match the
         # current drag, so a separate portrait entry for every ratio would duplicate the same
         # shape twice.
@@ -62,7 +63,7 @@ class AutocropSidebar(BaseSidebar):
 
         mode_row = QHBoxLayout()
         mode_row.addWidget(self._field_label(tr("Mode")))
-        self.mode_combo = QComboBox()
+        self.mode_combo = StepCombo()
         self.mode_combo.addItem(tr("Image only"), AutocropMode.IMAGE.value)
         self.mode_combo.addItem(tr("Film edge"), AutocropMode.FILM.value)
         self._select_mode(conf.autocrop_mode)

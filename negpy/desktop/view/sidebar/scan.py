@@ -33,6 +33,7 @@ from negpy.desktop.view.styles.templates import (
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure.scanners.base import ScannerCapabilities, ScannerDevice
 from negpy.infrastructure.scanners.params import (
     DEFAULT_N_PASSES,
@@ -255,7 +256,7 @@ class ScanSidebar(QWidget):
         self.backend_btn.setCurrentIndex(max(self.backend_btn.findData(self._settings.backend), 0))
         device.addLayout(field_row(tr("Backend"), self.backend_btn))
 
-        self.device_combo = QComboBox()
+        self.device_combo = StepCombo()
         self.device_combo.setToolTip(wrap_tooltip(tr("Select scanner")))
         self.device_combo.addItem(tr("Detecting scanners…"), None)
         self.refresh_btn = _icon_button("fa5s.redo", tr("Refresh device list"))
@@ -304,7 +305,7 @@ class ScanSidebar(QWidget):
         quality.addWidget(self.film_type_widget)
 
         # Frame length, for a transport that measures the strip and cannot infer it.
-        self.format_combo = QComboBox()
+        self.format_combo = StepCombo()
         self.format_combo.setToolTip(wrap_tooltip(tr("Frame length on the loaded film; Auto where the holder fixes it")))
         # Not "Format": the output file format owns that label in the Output card.
         self.film_format_widget = self._row_widget(field_row(tr("Film format"), self.format_combo))
@@ -1260,7 +1261,7 @@ class ScanSidebar(QWidget):
         if device is not None and _reaches_a_strip(device.capabilities):
             n_windows = len(self._settings.frame_windows)
             win_txt = count_of(n_windows, "window") if n_windows else tr("Full frame")
-            self.scan_window_status.setText(f"{win_txt}{offset_txt}")
+            self.scan_window_status.setText(tr("{value}{value1}", value=win_txt, value1=offset_txt))
             return
         area = scan_window_to_area(self._settings.scan_window, device.capabilities.max_area_mm) if device else None
         if area is None:

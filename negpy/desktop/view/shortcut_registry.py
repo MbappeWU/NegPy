@@ -75,6 +75,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "local_oval": ShortcutEntry("", tr("Toggle dodge & burn oval mask draw"), tr("Tools")),
     "local_gradient": ShortcutEntry("", tr("Toggle dodge & burn card-edge mask draw"), tr("Tools")),
     "analysis_draw": ShortcutEntry("Ctrl+R", tr("Toggle analysis region draw"), tr("Tools")),
+    "film_base": ShortcutEntry("", tr("Toggle film base pick"), tr("Tools")),
     "open_tools_menu": ShortcutEntry("", tr("Open the Tools menu: every canvas tool"), tr("Tools")),
     "toggle_flat_peek": ShortcutEntry("M", tr("Peek flat scan (digital intermediate); hold to peek only while down"), tr("Tools")),
     "toggle_negative_peek": ShortcutEntry("N", tr("Peek negative (source as loaded); hold to peek only while down"), tr("Tools")),
@@ -83,6 +84,10 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_clipping_overlay": ShortcutEntry("", tr("Clipping Overlay: paper black and paper white on the frame"), tr("Tools")),
     "toggle_zone_hover_highlight": ShortcutEntry(
         "", tr("Zone Highlight: show the zone strip's hovered zone alone on the frame"), tr("Tools")
+    ),
+    "toggle_parade_overlay": ShortcutEntry("", tr("Parade Overlay: R, G and B on one plot, white where they agree"), tr("Tools")),
+    "toggle_scan_parade_base": ShortcutEntry(
+        "", tr("Base Relative: the scan Parade's density above each channel's film base"), tr("Tools")
     ),
     "toggle_hq": ShortcutEntry("", tr("Toggle high-quality (full-resolution) preview"), tr("View")),
     "toggle_optical_removal": ShortcutEntry("", tr("Toggle Optical Removal"), tr("Retouch")),
@@ -94,6 +99,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_auto_density": ShortcutEntry("", tr("Toggle Auto Density"), tr("Exposure")),
     "toggle_auto_grade": ShortcutEntry("", tr("Toggle Auto Grade"), tr("Exposure")),
     "toggle_auto_both": ShortcutEntry("", tr("Toggle Auto Density and Auto Grade together"), tr("Exposure")),
+    "toggle_hold_black": ShortcutEntry("", tr("Toggle Hold Black (a shadow lift keeps the black point)"), tr("Exposure")),
     "preset_apply": ShortcutEntry("", tr("Apply the selected preset"), tr("Actions")),
     "preset_save": ShortcutEntry("", tr("Save a preset from the current settings"), tr("Actions")),
     "toggle_test_strip": ShortcutEntry("Shift+T", tr("Density × grade test strip"), tr("Tools")),
@@ -157,7 +163,9 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "metadata_clear_gear": ShortcutEntry("", tr("Clear the frame's camera, lens and film stock"), tr("Actions")),
     "metadata_clear_process": ShortcutEntry("", tr("Clear the frame's development process"), tr("Actions")),
     "metadata_clear_scanning": ShortcutEntry("", tr("Clear the frame's scan setup"), tr("Actions")),
+    "assign_sequential_frame": ShortcutEntry("", tr("Assign sequential frame numbers"), tr("Actions")),
     "scan_setup": ShortcutEntry("", tr("Scanning setup wizard"), tr("Process")),
+    "measure_chart": ShortcutEntry("", tr("Measure a crosstalk matrix from a color chart"), tr("Process")),
     "scan_prescan": ShortcutEntry("", tr("Prescan and set crop (Plustek)"), tr("Process")),
     "scan_meter_frame": ShortcutEntry("", tr("Meter a frame and lock the scan exposure (Coolscan)"), tr("Process")),
     "scan_as_roll": ShortcutEntry("", tr("Toggle Scan as Roll"), tr("Process")),
@@ -315,6 +323,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "undo": ShortcutEntry("Ctrl+Z", tr("Undo"), tr("Actions")),
     "redo": ShortcutEntry("Ctrl+Y", tr("Redo"), tr("Actions")),
     "live_view_scan": ShortcutEntry("S", tr("Scan, or stop the capture"), tr("Camera Live View"), LIVE_VIEW),
+    "live_view_scan_space": ShortcutEntry("Space", tr("Scan, or stop the capture (second key)"), tr("Camera Live View"), LIVE_VIEW),
     "live_view_retake": ShortcutEntry("R", tr("Retake the current frame"), tr("Camera Live View"), LIVE_VIEW),
     "live_view_meter": ShortcutEntry("M", tr("Meter: set the shutter from one RAW probe"), tr("Camera Live View"), LIVE_VIEW),
     "live_view_histogram": ShortcutEntry("H", tr("Show the live histogram"), tr("Camera Live View"), LIVE_VIEW),
