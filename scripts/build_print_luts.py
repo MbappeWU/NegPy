@@ -58,13 +58,15 @@ SPECTRAL = {
     "kodak_2393": ("kodak_2393_h1_2393.csv", "K75P", "Kodak H-1-2393t spectral dye density (spektrafilm trace), Kinoton 75P xenon"),
     "fuji_af3": ("fujicolor_ca_af3_198e.csv", "D50", "Fujifilm AF3-198E spectral dye density, D50"),
 }
-# LUT key -> Fujifilm Frontier-PD printer profile, read from --profiles (not in the repo).
+# LUT key -> an ICC look profile in the repo (redistributable).
+LOOKS = {"pakon": "tests/fixtures/RGBScan.icc"}
+# LUT key -> a minilab printer profile, read from --profiles (not in the repo).
 FRONTIER = {
     "fuji_ca_dpii": "Fuji_Frontier-PD_CA-DPII_V3.icm",
     "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_V3.icm",
     "fuji_ca_pearl": "Fuji_Frontier-PD_CA-Pearl_V3.icm",
 }
-SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", "pakon", *FRONTIER)
+SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", *LOOKS, *FRONTIER)
 
 ADOBE_XY = ((0.64, 0.33), (0.21, 0.71), (0.15, 0.06))
 BRADFORD = np.array([[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]])
@@ -344,7 +346,7 @@ def main():
             ap.error("--icc needs --as KEY")
         jobs.append((args.as_key, args.icc))
     else:
-        profiles = {"pakon": REPO / "tests" / "fixtures" / "RGBScan.icc"} | {k: args.profiles / f for k, f in FRONTIER.items()}
+        profiles = {k: REPO / f for k, f in LOOKS.items()} | {k: args.profiles / f for k, f in FRONTIER.items()}
         jobs += [(k, profiles.get(k)) for k in args.key]
     for key, icc_path in jobs:
         if icc_path is None:
