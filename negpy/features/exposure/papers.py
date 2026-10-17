@@ -176,9 +176,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
     # Fuji publishes no characteristic curve. The knees are fitted to the grey wedge koraks.nl
     # measured on ADOX Color Mission, a Crystal Archive paper; the midtone takes Endura Premier's
     # shape, a consumer RA4 paper of like contrast. Paper white, base tint, Dmax and dyes come from
-    # Fujifilm's Frontier-PD profile for the paper; the HD and Pearl stocks keep this curve with their
-    # own profiles. Pearl keeps DPII's white: its measured white is the
-    # measuring angle on a pearl surface.
+    # Fujifilm's Frontier-PD profile for the paper; the HD stock keeps this curve with its own profile.
     "fuji_crystal": PaperProfile(
         label="Fujicolor Crystal Archive",
         kind="ra4",
@@ -200,17 +198,6 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_midtone_gamma=0.22,
         base_tint_cmy=(0.015, 0.011, -0.026),
         print_color=DyeLut("fuji_ca_hd"),
-    ),
-    "fuji_crystal_pearl": PaperProfile(
-        label="Fujicolor Crystal Archive Pearl",
-        kind="ra4",
-        d_max=2.23,
-        d_min=0.083,
-        toe_sharpness_base=5.96,
-        shoulder_sharpness_base=2.89,
-        paper_midtone_gamma=0.22,
-        base_tint_cmy=(0.008, 0.007, -0.016),
-        print_color=DyeLut("fuji_ca_pearl"),
     ),
     # Fitted to Kodak E-4021 (Status A R/G/B, shared with Supra Endura), with its dyes: spektrafilm's
     # trace of the 2009 sheet (CC BY-SA 4.0, NOTICE.md), under D50.

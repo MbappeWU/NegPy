@@ -142,13 +142,12 @@ class TestPaperProfiles(unittest.TestCase):
             self.assertEqual(resolve_print_color(effective_paper_profile("kodak_endura", mode)), (None, None))
 
     def test_crystal_archive_tones_from_frontier(self):
-        ca, pearl = PAPER_PROFILES["fuji_crystal"], PAPER_PROFILES["fuji_crystal_pearl"]
-        self.assertGreater(ca.d_max, 2.3)
-        self.assertEqual((pearl.d_min, pearl.base_tint_cmy), (ca.d_min, ca.base_tint_cmy))
+        self.assertGreater(PAPER_PROFILES["fuji_crystal"].d_max, 2.3)
         self.assertIsInstance(PAPER_PROFILES["fuji_crystal_hd"].print_color, DyeLut)
         keys = list(PAPER_PROFILES)
-        i = keys.index("fuji_crystal")
-        self.assertEqual(keys[i + 1 : i + 3], ["fuji_crystal_hd", "fuji_crystal_pearl"])
+        self.assertEqual(keys[keys.index("fuji_crystal") + 1], "fuji_crystal_hd")
+        # Pearl differs from the standard paper only in its surface, which a print stock cannot show.
+        self.assertNotIn("fuji_crystal_pearl", PAPER_PROFILES)
 
     def test_ra4_introduces_color_divergence(self):
         # Per-channel gamma + tint must make a neutral ramp non-grey on RA4 papers.

@@ -64,7 +64,6 @@ LOOKS = {"pakon": "tests/fixtures/RGBScan.icc"}
 FRONTIER = {
     "fuji_ca_dpii": "Fuji_Frontier-PD_CA-DPII_V3.icm",
     "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_v3a.icm",
-    "fuji_ca_pearl": "Fuji_Frontier-PD_CA-Pearl_V3.icm",
 }
 # A Frontier stock's d_max adds the paper base to the profile's black, so its LUT reaches past device black.
 FRONTIER_HEADROOM = 0.3
