@@ -20,6 +20,7 @@ from negpy.features.exposure.papers import (
     profiles_for_mode,
     resolve_paper,
 )
+from negpy.features.exposure.print_lut import DyeMatrix
 from negpy.features.process.chart import delta_e2000
 from negpy.features.process.models import ProcessMode
 from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE, ColorSpaceRegistry
@@ -67,9 +68,10 @@ class TestPaperProfiles(unittest.TestCase):
         self.assertTrue({"bw", "ra4"} <= kinds)
 
     def test_dye_matrices_keep_neutrals(self):
-        # resolve_dye_matrix renormalizes rows, so a mistyped fitted coefficient would pass unseen.
+        # resolve_print_color renormalizes rows, so a mistyped fitted coefficient would pass unseen.
         for key, p in PAPER_PROFILES.items():
-            np.testing.assert_allclose(np.array(p.dye_matrix).sum(axis=1), 1.0, atol=2e-4, err_msg=key)
+            if isinstance(p.print_color, DyeMatrix):
+                np.testing.assert_allclose(np.array(p.print_color.rows).sum(axis=1), 1.0, atol=2e-4, err_msg=key)
 
     def test_midtone_gamma_leaves_snap_headroom(self):
         # Snap and its per-layer trims add to the profile's gamma below the kernel's |gamma| < 1.

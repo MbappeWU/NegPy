@@ -22,13 +22,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from negpy.features.exposure.models import EXPOSURE_CONSTANTS
+from negpy.features.exposure.print_lut import DyeLut, DyeMatrix, DyeMatrixRows, PrintColor, PrintLut, load_print_lut
 from negpy.features.process.models import ProcessMode
 
 DEFAULT_PROFILE_KEY = "neutral"
 
-DyeMatrix = Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]]
-
-_IDENTITY_DYE: DyeMatrix = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+_IDENTITY_DYE: DyeMatrixRows = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 # Lith hue path: four (a*, b*) anchors at the density fractions in
 # LITH_CONSTANTS["path_u"], reading peach, ochre, olive, neutral. The olive knot is not
@@ -45,14 +44,14 @@ _DEFAULT_LITH_PATH: LithPath = ((4.0, 8.0), (2.0, 8.0), (-1.0, 4.0), (0.0, 0.0))
 # Endura Premier's: its E-4020 sheet draws each dye over a density floor in every band, which
 # fitted as-is desaturates past any RA4 print, and spektrafilm's Ultra Endura is the later High
 # Definition paper (E-4044).
-_ENDURA_DYE: DyeMatrix = (
+_ENDURA_DYE: DyeMatrixRows = (
     (0.8363, 0.1960, -0.0322),
     (0.1469, 0.7744, 0.0787),
     (0.0272, 0.1056, 0.8671),
 )
 
 # E-4021 Portra and Supra Endura: spektrafilm's trace of the 2009 sheet (CC BY-SA 4.0, NOTICE.md).
-_E4021_DYE: DyeMatrix = (
+_E4021_DYE: DyeMatrixRows = (
     (0.8545, 0.1800, -0.0345),
     (0.1649, 0.7673, 0.0678),
     (0.0454, 0.0981, 0.8565),
@@ -79,8 +78,8 @@ class PaperProfile:
 
     channel_gamma — per-channel (R, G, B) slope multipliers (dye-layer contrast
     crossover). base_tint_cmy — per-channel (C, M, Y) additions to the minimum
-    density floor (base tint, shows in highlights). dye_matrix — dye coupling
-    D_rgb = M · D_dye above base, row-normalized at use.
+    density floor (base tint, shows in highlights). print_color — the stock's dyes: a
+    DyeMatrix coupling D_rgb = M · D_dye above base, or a DyeLut from dye density to color.
     lith_path — the paper's lith color path, read by the Lith stage.
     kind picks the process mode the paper shows in; medium is its group in the dropdown.
     """
@@ -98,7 +97,7 @@ class PaperProfile:
     paper_gamma_width: float = EXPOSURE_CONSTANTS["paper_gamma_width"]
     channel_gamma: Tuple[float, float, float] = (1.0, 1.0, 1.0)
     base_tint_cmy: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    dye_matrix: DyeMatrix = _IDENTITY_DYE
+    print_color: PrintColor = DyeMatrix(_IDENTITY_DYE)
     lith_path: LithPath = _DEFAULT_LITH_PATH
 
 
@@ -110,10 +109,12 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         label="Digital (Pakon Minilab)",
         kind="ra4",
         medium="digital",
-        dye_matrix=(
-            (0.7937, 0.2331, -0.0268),
-            (0.0640, 0.8809, 0.0551),
-            (-0.0076, 0.0527, 0.9549),
+        print_color=DyeMatrix(
+            (
+                (0.7937, 0.2331, -0.0268),
+                (0.0640, 0.8809, 0.0551),
+                (-0.0076, 0.0527, 0.9549),
+            )
         ),
     ),
     # ── B&W (tonal only) ──────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         toe_sharpness_base=3.5,
         paper_midtone_gamma=0.22,
         channel_gamma=(1.04, 1.0, 0.98),
-        dye_matrix=_ENDURA_DYE,
+        print_color=DyeMatrix(_ENDURA_DYE),
     ),
     # Fuji publishes no characteristic curve. Fitted to the grey wedge koraks.nl measured on ADOX
     # Color Mission, a Crystal Archive paper, with Dmax pinned to Fuji's AF3-198E calibration
@@ -210,10 +211,12 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_midtone_gamma=-0.203,
         paper_gamma_width=0.62,
         # Dyes from AF3-198E's spectral dye density curves.
-        dye_matrix=(
-            (0.8280, 0.1932, -0.0212),
-            (0.1244, 0.8230, 0.0526),
-            (0.0349, 0.1113, 0.8539),
+        print_color=DyeMatrix(
+            (
+                (0.8280, 0.1932, -0.0212),
+                (0.1244, 0.8230, 0.0526),
+                (0.0349, 0.1113, 0.8539),
+            )
         ),
     ),
     # Fitted to Kodak E-4021 (Status A R/G/B, shared with Supra Endura).
@@ -228,7 +231,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.89,
         channel_gamma=(0.968, 1.0, 1.013),
         base_tint_cmy=(-0.002, 0.012, -0.009),
-        dye_matrix=_E4021_DYE,
+        print_color=DyeMatrix(_E4021_DYE),
     ),
     "kodak_supra_endura": PaperProfile(
         label="Kodak Supra Endura",
@@ -241,7 +244,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.62,
         channel_gamma=(1.008, 1.0, 1.0),
         base_tint_cmy=(0.011, -0.009, -0.003),
-        dye_matrix=_E4021_DYE,
+        print_color=DyeMatrix(_E4021_DYE),
     ),
     # Fitted to Kodak E-4020 (Status A R/G/B).
     "kodak_ultra_endura": PaperProfile(
@@ -255,7 +258,7 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_gamma_width=0.60,
         channel_gamma=(1.109, 1.0, 1.051),
         base_tint_cmy=(-0.003, -0.003, 0.005),
-        dye_matrix=_ENDURA_DYE,
+        print_color=DyeMatrix(_ENDURA_DYE),
     ),
     # ── Color print film (kind "ra4": the kind gates the C-41 mode) ─────────
     # Fitted to Kodak H-1-2383 (Status A R/G/B) with the `print` fit, which scales the
@@ -272,10 +275,12 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_midtone_gamma=-0.019,
         paper_gamma_width=0.31,
         channel_gamma=(1.034, 1.0, 0.989),
-        dye_matrix=(
-            (0.7810, 0.2337, -0.0147),
-            (0.1421, 0.7897, 0.0682),
-            (0.0685, 0.1249, 0.8066),
+        print_color=DyeMatrix(
+            (
+                (0.7810, 0.2337, -0.0147),
+                (0.1421, 0.7897, 0.0682),
+                (0.0685, 0.1249, 0.8066),
+            )
         ),
     ),
     # Fitted like 2383 to Kodak H-1-2393t (1998); its curves and dyes are spektrafilm's trace of
@@ -291,10 +296,12 @@ PAPER_PROFILES: Dict[str, PaperProfile] = {
         paper_midtone_gamma=0.074,
         paper_gamma_width=0.58,
         channel_gamma=(1.075, 1.0, 1.049),
-        dye_matrix=(
-            (0.7676, 0.2591, -0.0267),
-            (0.1406, 0.7832, 0.0762),
-            (0.0733, 0.1207, 0.8060),
+        print_color=DyeMatrix(
+            (
+                (0.7676, 0.2591, -0.0267),
+                (0.1406, 0.7832, 0.0762),
+                (0.0733, 0.1207, 0.8060),
+            )
         ),
     ),
 }
@@ -305,15 +312,18 @@ def resolve_paper(key: str) -> PaperProfile:
     return PAPER_PROFILES.get(key, PAPER_PROFILES[DEFAULT_PROFILE_KEY])
 
 
-def resolve_dye_matrix(paper: PaperProfile | None) -> Optional[np.ndarray]:
+def resolve_print_color(paper: PaperProfile | None) -> Tuple[Optional[np.ndarray], Optional[PrintLut]]:
     """
-    Row-normalized dye coupling matrix (rows sum to 1, so neutrals are preserved),
-    or None for identity so the default path stays byte-exact.
+    (dye matrix, LUT) for the print kernel. The matrix is row-normalized (rows sum to 1, so
+    neutrals are preserved) and None for identity, so the default path stays byte-exact.
     """
-    if paper is None or paper.dye_matrix == _IDENTITY_DYE:
-        return None
-    m = np.array(paper.dye_matrix, dtype=np.float64)
-    return m / np.maximum(m.sum(axis=1, keepdims=True), 1e-6)
+    color = None if paper is None else paper.print_color
+    if isinstance(color, DyeLut):
+        return None, load_print_lut(color.key)
+    if color is None or color.rows == _IDENTITY_DYE:
+        return None, None
+    m = np.array(color.rows, dtype=np.float64)
+    return m / np.maximum(m.sum(axis=1, keepdims=True), 1e-6), None
 
 
 # Achromatic projection in density space (all rows 1/3) -- see resolve_saturation_matrix.
@@ -323,7 +333,7 @@ _ACHROMATIC_J = np.full((3, 3), 1.0 / 3.0, dtype=np.float64)
 def resolve_saturation_matrix(k_rgb: Tuple[float, float, float]) -> Optional[np.ndarray]:
     """
     Density-domain saturation matrix, applied to density above paper base
-    (same coordinate as dye_matrix). Row ch is k_rgb[ch]*I[ch] + (1-k_rgb[ch])*J[ch]
+    (same coordinate as a dye matrix). Row ch is k_rgb[ch]*I[ch] + (1-k_rgb[ch])*J[ch]
     — each row still sums to 1 regardless of its own k, so per-channel k's
     diverge (R/G/B pushed independently) without breaking neutral preservation;
     no per-row normalization needed. k=1 on every channel is identity (returns
@@ -340,16 +350,12 @@ def resolve_saturation_matrix(k_rgb: Tuple[float, float, float]) -> Optional[np.
 def compose_density_matrices(dye: Optional[np.ndarray], sat: Optional[np.ndarray]) -> Optional[np.ndarray]:
     """
     Composite density-domain matrix for the dye_mix kernel slot, or None if
-    both factors are identity (mirrors resolve_dye_matrix's allocation-free
+    both factors are identity (mirrors resolve_print_color's allocation-free
     common case).
 
-    sat is applied outermost, dye innermost (sat @ dye): dye_matrix keeps
-    acting on the print curve's real density exactly as it always has, and
-    saturation is layered on top as a final creative step rather than being
-    fed back through the paper's physical crosstalk (that would make the
-    slider's effective strength paper-dependent, since some of the push
-    would get reabsorbed by the crosstalk before it reaches display). Do not
-    flip this order.
+    sat is applied outermost, dye innermost (sat @ dye), so a matrix stock's coupling
+    does not reabsorb the push. A LUT stock passes dye=None: separation then acts on the
+    dye amounts before the LUT, as a more saturated negative would on that paper.
     """
     if dye is None and sat is None:
         return None

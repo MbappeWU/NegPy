@@ -2002,7 +2002,7 @@ class GPUEngine:
             compose_density_matrices,
             effective_constants,
             effective_paper_profile,
-            resolve_dye_matrix,
+            resolve_print_color,
             resolve_saturation_matrix,
         )
 
@@ -2082,7 +2082,7 @@ class GPUEngine:
             LogNegativeBounds(adj_floors, adj_ceils),
         )
         dmin_rgb = paper_dmin_rgb(d_min, paper)
-        dye = resolve_dye_matrix(paper)
+        dye, lut = resolve_print_color(paper)
         # Density-space Dye Separation, composed into the same dye_mix slot as the paper's
         # real crosstalk. Mirrors apply_characteristic_curve exactly.
         if settings.process.process_mode == ProcessMode.BW:
