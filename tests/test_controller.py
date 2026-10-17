@@ -99,6 +99,133 @@ class TestAppController(unittest.TestCase):
         self.assertEqual(args[0], "half_frame_profile")
         self.assertEqual(args[1], {"crop_rect": [0.0, 0.0, 1.0, 1.0], "split_x": 0.6, "gutter_thickness": 0.02, "split_axis": "x"})
 
+    def _bake_meters(self):
+        from negpy.features.exposure.normalization import LogNegativeBounds
+
+        return {
+            "metered_anchor": 0.55,
+            "textural_range": 1.1,
+            "norm_density_range": 1.4,
+            "shadow_point": 0.9,
+            "highlight_point": 0.03,
+            "final_bounds": LogNegativeBounds((0.2, 0.5, 0.8), (1.6, 1.9, 2.1)),
+        }
+
+    def test_baked_exposure_config_freezes_autos_to_shown_values(self):
+        from negpy.desktop.auto_sliders import shown_values
+
+        meters = self._bake_meters()
+        cfg = self.controller.state.config
+        baked = self.controller._baked_exposure_config(cfg, meters)
+        self.assertIsNotNone(baked)
+        self.assertFalse(baked.exposure.auto_exposure)
+        self.assertFalse(baked.exposure.auto_normalize_contrast)
+        shown = shown_values(cfg, meters)
+        self.assertEqual(baked.exposure.density, shown["density"])
+        self.assertEqual(baked.exposure.grade, shown["grade"])
+        self.assertEqual(baked.exposure.highlight_density, shown["highlight_density"])
+        self.assertEqual(baked.exposure.shadow_density, shown["shadow_density"])
+
+    def test_baked_exposure_config_none_when_both_autos_off(self):
+        cfg = replace(
+            self.controller.state.config,
+            exposure=replace(self.controller.state.config.exposure, auto_exposure=False, auto_normalize_contrast=False),
+        )
+        self.assertIsNone(self.controller._baked_exposure_config(cfg, self._bake_meters()))
+
+    def test_baked_exposure_config_none_when_no_meters(self):
+        self.assertIsNone(self.controller._baked_exposure_config(self.controller.state.config, {}))
+
+    def test_baked_config_for_file_none_for_composites_and_forks(self):
+        self.assertIsNone(self.controller._baked_config_for_file({"hash": "hdr1", "path": "/tmp/a.jpg", "hdr_paths": ["/tmp/b.jpg"]}))
+        self.assertIsNone(self.controller._baked_config_for_file({"hash": "st1", "path": "/tmp/a.jpg", "stitch_paths": ["/tmp/b.jpg"]}))
+        self.assertIsNone(self.controller._baked_config_for_file({"hash": "abc#roll:r1", "path": "/tmp/a.jpg"}))
+
+    def test_bake_to_roll_bakes_active_frame_and_others(self):
+        meters = self._bake_meters()
+        self.controller.state.uploaded_files = [
+            {"hash": "a", "path": "/tmp/a.jpg"},
+            {"hash": "b", "path": "/tmp/b.jpg"},
+        ]
+        self.controller.state.current_file_hash = "a"
+        self.controller.state.auto_meters = {"a": meters, "b": meters}
+        self.controller.session.asset_model = MagicMock()
+        self.controller.session.asset_model.visible_actual_indices_ordered.return_value = [0, 1]
+        self.controller.apply_config = MagicMock()
+        with patch("negpy.desktop.controller.load_or_promote", return_value=self.controller.state.config):
+            self.controller.bake_auto_density_grade_to_roll()
+        # active frame frozen into the live config via apply_config
+        self.controller.apply_config.assert_called_once()
+        active_baked = self.controller.apply_config.call_args.args[0]
+        self.assertFalse(active_baked.exposure.auto_exposure)
+        self.assertFalse(active_baked.exposure.auto_normalize_contrast)
+        # the other frame frozen into the DB via save_file_settings
+        self.controller.session.repo.save_file_settings.assert_called_once()
+        save_args = self.controller.session.repo.save_file_settings.call_args
+        self.assertEqual(save_args.args[0], "b")
+        self.assertFalse(save_args.args[1].exposure.auto_exposure)
+        self.assertFalse(save_args.args[1].exposure.auto_normalize_contrast)
+
+    def test_bake_to_roll_meters_and_bakes_unviewed_frame(self):
+        """A visible frame with no meters yet is metered on demand, then frozen, not skipped."""
+        meters = self._bake_meters()
+        self.controller.state.uploaded_files = [
+            {"hash": "a", "path": "/tmp/a.jpg"},
+            {"hash": "b", "path": "/tmp/b.jpg"},
+        ]
+        self.controller.state.current_file_hash = "a"
+        self.controller.state.auto_meters = {"a": meters}
+        self.controller.session.asset_model = MagicMock()
+        self.controller.session.asset_model.visible_actual_indices_ordered.return_value = [0, 1]
+        self.controller.apply_config = MagicMock()
+        with (
+            patch("negpy.desktop.controller.load_or_promote", return_value=self.controller.state.config),
+            patch.object(self.controller, "_meter_file", return_value=meters) as meter_mock,
+        ):
+            self.controller.bake_auto_density_grade_to_roll()
+        # the unviewed frame "b" was metered first, then frozen into the DB
+        meter_mock.assert_called_once()
+        self.assertEqual(meter_mock.call_args.args[0]["hash"], "b")
+        self.controller.session.repo.save_file_settings.assert_called_once()
+        save_args = self.controller.session.repo.save_file_settings.call_args
+        self.assertEqual(save_args.args[0], "b")
+        self.assertFalse(save_args.args[1].exposure.auto_exposure)
+        self.assertFalse(save_args.args[1].exposure.auto_normalize_contrast)
+
+    def test_bake_for_export_persists_without_touching_live_config(self):
+        meters = self._bake_meters()
+        files = [
+            {"hash": "a", "path": "/tmp/a.jpg"},
+            {"hash": "b", "path": "/tmp/b.jpg"},
+        ]
+        self.controller.state.current_file_hash = "a"
+        self.controller.state.auto_meters = {"a": meters, "b": meters}
+        live = self.controller.state.config
+        with patch("negpy.desktop.controller.load_or_promote", return_value=self.controller.state.config):
+            self.controller._bake_auto_density_grade_for_export(files)
+        # both frames persisted, both frozen
+        self.assertEqual(self.controller.session.repo.save_file_settings.call_count, 2)
+        for call in self.controller.session.repo.save_file_settings.call_args_list:
+            self.assertFalse(call.args[1].exposure.auto_exposure)
+            self.assertFalse(call.args[1].exposure.auto_normalize_contrast)
+        # the live config the export renders with is untouched
+        self.assertIs(self.controller.state.config, live)
+
+    def test_set_bake_on_export_persists_and_emits(self):
+        self.controller.state.bake_on_export = False
+        mock_slot = MagicMock()
+        self.controller.bake_on_export_changed.connect(mock_slot)
+        self.controller.set_bake_on_export(True)
+        self.assertTrue(self.controller.state.bake_on_export)
+        self.controller.session.repo.save_global_setting.assert_called_once_with("bake_on_export", True)
+        mock_slot.assert_called_once_with(True)
+        # a repeat with the same value is a no-op
+        self.controller.session.repo.save_global_setting.reset_mock()
+        mock_slot.reset_mock()
+        self.controller.set_bake_on_export(True)
+        self.controller.session.repo.save_global_setting.assert_not_called()
+        mock_slot.assert_not_called()
+
     def test_keystone_solve_clears_lines_after_config_update(self):
         self.controller.state.active_tool = ToolMode.KEYSTONE_LINES
         self.controller.state.preview_raw = np.zeros((100, 120), dtype=np.float32)

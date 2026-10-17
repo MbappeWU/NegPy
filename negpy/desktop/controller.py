@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QMessageBox
 from negpy.kernel.system.memory import available_system_memory_bytes
 from negpy.kernel.system.text import count_of, plural
 from negpy.kernel.image.logic import apply_exif_orientation, working_oetf_encode
-from negpy.desktop.auto_sliders import record_meters
+from negpy.desktop.auto_sliders import record_meters, shown_values
 from negpy.desktop.converters import ImageConverter
 from negpy.desktop.file_manager import move_to_trash
 from negpy.desktop.render_memo import RenderMemo
@@ -530,6 +530,7 @@ class AppController(QObject):
     compare_hold_changed = pyqtSignal(bool)
     flat_output_changed = pyqtSignal(bool)
     linear_output_changed = pyqtSignal(bool)
+    bake_on_export_changed = pyqtSignal(bool)
     flat_peek_changed = pyqtSignal(bool)
     negative_peek_changed = pyqtSignal(bool)
     embedded_peek_changed = pyqtSignal(bool)
@@ -7249,6 +7250,14 @@ class AppController(QObject):
         self.session.save_flat_output_prefs()
         self.linear_output_changed.emit(enabled)
 
+    def set_bake_on_export(self, enabled: bool) -> None:
+        """Toggle the app-wide Bake on Export: freeze Auto Density / Auto Grade on every export."""
+        if self.state.bake_on_export == enabled:
+            return
+        self.state.bake_on_export = enabled
+        self.session.repo.save_global_setting("bake_on_export", enabled)
+        self.bake_on_export_changed.emit(enabled)
+
     def toggle_flat_peek(self, force: Optional[bool] = None) -> None:
         """Preview the flat master render in the canvas without changing the saved edit.
 
@@ -7877,6 +7886,9 @@ class AppController(QObject):
 
         file_info, diptych = self._diptych_task(file_info)
 
+        if self.state.bake_on_export:
+            self._bake_auto_density_grade_for_export([file_info])
+
         bounds_override = None
         if diptych is None and file_info.get("hash") == self.state.current_file_hash:
             with self.state.metrics_lock:
@@ -7931,6 +7943,9 @@ class AppController(QObject):
 
         if self.state.config.export.export_sidecars_enabled:
             self._write_edit_sidecars(files)
+
+        if self.state.bake_on_export:
+            self._bake_auto_density_grade_for_export(files)
 
         flat = self.state.flat_output
 
@@ -8081,6 +8096,9 @@ class AppController(QObject):
 
         if self.state.config.export.export_sidecars_enabled:
             self._write_edit_sidecars(files)
+
+        if self.state.bake_on_export:
+            self._bake_auto_density_grade_for_export(files)
 
         tasks = self._build_preset_export_tasks(files, presets)
         if tasks:
@@ -8278,6 +8296,121 @@ class AppController(QObject):
         written, failed, skipped = self._write_edit_sidecars(visible_files)
         suffix = (f" — {failed} failed" if failed else "") + (f", {skipped} composite or forked skipped" if skipped else "")
         self.set_status(f"Wrote {count_of(written, 'edit sidecar')}{suffix}", 6000 if failed else 4000)
+
+    def _baked_exposure_config(self, params: WorkspaceConfig, meters: Dict[str, Any]) -> Optional[WorkspaceConfig]:
+        """Freeze Auto Density / Auto Grade to this frame's metered values, or None when there is
+        nothing to freeze: no meters, or both autos already off. A freeze is a config change, not a
+        pixel write, so it renders identically and no render version moves."""
+        if not meters:
+            return None
+        exposure = params.exposure
+        if not (exposure.auto_exposure or exposure.auto_normalize_contrast):
+            return None
+        shown = shown_values(params, meters)
+        if not shown:
+            return None
+        return replace(
+            params,
+            exposure=replace(
+                exposure,
+                **shown,
+                auto_exposure=False,
+                auto_normalize_contrast=False,
+            ),
+        )
+
+    def _params_for_file(self, f: dict) -> Optional[WorkspaceConfig]:
+        """The config one file freezes from: the active frame's live config (unsaved edits
+        included), another frame's saved config. None for a composite or a roll fork — the freeze
+        belongs to the shared frame, so metering or freezing one half would touch the other."""
+        if f.get("hdr_paths") or f.get("stitch_paths") or "#roll:" in f["hash"]:
+            return None
+        if f["hash"] == (self.state.current_file_hash or ""):
+            return self.state.config
+        return load_or_promote(self.session.repo, f["hash"], f["path"], half=int(f.get("half") or 0)) or self.session.config_for_asset(f)
+
+    def _meter_file(self, f: dict, params: WorkspaceConfig) -> Dict[str, Any]:
+        """The frame's own meters, decoded and preprocessed the way its render does — the same
+        source decode, flat field, sensor unmix and geometry, then the normalization stage that
+        writes every meter key. A fresh meter, so it reaches a frame the user never viewed."""
+        from negpy.desktop.auto_sliders import METER_KEYS
+        from negpy.desktop.workers.render import _decode_asset_preview_with_meta, gain_slices_for_asset
+        from negpy.features.exposure.processor import NormalizationProcessor
+        from negpy.features.process.sensor import apply_sensor_correction, effective_sensor_matrix
+        from negpy.services.rendering.image_processor import preview_takes_unmix
+
+        raw, decode_meta = _decode_asset_preview_with_meta(self.preview_service, f, params, self.state.workspace_color_space)
+        raw = flatfield_source(raw, params, gain_slices_for_asset(f), orientation=decode_meta.get("orientation", 1))
+        sensor_matrix = effective_sensor_matrix(params.process)
+        if sensor_matrix is not None and preview_takes_unmix(params):
+            raw = apply_sensor_correction(raw, sensor_matrix, params.process.sensor_unmix)
+        ctx = PipelineContext(
+            original_size=(raw.shape[1], raw.shape[0]),
+            scale_factor=1.0,
+            process_mode=params.process.process_mode,
+        )
+        transformed = GeometryProcessor(params.geometry).process(raw, ctx)
+        NormalizationProcessor(params.process).process(transformed, ctx)
+        return {k: ctx.metrics.get(k) for k in METER_KEYS}
+
+    def _baked_config_for_file(self, f: dict) -> Optional[WorkspaceConfig]:
+        """The frozen config for one file, or None when there is nothing to freeze."""
+        params = self._params_for_file(f)
+        if params is None:
+            return None
+        return self._baked_exposure_config(params, self.state.auto_meters.get(f["hash"], {}))
+
+    def bake_auto_density_grade_to_roll(self) -> None:
+        """Freeze Auto Density / Auto Grade for every visible frame now (the manual Bake to Roll
+        button). A frame with no meters yet is metered first, so an unviewed frame still freezes.
+        The active frame is applied to the live config so the canvas shows the frozen values; the
+        others are written to the DB only."""
+        visible_files = [
+            self.state.uploaded_files[i]
+            for i in self.session.asset_model.visible_actual_indices_ordered()
+            if not self.state.uploaded_files[i].get("excluded")
+        ]
+        if not visible_files:
+            return
+        current_hash = self.state.current_file_hash or ""
+        baked = skipped = failed = 0
+        for f in visible_files:
+            params = self._params_for_file(f)
+            if params is None:
+                skipped += 1
+                continue
+            # A frame the session has not metered (an unviewed one) has no values to freeze, so
+            # meter it first. The active frame already carries the live render's meters.
+            if f["hash"] not in self.state.auto_meters:
+                self.state.auto_meters[f["hash"]] = self._meter_file(f, params)
+            baked_cfg = self._baked_exposure_config(params, self.state.auto_meters.get(f["hash"], {}))
+            if baked_cfg is None:
+                skipped += 1
+                continue
+            try:
+                if f["hash"] == current_hash:
+                    self.apply_config(baked_cfg, persist=True, readback_metrics=True)
+                else:
+                    self.session.repo.save_file_settings(f["hash"], baked_cfg, file_path=f["path"])
+                baked += 1
+            except Exception as exc:
+                failed += 1
+                logger.warning("Bake auto density/grade failed for %s: %s", f.get("path"), exc)
+        suffix = (f" — {failed} failed" if failed else "") + (f", {skipped} skipped" if skipped else "")
+        self.set_status(f"Froze Auto Density/Grade for {count_of(baked, 'frame')}{suffix}", 6000 if failed else 4000)
+
+    def _bake_auto_density_grade_for_export(self, files: list[dict]) -> None:
+        """Freeze Auto Density / Auto Grade for each exported file into the DB before the export
+        runs. The export renders with the live config, which is identical to the frozen config, so
+        the output is unchanged; the freeze makes the saved edit independent of the meters."""
+        for f in files:
+            baked_cfg = self._baked_config_for_file(f)
+            if baked_cfg is None:
+                continue
+            try:
+                self.session.repo.save_file_settings(f["hash"], baked_cfg, file_path=f["path"])
+            except Exception as exc:
+                logger.warning("Bake auto density/grade failed for %s: %s", f.get("path", ""), exc)
 
     def _run_export_tasks(self, tasks: List[ExportTask]) -> None:
         # Reject unencodable format/color-space pairings before anything else.
