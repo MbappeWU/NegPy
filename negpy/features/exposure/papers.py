@@ -103,6 +103,17 @@ class PaperProfile:
 
 PAPER_PROFILES: Dict[str, PaperProfile] = {
     DEFAULT_PROFILE_KEY: PaperProfile(label="Digital (Adobe RGB)", kind="default"),
+    # Digital's curve with a Pakon minilab's colors: the coupling is fitted by
+    # scripts/fit_icc_dyes.py to RGBScan.icc read on Adobe RGB, which keeps neutrals.
+    "pakon": PaperProfile(
+        label="Digital (Pakon Minilab)",
+        kind="ra4",
+        dye_matrix=(
+            (0.7937, 0.2331, -0.0268),
+            (0.0640, 0.8809, 0.0551),
+            (-0.0076, 0.0527, 0.9549),
+        ),
+    ),
     # ── B&W (tonal only) ──────────────────────────────────────────────────────
     "ilford_mg_rc": PaperProfile(
         label="Ilford Multigrade RC",

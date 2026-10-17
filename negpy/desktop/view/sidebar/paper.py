@@ -61,7 +61,7 @@ class PaperSidebar(BaseSidebar):
             "Print stock: the paper or print film the negative is printed on. It sets the H&D curve and, "
             "on color stock, the colors its dyes make, from the datasheet; Grade, Density, Toe and "
             "Shoulder still trim on top. Digital (Adobe RGB) is an idealized print: NegPy's own curve "
-            "and perfect dyes."
+            "and perfect dyes. Digital (Pakon Minilab) is that curve with a Pakon minilab's colors."
         )
         self._populate_paper_combo(self.state.config.process.process_mode)
         idx = self.paper_combo.findData(conf.paper_profile)
