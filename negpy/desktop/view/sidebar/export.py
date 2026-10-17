@@ -79,8 +79,8 @@ class ExportSidebar(BaseSidebar):
         self._add_soft_proof_section()
         self._add_contact_sheet_section()
         self._add_printing_notes_section()
-        self._add_sidecars_section()
         self._add_bake_section()
+        self._add_sidecars_section()
         self._sync_flat_enabled()
 
         self.layout.addStretch()
@@ -1012,7 +1012,7 @@ class ExportSidebar(BaseSidebar):
 
         content_layout.addLayout(btn_row)
 
-        self._bake_section = make_section(self.controller.session.repo, "Bake Auto Density/Grade", "export_bake", content, "fa5s.fire")
+        self._bake_section = make_section(self.controller.session.repo, "Auto Density/Grade", "export_bake", content, "fa5s.fire")
         self.layout.addWidget(self._bake_section)
 
     # --- Batch ---------------------------------------------------------------
