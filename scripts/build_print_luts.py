@@ -63,7 +63,7 @@ LOOKS = {"pakon": "tests/fixtures/RGBScan.icc"}
 # LUT key -> a minilab printer profile, read from --profiles (not in the repo).
 FRONTIER = {
     "fuji_ca_dpii": "Fuji_Frontier-PD_CA-DPII_V3.icm",
-    "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_V3.icm",
+    "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_v3a.icm",
     "fuji_ca_pearl": "Fuji_Frontier-PD_CA-Pearl_V3.icm",
 }
 # A Frontier stock's d_max adds the paper base to the profile's black, so its LUT reaches past device black.
@@ -277,9 +277,11 @@ def frontier_lut(icc, source, levels=257):
     white = printer_lab(icc, np.ones(3))
     if abs(white[0] - 100) > 0.5:
         raise SystemExit(f"device white reads L* {white[0]:.1f}, not the paper white")
-    d_black = -np.log10(lab_to_xyz(printer_lab(icc, np.zeros(3)), D50)[1])
+    # Densities are relative to the device white, which a profile may place a little under L* 100.
+    y_white = lab_to_xyz(white, D50)[1]
+    d_black = -np.log10(lab_to_xyz(printer_lab(icc, np.zeros(3)), D50)[1] / y_white)
     d = np.linspace(0.0, d_black, levels)
-    target = np.stack([lab(W65 * 10.0 ** -d[:, None])[:, 0], np.zeros_like(d), np.zeros_like(d)], -1)
+    target = np.stack([lab(W65 * y_white * 10.0 ** -d[:, None])[:, 0], np.zeros_like(d), np.zeros_like(d)], -1)
     ramp = np.linspace(0, 1, 1025)
     ramp_l = printer_lab(icc, ramp[:, None].repeat(3, 1))[:, 0]
     rgb = np.interp(target[:, 0], ramp_l, ramp)[:, None].repeat(3, 1)
@@ -294,7 +296,7 @@ def frontier_lut(icc, source, levels=257):
         rgb[:, k] = np.minimum.accumulate(rgb[:, k])
     # Past the darkest neutral the gray axis runs straight to device black, at the curve's luminance.
     d_ext = np.linspace(d[-1], d_black, 33)[1:]
-    l_ext = lab(W65 * 10.0 ** -d_ext[:, None])[:, 0]
+    l_ext = lab(W65 * y_white * 10.0 ** -d_ext[:, None])[:, 0]
     lo, hi = np.zeros_like(d_ext), np.ones_like(d_ext)
     for _ in range(40):
         t = (lo + hi) / 2
@@ -306,7 +308,7 @@ def frontier_lut(icc, source, levels=257):
         device = np.stack([np.interp(e[..., k], d, rgb[:, k]) for k in range(3)], -1)
         # Denser than device black (Paper White off reads e up to d_max): luminance only, toward 0.
         beyond = np.maximum(e - d_black, 0.0).mean(-1, keepdims=True)
-        return adobe(lab_to_xyz(printer_lab(icc, device), D50) @ D50_TO_D65.T) * 10.0**-beyond
+        return adobe(lab_to_xyz(printer_lab(icc, device), D50) @ D50_TO_D65.T) / y_white * 10.0**-beyond
 
     wt, bk = tag_xyz(icc, "wtpt"), tag_xyz(icc, "bkpt")
     base = -np.log10(adobe(wt @ D50_TO_D65.T))
