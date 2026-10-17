@@ -1005,6 +1005,11 @@ The printer's record for this frame, as described under Dodge & Burn. **Preview*
 
 **Save on Export** writes a `.negpy` sidecar next to each source on export. **Export Sidecars** writes them for all visible frames at once. Edits always stay in the database too. A frame with no edit in the database takes its sidecar when its folder opens. **Load Edit from Sidecar…** (right-click a frame) replaces the frame's edit with a chosen `.negpy`, as one undo step.
 
+<!-- panel:export_bake -->
+#### Bake Auto Density/Grade
+
+**Bake on Export** is an app-wide switch, the same on every frame: when on, every export freezes Auto Density and Auto Grade into fixed values for the frames it has metered, so the saved edit does not re-run the meters. **Bake to Roll** freezes them for every visible frame now, metering a frame it has not seen first. A frame with both helpers already off, or a composite or a roll fork, keeps its edit.
+
 <!-- panel:contact_sheet -->
 #### Contact Sheet
 

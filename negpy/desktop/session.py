@@ -351,6 +351,9 @@ class AppState:
     linear_format: str = "tiff"
     linear_jxl_effort: int = 7
 
+    # Bake on Export: freeze Auto Density / Auto Grade on every export, app-wide.
+    bake_on_export: bool = False
+
     @property
     def local_hidden_masks(self) -> set:
         """The current file's hidden-mask indices (empty = all shown). Returns a fresh,
@@ -980,6 +983,10 @@ class DesktopSessionManager(QObject):
         saved_jxl_effort = self.repo.get_global_setting("linear_jxl_effort")
         if saved_jxl_effort is not None:
             self.state.linear_jxl_effort = int(saved_jxl_effort)
+
+        saved_bake_export = self.repo.get_global_setting("bake_on_export")
+        if saved_bake_export is not None:
+            self.state.bake_on_export = bool(saved_bake_export)
 
         self.state.export_presets = self.repo.load_export_presets()
         self.state.config = self._empty_session_config()

@@ -80,6 +80,7 @@ class ExportSidebar(BaseSidebar):
         self._add_contact_sheet_section()
         self._add_printing_notes_section()
         self._add_sidecars_section()
+        self._add_bake_section()
         self._sync_flat_enabled()
 
         self.layout.addStretch()
@@ -130,12 +131,25 @@ class ExportSidebar(BaseSidebar):
         self.sidecars_enabled_btn.toggled.connect(lambda _: self.update_timer.start())
         self.export_sidecars_btn.clicked.connect(self._on_export_sidecars)
 
+        self.bake_on_export_btn.toggled.connect(lambda checked: self.controller.set_bake_on_export(checked))
+        self.controller.bake_on_export_changed.connect(self._on_bake_on_export_changed)
+        self.bake_to_roll_btn.clicked.connect(self._on_bake_to_roll)
+
     def _on_export_sidecars(self) -> None:
         """One DB read plus one small write per visible frame, on the GUI thread — short,
         but long enough on a full roll to look frozen without a cursor."""
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             self.controller.export_edit_sidecars()
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _on_bake_to_roll(self) -> None:
+        """Freeze Auto Density/Grade for every visible frame now. The bake runs on the GUI
+        thread, so a wait cursor shows it is working while it loops the roll."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            self.controller.bake_auto_density_grade_to_roll()
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -219,6 +233,11 @@ class ExportSidebar(BaseSidebar):
         self.printing_notes_preview_btn.blockSignals(True)
         self.printing_notes_preview_btn.setChecked(active)
         self.printing_notes_preview_btn.blockSignals(False)
+
+    def _on_bake_on_export_changed(self, active: bool) -> None:
+        self.bake_on_export_btn.blockSignals(True)
+        self.bake_on_export_btn.setChecked(active)
+        self.bake_on_export_btn.blockSignals(False)
 
     # --- Contact sheet -------------------------------------------------------
 
@@ -467,6 +486,8 @@ class ExportSidebar(BaseSidebar):
             self._presets_section.setVisible(not linear_on)
         if hasattr(self, "_sidecars_section"):
             self._sidecars_section.setVisible(not linear_on)
+        if hasattr(self, "_bake_section"):
+            self._bake_section.setVisible(not linear_on)
         self._sync_flat_roll_warning()
         if hasattr(self, "form"):
             self._refresh_export_enabled()
@@ -962,6 +983,38 @@ class ExportSidebar(BaseSidebar):
         self._sidecars_section = make_section(self.controller.session.repo, "Sidecars", "export_sidecars", content, "fa5s.file-export")
         self.layout.addWidget(self._sidecars_section)
 
+    def _add_bake_section(self) -> None:
+        """Collapsible BAKE AUTO DENSITY/GRADE section: on-export toggle + manual bake, side by side."""
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(6)
+
+        btn_row = QHBoxLayout()
+
+        self.bake_on_export_btn = self._small_toggle(
+            "fa5s.fire",
+            "Bake on Export",
+            self.state.bake_on_export,
+            "When on, every export freezes Auto Density and Auto Grade into fixed values for each "
+            "frame it has metered, so the exported result does not re-run the meters.",
+        )
+        btn_row.addWidget(self.bake_on_export_btn)
+
+        self.bake_to_roll_btn = labeled_action(
+            "fa5s.magic",
+            "Bake to Roll",
+            "Freeze Auto Density and Auto Grade into fixed values for every visible frame now",
+        )
+        self.bake_to_roll_btn.setObjectName("bake_to_roll_btn")
+        btn_row.addWidget(self.bake_to_roll_btn)
+
+        content_layout.addLayout(btn_row)
+
+        self._bake_section = make_section(self.controller.session.repo, "Bake Auto Density/Grade", "export_bake", content, "fa5s.fire")
+        self.layout.addWidget(self._bake_section)
+
     # --- Batch ---------------------------------------------------------------
 
     # Sticky scopes: the chevron menu picks what a split button does, and only the button
@@ -1281,6 +1334,7 @@ class ExportSidebar(BaseSidebar):
             if not self.cs_output_path_edit.hasFocus():
                 self.cs_output_path_edit.setText(conf.contact_sheet_output_path)
             self.sidecars_enabled_btn.setChecked(conf.export_sidecars_enabled)
+            self.bake_on_export_btn.setChecked(self.state.bake_on_export)
             self.printing_notes_preview_btn.setChecked(self.state.printing_notes)
             self.intent_btn.setCurrentIndex(self._state_intent())
             self.flat_peek_btn.setChecked(self.state.flat_peek)
@@ -1312,6 +1366,7 @@ class ExportSidebar(BaseSidebar):
             self.display_combo,
             self.cs_output_path_edit,
             self.sidecars_enabled_btn,
+            self.bake_on_export_btn,
             self.flat_peek_btn,
             self.printing_notes_preview_btn,
             self.linear_wb_btn,
