@@ -66,6 +66,7 @@ class GPUCanvasWidget(QWidget):
         self.resize_timer.setSingleShot(True)
         self.resize_timer.setInterval(50)
         self.resize_timer.timeout.connect(self._perform_resize)
+        self._force_drawing = False
 
     def _configure_context(self) -> None:
         """
@@ -225,8 +226,13 @@ class GPUCanvasWidget(QWidget):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         # Bitmap present paints the last frame stretched to the new size until a new one lands.
-        if self.current_texture_view is not None:
-            self.canvas.force_draw()
+        # On macOS force_draw pumps events, so a nested resize waits for resize_timer.
+        if self.current_texture_view is not None and not self._force_drawing:
+            self._force_drawing = True
+            try:
+                self.canvas.force_draw()
+            finally:
+                self._force_drawing = False
         self.resize_timer.start()
 
     def event(self, event) -> bool:
