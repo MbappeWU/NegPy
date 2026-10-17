@@ -46,22 +46,22 @@ class TestScanSetupDialog(unittest.TestCase):
         dlg.back_btn.click()
         self.assertEqual(dlg.pages.currentIndex(), 0)
 
-    def test_light_page_names_the_chosen_hardware_class(self):
+    def test_a_scanner_skips_the_light_page(self):
+        """Every scanner decodes Linear RAW, so its light source is not asked."""
         dlg = ScanSetupDialog(None)
         dlg.capture_group.button(1).setChecked(True)  # film scanner
-        self.assertIn("Plustek", dlg.light_hints[0].text())
-        self.assertIn("Coolscan", dlg.light_hints[1].text())
-
-        dlg.capture_group.button(0).setChecked(True)  # digital camera
-        self.assertIn("lightbox", dlg.light_hints[0].text())
-        self.assertIn("Scanlight", dlg.light_hints[1].text())
+        self.assertEqual(dlg.next_btn.text(), "Apply")
+        self.assertEqual("Sets Linear RAW", dlg.summary.text())
+        dlg.next_btn.click()
+        self.assertEqual(dlg.pages.currentIndex(), 0)
+        self.assertEqual(dlg.result(), QDialog.DialogCode.Accepted)
+        self.assertEqual(dlg.choice()["capture"], "scanner")
 
     def test_choice_round_trips_through_the_pages(self):
         dlg = ScanSetupDialog(None)
-        dlg.capture_group.button(1).setChecked(True)
         dlg.next_btn.click()
         dlg.light_buttons[1].setChecked(True)
-        self.assertEqual(dlg.choice(), {"capture": "scanner", "light": "narrowband"})
+        self.assertEqual(dlg.choice(), {"capture": "camera", "light": "narrowband"})
 
     def test_apply_accepts(self):
         dlg = ScanSetupDialog(None)
@@ -70,10 +70,11 @@ class TestScanSetupDialog(unittest.TestCase):
         self.assertEqual(dlg.result(), QDialog.DialogCode.Accepted)
 
     def test_preselects_the_saved_choice(self):
-        dlg = ScanSetupDialog(None, {"capture": "scanner", "light": "narrowband"})
-        self.assertTrue(dlg.capture_group.button(1).isChecked())
+        dlg = ScanSetupDialog(None, {"capture": "camera", "light": "narrowband"})
+        self.assertTrue(dlg.capture_group.button(0).isChecked())
         self.assertTrue(dlg.light_buttons[1].isChecked())
-        self.assertEqual(dlg.choice(), {"capture": "scanner", "light": "narrowband"})
+        self.assertEqual(dlg.choice(), {"capture": "camera", "light": "narrowband"})
+        self.assertTrue(ScanSetupDialog(None, {"capture": "scanner"}).capture_group.button(1).isChecked())
 
     def test_summary_reports_what_apply_will_set(self):
         dlg = ScanSetupDialog(None)

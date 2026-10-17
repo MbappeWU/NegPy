@@ -719,7 +719,7 @@ These controls correct the capture, not the look.
 
 **Capture**:
 
-*   **Scanning setup**: a wizard (*how do you scan?*, *what light source?*) that sets Camera WB or Linear RAW. It runs once after the first-launch tour; open it again when your rig changes.
+*   **Scanning setup**: a wizard (*how do you scan?*, and for a camera *what light source?*) that sets Camera WB or Linear RAW. It runs once after the first-launch tour; open it again when your rig changes.
 *   **Camera WB / Linear RAW** (default Camera WB): how a RAW file decodes. *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
 
 What the wizard sets:
@@ -728,8 +728,7 @@ What the wizard sets:
 | --- | --- | --- |
 | Digital camera | White light (lightbox, CRI LED panel) | Camera WB |
 | Digital camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW |
-| Film scanner | White light (Plustek, Epson, most flatbeds) | Linear RAW |
-| Narrowband Scanner | Nikon Coolscan, Kodak Pakon | Linear RAW |
+| Film scanner | any | Linear RAW |
 
 Applying it sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame).
 
