@@ -1113,7 +1113,7 @@ Copy-stand capture with a camera in **PC Remote** mode over USB (macOS/Linux): w
 
 Shown while a Scanlight is connected.
 
-*   **Preset**: forces its RGB levels, ISO, shutter and aperture each frame. **+** calibrates: place the rectangle on clear film base, name it, run it; it solves a shutter and LED levels just under clipping. **Create a manual preset…** sets one by hand.
+*   **Preset**: forces its RGB levels, ISO, shutter and aperture each frame. **+** calibrates: place the rectangle on clear film base, name it, run it; it solves a shutter and LED levels just under clipping. **Create a manual preset…** sets one by hand. The White Light presets show only on a Scanlight with a white LED (v4 and Big Scanlight); on a v1 to v3, a Single Capture preset lights R, G and B together instead.
 *   **Red**, **Green**, **Blue**, **White** (0 to 255): LED levels, editable while you build a manual preset. **Light Off** turns every channel off.
 *   **Capture mode**: **Triplet** shoots one exposure per LED and merges them; **Single Capture** shoots one exposure with all three lit and imports it as an ordinary RAW. Live View frames a Triplet preset under a dimmed light, which stays bright enough to see on an RGB-only Scanlight (v1 to v3).
 *   **Create Sensor Profile** (Single Capture only, default on): also saves a sensor profile under the preset's name; a roll scanned with the preset takes it and turns Linear RAW on. Other rolls do not get it.

@@ -20,19 +20,20 @@ FRAMING_DIM_STOPS = 3
 FRAMING_MIN_LEVEL_RGB_ONLY = 115
 
 
-def framing_levels(r: int, g: int, b: int, stops: int = FRAMING_DIM_STOPS, floor: int = 0) -> tuple[int, int, int]:
+def framing_levels(r: int, g: int, b: int, stops: int = FRAMING_DIM_STOPS, *, rgb_only: bool = False) -> tuple[int, int, int]:
     """The framing-light mix for a scan-level RGB recipe: the same color, `stops` dimmer.
 
     Dimming the light rather than speeding the shutter keeps the scan start free of the
     1-2 s a verified shutter write costs, and works on bodies whose shutter NegPy cannot
     drive. A lit channel never dims to 0, so the mix keeps its hue at single-digit levels.
-    A `floor` scales the whole mix up until its dimmest lit channel reaches it, never above
-    the recipe's own levels.
+    On an RGB-only Scanlight the whole mix scales up until its dimmest lit channel reaches
+    FRAMING_MIN_LEVEL_RGB_ONLY, never above the recipe's own levels.
     """
 
     def dim(level: int) -> int:
         return max(1, level >> stops) if level > 0 else 0
 
+    floor = FRAMING_MIN_LEVEL_RGB_ONLY if rgb_only else 0
     dimmed = dim(r), dim(g), dim(b)
     lit = [level for level in (r, g, b) if level > 0]
     if not lit or min(level for level in dimmed if level > 0) >= floor:

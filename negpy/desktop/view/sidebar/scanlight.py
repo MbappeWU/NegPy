@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QInputDialog,
+    QListView,
     QMessageBox,
     QPushButton,
     QVBoxLayout,
@@ -63,7 +64,7 @@ from negpy.services.capture.calibration import (
     usable_ladder,
 )
 from negpy.services.assets.sensor import SensorProfiles
-from negpy.services.capture.presets import FRAMING_MIN_LEVEL_RGB_ONLY, PresetStore, ScanlightPreset, framing_levels
+from negpy.services.capture.presets import PresetStore, ScanlightPreset, framing_levels
 
 _CHANNEL_COLORS = {"R": THEME.channel_red_text, "G": THEME.channel_green_text, "B": THEME.channel_blue_text, "W": THEME.text_secondary}
 
@@ -498,9 +499,9 @@ class ScanlightSidebar(QWidget):
             # white LED an RGB-only body lacks. White stays off: the Scanlight cannot mix both.
             r, g, b = (int(slider.value()) for slider in (self.r_slider, self.g_slider, self.b_slider))
             if not self._manual_mode and self._preset_selected() and not self._settings.single_capture:
-                # A triplet preset frames by its own mix, dimmed: all three channels burn at once
-                # against a single-channel exposure. The scan takes its levels from the preset.
-                r, g, b = framing_levels(r, g, b, floor=0 if self._light_has_white else FRAMING_MIN_LEVEL_RGB_ONLY)
+                # A triplet preset frames by its own mix through framing_levels: all three channels
+                # burn at once against a single-channel exposure. The scan takes the preset's levels.
+                r, g, b = framing_levels(r, g, b, rgb_only=not self._light_has_white)
             self.controller.set_scanlight_color(r, g, b, 0, self._settings.port)
         self._update_settings_from_ui()
 
@@ -532,6 +533,7 @@ class ScanlightSidebar(QWidget):
             if idx >= 0:
                 self.preset_combo.setCurrentIndex(idx)
         self.preset_combo.blockSignals(False)
+        self._refresh_light_channels()
         self._refresh_preset_hint()
         self._apply_gating()
 
@@ -1856,27 +1858,40 @@ class ScanlightSidebar(QWidget):
 
     def _refresh_light_channels(self) -> None:
         """Adapt the light controls to the connected Scanlight. An RGB-only body (v1-v3, no white
-        LED) hides the W slider and greys out the white-light preset, since neither can do anything;
-        the live-view framing then lights all three RGB channels instead of a missing white one
-        (`_push_light`). A body with a white LED (v4 / Big) keeps them."""
+        LED) hides the W slider and the white-light presets, since neither can do anything. The
+        presets show only once a poll has reported a white LED (v4 / Big)."""
         has_white = self._light_has_white
+        offer_white = self._light_verified and has_white
+        rgb_only = self._light_verified and not has_white
         self.w_slider.setVisible(has_white)
         model = self.preset_combo.model()
+        view = self.preset_combo.view()
         for white_name in _BUILTIN_WHITE_PRESETS:
             white_idx = self.preset_combo.findData(white_name)
-            if white_idx >= 0 and isinstance(model, QStandardItemModel):
-                item = model.item(white_idx)
-                if item is not None:
-                    item.setEnabled(has_white)
-        # White mode cannot run on an RGB-only body. It is sticky and outlives the dropdown's
-        # selection across a restart, so clear the setting, not only a selected white preset.
-        if not has_white and self.preset_combo.currentData() in _BUILTIN_WHITE_PRESETS:
+            if white_idx < 0:
+                continue
+            if isinstance(view, QListView):
+                view.setRowHidden(white_idx, not offer_white)
+            if isinstance(model, QStandardItemModel) and (item := model.item(white_idx)) is not None:
+                item.setEnabled(offer_white)
+        if rgb_only and self.preset_combo.currentData() in _BUILTIN_WHITE_PRESETS:
             self.preset_combo.setCurrentIndex(0)
             self._on_preset_selected(0)
-        if not has_white and self._settings.white_mode:
-            self._settings = replace(self._settings, white_mode=False)
-            self._set_slider(self.w_slider, 0)
+        # White mode is sticky and outlives the dropdown's selection across a restart, so an
+        # RGB-only body clears the setting itself and gets the default RGB light back.
+        if rgb_only and self._settings.white_mode:
+            defaults = ScanlightSettings.defaults()
+            levels = {"r_level": defaults.r_level, "g_level": defaults.g_level, "b_level": defaults.b_level, "w_level": 0}
+            for slider, key in (
+                (self.r_slider, "r_level"),
+                (self.g_slider, "g_level"),
+                (self.b_slider, "b_level"),
+                (self.w_slider, "w_level"),
+            ):
+                self._set_slider(slider, levels[key])
+            self._settings = replace(self._settings, white_mode=False, white_process_mode=defaults.white_process_mode, **levels)
             self._save_settings()
+            self._refresh_preset_hint()
             self._apply_gating()
             if self.lv_btn.isChecked():
                 self._push_light()
