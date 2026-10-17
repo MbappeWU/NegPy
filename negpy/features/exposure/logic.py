@@ -683,7 +683,8 @@ _NO_LUT_E_MAX = np.ones(3, dtype=np.float32)
 def black_density_rgb(d_max: float, toe: Any, toe_height: float) -> Tuple[float, float, float]:
     """The density black point compensation maps to black, per channel; the kernel prologue and
     exposure.wgsl compute the same: a negative toe raises the clip point."""
-    return tuple(d_max + t * toe_height if t < 0.0 else d_max for t in toe)  # type: ignore[return-value]
+    db = [d_max + t * toe_height if t < 0.0 else d_max for t in toe]
+    return (db[0], db[1], db[2])
 
 
 def paper_dmin_rgb(d_min: float, paper: Optional[PaperProfile]) -> Tuple[float, float, float]:

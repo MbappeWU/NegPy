@@ -161,3 +161,10 @@ def test_spectral_luts_rebuild(key):
 def test_build_spec_ships_print_luts():
     spec = (pathlib.Path(__file__).parents[1] / "build.py").read_text()
     assert "negpy/features/exposure/print_luts:negpy/features/exposure/print_luts" in spec
+
+
+@pytest.mark.parametrize("key", [k for k, p in PAPER_PROFILES.items() if isinstance(p.print_color, DyeLut)])
+def test_lut_covers_the_stock_down_to_its_black(key):
+    # Paper White off reads e = D up to d_max; past e_max the LUT holds its edge and the shadows go flat.
+    paper = PAPER_PROFILES[key]
+    assert paper.d_max <= float(load_print_lut(paper.print_color.key).e_max.min()) + 1e-6

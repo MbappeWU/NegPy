@@ -66,6 +66,8 @@ FRONTIER = {
     "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_V3.icm",
     "fuji_ca_pearl": "Fuji_Frontier-PD_CA-Pearl_V3.icm",
 }
+# A Frontier stock's d_max adds the paper base to the profile's black, so its LUT reaches past device black.
+FRONTIER_HEADROOM = 0.3
 SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", *LOOKS, *FRONTIER)
 
 ADOBE_XY = ((0.64, 0.33), (0.21, 0.71), (0.15, 0.06))
@@ -290,10 +292,21 @@ def frontier_lut(icc, source, levels=257):
     d, rgb = d[: top + 1], rgb[: top + 1]
     for k in range(3):
         rgb[:, k] = np.minimum.accumulate(rgb[:, k])
+    # Past the darkest neutral the gray axis runs straight to device black, at the curve's luminance.
+    d_ext = np.linspace(d[-1], d_black, 33)[1:]
+    l_ext = lab(W65 * 10.0 ** -d_ext[:, None])[:, 0]
+    lo, hi = np.zeros_like(d_ext), np.ones_like(d_ext)
+    for _ in range(40):
+        t = (lo + hi) / 2
+        dark = printer_lab(icc, t[:, None] * rgb[-1])[:, 0] < l_ext
+        lo, hi = np.where(dark, t, lo), np.where(dark, hi, t)
+    d, rgb = np.concatenate([d, d_ext]), np.vstack([rgb, ((lo + hi) / 2)[:, None] * rgb[-1]])
 
     def model(e):
         device = np.stack([np.interp(e[..., k], d, rgb[:, k]) for k in range(3)], -1)
-        return adobe(lab_to_xyz(printer_lab(icc, device), D50) @ D50_TO_D65.T)
+        # Denser than device black (Paper White off reads e up to d_max): luminance only, toward 0.
+        beyond = np.maximum(e - d_black, 0.0).mean(-1, keepdims=True)
+        return adobe(lab_to_xyz(printer_lab(icc, device), D50) @ D50_TO_D65.T) * 10.0**-beyond
 
     wt, bk = tag_xyz(icc, "wtpt"), tag_xyz(icc, "bkpt")
     base = -np.log10(adobe(wt @ D50_TO_D65.T))
@@ -302,7 +315,7 @@ def frontier_lut(icc, source, levels=257):
         "base_tint_cmy": tuple(float(v) for v in base - base.mean()),
         "black_above_base": float(-np.log10(bk[1] / wt[1])),
     }
-    e_max = np.full(3, d[-1])
+    e_max = np.full(3, d_black + FRONTIER_HEADROOM)
     return np.clip(model(nodes(e_max)), 0, 1).astype(np.float32), e_max.astype(np.float32), source, model, tone
 
 
