@@ -25,6 +25,9 @@ from negpy.features.process.models import ProcessMode
 from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE, ColorSpaceRegistry
 from negpy.kernel.image.logic import rgb_to_lab_working
 
+# Stocks fitted to an ICC by scripts/fit_icc_dyes.py, each with its profile in tests/fixtures/.
+ICC_STOCKS = {"pakon": "RGBScan.icc"}
+
 
 class TestPaperProfiles(unittest.TestCase):
     """Paper profiles override curve character; the default reproduces the constants."""
@@ -112,19 +115,21 @@ class TestPaperProfiles(unittest.TestCase):
             out = self._render(key, ramp)
             self.assertGreater(float(np.max(np.abs(out - default))), 1e-3, f"{key} did not change the curve")
 
-    def test_pakon_is_digital_with_its_profile_colors(self):
-        # Its color target is RGBScan.icc applied to a Digital print, as the export applies an input ICC.
-        np.testing.assert_allclose(self._render("pakon"), self._render(DEFAULT_PROFILE_KEY), atol=1e-6)
+    def test_icc_stocks_are_digital_with_their_profile_colors(self):
+        # Each color target is the profile applied to a Digital print, as the export applies an input ICC.
         rng = np.random.default_rng(0)
         img = (rng.uniform(0.2, 0.8, (1, 2000, 1)) + rng.uniform(-0.1, 0.1, (1, 2000, 3))).astype(np.float32)
-        digital, pakon = self._render(DEFAULT_PROFILE_KEY, img)[0], self._render("pakon", img)[0]
-        icc = open(os.path.join(os.path.dirname(__file__), "fixtures", "RGBScan.icc"), "rb").read()
+        digital = self._render(DEFAULT_PROFILE_KEY, img)[0]
         adobe = open(ColorSpaceRegistry.get_icc_path(WORKING_COLOR_SPACE), "rb").read()
         enc = np.round(np.clip(digital, 0, 1) ** (256 / 563) * 65535).astype(np.uint16)[:, None, :]
-        out = imagecodecs.cms_transform(enc, icc, adobe, colorspace="RGB", outcolorspace="RGB", intent=1, flags=0x2000)
-        target = rgb_to_lab_working((out[:, 0, :] / 65535.0) ** (563 / 256))
-        miss = delta_e2000(rgb_to_lab_working(pakon), target).mean()
-        self.assertLess(miss, 0.5 * delta_e2000(rgb_to_lab_working(digital), target).mean())
+        for key, fixture in ICC_STOCKS.items():
+            with self.subTest(key):
+                np.testing.assert_allclose(self._render(key), self._render(DEFAULT_PROFILE_KEY), atol=1e-6)
+                icc = open(os.path.join(os.path.dirname(__file__), "fixtures", fixture), "rb").read()
+                out = imagecodecs.cms_transform(enc, icc, adobe, colorspace="RGB", outcolorspace="RGB", intent=1, flags=0x2000)
+                target = rgb_to_lab_working((out[:, 0, :] / 65535.0) ** (563 / 256))
+                miss = delta_e2000(rgb_to_lab_working(self._render(key, img)[0]), target).mean()
+                self.assertLess(miss, 0.5 * delta_e2000(rgb_to_lab_working(digital), target).mean())
 
     def test_ra4_introduces_color_divergence(self):
         # Per-channel gamma + tint must make a neutral ramp non-grey on RA4 papers.
