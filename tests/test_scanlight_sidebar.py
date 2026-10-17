@@ -2173,3 +2173,41 @@ def test_keep_light_on_shortcut_acts_only_while_the_toggle_shows(hidden):
     manager._build_actions()["scanlight_keep_light_on"]()
 
     assert btn.toggle.called is not hidden
+
+
+def _rgb_only_poll():
+    return _poll(usb_ok=True, usb_model="Canon", light_detail="Scanlight v2/v3 (fw5)") | {"light_has_white": False}
+
+
+@pytest.mark.parametrize(("has_white", "expected"), [(True, (25, 12, 11, 0)), (False, (200, 100, 90, 0))])
+def test_triplet_framing_on_an_rgb_only_scanlight_clears_its_floor(monkeypatch, has_white, expected):
+    # The v4 dims 3 stops; an RGB-only body's floor lifts this preset back to its own levels.
+    w = _sidebar()
+    w._light_has_white = has_white
+    _select_stored(w, monkeypatch, _rgb_preset())
+    w.controller.set_scanlight_color.reset_mock()
+    w._push_light()
+    assert w.controller.set_scanlight_color.call_args[0][:4] == expected
+
+
+def test_a_sticky_white_mode_is_cleared_on_an_rgb_only_scanlight():
+    ctrl = MagicMock()
+    ctrl.session.repo.get_global_setting.side_effect = lambda k, default=None: (
+        {"white_mode": True, "w_level": 255} if k == "scanlight_settings" else default
+    )
+    w = ScanlightSidebar(ctrl)
+    w._on_poll_status(_rgb_only_poll())
+    assert not w._settings.white_mode
+    ctrl.set_scanlight_color.reset_mock()
+    w.lv_btn.setChecked(True)
+    r, g, b, white, _port = ctrl.set_scanlight_color.call_args[0]
+    assert white == 0 and min(r, g, b) > 0
+
+
+def test_white_mode_never_lights_a_missing_white_led():
+    w = _sidebar()
+    w._light_has_white = False
+    w._settings = replace(w._settings, white_mode=True)
+    w.controller.set_scanlight_color.reset_mock()
+    w._push_light()
+    assert w.controller.set_scanlight_color.call_args[0][3] == 0

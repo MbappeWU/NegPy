@@ -63,7 +63,7 @@ from negpy.services.capture.calibration import (
     usable_ladder,
 )
 from negpy.services.assets.sensor import SensorProfiles
-from negpy.services.capture.presets import PresetStore, ScanlightPreset, framing_levels
+from negpy.services.capture.presets import FRAMING_MIN_LEVEL_RGB_ONLY, PresetStore, ScanlightPreset, framing_levels
 
 _CHANNEL_COLORS = {"R": THEME.channel_red_text, "G": THEME.channel_green_text, "B": THEME.channel_blue_text, "W": THEME.text_secondary}
 
@@ -489,7 +489,7 @@ class ScanlightSidebar(QWidget):
     def _push_light(self) -> None:
         if not self._rgb_mode:
             return  # normal white-light scanning has no Scanlight to control
-        if self._settings.white_mode:
+        if self._settings.white_mode and self._light_has_white:
             # A white-light preset: the W slider is the scan light itself.
             self.controller.set_scanlight_color(0, 0, 0, int(self.w_slider.value()), self._settings.port)
         else:
@@ -500,7 +500,7 @@ class ScanlightSidebar(QWidget):
             if not self._manual_mode and self._preset_selected() and not self._settings.single_capture:
                 # A triplet preset frames by its own mix, dimmed: all three channels burn at once
                 # against a single-channel exposure. The scan takes its levels from the preset.
-                r, g, b = framing_levels(r, g, b)
+                r, g, b = framing_levels(r, g, b, floor=0 if self._light_has_white else FRAMING_MIN_LEVEL_RGB_ONLY)
             self.controller.set_scanlight_color(r, g, b, 0, self._settings.port)
         self._update_settings_from_ui()
 
@@ -1868,10 +1868,18 @@ class ScanlightSidebar(QWidget):
                 item = model.item(white_idx)
                 if item is not None:
                     item.setEnabled(has_white)
-        # A white-light preset selected on an RGB-only body cannot run, so drop it.
+        # White mode cannot run on an RGB-only body. It is sticky and outlives the dropdown's
+        # selection across a restart, so clear the setting, not only a selected white preset.
         if not has_white and self.preset_combo.currentData() in _BUILTIN_WHITE_PRESETS:
             self.preset_combo.setCurrentIndex(0)
             self._on_preset_selected(0)
+        if not has_white and self._settings.white_mode:
+            self._settings = replace(self._settings, white_mode=False)
+            self._set_slider(self.w_slider, 0)
+            self._save_settings()
+            self._apply_gating()
+            if self.lv_btn.isChecked():
+                self._push_light()
 
     def _set_rgb_mode(self, on: bool) -> None:
         """Switch between RGB (Scanlight) and normal white-light scanning, driven by the

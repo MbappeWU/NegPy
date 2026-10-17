@@ -85,3 +85,17 @@ def test_store_knows_which_sensor_profiles_its_presets_own():
     assert store.owns_sensor_profile("Portra")
     assert not store.owns_sensor_profile("Hand Made")
     assert not store.owns_sensor_profile("")
+
+
+def test_framing_floor_raises_the_mix_and_keeps_its_hue():
+    # R22, G23, B19 left an RGB-only Scanlight dark; the floor lifts the dimmest channel to it.
+    assert framing_levels(180, 185, 155, floor=115) == (134, 137, 115)
+
+
+def test_framing_floor_never_exceeds_the_recipe_levels():
+    assert framing_levels(100, 90, 0, floor=115) == (100, 90, 0)
+
+
+def test_framing_floor_leaves_a_bright_enough_mix_dimmed():
+    assert framing_levels(255, 255, 255, floor=20) == (31, 31, 31)
+    assert framing_levels(0, 0, 0, floor=115) == (0, 0, 0)
