@@ -12,11 +12,17 @@ Sources:
                a visual neutral; one shaper on all three dyes holds the gray axis luminance.
     icc look   an RGB look profile applied to Digital's print as NegPy applies an Input ICC, baked
                so that the kernel with its default black point compensation reproduces it.
+    frontier   an RGB printer profile of a minilab that exposes each layer with its own laser, such as
+               Fujifilm's Frontier-PD profiles. Each device channel drives one dye, so the profile's
+               gray axis (the device RGB that prints a* = b* = 0 at each visual density) gives three
+               1D curves; the LUT reads A2B1 through them. The paper white and black of the profile
+               give the stock's d_min, base tint and d_max.
 
 The CIE tables and the xenon spectrum are downloaded once into --cie-dir.
 
 Usage:
-    uv run python scripts/build_print_luts.py [--key KEY ...] [--icc PATH --as KEY] [--cie-dir DIR] [--check-only]
+    uv run python scripts/build_print_luts.py [--key KEY ...] [--icc PATH --as KEY] [--against KEY] [--profiles DIR]
+        [--cie-dir DIR] [--check-only]
 """
 
 import argparse
@@ -52,7 +58,13 @@ SPECTRAL = {
     "kodak_2393": ("kodak_2393_h1_2393.csv", "K75P", "Kodak H-1-2393t spectral dye density (spektrafilm trace), Kinoton 75P xenon"),
     "fuji_af3": ("fujicolor_ca_af3_198e.csv", "D50", "Fujifilm AF3-198E spectral dye density, D50"),
 }
-SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", "pakon")
+# LUT key -> Fujifilm Frontier-PD printer profile, read from --profiles (not in the repo).
+FRONTIER = {
+    "fuji_ca_dpii": "Fuji_Frontier-PD_CA-DPII_V3.icm",
+    "fuji_ca_hd": "Fuji_Frontier-PD_CA-HD_V3.icm",
+    "fuji_ca_pearl": "Fuji_Frontier-PD_CA-Pearl_V3.icm",
+}
+SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", "pakon", *FRONTIER)
 
 ADOBE_XY = ((0.64, 0.33), (0.21, 0.71), (0.15, 0.06))
 BRADFORD = np.array([[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]])
@@ -229,6 +241,76 @@ def icc_look_lut(icc, source):
     return np.clip(model(nodes(e_max)), 0, 1).astype(np.float32), e_max.astype(np.float32), source, model
 
 
+D50 = xy_to_xyz(0.3457, 0.3585)
+D50_TO_D65 = np.linalg.inv(BRADFORD) @ np.diag((BRADFORD @ W65) / (BRADFORD @ D50)) @ BRADFORD
+
+
+def lab_to_xyz(L, white):
+    fy = (L[..., 0] + 16) / 116
+    f = np.stack([fy + L[..., 1] / 500, fy, fy - L[..., 2] / 200], -1)
+    return np.where(f > 6 / 29, f**3, 3 * (6 / 29) ** 2 * (f - 4 / 29)) * white
+
+
+def printer_lab(icc, rgb):
+    """A2B1 (relative colorimetric, no BPC): device RGB in 0..1 -> Lab relative to the paper white, D50."""
+    u16 = np.round(np.clip(rgb, 0, 1) * 65535).astype(np.uint16).reshape(-1, 1, 3)
+    out = imagecodecs.cms_transform(
+        u16, icc, imagecodecs.cms_profile("lab4"), colorspace="RGB", outcolorspace="Lab", outdtype="f4", intent=1
+    )
+    return np.asarray(out, np.float64).reshape(rgb.shape)
+
+
+def tag_xyz(icc, name):
+    for i in range(struct.unpack(">I", icc[128:132])[0]):
+        sig, off, _ = struct.unpack(">4sII", icc[132 + 12 * i : 144 + 12 * i])
+        if sig == name.encode():
+            return np.array(struct.unpack(">3i", icc[off + 8 : off + 20])) / 65536.0
+    raise SystemExit(f"the profile has no {name} tag")
+
+
+def frontier_lut(icc, source, levels=257):
+    """(table, e_max, source, model, tone) from a laser minilab printer profile."""
+    white = printer_lab(icc, np.ones(3))
+    if abs(white[0] - 100) > 0.5:
+        raise SystemExit(f"device white reads L* {white[0]:.1f}, not the paper white")
+    d_black = -np.log10(lab_to_xyz(printer_lab(icc, np.zeros(3)), D50)[1])
+    d = np.linspace(0.0, d_black, levels)
+    target = np.stack([lab(W65 * 10.0 ** -d[:, None])[:, 0], np.zeros_like(d), np.zeros_like(d)], -1)
+    ramp = np.linspace(0, 1, 1025)
+    ramp_l = printer_lab(icc, ramp[:, None].repeat(3, 1))[:, 0]
+    rgb = np.interp(target[:, 0], ramp_l, ramp)[:, None].repeat(3, 1)
+    for _ in range(30):
+        f0 = printer_lab(icc, rgb) - target
+        jac = np.stack([(printer_lab(icc, rgb + h) - target - f0) / 1e-3 for h in np.eye(3) * 1e-3], -1)
+        rgb = np.clip(rgb - np.linalg.solve(jac + np.eye(3) * 1e-9, f0[..., None])[..., 0], 0, 1)
+    miss = np.linalg.norm(printer_lab(icc, rgb) - target, axis=-1)
+    top = int(np.nonzero(miss < 0.5)[0].max())
+    d, rgb = d[: top + 1], rgb[: top + 1]
+    for k in range(3):
+        rgb[:, k] = np.minimum.accumulate(rgb[:, k])
+
+    def model(e):
+        device = np.stack([np.interp(e[..., k], d, rgb[:, k]) for k in range(3)], -1)
+        return adobe(lab_to_xyz(printer_lab(icc, device), D50) @ D50_TO_D65.T)
+
+    wt, bk = tag_xyz(icc, "wtpt"), tag_xyz(icc, "bkpt")
+    base = -np.log10(adobe(wt @ D50_TO_D65.T))
+    tone = {
+        "d_min": float(base.mean()),
+        "base_tint_cmy": tuple(float(v) for v in base - base.mean()),
+        "black_above_base": float(-np.log10(bk[1] / wt[1])),
+    }
+    e_max = np.full(3, d[-1])
+    return np.clip(model(nodes(e_max)), 0, 1).astype(np.float32), e_max.astype(np.float32), source, model, tone
+
+
+def cross_check(name, model_a, model_b, top):
+    e = np.random.default_rng(1).uniform(0, top, (4000, 3))
+    d = de2000(to_lab(np.clip(model_a(e), 0, 1)), to_lab(np.clip(model_b(e), 0, 1)))
+    near = np.ptp(e, axis=1) < 0.3
+    print(f"   against {name}: dE00 mean {d.mean():.2f} / p95 {np.percentile(d, 95):.2f}; near-neutral mean {d[near].mean():.2f}")
+
+
 def report(key, table, e_max, model):
     rng = np.random.default_rng(0)
     e = rng.uniform(0, 1, (2000, 3)) * e_max
@@ -250,6 +332,8 @@ def main():
     ap.add_argument("--key", nargs="+", default=list(SHIPPED), help="LUT keys to build (default: every shipped one)")
     ap.add_argument("--icc", type=pathlib.Path, help="an RGB profile to bake")
     ap.add_argument("--as", dest="as_key", help="the LUT key for --icc")
+    ap.add_argument("--against", help="a spectral key to compare the built LUT with")
+    ap.add_argument("--profiles", type=pathlib.Path, default=pathlib.Path.home() / "Pobrane" / "papers", help="the Frontier profiles")
     ap.add_argument("--cie-dir", type=pathlib.Path, default=pathlib.Path.home() / ".cache" / "negpy" / "cie")
     ap.add_argument("--check-only", action="store_true", help="report, write nothing")
     args = ap.parse_args()
@@ -260,22 +344,31 @@ def main():
             ap.error("--icc needs --as KEY")
         jobs.append((args.as_key, args.icc))
     else:
-        jobs += [(k, None) for k in args.key]
+        profiles = {"pakon": REPO / "tests" / "fixtures" / "RGBScan.icc"} | {k: args.profiles / f for k, f in FRONTIER.items()}
+        jobs += [(k, profiles.get(k)) for k in args.key]
     for key, icc_path in jobs:
-        if icc_path is None and key in SPECTRAL:
+        if icc_path is None:
             table, e_max, source, model = spectral_lut(*SPECTRAL[key][:2], args.cie_dir)
         else:
-            path = icc_path or REPO / "tests" / "fixtures" / "RGBScan.icc"
-            icc = path.read_bytes()
+            icc = icc_path.read_bytes()
             cls, space, pcs, creator, desc, targ = header(icc)
-            print(f"{path.name}: class {cls}, space {space}, PCS {pcs}, creator '{creator}', '{desc}'")
+            print(f"{icc_path.name}: class {cls}, space {space}, PCS {pcs}, creator '{creator}', '{desc}'")
             if targ:
                 raise SystemExit(
                     "CHARACTERIZATION: the profile carries a targ measurement table, so it removes one device's color and holds no look"
                 )
-            table, e_max, source, model = icc_look_lut(icc, desc or path.name)
+            if space != "RGB":
+                raise SystemExit(f"{space} profile: only an RGB profile makes a print stock")
+            if cls == "prtr":
+                table, e_max, source, model, tone = frontier_lut(icc, f"{desc or icc_path.name} printer profile")
+                tint = tuple(round(v, 4) for v in tone["base_tint_cmy"])
+                print(f"   tone: d_min {tone['d_min']:.3f}, base_tint_cmy {tint}, black {tone['black_above_base']:.3f} D above base")
+            else:
+                table, e_max, source, model = icc_look_lut(icc, desc or icc_path.name)
         report(key, table, e_max, model)
-        if args.check_only or (icc_path is None and key not in SHIPPED):
+        if args.against:
+            cross_check(args.against, model, spectral_lut(*SPECTRAL[args.against][:2], args.cie_dir)[3], float(e_max.min()))
+        if args.check_only or key not in SHIPPED and not args.icc:
             continue
         LUT_DIR.mkdir(exist_ok=True)
         save_print_lut(LUT_DIR / f"{key}.npz", table, e_max, source)
