@@ -370,8 +370,11 @@ class ProcessSidebar(BaseSidebar):
         if not riding:
             return
         if conf.is_locked_initialized:
-            set_hint_kind(self.baseline_source_hint, "muted")
-            self.baseline_source_hint.setText(f"Baseline: {rolls.baseline_label(self.controller.session.repo, conf)}")
+            repo = self.controller.session.repo
+            stale = rolls.frame_baseline_stale(repo, conf)
+            set_hint_kind(self.baseline_source_hint, "warning" if stale else "muted")
+            suffix = ", from an older analysis" if stale else ""
+            self.baseline_source_hint.setText(f"Baseline: {rolls.baseline_label(repo, conf)}{suffix}")
         else:
             set_hint_kind(self.baseline_source_hint, "warning")
             self.baseline_source_hint.setText("No baseline yet: this frame uses its own analysis until Roll Analysis runs")
