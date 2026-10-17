@@ -1,10 +1,16 @@
+import pathlib
+import sys
+
 import numpy as np
 import pytest
 
 from negpy.features.exposure import print_lut
 from negpy.features.exposure.logic import apply_characteristic_curve, per_channel_curve_params
-from negpy.features.exposure.papers import PaperProfile
+from negpy.features.exposure.papers import PAPER_PROFILES, PaperProfile
 from negpy.features.exposure.print_lut import DyeLut, load_print_lut, lut_black_luminance, save_print_lut, tetra_lookup
+from negpy.features.lab.logic import LUM_B, LUM_G, LUM_R
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "scripts"))
 
 
 def _linear_table(n=5):
@@ -113,3 +119,45 @@ def test_lut_stock_paper_white_off(lut_paper):
 def test_lut_stock_density_out_of_range(lut_paper):
     out = _render(lut_paper, bpc=True, shadow_density=1.0, cmy_offsets=(-2.0, -2.0, -2.0))
     assert np.isfinite(out).all() and out.min() >= 0.0 and out.max() <= 1.0
+
+
+BUNDLED = sorted(p.stem for p in print_lut.LUT_DIR.glob("*.npz"))
+SPECTRAL_KEYS = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393")
+CIE_DIR = pathlib.Path.home() / ".cache" / "negpy" / "cie"
+
+
+def test_every_print_stock_lut_is_bundled():
+    keys = {p.print_color.key for p in PAPER_PROFILES.values() if isinstance(p.print_color, DyeLut)}
+    assert keys <= set(BUNDLED)
+    assert set(SPECTRAL_KEYS) | {"pakon"} <= set(BUNDLED)
+
+
+@pytest.mark.parametrize("key", BUNDLED)
+def test_bundled_lut_well_formed(key):
+    lut = load_print_lut(key)
+    assert lut.table.shape == (33, 33, 33, 3) and lut.table.dtype == np.float32
+    assert np.isfinite(lut.table).all() and (lut.e_max > 0).all() and lut.source
+    np.testing.assert_allclose(lut.table[0, 0, 0], 1.0, atol=1e-4)
+
+
+@pytest.mark.parametrize("key", BUNDLED)
+def test_bundled_lut_gray_keeps_curve_luminance(key):
+    lut = load_print_lut(key)
+    for e in np.linspace(0.0, float(lut.e_max.min()), 16):
+        y = float(np.dot((LUM_R, LUM_G, LUM_B), tetra_lookup(lut.table, lut.e_max, e, e, e)))
+        assert abs(np.log10(max(y, 1e-9)) + e) < 0.02, (key, e)
+
+
+@pytest.mark.skipif(not CIE_DIR.exists(), reason="CIE tables not cached")
+@pytest.mark.parametrize("key", SPECTRAL_KEYS)
+def test_spectral_luts_rebuild(key):
+    import build_print_luts as b
+
+    table, e_max, _, _ = b.spectral_lut(*b.SPECTRAL[key][:2], CIE_DIR)
+    np.testing.assert_allclose(table, load_print_lut(key).table, atol=1e-5)
+    np.testing.assert_allclose(e_max, load_print_lut(key).e_max)
+
+
+def test_build_spec_ships_print_luts():
+    spec = (pathlib.Path(__file__).parents[1] / "build.py").read_text()
+    assert "negpy/features/exposure/print_luts:negpy/features/exposure/print_luts" in spec

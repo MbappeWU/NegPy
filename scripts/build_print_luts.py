@@ -1,0 +1,286 @@
+"""Bake NegPy's print-stock LUTs into negpy/features/exposure/print_luts/<key>.npz.
+
+Dev tool, not shipped. A LUT maps the three dye densities above base (C, M, Y = the print kernel's
+R, G, B density) to the print's color in linear Adobe RGB, media-relative. Every LUT keeps the curve's
+luminance on its gray axis (Y of LUT(e, e, e) = 10^-e), so the tone tools that model the print as
+achromatic 10^-D stay true, and grays drift only in chroma and hue.
+
+Sources:
+    spectral   a datasheet's spectral dye density curves (scripts/print_dyes/, 5 nm) as END
+               amounts, T(λ) = 10^-(Σ amount·dye(λ)), CIE 1931 2° under D50 (paper) or the Kinoton
+               75P xenon projector (print film), Bradford to D65. The END weights make density 1.0
+               a visual neutral; one shaper on all three dyes holds the gray axis luminance.
+    icc look   an RGB look profile applied to Digital's print as NegPy applies an Input ICC, baked
+               so that the kernel with its default black point compensation reproduces it.
+
+The CIE tables and the xenon spectrum are downloaded once into --cie-dir.
+
+Usage:
+    uv run python scripts/build_print_luts.py [--key KEY ...] [--icc PATH --as KEY] [--cie-dir DIR] [--check-only]
+"""
+
+import argparse
+import pathlib
+import re
+import struct
+import urllib.request
+
+import imagecodecs
+import numpy as np
+
+from negpy.features.exposure.models import EXPOSURE_CONSTANTS
+from negpy.features.exposure.print_lut import LUT_DIR, save_print_lut, tetra_lookup
+from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE, ColorSpaceRegistry
+from negpy.infrastructure.display.icc_profile import extract_primaries_matrix, is_matrix_trc_profile
+from negpy.kernel.image.logic import apply_primaries_transform
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
+N = 33
+GAMMA = 563 / 256
+
+DATA = pathlib.Path(__file__).with_name("print_dyes")
+CIE_URL = "https://files.cie.co.at/Publications-datasets/"
+CIE_FILES = {"cmf": "CIE_xyz_1931_2deg.csv", "D50": "CIE_std_illum_D50.csv", "D65": "CIE_std_illum_D65.csv"}
+COLOUR_LIGHTS = "https://raw.githubusercontent.com/colour-science/colour/v0.4.6/colour/colorimetry/datasets/light_sources/sds.py"
+WL = np.arange(380, 781, 5.0)
+
+# LUT key -> (dye csv, viewing light, source). fuji_af3 is the cross-check for the Frontier DPII LUT.
+SPECTRAL = {
+    "kodak_e4070": ("kodak_ra4_e4070.csv", "D50", "Kodak E-4070 spectral dye density, D50"),
+    "kodak_e4021": ("kodak_ra4_e4021.csv", "D50", "Kodak E-4021 spectral dye density (spektrafilm trace), D50"),
+    "kodak_2383": ("kodak_2383_h1_2383.csv", "K75P", "Kodak H-1-2383 spectral dye density, Kinoton 75P xenon"),
+    "kodak_2393": ("kodak_2393_h1_2393.csv", "K75P", "Kodak H-1-2393t spectral dye density (spektrafilm trace), Kinoton 75P xenon"),
+    "fuji_af3": ("fujicolor_ca_af3_198e.csv", "D50", "Fujifilm AF3-198E spectral dye density, D50"),
+}
+SHIPPED = ("kodak_e4070", "kodak_e4021", "kodak_2383", "kodak_2393", "pakon")
+
+ADOBE_XY = ((0.64, 0.33), (0.21, 0.71), (0.15, 0.06))
+BRADFORD = np.array([[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]])
+
+
+def xy_to_xyz(x, y):
+    return np.array([x / y, 1.0, (1 - x - y) / y])
+
+
+W65 = xy_to_xyz(0.3127, 0.3290)
+P = np.stack([xy_to_xyz(*p) for p in ADOBE_XY], 1)
+ADOBE_TO_XYZ = P * np.linalg.solve(P, W65)
+
+
+def cie_table(cie_dir, name, cols):
+    path = cie_dir / CIE_FILES[name]
+    if not path.exists():
+        cie_dir.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(CIE_URL + CIE_FILES[name], headers={"User-Agent": "Mozilla/5.0"})
+        path.write_bytes(urllib.request.urlopen(req, timeout=60).read())
+    a = np.genfromtxt(path, delimiter=",")
+    return np.stack([np.interp(WL, a[:, 0], a[:, k]) for k in range(1, cols + 1)], 1).squeeze()
+
+
+def viewing_light(cie_dir, name):
+    if name != "K75P":
+        return cie_table(cie_dir, name, 1)
+    path = cie_dir / "kinoton_75p.csv"
+    if not path.exists():
+        req = urllib.request.Request(COLOUR_LIGHTS, headers={"User-Agent": "Mozilla/5.0"})
+        src = urllib.request.urlopen(req, timeout=60).read().decode()
+        block = src[src.index('"Kinoton 75P": {') :]
+        rows = re.findall(r"(\d+):\s*([0-9.eE+-]+)", block[: block.index("}")])
+        cie_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(f"{w},{v}\n" for w, v in rows))
+    a = np.genfromtxt(path, delimiter=",")
+    return np.interp(WL, a[:, 0], a[:, 1])
+
+
+def lab(xyz):
+    r = xyz / W65
+    f = np.where(r > (6 / 29) ** 3, np.cbrt(r), r / (3 * (6 / 29) ** 2) + 4 / 29)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
+
+
+def de2000(l1, l2):
+    """CIEDE2000 (CIE 142-2001), kL = kC = kH = 1."""
+    L1, a1, b1 = np.moveaxis(l1, -1, 0)
+    L2, a2, b2 = np.moveaxis(l2, -1, 0)
+    cb = (np.hypot(a1, b1) + np.hypot(a2, b2)) / 2
+    g = 0.5 * (1 - np.sqrt(cb**7 / (cb**7 + 25**7)))
+    a1, a2 = (1 + g) * a1, (1 + g) * a2
+    c1, c2 = np.hypot(a1, b1), np.hypot(a2, b2)
+    h1, h2 = np.degrees(np.arctan2(b1, a1)) % 360, np.degrees(np.arctan2(b2, a2)) % 360
+    dh = h2 - h1
+    dh = np.where(c1 * c2 == 0, 0, np.where(dh > 180, dh - 360, np.where(dh < -180, dh + 360, dh)))
+    hs = h1 + h2
+    hbar = np.where(c1 * c2 == 0, hs, np.where(np.abs(h1 - h2) <= 180, hs / 2, np.where(hs < 360, (hs + 360) / 2, (hs - 360) / 2)))
+    lbar, cbar = (L1 + L2) / 2, (c1 + c2) / 2
+    t = (
+        1
+        - 0.17 * np.cos(np.radians(hbar - 30))
+        + 0.24 * np.cos(np.radians(2 * hbar))
+        + 0.32 * np.cos(np.radians(3 * hbar + 6))
+        - 0.20 * np.cos(np.radians(4 * hbar - 63))
+    )
+    sl = 1 + 0.015 * (lbar - 50) ** 2 / np.sqrt(20 + (lbar - 50) ** 2)
+    sc, sh = 1 + 0.045 * cbar, 1 + 0.015 * cbar * t
+    rt = -2 * np.sqrt(cbar**7 / (cbar**7 + 25**7)) * np.sin(np.radians(60 * np.exp(-(((hbar - 275) / 25) ** 2))))
+    dl, dc, dhh = L2 - L1, c2 - c1, 2 * np.sqrt(c1 * c2) * np.sin(np.radians(dh / 2))
+    return np.sqrt((dl / sl) ** 2 + (dc / sc) ** 2 + (dhh / sh) ** 2 + rt * (dc / sc) * (dhh / sh))
+
+
+def spectral_xyz(csv, light, cmf):
+    """Dye amounts -> media-relative XYZ (D65-adapted) of the datasheet dyes, and the END weights that
+    make amount 1.0 of each a visual neutral of density 1.0."""
+    a = np.genfromtxt(DATA / csv, delimiter=",", names=True)
+    dyes = np.stack([np.interp(WL, a["wavelength_nm"], a[k]) for k in ("cyan", "magenta", "yellow")], 1)
+    norm = (light * cmf[:, 1]).sum()
+    white = light @ cmf / norm
+    adapt = np.linalg.inv(BRADFORD) @ np.diag((BRADFORD @ W65) / (BRADFORD @ (white / white[1]))) @ BRADFORD
+
+    def xyz(amounts):
+        t = 10.0 ** (-(amounts @ dyes.T))
+        return ((t * light) @ cmf / norm / white[1]) @ adapt.T
+
+    w, target = np.ones(3), lab(W65 * 0.1)[0]
+    for _ in range(50):
+        f0 = lab(xyz(w)) - [target, 0, 0]
+        jac = np.stack([(lab(xyz(w + h)) - [target, 0, 0] - f0) / 1e-6 for h in np.eye(3) * 1e-6], 1)
+        w = w - np.linalg.solve(jac, f0)
+    return xyz, w
+
+
+def adobe(xyz):
+    return xyz @ np.linalg.inv(ADOBE_TO_XYZ).T
+
+
+def to_lab(rgb):
+    return lab(rgb @ ADOBE_TO_XYZ.T)
+
+
+def nodes(e_max, n=N):
+    axes = [np.linspace(0.0, m, n) for m in e_max]
+    return np.stack(np.meshgrid(*axes, indexing="ij"), -1)
+
+
+def gray_shaper(xyz, w, top):
+    """f with Y(xyz(w·f(g))) = 10^-g on 0..top, by bisection per level; applied per dye."""
+    g = np.linspace(0.0, top, 513)
+    lo, hi = np.zeros_like(g), np.full_like(g, 20.0)
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        dark = xyz(mid[:, None] * w)[:, 1] < 10.0**-g
+        hi, lo = np.where(dark, mid, hi), np.where(dark, lo, mid)
+    return lambda e: np.interp(e, g, (lo + hi) / 2)
+
+
+def spectral_lut(csv, light_name, cie_dir, e_top=3.0):
+    """(table, e_max, source, model): model maps (M, 3) dye densities to unclipped linear Adobe RGB."""
+    xyz, w = spectral_xyz(csv, viewing_light(cie_dir, light_name), cie_table(cie_dir, "cmf", 3))
+    f = gray_shaper(xyz, w, e_top)
+
+    def model(e):
+        return adobe(xyz(f(e) * w))
+
+    e_max = np.full(3, e_top)
+    source = next(v[2] for v in SPECTRAL.values() if v[0] == csv)
+    return np.clip(model(nodes(e_max)), 0, 1).astype(np.float32), e_max.astype(np.float32), source, model
+
+
+def header(icc):
+    """Device class, color space, connection space, creator, description, and whether it carries a targ table."""
+    cls, space, pcs, creator = (icc[a : a + 4].decode("latin-1").strip("\x00 ") for a in (12, 16, 20, 80))
+    desc, targ = "", False
+    for i in range(struct.unpack(">I", icc[128:132])[0]):
+        sig, off, size = struct.unpack(">4sII", icc[132 + 12 * i : 144 + 12 * i])
+        targ |= sig == b"targ"
+        if sig != b"desc":
+            continue
+        if icc[off : off + 4] == b"mluc":  # v4: UTF-16BE records; take the first
+            length, start = struct.unpack(">II", icc[off + 20 : off + 28])
+            desc = icc[off + start : off + start + length].decode("utf-16-be", "replace")
+        else:
+            desc = icc[off + 12 : off + size].split(b"\x00")[0].decode("latin-1", "replace")
+    return cls, space, pcs, creator, desc.strip(), targ
+
+
+def profile_on_adobe(rgb, icc):
+    """An RGB profile applied to linear Adobe RGB as NegPy applies an Input ICC: a matrix/TRC profile by
+    its primaries in linear light, any other through lcms at 16 bit, relative colorimetric with BPC."""
+    enc = np.clip(rgb, 0, 1) ** (1 / GAMMA)
+    src_to_xyz = extract_primaries_matrix(icc) if is_matrix_trc_profile(icc) else None
+    if src_to_xyz is not None:
+        out = apply_primaries_transform(enc.reshape(-1, 1, 3).astype(np.float32), src_to_xyz)
+        return np.asarray(out, dtype=np.float64).reshape(rgb.shape) ** GAMMA
+    adobe_icc = pathlib.Path(ColorSpaceRegistry.get_icc_path(WORKING_COLOR_SPACE)).read_bytes()
+    u16 = np.round(enc * 65535).astype(np.uint16).reshape(-1, 1, 3)
+    out = imagecodecs.cms_transform(u16, icc, adobe_icc, colorspace="RGB", outcolorspace="RGB", intent=1, flags=0x2000)
+    return (out.reshape(rgb.shape) / 65535.0) ** GAMMA
+
+
+def icc_look_lut(icc, source):
+    """The look on Digital's print (Paper White off): with Y_b = Digital's black, the kernel's luminance BPC
+    (T − Y_b) / (1 − Y_b) of LUT(e) gives exactly the profile applied to Digital's per-channel BPC print."""
+    d_max = float(EXPOSURE_CONSTANTS["d_max"])
+    y_b = 10.0**-d_max
+
+    def model(e):
+        digital = np.clip((10.0**-e - y_b) / (1 - y_b), 0, 1)
+        return profile_on_adobe(digital, icc) * (1 - y_b) + y_b
+
+    e_max = np.full(3, d_max)
+    return np.clip(model(nodes(e_max)), 0, 1).astype(np.float32), e_max.astype(np.float32), source, model
+
+
+def report(key, table, e_max, model):
+    rng = np.random.default_rng(0)
+    e = rng.uniform(0, 1, (2000, 3)) * e_max
+    looked = np.array([tetra_lookup(table, e_max, *p) for p in e])
+    d = de2000(to_lab(np.clip(looked, 0, 1)), to_lab(np.clip(model(e), 0, 1)))
+    print(f"{key}: interpolation dE00 mean {d.mean():.3f} / p95 {np.percentile(d, 95):.3f}")
+    g = np.linspace(0, float(e_max.min()), 9)[1:]
+    gray = np.array([tetra_lookup(table, e_max, v, v, v) for v in g])
+    L = to_lab(gray)
+    y = gray @ ADOBE_TO_XYZ[1]
+    print("   gray axis  D " + " ".join(f"{v:5.2f}" for v in g))
+    print("            C* " + " ".join(f"{v:5.2f}" for v in np.hypot(L[:, 1], L[:, 2])))
+    print("             h " + " ".join(f"{v:5.0f}" for v in np.degrees(np.arctan2(L[:, 2], L[:, 1])) % 360))
+    print(f"   gray luminance error, max |log10 Y + D|: {np.abs(np.log10(np.maximum(y, 1e-9)) + g).max():.4f}")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Bake NegPy print-stock LUTs.")
+    ap.add_argument("--key", nargs="+", default=list(SHIPPED), help="LUT keys to build (default: every shipped one)")
+    ap.add_argument("--icc", type=pathlib.Path, help="an RGB profile to bake")
+    ap.add_argument("--as", dest="as_key", help="the LUT key for --icc")
+    ap.add_argument("--cie-dir", type=pathlib.Path, default=pathlib.Path.home() / ".cache" / "negpy" / "cie")
+    ap.add_argument("--check-only", action="store_true", help="report, write nothing")
+    args = ap.parse_args()
+
+    jobs = []
+    if args.icc:
+        if not args.as_key:
+            ap.error("--icc needs --as KEY")
+        jobs.append((args.as_key, args.icc))
+    else:
+        jobs += [(k, None) for k in args.key]
+    for key, icc_path in jobs:
+        if icc_path is None and key in SPECTRAL:
+            table, e_max, source, model = spectral_lut(*SPECTRAL[key][:2], args.cie_dir)
+        else:
+            path = icc_path or REPO / "tests" / "fixtures" / "RGBScan.icc"
+            icc = path.read_bytes()
+            cls, space, pcs, creator, desc, targ = header(icc)
+            print(f"{path.name}: class {cls}, space {space}, PCS {pcs}, creator '{creator}', '{desc}'")
+            if targ:
+                raise SystemExit(
+                    "CHARACTERIZATION: the profile carries a targ measurement table, so it removes one device's color and holds no look"
+                )
+            table, e_max, source, model = icc_look_lut(icc, desc or path.name)
+        report(key, table, e_max, model)
+        if args.check_only or (icc_path is None and key not in SHIPPED):
+            continue
+        LUT_DIR.mkdir(exist_ok=True)
+        save_print_lut(LUT_DIR / f"{key}.npz", table, e_max, source)
+        print(f"   wrote {LUT_DIR / f'{key}.npz'}")
+
+
+if __name__ == "__main__":
+    main()
