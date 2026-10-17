@@ -153,6 +153,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "metadata_clear_gear": ShortcutEntry("", "Clear the frame's camera, lens and film stock", "Actions"),
     "metadata_clear_process": ShortcutEntry("", "Clear the frame's development process", "Actions"),
     "metadata_clear_scanning": ShortcutEntry("", "Clear the frame's scan setup", "Actions"),
+    "assign_sequential_frame": ShortcutEntry("", "Assign sequential frame numbers", "Actions"),
     "scan_setup": ShortcutEntry("", "Scanning setup wizard", "Process"),
     "measure_chart": ShortcutEntry("", "Measure a crosstalk matrix from a color chart", "Process"),
     "scan_prescan": ShortcutEntry("", "Prescan and set crop (Plustek)", "Process"),
