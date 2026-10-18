@@ -1,3 +1,4 @@
+from negpy.kernel.system.i18n import tr
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -18,32 +19,40 @@ from negpy.features.exposure.papers import PAPER_PROFILES
 from negpy.features.process.models import scan_setup_values
 
 _CAPTURE = (
-    ("camera", "fa5s.camera", "Camera", "A camera on a copy stand shooting the negative over a light source"),
-    ("scanner", "fa5s.camera-retro", "Film Scanner", "A dedicated film scanner"),
+    ("camera", "fa5s.camera", tr("Camera"), tr("A camera on a copy stand shooting the negative over a light source")),
+    ("scanner", "fa5s.camera-retro", tr("Film Scanner"), tr("A dedicated film scanner")),
 )
 
 _LIGHT = (
-    ("white", "mdi6.lightbulb-outline", "White Light"),
-    ("narrowband", "mdi6.led-on", "Narrowband RGB"),
+    ("white", "mdi6.lightbulb-outline", tr("White Light")),
+    ("narrowband", "mdi6.led-on", tr("Narrowband RGB")),
 )
 
 _LIGHT_HINT = {
     "camera": {
-        "white": "A lightbox or high-CRI LED panel — one broadband exposure",
-        "narrowband": "A Scanlight or RGB-LED source — pure red, green and blue bands",
+        "white": tr("A lightbox or high-CRI LED panel — one broadband exposure"),
+        "narrowband": tr("A Scanlight or RGB-LED source — pure red, green and blue bands"),
     },
     "scanner": {
-        "white": "A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds",
-        "narrowband": "RGB-LED illumination — Nikon Coolscan, Kodak Pakon",
+        "white": tr("A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds"),
+        "narrowband": tr("RGB-LED illumination — Nikon Coolscan, Kodak Pakon"),
     },
 }
 
-_TRY_STOCKS = "Try them under Print stock in Paper Response and keep the one you like."
+_TRY_STOCKS = tr("Try them under Print stock in Paper Response and keep the one you like.")
 _STOCK_HINT = {
-    "white": f"{PAPER_PROFILES['neutral'].label} is a neutral print. Each paper and print film has its own colors and contrast. "
+    "white": tr(
+        "{neutral} is a neutral print. Each paper and print film has its own colors and contrast. ",
+        neutral=PAPER_PROFILES["neutral"].label,
+    )
     + _TRY_STOCKS,
-    "narrowband": f"{PAPER_PROFILES['pakon'].label} gives a minilab's colors. {PAPER_PROFILES['kodak_supra_endura'].label} and "
-    f"{PAPER_PROFILES['fuji_crystal'].label} are near it, and each paper and print film has its own colors. " + _TRY_STOCKS,
+    "narrowband": tr(
+        "{pakon} gives a minilab's colors. {kodak} and {fuji} are near it, and each paper and print film has its own colors. ",
+        pakon=PAPER_PROFILES["pakon"].label,
+        kodak=PAPER_PROFILES["kodak_supra_endura"].label,
+        fuji=PAPER_PROFILES["fuji_crystal"].label,
+    )
+    + _TRY_STOCKS,
 }
 
 
@@ -63,7 +72,7 @@ class ScanSetupDialog(QDialog):
         self._capture = str((saved or {}).get("capture") or "camera")
         self._light = str((saved or {}).get("light") or "white")
 
-        self.setWindowTitle("Scanning Setup")
+        self.setWindowTitle(tr("Scanning Setup"))
         self.setMinimumWidth(460)
 
         root = QVBoxLayout(self)
@@ -73,19 +82,19 @@ class ScanSetupDialog(QDialog):
         self.pages = QStackedWidget()
         self.capture_btn = SegmentedChoice(
             tuple((icon, label) for _key, icon, label, _hint in _CAPTURE),
-            "What the negatives were scanned with",
+            tr("What the negatives were scanned with"),
             data=tuple(key for key, *_ in _CAPTURE),
         )
         self.capture_hint = _text(THEME.text_secondary)
         self.light_btn = SegmentedChoice(
             tuple((icon, label) for _key, icon, label in _LIGHT),
-            "The light behind the negative",
+            tr("The light behind the negative"),
             data=tuple(key for key, *_ in _LIGHT),
         )
         self.light_hint = _text(THEME.text_secondary)
         self.stock_hint = _text(THEME.text_secondary)
-        self.pages.addWidget(self._page("How Do You Scan?", self.capture_btn, self.capture_hint))
-        self.pages.addWidget(self._page("What Light Source?", self.light_btn, self.light_hint, self.stock_hint))
+        self.pages.addWidget(self._page(tr("How Do You Scan?"), self.capture_btn, self.capture_hint))
+        self.pages.addWidget(self._page(tr("What Light Source?"), self.light_btn, self.light_hint, self.stock_hint))
         root.addWidget(self.pages)
 
         self.capture_btn.setCurrentIndex(max(self.capture_btn.findData(self._capture), 0))
@@ -117,11 +126,11 @@ class ScanSetupDialog(QDialog):
 
     def _build_footer(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        self.back_btn = QPushButton("← Back")
+        self.back_btn = QPushButton(tr("← Back"))
         self.back_btn.clicked.connect(self._back)
         row.addWidget(self.back_btn)
         row.addStretch()
-        cancel = QPushButton("Cancel")
+        cancel = QPushButton(tr("Cancel"))
         cancel.clicked.connect(self.reject)
         self.next_btn = QPushButton()
         self.next_btn.clicked.connect(self._advance)
@@ -156,12 +165,16 @@ class ScanSetupDialog(QDialog):
 
         on_light_page = self.pages.currentIndex() == 1
         self.back_btn.setVisible(on_light_page)
-        self.next_btn.setText("Apply" if on_light_page else "Next →")
+        self.next_btn.setText(tr("Apply") if on_light_page else tr("Next →"))
         linear_raw, paper = scan_setup_values(self._capture, self._light)
         self.summary.setText(
-            f"Sets {'Linear RAW' if linear_raw else 'Camera WB'} · Print stock {PAPER_PROFILES[paper].label}"
+            tr(
+                "Sets {decode} · Print stock {paper}",
+                decode=tr("Linear RAW") if linear_raw else tr("Camera WB"),
+                paper=PAPER_PROFILES[paper].label,
+            )
             if on_light_page
-            else "Two questions — they set the decode and the print stock for your rig."
+            else tr("Two questions — they set the decode and the print stock for your rig.")
         )
         self.stock_hint.setText(_STOCK_HINT[self._light])
 
