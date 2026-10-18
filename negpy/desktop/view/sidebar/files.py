@@ -1,7 +1,5 @@
 from negpy.kernel.system.i18n import tr
-import math
 import os
-import random
 from dataclasses import replace
 from typing import Any, Callable, List, Optional
 
@@ -16,7 +14,6 @@ from PyQt6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
-    QPointF,
     QPropertyAnimation,
     QRect,
     QRectF,
@@ -777,47 +774,6 @@ def print_dmax(image: QImage) -> Optional[tuple[int, int, int]]:
     return red, green, blue
 
 
-def grease_loop(rect: QRectF, radius: float, jitter: float, seed: str) -> QPainterPath:
-    """A hand-drawn loop around `rect` whose end runs past its start; `seed` fixes the wobble, so
-    every repaint draws the same line."""
-    rnd = random.Random(seed)
-    x1, y1, x2, y2, r = rect.left(), rect.top(), rect.right(), rect.bottom(), radius
-    step = max(14.0, rect.width() / 14)
-    points: list[tuple[float, float]] = []
-
-    def side(fixed: float, start: float, stop: float, horizontal: bool) -> None:
-        sign = 1 if stop > start else -1
-        v = start
-        while (stop - v) * sign > 0:
-            points.append((v, fixed) if horizontal else (fixed, v))
-            v += step * sign
-
-    def corner(cx: float, cy: float, start: float) -> None:
-        for t in range(5):
-            a = start + math.pi / 8 * t
-            points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-
-    side(y1, x1 + r, x2 - r, True)
-    corner(x2 - r, y1 + r, -math.pi / 2)
-    side(x2, y1 + r + step, y2 - r, False)
-    corner(x2 - r, y2 - r, 0.0)
-    side(y2, x2 - r - step, x1 + r, True)
-    corner(x1 + r, y2 - r, math.pi / 2)
-    side(x1, y2 - r - step, y1 + r, False)
-    corner(x1 + r, y1 + r, math.pi)
-    closing = len(points)
-    points += points[1:4]
-    pts = [
-        QPointF(x + (rnd.random() - 0.5) * jitter, y + (rnd.random() - 0.5) * jitter + (0.8 * jitter if k > closing else 0.0))
-        for k, (x, y) in enumerate(points)
-    ]
-    path = QPainterPath(pts[0])
-    for k in range(len(pts) - 1):  # a Catmull-Rom spline through the points
-        p0, p1, p2, p3 = pts[max(0, k - 1)], pts[k], pts[k + 1], pts[min(len(pts) - 1, k + 2)]
-        path.cubicTo(p1 + (p2 - p0) / 6, p2 - (p3 - p1) / 6, p2)
-    return path
-
-
 def picture_in_thumbnail(image: QImage) -> QRect:
     """The picture inside a thumbnail that prepare_thumbnail padded to a square, centered on one axis."""
     pixels = _rgb_pixels(image).astype(np.int16)
@@ -930,7 +886,7 @@ class _FilmStripDelegate(_FilmDelegate):
 
 class _FilmGridView(ThumbnailGridView):
     """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. A
-    grease-pencil loop in the scene's color rings each run of a scene's frames on one row."""
+    rounded outline in the scene's color rings each run of a scene's frames on one row."""
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
@@ -1003,7 +959,7 @@ class _FilmGridView(ThumbnailGridView):
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for scene, index, first, last in runs:
+        for scene, _index, first, last in runs:
             s = first.width() / geometry.pitch
             top, window = delegate._layout(geometry, first)
             # Halfway between the cell's edge and the film (or, without edges, the picture), so the
@@ -1014,12 +970,9 @@ class _FilmGridView(ThumbnailGridView):
             rect = QRectF(left, (first.top() + above) / 2, right - left, (first.bottom() + 1 + below) / 2 - (first.top() + above) / 2)
             color = QColor(scene_color(scene[0]))
             color.setAlphaF(0.9)
-            pen = QPen(color, max(1.5, min(3.0, 0.45 * s)))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            painter.setPen(pen)
-            seed = f"{scene[1]}:{(index.data(Qt.ItemDataRole.UserRole) or {}).get('hash', '')}"
-            painter.drawPath(grease_loop(rect, min(4 * s, rect.height() / 4), min(1.6, 0.3 * s), seed))
+            painter.setPen(QPen(color, max(2.0, min(4.0, 0.7 * s))))
+            radius = min(4 * s, rect.height() / 4)
+            painter.drawRoundedRect(rect, radius, radius)
         painter.end()
 
 

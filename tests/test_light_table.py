@@ -379,19 +379,6 @@ def test_the_loop_is_drawn_in_the_scene_color_beside_the_film(browser, qapp):
     browser.hide()
 
 
-def test_a_loop_keeps_its_wobble_for_its_seed():
-    from PyQt6.QtCore import QRectF
-
-    from negpy.desktop.view.sidebar.files import grease_loop
-
-    def points(seed):
-        path = grease_loop(QRectF(0, 0, 300, 120), 12.0, 1.5, seed)
-        return [(path.elementAt(i).x, path.elementAt(i).y) for i in range(path.elementCount())]
-
-    assert points("s1:h1") == points("s1:h1")
-    assert points("s1:h1") != points("s2:h1")
-
-
 @pytest.mark.parametrize(("rotation", "top_lies_left"), [(0, False), (3, True)])
 def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_lies_left):
     upright = Image.new("RGB", (200, 300), (0, 0, 200))
