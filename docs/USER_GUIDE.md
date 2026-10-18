@@ -14,7 +14,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 ### Screen layout
 
-*   **Below the canvas, the film strip**: your frames as strips of film, under the toolbar.
+*   **Below the canvas, the film strip**: your frames as strips of film, with the toolbar under it at the bottom of the window.
 *   **The toolbar**: its **Photo / Roll** switch picks the row it shows. **Roll** holds the film strip's import, sorting and triage tools and its filter (§2). **Photo** holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**.
 *   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
@@ -22,7 +22,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
-Drag the line above the toolbar to change the film strip's height, which sets the size of its frames; the chevron at the toolbar's right end folds the strip away and leaves the toolbar (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides the controls panel and folds the film strip, or brings both back. **Reset Panel Layout** (**⋯** menu) restores the default layout.
+Drag the film strip's top edge to change its height, which sets the size of its frames; the chevron at the toolbar's right end folds the strip away, and the canvas then sits on the toolbar (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides the controls panel and folds the film strip, or brings both back. **Reset Panel Layout** (**⋯** menu) restores the default layout.
 
 ### The tour
 

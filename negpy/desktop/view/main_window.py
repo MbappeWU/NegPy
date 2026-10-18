@@ -34,7 +34,7 @@ from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.custom_routing_dialog import CustomRoutingDialog
 from negpy.desktop.view.sidebar.pick_better_window import PickBetterWindow
 from negpy.desktop.view.sidebar.right_panel import RightPanel
-from negpy.desktop.view.sidebar.files import FileBrowser
+from negpy.desktop.view.sidebar.files import FileBrowser, table_color
 from negpy.desktop.view.update_notice import UpdateNotice
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
 from negpy.desktop.view.widgets.command_palette import CommandPalette, FindField
@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.central_layout = QVBoxLayout(self.central_widget)
         self.central_layout.setContentsMargins(0, 0, 0, 0)
-        self.central_layout.setSpacing(4)
+        self.central_layout.setSpacing(0)
 
         self.canvas = ImageCanvas(self.state)
 
@@ -317,17 +317,20 @@ class MainWindow(QMainWindow):
         self.central_splitter.addWidget(self.reference_pane)
         self.central_splitter.addWidget(self.central_stack)
         self.central_splitter.setCollapsible(1, False)
-        # The Film Strip under the canvas with the toolbar on top: the splitter sets its height, the
-        # toolbar's chevron collapses it to the toolbar alone.
+        # The Film Strip under the canvas, the toolbar at the window's bottom: the splitter sets the
+        # strip's height, the toolbar's chevron collapses it.
         self.file_browser = FileBrowser(self.controller)
         self.toolbar.set_roll_row(self.file_browser.roll_row)
         self.strip_pane = QWidget()
         pane_layout = QVBoxLayout(self.strip_pane)
         pane_layout.setContentsMargins(0, 0, 0, 0)
         pane_layout.setSpacing(0)
-        pane_layout.addWidget(self.toolbar)
         pane_layout.addWidget(self.file_browser, 1)
+        pane_layout.addWidget(self.toolbar)
         self.strip_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.strip_splitter.setObjectName("strip_splitter")
+        self._strip_handle_width = self.strip_splitter.handleWidth()
+        self._sync_strip_handle()
         self.strip_splitter.addWidget(self.central_splitter)
         self.strip_splitter.addWidget(self.strip_pane)
         self.strip_splitter.setCollapsible(0, False)
@@ -477,6 +480,8 @@ class MainWindow(QMainWindow):
         """A collapsed Film Strip is exactly its toolbar tall, so no drag can open an empty pane;
         expanding gives back the height it had open."""
         pane = self.strip_pane
+        # Collapsed, the canvas sits on the toolbar with no handle between.
+        self.strip_splitter.setHandleWidth(self._strip_handle_width if expanded else 0)
         total = sum(self.strip_splitter.sizes())
         if expanded:
             pane.setMinimumHeight(0)
@@ -488,6 +493,11 @@ class MainWindow(QMainWindow):
         # A splitter keeps its handle where it was; the canvas takes what the strip gives up.
         if total > 0:
             self.strip_splitter.setSizes([total - height, height])
+
+    def _sync_strip_handle(self) -> None:
+        """The handle above the strip takes the table's color and no grip, so it reads as the strip's top edge."""
+        color = table_color(self.state.light_table_bg_index)
+        self.strip_splitter.setStyleSheet(f"QSplitter#strip_splitter::handle {{ background: {color}; }}")
 
     def _on_strip_splitter_moved(self, *_args) -> None:
         if not self.film_strip_expanded():
@@ -510,7 +520,7 @@ class MainWindow(QMainWindow):
         self.set_film_strip_expanded(not self.film_strip_expanded())
 
     def focus_search(self) -> None:
-        """The filter sits on the toolbar's Roll row, over the strip it filters."""
+        """The filter sits on the toolbar's Roll row and filters the strip, which opens for it."""
         self.toolbar.set_mode("roll")
         if not self.film_strip_expanded():
             self.set_film_strip_expanded(True)
@@ -604,6 +614,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Wire controller and view."""
         browser = self.file_browser
+        self.controller.session.light_table_bg_changed.connect(self._sync_strip_handle)
         browser.light_table_opened.connect(lambda: self.set_light_table(False))
         browser.library_requested.connect(self.show_library)
         library = self.right_panel.library_tree
