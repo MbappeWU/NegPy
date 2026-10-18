@@ -47,6 +47,7 @@ class TestPreferencesDialog(unittest.TestCase):
         dlg.session.set_canvas_bg.assert_called_once_with(2)
         self.assertTrue(dlg.canvas_pills[2].isChecked())
         self.assertFalse(dlg.canvas_pills[0].isChecked())
+
     def test_color_vision_offers_every_palette_and_sets_it(self):
         from negpy.desktop.view.styles.color_vision import PALETTES
 
