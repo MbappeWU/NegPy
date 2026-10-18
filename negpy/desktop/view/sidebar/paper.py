@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QHBoxLayout
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.sidebar.tone import _CH_LABEL, _CH_SUFFIX, channel_selector
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
-from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, PAPER_STRIP_SWEEP, field_row, gradient_icon, header_button, wrap_tooltip
+from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, PAPER_STRIP_SWEEP, field_row, gradient_icon, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
@@ -76,8 +76,9 @@ class PaperSidebar(BaseSidebar):
         idx = self.paper_combo.findData(conf.paper_profile)
         if idx >= 0:
             self.paper_combo.setCurrentIndex(idx)
-        self.paper_strip_btn = header_button(gradient_icon("mdi.view-column-outline", PAPER_STRIP_SWEEP), self._paper_strip_tooltip())
-        self.paper_strip_btn.setCheckable(True)
+        self.paper_strip_btn = self._tool_toggle("mdi.view-column-outline", "", self._paper_strip_tooltip())
+        self.paper_strip_btn.setIcon(gradient_icon("mdi.view-column-outline", PAPER_STRIP_SWEEP))
+        self.paper_strip_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.paper_strip_btn.setProperty("value_column", True)
         self.paper_strip_btn.clicked.connect(lambda checked: self.controller.toggle_paper_strip(force=checked))
         paper_row = field_row("Print stock", self.paper_combo, self.paper_strip_btn)
