@@ -85,7 +85,7 @@ An unedited frame gets the rig and roll settings: film process, crop ratio, flip
 
 **Preferences → Session & Storage → Persistent Settings…** sets which settings carry. **Carry settings between frames** is the master switch; off, new frames get bare defaults.
 
-An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Linear RAW, Narrowband, demosaic); **Scanning setup** sets those.
+An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Linear RAW, demosaic); **Scanning setup** sets those.
 
 ### Frame or roll: the scope pair
 
@@ -723,18 +723,19 @@ These controls correct the capture, not the look.
 
 **Capture**:
 
-*   **Scanning setup**: a wizard (*how do you scan?*, and for a camera *what light source?*) that sets Camera WB or Linear RAW. It runs once after the first-launch tour; open it again when your rig changes.
+*   **Scanning setup**: a wizard (*how do you scan?*, *what light source?*) that sets Camera WB or Linear RAW and the print stock. It runs once after the first-launch tour; open it again when your rig changes.
 *   **Camera WB / Linear RAW** (default Camera WB): how a RAW file decodes. *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
 
 What the wizard sets:
 
-| Capture | Light source | Decode |
-| --- | --- | --- |
-| Digital camera | White light (lightbox, CRI LED panel) | Camera WB |
-| Digital camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW |
-| Film scanner | any | Linear RAW |
+| Capture | Light source | Decode | Print stock |
+| --- | --- | --- | --- |
+| Digital camera | White light (lightbox, CRI LED panel) | Camera WB | Digital (Adobe RGB) |
+| Digital camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW | Digital (Pakon Minilab) |
+| Film scanner | White light (Plustek, Epson) | Linear RAW | Digital (Adobe RGB) |
+| Film scanner | Narrowband RGB (Coolscan, Pakon) | Linear RAW | Digital (Pakon Minilab) |
 
-Applying it sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame).
+Applying it sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks; a frame on another stock keeps it. The light page suggests other stocks to try in **Paper Response**.
 
 **Single-Shot Narrowband Calibration**: for single-shot camera scans under narrowband light, where each color leaks into the others through the sensor's filters. Needs **Linear RAW**; grayed out on a Trichrome triplet. **Re-run Roll Analysis** after changing it.
 

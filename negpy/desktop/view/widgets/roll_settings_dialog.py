@@ -25,8 +25,9 @@ from negpy.desktop.view.styles.templates import (
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
-from negpy.desktop.view.widgets.granular_settings_dialog import ScopeRadios, build_scope_row
+from negpy.desktop.view.widgets.granular_settings_dialog import build_scope_row
 from negpy.desktop.view.widgets.location_picker_dialog import LocationPickerDialog
 from negpy.desktop.view.widgets.searchable_gear_combo import SearchableGearCombo
 from negpy.desktop.view.widgets.step_combo import StepCombo
@@ -84,7 +85,7 @@ class RollSettingsDialog(QDialog):
         self._meta = source_config.metadata
         self._checks: dict[str, QCheckBox] = {}
         self._simple_labels: dict[str, QLabel] = {}
-        self._scope_radios: ScopeRadios
+        self._scope_choice: SegmentedChoice
 
         root = QVBoxLayout(self)
         root.setContentsMargins(THEME.space_2xl, THEME.space_2xl, THEME.space_2xl, THEME.space_2xl)
@@ -112,11 +113,11 @@ class RollSettingsDialog(QDialog):
         scroll.setWidget(body)
         root.addWidget(scroll, 1)
 
-        scope_row, self._scope_radios = build_scope_row(self, sel_count, roll_count, show_current=True)
+        scope_row, self._scope_choice = build_scope_row(sel_count, roll_count, show_current=True)
         # A roll-wide tag is the common case; current-frame-only is the exception a
         # user reaches for by hand, not the other way around.
         if roll_count > 0:
-            self._scope_radios.roll.setChecked(True)
+            self._scope_choice.setCurrentIndex(self._scope_choice.findData("roll"))
         root.addLayout(scope_row)
         root.addLayout(self._build_footer())
         pin_dialog_default(self.apply_btn, scope=self)
@@ -508,4 +509,4 @@ class RollSettingsDialog(QDialog):
         return replace(WorkspaceConfig(), metadata=meta)
 
     def scope(self) -> str:
-        return self._scope_radios.value()
+        return self._scope_choice.currentData()
