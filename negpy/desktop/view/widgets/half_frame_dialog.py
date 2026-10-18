@@ -12,14 +12,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMenu,
     QPushButton,
-    QRadioButton,
     QSizePolicy,
     QSlider,
     QVBoxLayout,
 )
 
-from negpy.desktop.view.styles.templates import field_label, pin_dialog_default, wrap_tooltip
+from negpy.desktop.view.styles.templates import field_label, pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.split_button import make_split_button
 
@@ -353,14 +353,11 @@ class HalfFrameDialog(QDialog):
 
         axis_row = QHBoxLayout()
         axis_row.addWidget(field_label("Split direction"))
-        self._axis_vertical = QRadioButton("Vertical")
-        self._axis_vertical.setToolTip(wrap_tooltip("A vertical cut: the two halves sit side by side."))
-        self._axis_horizontal = QRadioButton("Horizontal")
-        self._axis_horizontal.setToolTip(wrap_tooltip("A horizontal cut: the two halves sit stacked, as a rotated scan lays them."))
-        self._axis_vertical.toggled.connect(lambda on: on and self._set_axis("x"))
-        self._axis_horizontal.toggled.connect(lambda on: on and self._set_axis("y"))
-        axis_row.addWidget(self._axis_vertical)
-        axis_row.addWidget(self._axis_horizontal)
+        self._axis_choice = SegmentedChoice((("", "Vertical"), ("", "Horizontal")), "Split direction", data=("x", "y"))
+        self._axis_choice.set_choice_tooltip(0, "A vertical cut: the two halves sit side by side.")
+        self._axis_choice.set_choice_tooltip(1, "A horizontal cut: the two halves sit stacked, as a rotated scan lays them.")
+        self._axis_choice.currentChanged.connect(lambda _i: self._set_axis(self._axis_choice.currentData()))
+        axis_row.addWidget(self._axis_choice)
         axis_row.addStretch()
         layout.addLayout(axis_row)
 
@@ -463,9 +460,7 @@ class HalfFrameDialog(QDialog):
     def _set_axis(self, axis: str) -> None:
         axis = "y" if axis == "y" else "x"
         self._label.set_axis(axis)
-        btn = self._axis_horizontal if axis == "y" else self._axis_vertical
-        if not btn.isChecked():
-            btn.setChecked(True)
+        self._axis_choice.setCurrentIndex(self._axis_choice.findData(axis))
 
     def _set_scope(self, key: str) -> None:
         self._scope = key
