@@ -48,6 +48,8 @@ Edits persist in SQLite (`edits.db`, keyed by content hash), optionally mirrored
 
 **Roll-scoped edit fork**: a photo in more than one Roll has one edit, unless a per-frame fork gives it its own edit for one Roll. A fork is the content hash suffixed `#roll:<id>` (`roll_edit_hash`), like a half-frame's `#N`. Triage marks and legacy-hash migration strip the suffix (`unforked_hash`), because they belong to the physical scan.
 
+**Film edge print** (`services/film_edge/`): the film strip's rebate, edge print and perforations, painted by `paint_strip` for the contact sheet. Maker layouts are the `LAYOUTS` table in `layouts.py`; a stock's own marks, DX number and respool source (`prints_as`) are the `edge` object in `gear/film_stocks.json`, each entry naming its `source`.
+
 ### Pipeline
 
 - **CPU**: `DarkroomEngine.process()` (`negpy/services/rendering/engine.py`): base (geometry + normalization) → exposure (incl. dodge/burn) → clahe → lab → alt process → toning → crop → finish. The first four stages are cached per config-hash via `_run_stage()`. Base and exposure route on `process.path.render_path`: `PRINT` runs `features/exposure/`; `TRANSFER` and `POSITIVE` run `features/transparency/`. `features/exposure/` holds no slide branch and never imports `features/transparency/` (`tests/test_slide_separation.py`).
