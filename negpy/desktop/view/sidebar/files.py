@@ -962,11 +962,12 @@ class _FilmStripView(_FilmGridView):
     """The Film Strip: one row of film as tall as the view, scrolling sideways."""
 
     STRIP_GAP = 0
+    # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
+    MARGIN_SHARE = 0.06
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent, THUMB_CELL_DEFAULT)
-        # The film runs off the left and right edges.
-        self.setViewportMargins(0, THEME.space_2xl, 0, THEME.space_2xl)
+        self._fit_margins(self.height())
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -980,6 +981,16 @@ class _FilmStripView(_FilmGridView):
             + f"QScrollBar:horizontal {{ background: {color}; }}"
             + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
         )
+
+    def _fit_margins(self, height: int) -> None:
+        # The film runs off the left and right edges.
+        margin = round(height * self.MARGIN_SHARE)
+        self.setViewportMargins(0, margin, 0, margin)
+
+    def resizeEvent(self, event) -> None:
+        # Not event.size(): the viewport's own resizes arrive here too.
+        self._fit_margins(self.height())
+        super().resizeEvent(event)
 
     def cell_for_width(self, vw: int) -> int:
         return max(1, int((self.viewport().height() - 1) / self._aspect))
