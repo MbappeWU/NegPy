@@ -72,6 +72,19 @@ _ROLL_SECTION_ATTRS = frozenset(
 )
 
 
+# A tab saved as an index, in this tab order.
+_INDEXED_GROUPS = ("roll", "frame", "metadata", "gear", "export", "scan")
+
+
+def saved_group_key(saved: object, keys: list[str]) -> str:
+    """The tab to open from the saved setting: a tab key, or an index; Gear is part of Metadata."""
+    if isinstance(saved, int) and not isinstance(saved, bool):
+        saved = _INDEXED_GROUPS[saved] if 0 <= saved < len(_INDEXED_GROUPS) else ""
+    if saved == "gear":
+        saved = "metadata"
+    return saved if isinstance(saved, str) and saved in keys else ("roll" if "roll" in keys else keys[0])
+
+
 def default_analysis_split(screen) -> list[int]:
     height = screen.availableGeometry().height() if screen is not None else 1080
     top = min(320, height * 3 // 10)
@@ -87,10 +100,9 @@ def _tab_width(labels: list[str], pixel_size: int) -> int:
 
 
 class RightPanel(QWidget):
-    """Right sidebar panel: a flat tab switcher across Roll / Frame / Metadata / Gear /
-    Export / Scan, in the order an edit moves through them. Analysis is pinned above
-    Roll and Frame. Metadata and Gear pin a section above their own scroll area
-    (Preview, the Items/Presets switcher); Export and Scan are plain pages."""
+    """Right sidebar panel: a flat tab switcher across Roll / Frame / Metadata / Export / Scan,
+    in the order an edit moves through them. Analysis is pinned above Roll and Frame. Metadata
+    pins its Preview above its own scroll area, which ends with My Gear and Presets."""
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -118,9 +130,7 @@ class RightPanel(QWidget):
         self.export_sidebar = ExportSidebar(self.controller)
         self.metadata_sidebar = MetadataSidebar(self.controller)
         self.gear_panel = GearLibraryPanel(current_config_fn=lambda: self.controller.state.config, repo=self.controller.session.repo)
-        self.gear_panel.library_changed.connect(self.metadata_sidebar._on_library_changed)
-        self.gear_panel.presets_changed.connect(self.metadata_sidebar._refresh_metadata_presets)
-        self.metadata_sidebar.gear_library_saved.connect(self.gear_panel.reload_library)
+        self.metadata_sidebar.attach_gear_panel(self.gear_panel)
 
         from negpy.desktop.view.sidebar.scan import ScanSidebar
         from negpy.desktop.view.sidebar.scan_output import ScanOutputPanel
@@ -136,7 +146,6 @@ class RightPanel(QWidget):
             ("roll", tr("Roll"), roll_page),
             ("frame", tr("Frame"), frame_page),
             ("metadata", tr("Metadata"), self.metadata_sidebar),
-            ("gear", tr("Gear"), self.gear_panel),
             ("export", tr("Export"), self.export_sidebar),
             ("scan", tr("Scan"), self.scan_page),
         ]
@@ -164,7 +173,7 @@ class RightPanel(QWidget):
             self.group_switcher.add_button(btn, tooltip)
 
             # These pages scroll inside, beside a pinned part; every other page scrolls whole.
-            page = content if key in ("frame", "metadata", "gear", "scan") else wrap_scroll(content)
+            page = content if key in ("frame", "metadata", "scan") else wrap_scroll(content)
             self.group_stack.addWidget(page)
             self._group_buttons.append(btn)
             self._group_keys.append(key)
@@ -201,8 +210,7 @@ class RightPanel(QWidget):
 
         self.apply_shortcut_tooltips()
 
-        saved_group = repo.get_global_setting("right_panel_group", 0)
-        self._switch_group(saved_group if isinstance(saved_group, int) and 0 <= saved_group < len(self._group_buttons) else 0)
+        self._switch_group(self._group_keys.index(saved_group_key(repo.get_global_setting("right_panel_group", "roll"), self._group_keys)))
 
     def _build_frame_page(self, wrap_scroll) -> QWidget:
         """The Analysis section, and a second, inner tab switcher for the per-image
@@ -788,7 +796,7 @@ class RightPanel(QWidget):
 
     def _switch_group(self, index: int) -> None:
         self._active_group = index
-        self.controller.session.repo.save_global_setting("right_panel_group", index)
+        self.controller.session.repo.save_global_setting("right_panel_group", self._group_keys[index])
         self.group_stack.setCurrentIndex(index)
         analysis_shown = self._group_keys[index] in ("roll", "frame")
         self.analysis_section.setVisible(analysis_shown)
@@ -833,7 +841,7 @@ class RightPanel(QWidget):
             self._switch_tab(self._tab_keys.index(key))
 
     def show_gear_section_by_key(self, key: str) -> None:
-        self._switch_group(self._group_keys.index("gear"))
+        self._switch_group(self._group_keys.index("metadata"))
         self.gear_panel.show_section_by_key(key)
 
     def _pages_holding(self, widget: QWidget) -> list[tuple[QStackedWidget, int]]:

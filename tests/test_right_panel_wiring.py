@@ -1,5 +1,5 @@
 """Signal wiring of the right panel's analysis refresh, and the outer Roll / Frame /
-Metadata / Gear / Export / Scan tab switch.
+Metadata / Export / Scan tab switch.
 
 _paint_negative_peek emits image_updated only, never metrics_available, so the
 image_updated path must refresh the histograms itself or entering Peek Negative
@@ -12,8 +12,10 @@ RightPanel, since it pulls in a full chain of sidebars that need a real controll
 from typing import Optional
 from unittest.mock import MagicMock
 
+import pytest
+
 from negpy.desktop.session import AppState
-from negpy.desktop.view.sidebar.right_panel import RightPanel
+from negpy.desktop.view.sidebar.right_panel import RightPanel, saved_group_key
 
 
 def _panel_stub(last_metrics: dict, peek_frame: Optional[dict] = None) -> MagicMock:
@@ -54,22 +56,24 @@ def test_a_peek_refreshes_over_a_stale_interactive_print() -> None:
     panel._update_histograms.assert_called_once_with(metrics)
 
 
-def _group_panel_stub(*, scan_index: int = 5, active_group: int = 0, n_groups: int = 6) -> MagicMock:
+GROUP_KEYS = ["roll", "frame", "metadata", "export", "scan"]
+
+
+def _group_panel_stub(*, active_group: int = 0) -> MagicMock:
     panel = MagicMock()
-    panel._group_buttons = [MagicMock() for _ in range(n_groups)]
-    panel._group_icons = ["mdi6.film", "fa5s.image", "fa5s.tags", "fa5s.toolbox", "fa5s.file-export", "fa5s.camera-retro"][:n_groups]
-    panel._group_keys = ["roll", "frame", "metadata", "gear", "export", "scan"][:n_groups]
-    panel._scan_group_index = scan_index
+    panel._group_buttons = [MagicMock() for _ in GROUP_KEYS]
+    panel._group_keys = list(GROUP_KEYS)
+    panel._scan_group_index = GROUP_KEYS.index("scan")
     panel._active_group = active_group
     return panel
 
 
-def test_switch_group_persists_the_index_and_updates_the_stack():
+def test_switch_group_persists_the_key_and_updates_the_stack():
     panel = _group_panel_stub()
 
     RightPanel._switch_group(panel, 1)
 
-    panel.controller.session.repo.save_global_setting.assert_called_once_with("right_panel_group", 1)
+    panel.controller.session.repo.save_global_setting.assert_called_once_with("right_panel_group", "frame")
     panel.group_stack.setCurrentIndex.assert_called_once_with(1)
     panel.group_switcher.set_pinned.assert_called_once_with(1)
     assert panel._active_group == 1
@@ -130,14 +134,14 @@ def test_analysis_split_waits_for_the_first_show():
 
 
 def test_switch_group_activates_the_chosen_scanner_only_on_the_scan_tab():
-    panel = _group_panel_stub(scan_index=5)
+    panel = _group_panel_stub()
 
     RightPanel._switch_group(panel, 0)
     panel.scan_sidebar.on_activated.assert_not_called()
     panel.scanlight_sidebar.on_activated.assert_not_called()
 
     panel._active_scan_sidebar.return_value = panel.scan_sidebar
-    RightPanel._switch_group(panel, 5)
+    RightPanel._switch_group(panel, GROUP_KEYS.index("scan"))
     panel.scan_sidebar.on_activated.assert_called_once_with()
     panel.scanlight_sidebar.on_activated.assert_not_called()
 
@@ -296,3 +300,20 @@ def test_roll_tab_apply_offers_auto_crop():
 
     rows = rows_for_fields(f for card in _ROLL_TAB_CARDS for f in card_fields(card))
     assert "Auto Crop" in {r.label for r in rows}
+
+
+@pytest.mark.parametrize(
+    ("saved", "opens"),
+    [
+        ("export", "export"),
+        (1, "frame"),
+        (3, "metadata"),
+        (4, "export"),
+        ("gear", "metadata"),
+        (99, "roll"),
+        ("bogus", "roll"),
+        (True, "roll"),
+    ],
+)
+def test_a_saved_tab_opens_by_key_or_by_its_index_in_the_tab_order(saved, opens):
+    assert saved_group_key(saved, GROUP_KEYS) == opens

@@ -19,7 +19,9 @@ from conftest import FakeController
 from negpy.desktop.view.sidebar import metadata as metadata_module
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
+from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.features.metadata.gear_models import Camera, FilmStock, GearLibrary
+from negpy.kernel.system.config import APP_CONFIG
 
 if not QApplication.instance():
     _app = QApplication(sys.argv)
@@ -250,7 +252,7 @@ class TestPreviewPinning:
         assert sidebar.layout.indexOf(sidebar.preview_section) != -1
         assert sidebar.layout.indexOf(sidebar._metadata_controls) == -1
         assert isinstance(sidebar._metadata_scroll_area, QScrollArea)
-        assert sidebar._metadata_scroll_area.widget() is sidebar._metadata_controls
+        assert sidebar._metadata_scroll_area.widget().isAncestorOf(sidebar._metadata_controls)
         assert sidebar.layout.indexOf(sidebar.preview_section) < sidebar.layout.indexOf(sidebar._metadata_scroll_area)
 
     def test_preview_is_a_sibling_of_the_scrolling_controls_area(self, sidebar: MetadataSidebar) -> None:
@@ -443,3 +445,30 @@ class TestCollapsibleCards:
     def test_preview_header_click_collapses_it(self, sidebar: MetadataSidebar) -> None:
         sidebar.preview_section.toggle_button.click()
         assert sidebar.preview_section.content_area.isHidden() is True
+
+
+@pytest.fixture
+def gear(monkeypatch, tmp_path) -> GearLibraryPanel:
+    monkeypatch.setattr(APP_CONFIG, "gear_dir", str(tmp_path / "gear"))
+    return GearLibraryPanel(GearLibrary())
+
+
+class TestGearCards:
+    def test_gear_cards_follow_the_metadata_cards_and_stay_live_under_protect(self, sidebar: MetadataSidebar, gear) -> None:
+        sidebar.attach_gear_panel(gear)
+
+        _set_metadata(sidebar, protect_original_metadata=True)
+        sidebar.sync_ui()
+
+        assert sidebar._metadata_scroll_area.widget().isAncestorOf(gear)
+        assert not sidebar._metadata_controls.isAncestorOf(gear)
+        assert gear.isEnabled()
+
+    def test_a_sync_never_unblocks_the_gear_cards(self, sidebar: MetadataSidebar, gear) -> None:
+        sidebar.attach_gear_panel(gear)
+        gear.items.item_list.blockSignals(True)
+
+        sidebar.block_signals(True)
+        sidebar.block_signals(False)
+
+        assert gear.items.item_list.signalsBlocked()

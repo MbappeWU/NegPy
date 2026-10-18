@@ -673,8 +673,8 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             tr("Metadata and Gear"),
             tr(
                 "Film, camera, lens and scan details go into the exported EXIF and XMP; the cards follow the "
-                "roll. <b>Protect Original Metadata</b> exports the source's own tags instead. The "
-                "<b>Gear</b> tab keeps your cameras, lenses and films for every picker."
+                "roll. <b>Protect Original Metadata</b> exports the source's own tags instead. "
+                "<b>My Gear</b>, at the bottom, keeps your cameras, lenses and films for every picker."
             ),
             lambda w: rp(w).metadata_sidebar,
             focus=lambda w: rp(w).metadata_sidebar.protect_btn,

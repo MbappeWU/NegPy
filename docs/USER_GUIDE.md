@@ -15,9 +15,9 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 ### Screen layout
 
 *   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
-*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
-*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
+*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
@@ -73,8 +73,7 @@ Tabs that do not change the render:
 | Tab | Panels | What it is for |
 |-----|--------|---------------|
 | **Export** | Export settings | Format, size, color, batch |
-| **Metadata** | Archival metadata | Camera, lens, film |
-| **Gear** | Gear library | Cameras, lenses, films, processes, scan setups |
+| **Metadata** | Archival metadata · My Gear · Presets | Camera, lens, film; your gear library and metadata presets |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
 On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
@@ -118,7 +117,7 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Film strip (left panel)
 
-A green **Update Available** line tops the panel when a newer release is out ([§16](#16-updating-negpy)). Below are the toolbar, the search box and two sections: **Library** (imported rolls) and **Film Strip** (open frames).
+A green **Update Available** line tops the panel when a newer release is out ([§15](#15-updating-negpy)). Below are the toolbar, the search box and two sections: **Library** (imported rolls) and **Film Strip** (open frames).
 
 <!-- panel:library -->
 ### Your library
@@ -315,7 +314,7 @@ In Peek Negative the density histogram splits into R, G, B and luminance: a spik
 
 The selector under the chart picks the chart. **Curve** is the paper curve and histograms above. **Waveform** plots print tone across the frame's width; a red tick marks a column that reaches paper black or white. **Parade** plots the print's R, G and B side by side, each channel's tone across the frame. A neutral sits at one height in all three, so judge a cast on neutrals; on neutral or even content, a channel that drifts across the frame is uneven light or a Flat Field mismatch. While you hover, a dashed line marks the pixel's green level in all three panels. In Peek Negative the Parade shows the scan: each channel's density in the camera's own channels (−log10 of the scan after any Crosstalk unmix, 0 at sensor full scale at the top, 3.0 at the bottom). On a negative, the solid lines are the range the stretch maps onto the curve, and the number beside each channel letter is that range. Scan exposure moves the traces (0.3 per stop) but not the range, so compare scans from one camera or scanner, light and unmix by their ranges. The dotted line is the clear film base: the Film Base set on the roll, else the base read from the rebate. A red tick marks a column with pixels at sensor clip (top) or in the axis's last step (bottom). **Vectorscope** plots the print's colors on the CIELAB a\*b\* plane, neutral at the center. On a color frame, a cluster off the center is a cast; on a toned B&W print, a toner draws an arm toward its hue.
 
-*   **Parade Overlay** (layers icon): R, G and B on one plot, white where they agree. Grayed out under any Color vision choice but Standard (§15), and on the scan unless Base Relative is on.
+*   **Parade Overlay** (layers icon): R, G and B on one plot, white where they agree. Grayed out under any Color vision choice but Standard (§14), and on the scan unless Base Relative is on.
 *   **Base Relative** (ruler icon, Peek Negative): moves each channel so its film base, else its thin line, sits at the top, so the channels and the hover line compare at one height. The caption names the zero.
 
 #### Lin / Log
@@ -872,7 +871,7 @@ Metadata for the original analog capture (camera, lens, film, process), written 
 <!-- panel:metadata_presets -->
 ### Metadata Presets
 
-Saved sets of metadata values in `~/NegPy/presets/metadata/`, managed on the **Gear** tab (§12).
+Saved sets of metadata values in `~/NegPy/presets/metadata/`, managed in **Presets** at the bottom of the tab.
 
 *   **Preset** + **Load**: writes the preset's fields onto this frame; other fields stay.
 
@@ -881,7 +880,7 @@ Gear loads as one unit (camera, lens, film stock, format). A film stock sets the
 <!-- panel:metadata_gear -->
 ### Analog Gear
 
-Searches your own gear (§12). **Other…** opens the full built-in catalog.
+Searches your own gear (**My Gear** at the bottom of the tab). **Other…** opens the full built-in catalog.
 
 *   **Camera / Lens / Film stock**: empty means not set.
 *   **Clear**: empties all three.
@@ -924,16 +923,10 @@ A live view of what goes into the file. **Description…** picks the fields join
 
 Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`. A star rating set in the camera carries over as `xmp:Rating`.
 
----
-
-## 12. Gear tab
-
-A gear library for Metadata (§11), Roll Settings and every gear picker. **My Gear** holds physical gear; **Presets** holds metadata field sets.
-
 <!-- panel:gear_items -->
 ### My Gear
 
-**Category**: **Cameras**, **Lenses**, **Film Stocks**, **Process** (a development recipe) or **Scanning** (a digitizing setup). Your gear is saved to `~/NegPy/gear/`.
+Your gear library, for Metadata, Roll Settings and every gear picker. **Category**: **Cameras**, **Lenses**, **Film Stocks**, **Process** (a development recipe) or **Scanning** (a digitizing setup). Your gear is saved to `~/NegPy/gear/`.
 
 *   **+**: copy an item from the built-in catalog into your list, or **Add Custom** to enter one by hand.
 *   **Catalog**: also shows the built-in reference models. Off by default.
@@ -942,6 +935,8 @@ A gear library for Metadata (§11), Roll Settings and every gear picker. **My Ge
 <!-- panel:gear_presets -->
 ### Presets
 
+Metadata field sets, loaded with **Metadata Presets** above.
+
 *   **+**: stores the current frame's metadata under a name.
 *   **pen**: rename, or change which fields it stores.
 *   **copy / trash**: duplicate or delete.
@@ -949,7 +944,7 @@ A gear library for Metadata (§11), Roll Settings and every gear picker. **My Ge
 
 ---
 
-## 13. Export tab
+## 12. Export tab
 
 ### Output intent
 
@@ -1054,7 +1049,7 @@ Preview only; exports are never proofed. Paper is dimmer and has a smaller gamut
 
 ---
 
-## 14. Scan tab
+## 13. Scan tab
 
 Capture film directly into NegPy. The **Scanner** card picks the scanner; the tab shows its cards, the shared **Output** card and the **Scan** button.
 
@@ -1153,7 +1148,7 @@ Dialogs end with **Cancel**, **Apply** (keep the framing) and **Scan**. During a
 
 ---
 
-## 15. Preferences
+## 14. Preferences
 
 Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Changes apply at once; startup rows show a restart notice.
 
@@ -1215,7 +1210,7 @@ For crashes on launch or rendering glitches: edit `Documents/NegPy/override.toml
 
 ---
 
-## 16. Updating NegPy
+## 15. Updating NegPy
 
 NegPy checks GitHub once at startup. A new release shows a green **⬇ Update Available: vX.Y.Z** line at the top of the left panel; click it, or **Update to vX.Y.Z…** in the **⋯** menu, for the release notes and the install button. **Check for Updates…** checks by hand.
 

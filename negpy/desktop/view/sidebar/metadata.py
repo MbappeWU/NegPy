@@ -349,7 +349,6 @@ class MetadataSidebar(BaseSidebar):
             id(self.scan_setup_combo): "scan_setups",
         }
         self._refresh_gear_combos()
-        controls.addStretch()
 
         # ── METADATA PREVIEW ─────────────────────────────────────────────
         self.preview_content = QWidget()
@@ -379,9 +378,17 @@ class MetadataSidebar(BaseSidebar):
         # same pattern as Edit's Analysis section pinned above its tabs.
         self.preview_section = self._card(tr("Metadata Preview"), "preview", self.preview_content, "fa5s.eye")
         self.layout.addWidget(self.preview_section)
+        # The gear cards join below the metadata cards, outside them: Protect disables only those.
+        self._gear_panel: Optional[QWidget] = None
+        self._metadata_page = QWidget()
+        self._metadata_page_layout = QVBoxLayout(self._metadata_page)
+        self._metadata_page_layout.setContentsMargins(0, 0, 0, 0)
+        self._metadata_page_layout.setSpacing(THEME.space_lg)
+        self._metadata_page_layout.addWidget(self._metadata_controls)
+        self._metadata_page_layout.addStretch()
         self._metadata_scroll_area = QScrollArea()
         self._metadata_scroll_area.setWidgetResizable(True)
-        self._metadata_scroll_area.setWidget(self._metadata_controls)
+        self._metadata_scroll_area.setWidget(self._metadata_page)
         self.layout.addWidget(self._metadata_scroll_area, 1)
 
         self.tab_header.bind([section for _key, section in self._scope_sections()])
@@ -1136,6 +1143,16 @@ class MetadataSidebar(BaseSidebar):
                 row_layout.addWidget(val, 1)
                 self.preview_rows.addWidget(row)
 
+    def attach_gear_panel(self, panel) -> None:
+        """My Gear and Presets under the metadata cards, and their library and preset signals."""
+        self._gear_panel = panel
+        self._metadata_page_layout.insertWidget(1, panel)
+        panel.library_changed.connect(self._on_library_changed)
+        panel.presets_changed.connect(self._refresh_metadata_presets)
+        self.gear_library_saved.connect(panel.reload_library)
+
     def block_signals(self, blocked: bool) -> None:
+        gear = self._gear_panel
         for w in self.findChildren(QWidget):
-            w.blockSignals(blocked)
+            if gear is None or not (w is gear or gear.isAncestorOf(w)):
+                w.blockSignals(blocked)

@@ -1261,12 +1261,7 @@ class GearLibraryPanel(QWidget):
             column_layout.addWidget(section)
             self._sections[key] = section
             self._section_titles[key] = title
-        column_layout.addStretch()
-
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setWidget(column)
-        layout.addWidget(self.scroll, 1)
+        layout.addWidget(column)
 
         self._sections["presets"].expanded_changed.connect(lambda shown: self.presets.on_activated() if shown else None)
         self.presets.on_activated()
@@ -1277,7 +1272,11 @@ class GearLibraryPanel(QWidget):
         if section is None:
             return
         section.expand()
-        self.scroll.ensureWidgetVisible(section)
+        scroll = self.parentWidget()
+        while scroll is not None and not isinstance(scroll, QScrollArea):
+            scroll = scroll.parentWidget()
+        if scroll is not None:
+            scroll.ensureWidgetVisible(section)
 
     def apply_shortcut_tooltips(self) -> None:
         for key, section in self._sections.items():

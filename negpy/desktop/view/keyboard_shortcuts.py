@@ -553,7 +553,6 @@ class ShortcutManager:
             "tab_export": lambda: right.show_tab_by_key("export"),
             "tab_metadata": lambda: right.show_tab_by_key("metadata"),
             "tab_history": lambda: right.show_tab_by_key("history"),
-            "tab_gear": lambda: right.show_tab_by_key("gear"),
             "tab_gear_items": lambda: right.show_gear_section_by_key("items"),
             "tab_gear_presets": lambda: right.show_gear_section_by_key("presets"),
             "tab_scan": lambda: right.show_tab_by_key("scan"),
