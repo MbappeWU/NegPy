@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 from PyQt6.QtCore import QRect, Qt
 from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QStandardItem, QStandardItemModel
-from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QWidget
+from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QToolButton, QWidget
 
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
@@ -43,14 +43,20 @@ def _window():
     stack.addWidget(QWidget())
     grid = QListView()
     stack.addWidget(grid)
+    button = QToolButton()
+    button.setCheckable(True)
     win = SimpleNamespace(
         central_stack=stack,
         drawer=_Dock(),
-        strip_pane=_Dock(),
+        toolbar=SimpleNamespace(btn_light_table=button),
         file_browser=SimpleNamespace(light_table_view=grid),
+        strip_open=True,
+        _strip_open_before_light_table=True,
         controller=MagicMock(),
         state=SimpleNamespace(selected_file_idx=0),
     )
+    win.film_strip_expanded = lambda: win.strip_open
+    win.set_film_strip_expanded = lambda on, persist=True: setattr(win, "strip_open", on)
     win.controller.session.asset_model.actual_to_display.return_value = -1
     win.light_table_active = lambda: MainWindow.light_table_active(win)
     return win
@@ -61,23 +67,37 @@ def test_the_light_table_takes_the_canvas_and_strip_place_and_gives_it_back(qapp
 
     MainWindow.set_light_table(win, True)
     assert win.central_stack.currentIndex() == 1
-    assert not win.strip_pane.visible, "the strip and its toolbar hide"
+    assert win.toolbar.btn_light_table.isChecked()
+    assert not win.strip_open, "the strip folds under the grid; the toolbar stays"
     assert win.drawer.visible, "an open controls panel stays open"
 
     MainWindow.set_light_table(win, False)
     assert win.central_stack.currentIndex() == 0
-    assert win.strip_pane.visible and win.drawer.visible
+    assert not win.toolbar.btn_light_table.isChecked()
+    assert win.strip_open and win.drawer.visible
+
+
+def test_leaving_the_light_table_keeps_a_folded_strip_folded(qapp):
+    win = _window()
+    win.strip_open = False
+
+    MainWindow.set_light_table(win, True)
+    MainWindow.set_light_table(win, False)
+
+    assert not win.strip_open
 
 
 def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
     win = _window()
     win.controller.session.asset_model.rowCount.return_value = 0
     win.state.uploaded_files = [{"name": "a.tif"}]
+    win.toolbar.btn_light_table.setChecked(True)
 
     MainWindow.set_light_table(win, True)
 
     assert win.central_stack.currentIndex() == 0
-    assert win.strip_pane.visible
+    assert win.strip_open
+    assert not win.toolbar.btn_light_table.isChecked()
     win.controller.set_status.assert_called_once_with("No frames match the filter", 3000)
 
 
@@ -91,7 +111,7 @@ def test_the_light_table_closes_when_its_grid_empties(qapp):
     MainWindow._leave_empty_light_table(win)
 
     assert win.central_stack.currentIndex() == 0
-    assert win.strip_pane.visible
+    assert win.strip_open
 
 
 def test_the_light_table_leaves_a_hidden_controls_panel_hidden(qapp):
@@ -102,7 +122,6 @@ def test_the_light_table_leaves_a_hidden_controls_panel_hidden(qapp):
     MainWindow.set_light_table(win, False)
 
     assert not win.drawer.visible
-    assert win.strip_pane.visible
 
 
 def test_escape_closes_the_light_table_before_anything_else(qapp):

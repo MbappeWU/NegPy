@@ -515,8 +515,9 @@ class ActionToolbar(QWidget):
             qta.icon("fa5s.th", color=icon_color),
             tr("Light Table — the roll as a grid in place of the canvas"),
             "toggle_light_table",
-            self._show_light_table,
+            self._toggle_light_table,
         )
+        self.btn_light_table.setCheckable(True)
         self.btn_copy = self._action_button(
             qta.icon("fa5s.copy", color=icon_color), tr("Copy this image's settings to the clipboard"), "copy", self.session.copy_settings
         )
@@ -616,7 +617,7 @@ class ActionToolbar(QWidget):
         )
         reference_action = overflow_menu.addAction(tr("Reference View"), self._toggle_reference)
         self._menu_tip(reference_action, tr("Reference view — pin this frame beside the canvas to match others to it"), "toggle_reference")
-        light_table_action = overflow_menu.addAction(tr("Light Table"), self._show_light_table)
+        light_table_action = overflow_menu.addAction(tr("Light Table"), self._toggle_light_table)
         self._menu_tip(light_table_action, tr("Light Table — the roll as a grid in place of the canvas"), "toggle_light_table")
         self._ov_compare_action = overflow_menu.addAction(tr("Before / After"))
         self._ov_compare_action.setCheckable(True)
@@ -1410,12 +1411,12 @@ class ActionToolbar(QWidget):
         if isinstance(win, MainWindow):
             win.toggle_reference()
 
-    def _show_light_table(self) -> None:
+    def _toggle_light_table(self) -> None:
         from negpy.desktop.view.main_window import MainWindow
 
         win = self.window()
         if isinstance(win, MainWindow):
-            win.set_light_table(True)
+            win.set_light_table(not win.light_table_active())
 
     def _show_palette(self) -> None:
         from negpy.desktop.view.main_window import MainWindow

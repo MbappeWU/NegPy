@@ -338,6 +338,7 @@ class MainWindow(QMainWindow):
         self.strip_splitter.setStretchFactor(0, 1)
         self.strip_splitter.setStretchFactor(1, 0)
         self.central_layout.addWidget(self.strip_splitter, stretch=1)
+        self._strip_open_before_light_table = True
 
         self.setCentralWidget(self.central_widget)
 
@@ -508,12 +509,13 @@ class MainWindow(QMainWindow):
     def film_strip_expanded(self) -> bool:
         return not self.file_browser.isHidden()
 
-    def set_film_strip_expanded(self, expanded: bool) -> None:
+    def set_film_strip_expanded(self, expanded: bool, persist: bool = True) -> None:
         if not expanded and self.film_strip_expanded():
             self._strip_open_height = self.strip_pane.height()
         self.file_browser.setVisible(expanded)
         self.toolbar.set_strip_expanded(expanded)
-        self.controller.session.repo.save_global_setting(_STRIP_EXPANDED_KEY, expanded)
+        if persist:
+            self.controller.session.repo.save_global_setting(_STRIP_EXPANDED_KEY, expanded)
         self._apply_strip_constraints(expanded)
 
     def toggle_film_strip(self) -> None:
@@ -584,17 +586,21 @@ class MainWindow(QMainWindow):
             self.set_light_table(False)
 
     def set_light_table(self, on: bool) -> None:
-        """The grid takes the canvas and the Film Strip's place, toolbar included; the controls panel
-        stays as it is. Esc, Shift+G or opening a frame leaves it."""
-        # The toolbar hides with it, so an empty grid would have no way back but Esc.
+        """The grid takes the place of the canvas and the Film Strip, over the toolbar; the controls panel
+        stays as it is. Esc, Shift+G, the toolbar's grid button or opening a frame leaves it."""
         if on and self.controller.session.asset_model.rowCount() == 0:
             on = False
             self.controller.set_status(tr("No frames match the filter") if self.state.uploaded_files else tr("No frames loaded"), 3000)
+        button = self.toolbar.btn_light_table
+        button.blockSignals(True)
+        button.setChecked(on)
+        button.blockSignals(False)
         if on == self.light_table_active():
             return
         view = self.file_browser.light_table_view
-        self.strip_pane.setVisible(not on)
         if on:
+            self._strip_open_before_light_table = self.film_strip_expanded()
+            self.set_film_strip_expanded(False, persist=False)
             self.central_stack.setCurrentIndex(1)
             row = self.controller.session.asset_model.actual_to_display(self.state.selected_file_idx)
             if row >= 0:
@@ -602,6 +608,7 @@ class MainWindow(QMainWindow):
             view.setFocus()
         else:
             self.central_stack.setCurrentIndex(0)
+            self.set_film_strip_expanded(self._strip_open_before_light_table, persist=False)
 
     def reset_panel_layout(self) -> None:
         """Restore the controls panel to its original edge and width, and show it and the Film Strip."""
