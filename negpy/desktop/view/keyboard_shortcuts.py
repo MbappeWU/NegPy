@@ -539,7 +539,7 @@ class ShortcutManager:
                 not controller.session.state.sticky_settings_enabled
             ),
             "toggle_invert_zoom_scroll": lambda: controller.session.set_invert_zoom_scroll(not controller.session.state.invert_zoom_scroll),
-            "toggle_left_panel": self.window.toggle_session_dock,
+            "toggle_film_strip": self.window.toggle_film_strip,
             "toggle_right_panel": self.window.toggle_controls_dock,
             "reset_panel_layout": self.window.reset_panel_layout,
             "edit_toolbar": toolbar.open_toolbar_editor,

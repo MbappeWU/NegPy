@@ -14,14 +14,14 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 ### Screen layout
 
-*   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
+*   **Below the canvas, the film strip**: your frames as strips of film, with import, sorting and triage tools.
 *   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
 *   **Right, the controls**: tabs **Library** / **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
-Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows both panels. **Reset Panel Layout** (**⋯** menu) restores the default layout.
+Drag the film strip's top edge to change its height; its header folds it to one line (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows the controls panel and the film strip. **Reset Panel Layout** (**⋯** menu) restores the default layout.
 
 ### The tour
 
@@ -115,9 +115,9 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 ---
 
 <!-- panel:frames -->
-## 2. Film strip (left panel)
+## 2. Library and film strip
 
-The panel holds the toolbar, the search box and the **Film Strip** (open frames). Your imported rolls are on the right panel's **Library** tab.
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. A taller strip wraps the roll into more rows. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
@@ -167,7 +167,7 @@ The **⋮** menu on the Film Strip header:
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
 
-The grid button on the same header opens the **Light Table** (`Shift+G`): the roll as strips of film on a white light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. **Esc** or `Shift+G` goes back.
+The grid button on the same header opens the **Light Table** (`Shift+G`): the roll as strips of film on a white light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. The Film Strip and the controls panel hide while it is open. **Esc** or `Shift+G` goes back.
 
 The Film Strip button row:
 
@@ -183,7 +183,7 @@ The Film Strip button row:
 *   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
 *   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
 
-Above both sections are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle. The Film Strip has a **tally** of frames, keepers and rejects, and a **thumbnail size** slider. If a filter hides everything, **Show all frames** clears it.
+Beside the buttons are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle, then a **tally** of frames, keepers and rejects, and a **frame size** slider. If a filter hides everything, **Show all frames** clears it.
 
 #### Filtering the sheet
 
@@ -823,7 +823,7 @@ Meters the roll once and shares the result, so frames of one film match.
 *   **Use average: Cast** (Color Negative only): takes Cast Removal's gray balance from the roll or scene analysis, so frames under one light render alike. An analysis turns it on, except on frames far from the rest.
 *   **Baseline**: names the roll, scene or frame the baseline came from, and warns when there is none or when an older version of the analysis measured it.
 *   **Rolls** (picker): every roll in your library; a ticked roll has a saved baseline. Defaults to the loaded roll. A baseline from an older analysis shows an amber hint until you run **Reanalyze**.
-*   **Reanalyze** (also in the Library, [§2](#2-film-strip-left-panel)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.5](#105-crop)) first for consistent crops.
+*   **Reanalyze** (also in the Library, [§2](#2-library-and-film-strip)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.5](#105-crop)) first for consistent crops.
 *   **Use This Frame**: saves this frame's bounds as the roll's baseline.
 *   **Scenes**: the loaded roll's [scenes](#scenes). **Analyze** runs Scene Analysis (Reanalyze over the scene only), **Select** selects its frames, and **Delete** forgets it. An amber ✓ marks a scene baseline from an older analysis.
 

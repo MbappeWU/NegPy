@@ -451,15 +451,8 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.restore()
 
 
-# Thumbnail size preference (px), as set by the filmstrip's size slider. The default fills
-# one column of the session sidebar at a typical narrow width, where a single full-width
-# frame is the most legible use of it. Dropping toward THUMB_CELL_MIN fits a second column
-# at that width. A narrower panel overflows the toolbar and the grid keeps one column.
-#
-# The maximum is the default: the slider only shrinks frames. Anything larger holds a
-# widened sidebar at one column, and since cells are square a 3:2 frame leaves a wide band
-# of empty space above and below. Two columns are both denser and larger in practice, so
-# there is nothing above the default worth offering.
+# The Film Strip's frame-size slider sets a cell's width, one frame pitch; columns justify to the
+# strip's width. The Light Table uses the maximum.
 THUMB_CELL_MIN = 100
 THUMB_CELL_DEFAULT = 220
 THUMB_CELL_MAX = THUMB_CELL_DEFAULT
@@ -807,7 +800,7 @@ _DRAFT_PX_PER_MM = 4.0
 LIGHT_TABLE_WHITE = THEME.canvas_bg_white
 
 
-def light_table_film(asset: dict, config: WorkspaceConfig, library: Any, half_frame: bool) -> tuple[FilmGeometry, EdgeStyle, Palette]:
+def roll_film(asset: dict, config: WorkspaceConfig, library: Any, half_frame: bool) -> tuple[FilmGeometry, EdgeStyle, Palette]:
     """The roll as film: the active frame's format and edge print, in the contact sheet's palette."""
     frames = [SheetFrame(asset, config)]
     fmt, frame_size = infer_format(frames, half_frame)
@@ -924,12 +917,17 @@ class _FilmGridView(ThumbnailGridView):
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
-    PADDING = THEME.space_2xl
     _aspect = 1.0
 
-    def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
+    def __init__(
+        self,
+        parent=None,
+        target_cell: int = THUMB_CELL_DEFAULT,
+        background: str = LIGHT_TABLE_WHITE,
+        padding: int = THEME.space_2xl,
+    ) -> None:
         super().__init__(parent, target_cell)
-        self.setStyleSheet(f"QListView {{ background-color: {LIGHT_TABLE_WHITE}; padding: {self.PADDING}px; }}")
+        self.setStyleSheet(f"QListView {{ background-color: {background}; padding: {padding}px; }}")
 
     def set_film_aspect(self, aspect: float) -> None:
         if aspect != self._aspect:
@@ -995,8 +993,8 @@ class FileBrowser(QWidget):
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(6)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         icon_size = QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE)
         btn_height = TOOLBAR_BUTTON_HEIGHT
@@ -1176,25 +1174,22 @@ class FileBrowser(QWidget):
         self.thumb_size_slider.setRange(THUMB_CELL_MIN, THUMB_CELL_MAX)
         self.thumb_size_slider.setValue(ThumbnailGridView._clamp_target(int(saved_cell)))
         self.thumb_size_slider.setFixedWidth(72)
-        self.thumb_size_slider.setToolTip(tr("Thumbnail size — smaller fits more columns in the panel"))
-        # Above both sections: one box that filters the frames and searches the library, so it
-        # belongs to neither and stays reachable when either is folded away.
-        layout.addLayout(search_row)
+        self.thumb_size_slider.setToolTip(tr("Frame size — smaller fits more frames in each strip"))
 
         self._refresh_progress = ""
         self.tally_label = ElidedLabel("")
         self.tally_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
         self.tally_label.setVisible(False)
 
-        self.list_view = ThumbnailGridView(target_cell=self.thumb_size_slider.value())
-        self._thumbnail_delegate = _ThumbnailDelegate(self.list_view, state=self.session.state)
+        self.list_view = _FilmGridView(target_cell=self.thumb_size_slider.value(), background=THEME.bg_dark, padding=THEME.space_sm)
+        self._thumbnail_delegate = _FilmDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
         self.light_table_view = _FilmGridView(target_cell=THUMB_CELL_MAX)
         self._light_table_delegate = _FilmDelegate(self.light_table_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.light_table_view, self._light_table_delegate)
         self.light_table_view.setSelectionModel(self.list_view.selectionModel())
-        self._light_table_key: Optional[tuple] = None
+        self._film_key: Optional[tuple] = None
         self._apply_sort_order(str(saved_sort), save=False)
         self._apply_sort_direction(bool(saved_desc), save=False)
 
@@ -1216,11 +1211,13 @@ class FileBrowser(QWidget):
         frames_layout = QVBoxLayout(frames)
         frames_layout.setContentsMargins(0, 0, 0, 0)
         frames_layout.setSpacing(4)
-        frames_layout.addWidget(self.film_strip_toolbar)
-        tally_row = QHBoxLayout()
-        tally_row.addWidget(self.tally_label, 1)
-        tally_row.addWidget(self.thumb_size_slider)
-        frames_layout.addLayout(tally_row)
+        # One row: the tools, the box that filters the frames and searches the library, the tally.
+        control_row = QHBoxLayout()
+        control_row.addWidget(self.film_strip_toolbar)
+        control_row.addLayout(search_row, 1)
+        control_row.addWidget(self.tally_label)
+        control_row.addWidget(self.thumb_size_slider)
+        frames_layout.addLayout(control_row)
         frames_layout.addWidget(self.list_view, 1)
         frames_layout.addWidget(self.empty_label, 1)
         self.frames_section = self._make_section(tr("Film Strip"), "frames", "fa5s.film", frames)
@@ -1304,8 +1301,9 @@ class FileBrowser(QWidget):
         saved = self.session.repo.load_file_settings(asset["hash"]) if asset.get("hash") else None
         return saved.geometry if saved is not None else GeometryConfig()
 
-    def _sync_light_table_film(self) -> None:
-        """The Light Table's film, from the active frame; the gear library is read only when an input changes."""
+    def _sync_film(self) -> None:
+        """The film of the strip and the Light Table, from the active frame; the gear library is read
+        only when an input changes."""
         state = self.session.state
         files = state.uploaded_files
         asset = files[state.selected_file_idx] if 0 <= state.selected_file_idx < len(files) else {}
@@ -1317,16 +1315,17 @@ class FileBrowser(QWidget):
             (config.process.process_mode, config.process.positive_source, config.exposure.paper_black),
             (half_frame, asset.get("half")),
         )
-        if key == self._light_table_key:
+        if key == self._film_key:
             return
-        self._light_table_key = key
+        self._film_key = key
         try:
             library = self.controller.load_gear_library()
         except Exception:
             library = None
-        geometry, style, palette = light_table_film(asset, config, library, half_frame)
-        self._light_table_delegate.set_film(geometry, style, palette)
-        self.light_table_view.set_film_aspect(geometry.width / geometry.pitch)
+        film = roll_film(asset, config, library, half_frame)
+        for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
+            delegate.set_film(*film)
+            view.set_film_aspect(film[0].width / film[0].pitch)
 
     def _open_from_light_table(self, index) -> None:
         if index.isValid():
@@ -1426,7 +1425,7 @@ class FileBrowser(QWidget):
 
         # Repaint for dirty underline
         self.list_view.viewport().update()
-        self._sync_light_table_film()
+        self._sync_film()
         self.light_table_view.viewport().update()
 
         if current_actual == target_actual:

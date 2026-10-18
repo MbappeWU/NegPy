@@ -1,6 +1,6 @@
 # Filtering the Film Strip
 
-The search box in the left sidebar filters the film strip by filename. Sorting, hot folder mode and "Export All" use only the visible (filtered) set.
+The search box on the Film Strip filters it by filename. Sorting, hot folder mode and "Export All" use only the visible (filtered) set.
 
 ## Plain mode (default)
 

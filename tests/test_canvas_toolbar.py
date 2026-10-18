@@ -119,7 +119,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             self.assertTrue(tb.btn_prev.isVisible())
             self.assertTrue(tb.btn_next.isVisible())
             self.assertTrue(tb.btn_overflow.isVisible())
-            self.assertTrue(tb.btn_toggle_left.isVisible())
+            self.assertTrue(tb.btn_toggle_strip.isVisible())
             self.assertTrue(tb.btn_toggle_right.isVisible())
 
     def test_full_width_shows_every_chosen_control(self):
@@ -142,7 +142,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
         QApplication.processEvents()
 
         row = [
-            tb.btn_toggle_left,
+            tb.btn_toggle_strip,
             tb.btn_prev,
             tb.position_label,
             tb.btn_next,
@@ -220,7 +220,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
     def test_panel_toggles_are_not_checkable(self):
         """An open panel is the resting state; the accent fill means armed."""
         tb = _make_toolbar()
-        self.assertFalse(tb.btn_toggle_left.isCheckable())
+        self.assertFalse(tb.btn_toggle_strip.isCheckable())
         self.assertFalse(tb.btn_toggle_right.isCheckable())
 
     def test_every_keyed_overflow_item_shows_its_key(self):

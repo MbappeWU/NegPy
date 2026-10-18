@@ -102,11 +102,11 @@ def test_narrowing_the_panel_raises_a_populated_overflow_menu(panel, qapp):
     """QToolBar's native extension menu was tried first and came up empty: widgets added with
     addWidget() become QWidgetActions its popup cannot host."""
     toolbar = panel.file_browser.film_strip_toolbar
-    panel.file_browser.resize(420, 700)
+    panel.file_browser.resize(1400, 700)
     qapp.processEvents()
     assert not toolbar.overflow_btn.isVisible()
 
-    panel.file_browser.resize(200, 700)
+    panel.file_browser.resize(320, 700)
     qapp.processEvents()
     assert toolbar.overflow_btn.isVisible()
 
@@ -120,8 +120,9 @@ def test_film_strip_toolbar_minimum_is_not_the_sum_of_its_buttons(panel):
     assert toolbar.minimumSizeHint().width() < toolbar.sizeHint().width()
 
 
-def test_film_strip_shrinks_below_the_old_button_row_floor(panel):
-    assert panel.file_browser.minimumSizeHint().width() < 268
+def test_the_film_strip_row_shrinks_below_its_natural_width(panel):
+    browser = panel.file_browser
+    assert browser.minimumSizeHint().width() < browser.sizeHint().width()
 
 
 def test_a_switched_off_toolbar_button_stays_off_across_a_resize(panel):

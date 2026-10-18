@@ -115,7 +115,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             BASICS,
             tr("The Screen"),
             tr(
-                "Left: the <b>Film Strip</b>. Center: the canvas, where tools act. Right: the <b>Library</b> "
+                "Center: the canvas, where tools act; under it, the <b>Film Strip</b>. Right: the <b>Library</b> "
                 "tab and the controls. The <b>Roll</b> tab holds what a roll shares, the <b>Frame</b> tab one "
                 "picture's print. Edits save automatically, keyed to the image content."
             ),
@@ -174,7 +174,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             BASICS,
             tr("Light Table, Stitch and HDR"),
             tr(
-                "{value} opens the <b>Light Table</b>: large thumbnails over the window. Right-click a selection: <b>Stitch Selected Frames</b> joins parts of a large negative, <b>Merge Exposures (HDR)</b> joins a bracket, and <b>Scene</b> groups frames of one subject.",
+                "{value} opens the <b>Light Table</b>: the roll as film over the window. Right-click a selection: <b>Stitch Selected Frames</b> joins parts of a large negative, <b>Merge Exposures (HDR)</b> joins a bracket, and <b>Scene</b> groups frames of one subject.",
                 value=_k("toggle_light_table"),
             ),
             lambda w: fb(w).light_table_btn,

@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewI
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
 from negpy.desktop.view.main_window import MainWindow
-from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE, FileBrowser, _FilmDelegate, light_table_film, picture_in_thumbnail
+from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE, FileBrowser, _FilmDelegate, roll_film, picture_in_thumbnail
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.geometry.models import GeometryConfig
@@ -45,12 +45,14 @@ def _window():
     stack.addWidget(grid)
     button = QToolButton()
     button.setCheckable(True)
+    strip = _Dock()
+    strip.light_table_btn = button
+    strip.light_table_view = grid
     win = SimpleNamespace(
         central_stack=stack,
         drawer=_Dock(),
-        session_dock=_Dock(),
         _panels_before_light_table=[],
-        file_browser=SimpleNamespace(light_table_btn=button, light_table_view=grid),
+        file_browser=strip,
         controller=MagicMock(),
         state=SimpleNamespace(selected_file_idx=0),
     )
@@ -65,12 +67,12 @@ def test_the_light_table_takes_the_canvas_place_and_gives_it_back(qapp):
     MainWindow.set_light_table(win, True)
     assert win.central_stack.currentIndex() == 1
     assert win.file_browser.light_table_btn.isChecked()
-    assert not win.drawer.visible and not win.session_dock.visible, "the grid gets the whole window"
+    assert not win.drawer.visible and not win.file_browser.visible, "the grid gets the whole window"
 
     MainWindow.set_light_table(win, False)
     assert win.central_stack.currentIndex() == 0
     assert not win.file_browser.light_table_btn.isChecked()
-    assert win.drawer.visible and win.session_dock.visible
+    assert win.drawer.visible and win.file_browser.visible
 
 
 def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
@@ -82,7 +84,7 @@ def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
 
     assert win.central_stack.currentIndex() == 0
     assert not win.file_browser.light_table_btn.isChecked()
-    assert win.drawer.visible and win.session_dock.visible
+    assert win.drawer.visible and win.file_browser.visible
     win.controller.set_status.assert_called_once_with("No frames match the filter", 3000)
 
 
@@ -96,7 +98,7 @@ def test_the_light_table_closes_when_its_grid_empties(qapp):
     MainWindow._leave_empty_light_table(win)
 
     assert win.central_stack.currentIndex() == 0
-    assert win.drawer.visible and win.session_dock.visible
+    assert win.drawer.visible and win.file_browser.visible
 
 
 def test_leaving_the_light_table_keeps_a_hidden_controls_panel_hidden(qapp):
@@ -107,7 +109,7 @@ def test_leaving_the_light_table_keeps_a_hidden_controls_panel_hidden(qapp):
     MainWindow.set_light_table(win, False)
 
     assert not win.drawer.visible
-    assert win.session_dock.visible
+    assert win.file_browser.visible
 
 
 def test_escape_closes_the_light_table_before_anything_else(qapp):
@@ -126,11 +128,11 @@ def test_one_key_hides_both_panels_then_brings_both_back(qapp):
     win = _window()
 
     MainWindow.toggle_side_panels(win)
-    assert not win.drawer.visible and not win.session_dock.visible
+    assert not win.drawer.visible and not win.file_browser.visible
     MainWindow.toggle_side_panels(win)
-    assert win.drawer.visible and win.session_dock.visible
+    assert win.drawer.visible and win.file_browser.visible
     saved = win.controller.session.repo.save_global_setting.call_args_list
-    assert saved[-2:] == [(("panel_left_visible", True),), (("panel_right_visible", True),)]
+    assert saved[-2:] == [(("panel_right_visible", True),), (("film_strip_visible", True),)]
 
 
 @pytest.fixture
@@ -186,23 +188,23 @@ def _hp5(**meta) -> tuple[WorkspaceConfig, GearLibrary]:
     return config, GearLibrary(film_stocks=GearProfiles._read_bundled_list("film_stocks.json", FilmStock))
 
 
-def test_the_light_table_film_is_the_rolls_stock_on_white(qapp):
+def test_the_roll_film_is_the_rolls_stock_on_white(qapp):
     config, library = _hp5()
 
-    geometry, style, palette = light_table_film({}, config, library, half_frame=False)
+    geometry, style, palette = roll_film({}, config, library, half_frame=False)
 
     assert geometry.format == SheetFormat.FULL_FRAME
     assert (style.maker, style.text) == ("ILFORD", "HP5 PLUS")
     assert palette.no_film == QColor(LIGHT_TABLE_WHITE).getRgb()[:3]
-    assert light_table_film({}, config, library, half_frame=True)[0].format == SheetFormat.HALF_FRAME
-    assert light_table_film({}, _hp5(format="120")[0], library, half_frame=False)[0].format == SheetFormat.MEDIUM
+    assert roll_film({}, config, library, half_frame=True)[0].format == SheetFormat.HALF_FRAME
+    assert roll_film({}, _hp5(format="120")[0], library, half_frame=False)[0].format == SheetFormat.MEDIUM
 
 
 def test_the_gear_library_is_read_again_only_when_the_film_changes(browser):
     loads = browser.controller.load_gear_library
     loads.reset_mock()
     loads.return_value = _hp5()[1]
-    browser._light_table_key = None
+    browser._film_key = None
 
     browser.sync_ui()
     browser.sync_ui()
@@ -216,7 +218,7 @@ def test_the_gear_library_is_read_again_only_when_the_film_changes(browser):
 
 def test_a_light_table_cell_is_one_frame_of_film(browser):
     view, delegate = browser.light_table_view, browser._light_table_delegate
-    browser._light_table_key = None
+    browser._film_key = None
     browser.sync_ui()
     view.resize(900, 600)
     view._relayout()
@@ -245,7 +247,7 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
     upright.paste((220, 0, 0), (0, 0, 200, 150))
     icon = QIcon(QPixmap.fromImage(_qimage(prepare_thumbnail(upright, 120))))
     delegate = _FilmDelegate(frame_geometry=lambda asset: GeometryConfig(rotation=rotation))
-    delegate.set_film(*light_table_film({}, *_hp5(), half_frame=False))
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False))
     model = QStandardItemModel()
     model.appendRow(QStandardItem())
 
@@ -258,7 +260,7 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
 @pytest.mark.parametrize("hover", [False, True])
 def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover):
     delegate = _FilmDelegate()
-    delegate.set_film(*light_table_film({}, *_hp5(), half_frame=False))
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False))
     model = QStandardItemModel()
     item = QStandardItem()
     item.setData(

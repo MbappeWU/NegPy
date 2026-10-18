@@ -331,9 +331,9 @@ class ActionToolbar(QWidget):
 
         # 0. Panel toggles (live at the toolbar's outer edges)
         # Not checkable: an open panel is the resting state, and the accent means armed.
-        self.btn_toggle_left = QToolButton()
-        self.btn_toggle_left.setIcon(qta.icon("fa5s.columns", color=icon_color))
-        self._tip(self.btn_toggle_left, tr("Toggle Session Panel"), "toggle_left_panel")
+        self.btn_toggle_strip = QToolButton()
+        self.btn_toggle_strip.setIcon(qta.icon("fa5s.film", color=icon_color))
+        self._tip(self.btn_toggle_strip, tr("Toggle Film Strip"), "toggle_film_strip")
         self.btn_toggle_right = QToolButton()
         self.btn_toggle_right.setIcon(qta.icon("fa5s.sliders-h", color=icon_color))
         self._tip(self.btn_toggle_right, tr("Toggle Controls Panel"), "toggle_right_panel")
@@ -731,7 +731,7 @@ class ActionToolbar(QWidget):
         self.btn_overflow.setMenu(overflow_menu)
 
         standard_buttons = [
-            self.btn_toggle_left,
+            self.btn_toggle_strip,
             self.btn_toggle_right,
             self.btn_prev,
             self.btn_next,
@@ -1482,7 +1482,7 @@ class ActionToolbar(QWidget):
         for widget in self._row_widgets.values():
             widget.setVisible(False)
 
-        layout.addWidget(self.btn_toggle_left)
+        layout.addWidget(self.btn_toggle_strip)
         previous_category = None
         for item_id in self._item_ids:
             item = TOOLBAR_ITEM_BY_ID[item_id]
