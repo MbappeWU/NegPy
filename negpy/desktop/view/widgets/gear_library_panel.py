@@ -12,7 +12,7 @@ from negpy.desktop.view.styles.templates import add_choice_items
 
 from negpy.kernel.system.i18n import tr
 
-from dataclasses import replace
+from dataclasses import fields, replace
 from typing import Callable, Optional
 
 import qtawesome as qta
@@ -1228,6 +1228,15 @@ class GearLibraryPanel(QWidget):
 
     def library(self) -> GearLibrary:
         return self._library
+
+    def reload_library(self) -> None:
+        """Re-read the library saved elsewhere, in place: both panels hold this one object."""
+        fresh = GearProfiles.load_library()
+        for f in fields(GearLibrary):
+            setattr(self._library, f.name, getattr(fresh, f.name))
+        selected = self.items._selected_item()
+        self.items._rebuild_item_list(select_id=selected.id if selected is not None else None)
+        self.presets.refresh_gear_combos()
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)

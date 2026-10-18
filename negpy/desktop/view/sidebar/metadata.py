@@ -3,7 +3,7 @@ from negpy.kernel.system.i18n import tr
 import qtawesome as qta
 from dataclasses import asdict, replace
 from typing import Optional
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -90,6 +90,7 @@ class MetadataSidebar(BaseSidebar):
     """Panel for analog gear metadata written to exported files."""
 
     SIDE_MARGIN = THEME.space_xl
+    gear_library_saved = pyqtSignal()
 
     def _init_ui(self) -> None:
         conf = self.state.config.metadata
@@ -665,6 +666,7 @@ class MetadataSidebar(BaseSidebar):
             return
         setattr(library, category, [*getattr(library, category), new_item])
         GearProfiles.save_library(library)
+        self.gear_library_saved.emit()
         self._refresh_gear_combos(force=True)
         combo.set_selected_id(new_item.id)
 

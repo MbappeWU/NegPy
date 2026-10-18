@@ -120,6 +120,7 @@ class RightPanel(QWidget):
         self.gear_panel = GearLibraryPanel(current_config_fn=lambda: self.controller.state.config, repo=self.controller.session.repo)
         self.gear_panel.library_changed.connect(self.metadata_sidebar._on_library_changed)
         self.gear_panel.presets_changed.connect(self.metadata_sidebar._refresh_metadata_presets)
+        self.metadata_sidebar.gear_library_saved.connect(self.gear_panel.reload_library)
 
         from negpy.desktop.view.sidebar.scan import ScanSidebar
         from negpy.desktop.view.sidebar.scan_output import ScanOutputPanel

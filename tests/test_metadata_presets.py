@@ -1136,3 +1136,18 @@ class TestItemsPresetsSplit:
 
         assert "G" in panel._sections["items"].toggle_button.toolTip()
         assert "G" not in panel._sections["presets"].toggle_button.toolTip()
+
+
+def test_a_gear_save_elsewhere_reaches_the_gear_panel(qapp, monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(APP_CONFIG, "gear_dir", str(tmp_path / "gear"))
+    library = GearLibrary()
+    panel = GearLibraryPanel(library)
+    panel.items._select_category("cameras")
+    saved = GearLibrary(cameras=[Camera(id="c1", make="Nikon", model="FM2")])
+    monkeypatch.setattr(GearProfiles, "load_library", staticmethod(lambda: saved))
+
+    panel.reload_library()
+
+    assert panel.library() is library
+    assert [camera.id for camera in library.cameras] == ["c1"]
+    assert panel.items.item_list.count() == 1
