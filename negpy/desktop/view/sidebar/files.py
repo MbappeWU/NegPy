@@ -22,7 +22,21 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QActionGroup, QColor, QIcon, QImage, QKeySequence, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTransform
+from PyQt6.QtGui import (
+    QActionGroup,
+    QBrush,
+    QColor,
+    QIcon,
+    QImage,
+    QKeySequence,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QShortcut,
+    QTransform,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QDialog,
@@ -885,11 +899,12 @@ class _FilmStripDelegate(_FilmDelegate):
 
 
 class _FilmGridView(ThumbnailGridView):
-    """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. A
+    """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. An
     outline in the scene's color runs along the film's edge around each run of a scene's frames on one row."""
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
+    GLOW = 3
     _aspect = 1.0
     _edges = True
 
@@ -912,6 +927,9 @@ class _FilmGridView(ThumbnailGridView):
             self._last_cell = -1
             self._relayout()
 
+    def _row_gap(self) -> int:
+        return self.STRIP_GAP if self._edges else 0
+
     def cell_for_width(self, vw: int) -> int:
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
         return max(1, (vw - 1) // self.columns_for_width(vw))
@@ -920,7 +938,7 @@ class _FilmGridView(ThumbnailGridView):
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        size = QSize(cell, int(round(cell * self._aspect)) + (self.STRIP_GAP if self._edges else 0))
+        size = QSize(cell, int(round(cell * self._aspect)) + self._row_gap())
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
@@ -965,10 +983,17 @@ class _FilmGridView(ThumbnailGridView):
             else:
                 gap = window.left() - first.left()
                 top, bottom = window.top() - gap, window.top() + window.height() + gap
+            color = QColor(scene_color(scene[0]))
+            # A glow on both sides of the top and bottom lines only: the sides lie in frame gaps beside the pictures.
+            left, right = first.left(), last.right() + 1
+            for y, step in ((top, -self.GLOW), (top + width, self.GLOW), (bottom, self.GLOW), (bottom - width, -self.GLOW)):
+                gradient = QLinearGradient(0, y, 0, y + step)
+                gradient.setColorAt(0, QColor(color.red(), color.green(), color.blue(), 170))
+                gradient.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 0))
+                painter.fillRect(QRectF(left, min(y, y + step), right - left, self.GLOW), QBrush(gradient))
             # The whole stroke on the run's own film, so its sides lie in its own frame gaps.
             half = width / 2
-            rect = QRectF(first.left() + half, top + half, last.right() + 1 - first.left() - width, bottom - top - width)
-            color = QColor(scene_color(scene[0]))
+            rect = QRectF(left + half, top + half, right - left - width, bottom - top - width)
             color.setAlphaF(0.9)
             pen = QPen(color, width)
             pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
@@ -980,7 +1005,6 @@ class _FilmGridView(ThumbnailGridView):
 class _FilmStripView(_FilmGridView):
     """The Film Strip: one row of film as tall as the view, scrolling sideways."""
 
-    STRIP_GAP = 0
     # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
     MARGIN_SHARE = 0.06
 
@@ -1011,8 +1035,12 @@ class _FilmStripView(_FilmGridView):
         self._fit_margins(self.height())
         super().resizeEvent(event)
 
+    def _row_gap(self) -> int:
+        # Room in the view for the scene outline's glow above and below the film.
+        return 2 * self.GLOW
+
     def cell_for_width(self, vw: int) -> int:
-        return max(1, int((self.viewport().height() - 1) / self._aspect))
+        return max(1, int((self.viewport().height() - 1 - self._row_gap()) / self._aspect))
 
     def _apply_cell(self, cell: int) -> None:
         super()._apply_cell(cell)
