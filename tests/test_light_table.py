@@ -357,7 +357,7 @@ def test_a_loop_rings_each_run_of_a_scenes_frames_on_one_row(browser, qapp):
     browser.hide()
 
 
-def test_the_loop_is_drawn_in_the_scene_color_beside_the_film(browser, qapp):
+def test_the_outline_runs_along_the_film_edge_in_the_scene_color(browser, qapp):
     from negpy.desktop.view.styles.theme import scene_color
 
     _scene_roll(browser, [None, NIGHT, NIGHT, None])
@@ -366,16 +366,18 @@ def test_the_loop_is_drawn_in_the_scene_color_beside_the_film(browser, qapp):
     browser.show()
     qapp.processEvents()
     image = strip.viewport().grab().toImage()
-    first = strip.visualRect(strip.model().index(1, 0))
-    film_top = strip.itemDelegate()._layout(strip.itemDelegate()._film[0], first)[0]
+    delegate = strip.itemDelegate()
     color = QColor(scene_color(2))
 
-    def near(x: int) -> bool:
-        column = [image.pixelColor(x, y) for y in range(first.top(), film_top)]
-        return any(abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 90 for c in column)
+    def edge(row: int) -> QColor:
+        cell = strip.visualRect(strip.model().index(row, 0))
+        return image.pixelColor(cell.center().x(), delegate._layout(delegate._film[0], cell)[0] + 1)
 
-    assert near(first.right())
-    assert not near(strip.visualRect(strip.model().index(0, 0)).center().x())
+    def near(c: QColor) -> bool:
+        return abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 60
+
+    assert near(edge(1)) and near(edge(2))
+    assert not near(edge(0)) and not near(edge(3))
     browser.hide()
 
 

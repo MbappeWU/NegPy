@@ -886,7 +886,7 @@ class _FilmStripDelegate(_FilmDelegate):
 
 class _FilmGridView(ThumbnailGridView):
     """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. A
-    rounded outline in the scene's color rings each run of a scene's frames on one row."""
+    outline in the scene's color runs along the film's edge around each run of a scene's frames on one row."""
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
@@ -916,14 +916,11 @@ class _FilmGridView(ThumbnailGridView):
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
         return max(1, (vw - 1) // self.columns_for_width(vw))
 
-    def _strip_gap(self) -> int:
-        return self.STRIP_GAP if self._edges else 0
-
     def _apply_cell(self, cell: int) -> None:
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        size = QSize(cell, int(round(cell * self._aspect)) + self._strip_gap())
+        size = QSize(cell, int(round(cell * self._aspect)) + (self.STRIP_GAP if self._edges else 0))
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
@@ -961,31 +958,35 @@ class _FilmGridView(ThumbnailGridView):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for scene, _index, first, last in runs:
             s = first.width() / geometry.pitch
+            width = max(2.0, min(4.0, 0.7 * s))
             top, window = delegate._layout(geometry, first)
-            # Halfway between the cell's edge and the film (or, without edges, the picture), so the
-            # sides pass through the frame gaps.
-            above, below = (top, top + geometry.width * s) if delegate._edges else (window.top(), window.top() + window.height())
-            left = (first.left() + window.left()) / 2
-            right = last.right() + 1 - (window.left() - first.left()) / 2
-            rect = QRectF(left, (first.top() + above) / 2, right - left, (first.bottom() + 1 + below) / 2 - (first.top() + above) / 2)
+            if delegate._edges:
+                bottom = top + int(round(geometry.width * s))
+            else:
+                gap = window.left() - first.left()
+                top, bottom = window.top() - gap, window.top() + window.height() + gap
+            # The whole stroke on the run's own film, so its sides lie in its own frame gaps.
+            half = width / 2
+            rect = QRectF(first.left() + half, top + half, last.right() + 1 - first.left() - width, bottom - top - width)
             color = QColor(scene_color(scene[0]))
             color.setAlphaF(0.9)
-            painter.setPen(QPen(color, max(2.0, min(4.0, 0.7 * s))))
-            radius = min(4 * s, rect.height() / 4)
-            painter.drawRoundedRect(rect, radius, radius)
+            pen = QPen(color, width)
+            pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+            painter.setPen(pen)
+            painter.drawRect(rect)
         painter.end()
 
 
 class _FilmStripView(_FilmGridView):
     """The Film Strip: one row of film as tall as the view, scrolling sideways."""
 
+    STRIP_GAP = 0
     # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
     MARGIN_SHARE = 0.06
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        # The film runs off the left and right edges.
-        self.setViewportMargins(0, 0, 0, 0)
+        self._fit_margins(self.height())
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -1000,20 +1001,18 @@ class _FilmStripView(_FilmGridView):
             + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
         )
 
-    def _margin(self) -> int:
-        return round(self.height() * self.MARGIN_SHARE)
-
-    def _strip_gap(self) -> int:
-        # In the cells, not viewport margins: the scene loops run around the film there.
-        return 2 * self._margin()
+    def _fit_margins(self, height: int) -> None:
+        # The film runs off the left and right edges.
+        margin = round(height * self.MARGIN_SHARE)
+        self.setViewportMargins(0, margin, 0, margin)
 
     def resizeEvent(self, event) -> None:
-        # The margin follows the height, though the frame width may round to the same cell.
-        self._last_cell = -1
+        # Not event.size(): the viewport's own resizes arrive here too.
+        self._fit_margins(self.height())
         super().resizeEvent(event)
 
     def cell_for_width(self, vw: int) -> int:
-        return max(1, int((self.viewport().height() - self._strip_gap() - 1) / self._aspect))
+        return max(1, int((self.viewport().height() - 1) / self._aspect))
 
     def _apply_cell(self, cell: int) -> None:
         super()._apply_cell(cell)
