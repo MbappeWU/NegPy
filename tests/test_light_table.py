@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewI
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
 from negpy.desktop.view.main_window import MainWindow
-from negpy.desktop.view.sidebar.files import FileBrowser, _FilmDelegate, print_dmax, roll_film, picture_in_thumbnail
+from negpy.desktop.view.sidebar.files import FileBrowser, _FilmDelegate, _FilmStripDelegate, print_dmax, roll_film, picture_in_thumbnail
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.geometry.models import GeometryConfig
@@ -315,9 +315,7 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
     assert (picture.pixelColor(5, picture.height() // 2).red() > 150) == top_lies_left
 
 
-@pytest.mark.parametrize("hover", [False, True])
-def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover):
-    delegate = _FilmDelegate()
+def _paint_cell(delegate: _FilmDelegate, hover: bool) -> tuple[QImage, QRect]:
     delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE))
     model = QStandardItemModel()
     item = QStandardItem()
@@ -335,8 +333,26 @@ def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover)
     painter = QPainter(canvas)
     delegate.paint(painter, option, model.index(0, 0))
     painter.end()
+    return canvas, delegate._layout(delegate._film[0], option.rect)[1]
 
-    _top, window = delegate._layout(delegate._film[0], option.rect)
+
+@pytest.mark.parametrize("hover", [False, True])
+def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover):
+    delegate = _FilmDelegate()
+    canvas, window = _paint_cell(delegate, hover)
+
     assert canvas.pixelColor(window.center()) == QColor(40, 160, 220)
     ring = canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1)
     assert (ring == QColor(THEME.accent_primary)) == hover
+
+
+@pytest.mark.parametrize("hover", [False, True])
+def test_the_strip_dims_an_idle_picture_but_not_its_film(qapp, hover):
+    delegate = _FilmStripDelegate()
+    canvas, window = _paint_cell(delegate, hover)
+
+    picture = canvas.pixelColor(window.center())
+    assert (picture == QColor(40, 160, 220)) == hover
+    assert picture.lightness() <= QColor(40, 160, 220).lightness()
+    film = canvas.pixelColor(window.center().x(), window.top() - 2 * delegate._SELECTION_OUTSET)
+    assert max(film.red(), film.green(), film.blue()) < 40, "the rebate is not dimmed"

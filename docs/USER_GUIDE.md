@@ -118,7 +118,7 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Library and film strip
 
-The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The rebate takes the roll's mean print D-max, the deepest tone its thumbnails reach. The strip scrolls sideways, and its height sets the size of the frames. The toolbar's **Roll** mode shows the strip's buttons, filter and tally, and its **ⓘ** opens this guide. Your imported rolls are on the right panel's **Library** tab.
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The rebate takes the roll's mean print D-max, the deepest tone its thumbnails reach. The strip scrolls sideways, and its height sets the size of the frames; frames other than the selection are dimmed. The toolbar's **Roll** mode shows the strip's buttons, filter and tally, and its **ⓘ** opens this guide. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library

@@ -921,6 +921,12 @@ class _FilmDelegate(_ThumbnailDelegate):
         super().paint(painter, framed, index)
 
 
+class _FilmStripDelegate(_FilmDelegate):
+    """The strip dims every picture but the selected and hovered ones; the film around them stays."""
+
+    _IDLE_OPACITY = _ThumbnailDelegate._IDLE_OPACITY
+
+
 class _FilmGridView(ThumbnailGridView):
     """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip."""
 
@@ -1239,7 +1245,7 @@ class FileBrowser(QWidget):
         self.tally_label.setVisible(False)
 
         self.list_view = _FilmStripView()
-        self._thumbnail_delegate = _FilmDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
+        self._thumbnail_delegate = _FilmStripDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
         self.light_table_view = _FilmGridView()
