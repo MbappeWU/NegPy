@@ -786,7 +786,7 @@
   "Draw a line along a horizon or an edge to level the frame": "水平線またはエッジに沿って線を引いてフレームを水平にします",
   "Draw a line along a horizon or edge to level the frame": "水平線またはエッジに沿って線を引いてフレームを水平にします",
   "Draw a mask on the picture with any of the three tools, then drag its Burn or Grade.": "3 つのツールのいずれかを使用して画像上にマスクを描画し、その [書き込み] または [グレード] をドラッグします。",
-  "Draw the rebate, perforations and edge print around the frames of the Film Strip and the Light Table": "フィルムストリップとライトテーブルのフレームの周りに、リベート、パーフォレーション、エッジプリントを描画します",
+  "Draw the perforations and edge print on the film of the Film Strip and the Light Table": "フィルムストリップとライトテーブルのフィルムに、パーフォレーションとエッジプリントを描画します",
   "Drop saved per-image edits, undo history and keep/reject marks. Keeps presets and rig profiles.": "保存された画像ごとの編集を削除し、履歴を元に戻し、マークを保持/拒否します。プリセットとリグプロファイルを保持します。",
   "Drop this roll's own edit for this frame?": "このフレームに対するこのロール独自の編集を削除しますか?",
   "Duplicate": "重複",

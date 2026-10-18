@@ -269,7 +269,7 @@ class PreferencesDialog(QDialog):
             row,
             tr("Film edges"),
             state.film_edges,
-            tr("Draw the rebate, perforations and edge print around the frames of the Film Strip and the Light Table"),
+            tr("Draw the perforations and edge print on the film of the Film Strip and the Light Table"),
         )
         self.film_edges_box.toggled.connect(self.session.set_film_edges)
         row += 1

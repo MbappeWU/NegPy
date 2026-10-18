@@ -819,7 +819,7 @@ class _FilmDelegate(_ThumbnailDelegate):
 
     def _border_pen(self, hover: bool) -> QPen:
         # On film the rebate frames the picture.
-        if self._film is not None and self._edges:
+        if self._film is not None:
             return QPen(Qt.PenStyle.NoPen)
         return super()._border_pen(hover)
 
@@ -880,6 +880,9 @@ class _FilmDelegate(_ThumbnailDelegate):
         top, window = self._layout(film[0], cell)
         if self._edges:
             painter.drawImage(cell.left(), top, self._rebate(film, index.row(), cell.width(), index.model().rowCount()))
+        else:
+            s = cell.width() / film[0].pitch
+            painter.fillRect(cell.left(), top, cell.width(), int(round(film[0].width * s)), QColor(*film[2].rebate))
         framed = QStyleOptionViewItem(option)
         m = self._MARGIN
         framed.rect = window.adjusted(-m, -m, m, m)
@@ -899,7 +902,6 @@ class _FilmGridView(ThumbnailGridView):
     SPACING = 0
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
-    _edges = True
     cell_zoomed = pyqtSignal(int)
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
@@ -915,10 +917,9 @@ class _FilmGridView(ThumbnailGridView):
     def _table_qss(self, color: str) -> str:
         return f"QListView {{ background-color: {color}; border: none; }}"
 
-    def set_film_aspect(self, aspect: float, edges: bool = True) -> None:
-        """Without edges the rows are pictures, not strips, so no gap parts them."""
-        if (aspect, edges) != (self._aspect, self._edges):
-            self._aspect, self._edges = aspect, edges
+    def set_film_aspect(self, aspect: float) -> None:
+        if aspect != self._aspect:
+            self._aspect = aspect
             self._last_cell = -1
             self._relayout()
 
@@ -953,7 +954,7 @@ class _FilmGridView(ThumbnailGridView):
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        size = QSize(cell, int(round(cell * self._aspect)) + (self.STRIP_GAP if self._edges else 0))
+        size = QSize(cell, int(round(cell * self._aspect)) + self.STRIP_GAP)
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
@@ -992,12 +993,8 @@ class _FilmGridView(ThumbnailGridView):
         for scene, _index, first, last in runs:
             s = first.width() / geometry.pitch
             width = max(2.0, min(4.0, 0.7 * s))
-            top, window = delegate._layout(geometry, first)
-            if delegate._edges:
-                bottom = top + int(round(geometry.width * s))
-            else:
-                gap = window.left() - first.left()
-                top, bottom = window.top() - gap, window.top() + window.height() + gap
+            top = delegate._layout(geometry, first)[0]
+            bottom = top + int(round(geometry.width * s))
             # The whole stroke on the run's own film, so its sides lie in its own frame gaps.
             half = width / 2
             rect = QRectF(first.left() + half, top + half, last.right() + 1 - first.left() - width, bottom - top - width)
@@ -1454,11 +1451,9 @@ class FileBrowser(QWidget):
             library = None
         film = roll_film(asset, config, library, half_frame, table, self._rebate_tone)
         geometry = film[0]
-        # Without edges a cell is the picture with the frame gap on every side.
-        across = geometry.width if state.film_edges else geometry.frame_across + geometry.pitch - geometry.frame_along
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
             delegate.set_film(*film, edges=state.film_edges)
-            view.set_film_aspect(across / geometry.pitch, state.film_edges)
+            view.set_film_aspect(geometry.width / geometry.pitch)
             view.set_table_color(table)
 
     def _open_from_light_table(self, index) -> None:

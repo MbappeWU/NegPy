@@ -1157,7 +1157,7 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 *   **Language** (default System Default): English, Simplified Chinese, Japanese or Korean; restart to apply. Other system languages use English. Panel guides use the selected language and fall back to English when a translation is missing.
 *   **UI scale** (80% to 120%): after a restart.
 *   **Canvas background**: black, dark gray, mid gray (neutral for judging, the default), light gray or white (a print on a light table). The Film Strip and the Light Table lie on it too.
-*   **Film edges** (on by default): draws the frames of the Film Strip and the Light Table as film, with rebate, perforations and edge print. Off shows the pictures alone.
+*   **Film edges** (on by default): draws the perforations and edge print on the film of the Film Strip and the Light Table. Off leaves the film blank, in the rebate tone.
 *   **Sticky zoom**: keeps the zoom when you switch frames.
 *   **Reverse scroll zoom**: scroll up zooms out.
 *   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, toolbar picker, default panel layout.

@@ -307,7 +307,7 @@ def test_a_light_table_cell_is_one_frame_of_film(browser):
     assert max(rebate.red(), rebate.green(), rebate.blue()) < 40
 
 
-def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
+def test_without_film_edges_the_film_is_blank_in_its_rebate_tone(browser):
     view, delegate = browser.light_table_view, browser._light_table_delegate
     browser.session.set_canvas_bg(3)  # White
     browser.session.set_film_edges(False)
@@ -316,8 +316,8 @@ def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
     view._relayout()
     cell = view.gridSize()
     s = cell.width() / 38.0
-    assert cell.height() == round((24.0 + 2.0) * s)
-    assert browser.list_view._aspect == pytest.approx(26.0 / 38.0)
+    assert cell.height() == round(35.0 * s) + view.STRIP_GAP
+    assert browser.list_view._aspect == pytest.approx(35.0 / 38.0)
 
     canvas = QImage(cell.width(), cell.height(), QImage.Format.Format_RGB888)
     canvas.fill(QColor(WHITE))
@@ -327,8 +327,12 @@ def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
     delegate.paint(painter, option, view.model().index(0, 0))
     painter.end()
 
+    rebate = QColor(*delegate._film[2].rebate)
+    top = (cell.height() - round(35.0 * s)) // 2
+    hole = canvas.pixelColor(round(perforation_centers(0.0, 38.0)[0] * s), top + round((PERF_FROM_EDGE + PERF_ACROSS / 2) * s))
     window = delegate._layout(delegate._film[0], option.rect)[1]
-    assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == QColor(WHITE)
+    assert hole == rebate
+    assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == rebate
 
 
 def _shown_table(browser, qapp):
@@ -487,10 +491,10 @@ def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover)
 
 
 @pytest.mark.parametrize("edges", [True, False])
-def test_a_gray_border_edges_the_picture_only_without_film_edges(qapp, edges):
+def test_no_gray_border_edges_a_picture_on_film(qapp, edges):
     canvas, window = _paint_cell(_FilmDelegate(), False, edges)
 
-    assert (canvas.pixelColor(window.center().x(), window.top()) == QColor(40, 160, 220)) == edges
+    assert canvas.pixelColor(window.center().x(), window.top()) == QColor(40, 160, 220)
 
 
 @pytest.mark.parametrize("hover", [False, True])

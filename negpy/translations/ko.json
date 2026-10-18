@@ -786,7 +786,7 @@
   "Draw a line along a horizon or an edge to level the frame": "수평선이나 가장자리를 따라 선을 그려 프레임의 수평을 맞춥니다.",
   "Draw a line along a horizon or edge to level the frame": "수평선이나 가장자리를 따라 선을 그려 프레임의 수평을 맞춥니다.",
   "Draw a mask on the picture with any of the three tools, then drag its Burn or Grade.": "세 가지 도구 중 하나를 사용하여 그림에 마스크를 그린 다음 Burn 또는 Grade를 드래그합니다.",
-  "Draw the rebate, perforations and edge print around the frames of the Film Strip and the Light Table": "필름 스트립과 라이트 테이블의 프레임 주위에 리베이트, 퍼포레이션, 에지 프린트를 그립니다",
+  "Draw the perforations and edge print on the film of the Film Strip and the Light Table": "필름 스트립과 라이트 테이블의 필름에 퍼포레이션과 에지 프린트를 그립니다",
   "Drop saved per-image edits, undo history and keep/reject marks. Keeps presets and rig profiles.": "저장된 이미지별 편집 내용을 삭제하고, 기록을 취소하고, 표시를 유지/거부합니다. 사전 설정 및 리그 프로필을 유지합니다.",
   "Drop this roll's own edit for this frame?": "이 프레임에 대한 이 롤의 자체 편집 내용을 삭제하시겠습니까?",
   "Duplicate": "중복",
