@@ -1342,7 +1342,7 @@ class ActionToolbar(QWidget):
 
         win = self.window()
         if isinstance(win, MainWindow):
-            win.session_panel.check_for_updates()
+            win.update_notice.check_for_updates()
 
     def _show_about(self) -> None:
         from negpy.desktop.view.main_window import MainWindow

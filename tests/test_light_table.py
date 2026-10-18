@@ -50,7 +50,7 @@ def _window():
         drawer=_Dock(),
         session_dock=_Dock(),
         _panels_before_light_table=[],
-        session_panel=SimpleNamespace(file_browser=SimpleNamespace(light_table_btn=button, light_table_view=grid)),
+        file_browser=SimpleNamespace(light_table_btn=button, light_table_view=grid),
         controller=MagicMock(),
         state=SimpleNamespace(selected_file_idx=0),
     )
@@ -64,12 +64,12 @@ def test_the_light_table_takes_the_canvas_place_and_gives_it_back(qapp):
 
     MainWindow.set_light_table(win, True)
     assert win.central_stack.currentIndex() == 1
-    assert win.session_panel.file_browser.light_table_btn.isChecked()
+    assert win.file_browser.light_table_btn.isChecked()
     assert not win.drawer.visible and not win.session_dock.visible, "the grid gets the whole window"
 
     MainWindow.set_light_table(win, False)
     assert win.central_stack.currentIndex() == 0
-    assert not win.session_panel.file_browser.light_table_btn.isChecked()
+    assert not win.file_browser.light_table_btn.isChecked()
     assert win.drawer.visible and win.session_dock.visible
 
 
@@ -81,7 +81,7 @@ def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
     MainWindow.set_light_table(win, True)
 
     assert win.central_stack.currentIndex() == 0
-    assert not win.session_panel.file_browser.light_table_btn.isChecked()
+    assert not win.file_browser.light_table_btn.isChecked()
     assert win.drawer.visible and win.session_dock.visible
     win.controller.set_status.assert_called_once_with("No frames match the filter", 3000)
 

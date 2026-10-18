@@ -35,7 +35,6 @@ from PyQt6.QtWidgets import (
     QListView,
     QMenu,
     QSlider,
-    QSplitter,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
@@ -105,13 +104,6 @@ from negpy.services.export.contact_sheet_roll import SheetFrame, infer_format, s
 from negpy.services.film_edge.edge import EdgeStyle
 from negpy.services.film_edge.geometry import FilmGeometry, film_geometry
 from negpy.services.film_edge.paint import Palette, paint_strip
-
-
-_UNBOUNDED_HEIGHT = 16777215  # QWIDGETSIZE_MAX — Qt's "no maximum"
-# With both sections open the panel starts 20/80: the tree is for finding a roll, glanced
-# at occasionally, while the sheet is where the work happens and wants the room. The
-# splitter's handle can move this default any time.
-_LIBRARY_SHARE, _FRAMES_SHARE = 1, 4
 
 
 class _ThumbnailDelegate(QStyledItemDelegate):
@@ -1217,8 +1209,8 @@ class FileBrowser(QWidget):
         self.empty_label.setVisible(False)
         self.empty_label.linkActivated.connect(lambda _: self._clear_frame_filters())
 
+        # Shown in the right panel's Library tab; the strip reloads it and reads its state.
         self.library_tree = LibraryTree(self.controller)
-        self.library_section = self._make_section(tr("Library"), "library", "fa5s.folder-open", self.library_tree)
 
         frames = QWidget()
         frames_layout = QVBoxLayout(frames)
@@ -1250,31 +1242,7 @@ class FileBrowser(QWidget):
             tr("Start, close or reset the roll"),
         )
 
-        # A splitter, like the right panel's Analysis/Tabs one, so the boundary can be
-        # dragged; expanded sections still share it by _LIBRARY_SHARE/_FRAMES_SHARE.
-        self.sections_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.sections_splitter.addWidget(self.library_section)
-        self.sections_splitter.addWidget(self.frames_section)
-        self.sections_splitter.setCollapsible(0, False)
-        self.sections_splitter.setCollapsible(1, False)
-
-        saved_sizes = self.session.repo.get_global_setting("session_sections_splitter_sizes")
-        if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
-            self.sections_splitter.setSizes([int(s) for s in saved_sizes])
-        else:
-            self.sections_splitter.setSizes([120, 480])
-        self.sections_splitter.splitterMoved.connect(self._on_sections_splitter_moved)
-        self._section_sizes = self.sections_splitter.sizes()
-
-        for index, section in enumerate((self.library_section, self.frames_section)):
-            section.expanded_changed.connect(lambda expanded, i=index: self._on_section_toggled(i, expanded))
-            self._on_section_toggled(index, section.toggle_button.isChecked())
-
-        # Absorbs the surplus when both sections are collapsed, or Qt spreads it above the
-        # splitter instead of below it (the splitter's own stretch factor, set to 0 in that
-        # case by _on_section_toggled, leaves this the only claimant on the leftover space).
-        layout.addWidget(self.sections_splitter, 1)
-        layout.addStretch(0)
+        layout.addWidget(self.frames_section, 1)
 
         # Applied after list_view exists: the filter prunes the selection against the view.
         saved_sheet = self.session.repo.get_global_setting("sheet_filter") or "all"
@@ -1287,95 +1255,6 @@ class FileBrowser(QWidget):
 
     def _make_section(self, title: str, key: str, icon: str, content: QWidget) -> CollapsibleSection:
         return make_section(self.session.repo, title, key, content, icon, default_expanded=True)
-
-    def _on_sections_splitter_moved(self, *_args) -> None:
-        self._remember_section_sizes()
-        self.session.repo.save_global_setting("session_sections_splitter_sizes", list(self._section_sizes))
-
-    def _remember_section_sizes(self) -> None:
-        """Record open panes only: a collapsed pane's live size is its header, not what it reopens to."""
-        sizes = self.sections_splitter.sizes()
-        for i, section in enumerate((self.library_section, self.frames_section)):
-            if section.toggle_button.isChecked():
-                self._section_sizes[i] = sizes[i]
-
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        if hasattr(self, "sections_splitter"):
-            self._rebalance_splitter_sizes()
-
-    def _apply_section_constraints(self, index: int, expanded: bool) -> None:
-        """A collapsed pane is fixed to exactly its header height, so nothing -- a drag,
-        a resize -- can hand it more or less than that; an expanded pane is freed back to
-        its natural range."""
-        section = (self.library_section, self.frames_section)[index]
-        share = (_LIBRARY_SHARE, _FRAMES_SHARE)[index]
-        if expanded:
-            section.setMinimumHeight(0)
-            section.setMaximumHeight(_UNBOUNDED_HEIGHT)
-        else:
-            section.setFixedHeight(section.toggle_button.height())
-        self.sections_splitter.setStretchFactor(index, share if expanded else 0)
-
-    def _on_section_toggled(self, index: int, expanded: bool) -> None:
-        """Pin a collapsed section's pane to its header and hand its space to the other
-        pane, restoring the last size when it reopens — same pattern as the right panel's
-        Analysis/Tabs splitter, generalized to two panes that can each collapse."""
-        sections = (self.library_section, self.frames_section)
-        other = 1 - index
-        header = sections[index].toggle_button.height()
-        sizes = self.sections_splitter.sizes()
-        total = sum(sizes) or self.sections_splitter.height()
-
-        if not expanded:
-            self._section_sizes[index] = sizes[index]
-        self._apply_section_constraints(index, expanded)
-
-        # A stretch factor sizes the widget, not its content, so a splitter whose panes are
-        # both pinned small still takes the layout's leftover space. Its own maximum height
-        # is what keeps that space out.
-        other_header = sections[other].toggle_button.height()
-        if expanded or sections[other].toggle_button.isChecked():
-            self.sections_splitter.setMaximumHeight(_UNBOUNDED_HEIGHT)
-        else:
-            self.sections_splitter.setMaximumHeight(header + self.sections_splitter.handleWidth() + other_header)
-        if total <= 0:
-            return
-
-        want = min(max(self._section_sizes[index], header), max(header, total - header)) if expanded else header
-        other_want = max(other_header, total - want) if sections[other].toggle_button.isChecked() else other_header
-        new_sizes = [0, 0]
-        new_sizes[index] = want
-        new_sizes[other] = other_want
-        self.sections_splitter.setSizes(new_sizes)
-        self._remember_section_sizes()
-
-    def _rebalance_splitter_sizes(self) -> None:
-        """Reassert the split on a window resize: a collapsed pane stays pinned to its
-        header; expanded panes keep their current size ratio, scaled to the new total.
-        Needed because a QSplitter's own resize handling redistributes new space by
-        stretch factor, and with two independently-collapsible panes that factor is 0
-        for both whenever both happen to be collapsed.
-        """
-        sections = (self.library_section, self.frames_section)
-        total = self.sections_splitter.height() or sum(self.sections_splitter.sizes())
-        if total <= 0:
-            return
-        current = self.sections_splitter.sizes()
-        headers = [s.toggle_button.height() for s in sections]
-        expanded = [s.toggle_button.isChecked() for s in sections]
-        collapsed_total = sum(h for h, e in zip(headers, expanded) if not e)
-        remaining = max(0, total - collapsed_total)
-        expanded_weight_total = sum(w for w, e in zip(current, expanded) if e)
-        sizes = []
-        for h, e, w in zip(headers, expanded, current):
-            if e and expanded_weight_total:
-                sizes.append(round(remaining * w / expanded_weight_total))
-            elif e:
-                sizes.append(remaining)
-            else:
-                sizes.append(h)
-        self.sections_splitter.setSizes(sizes)
 
     def _connect_signals(self) -> None:
         self.library_tree.folder_roll_created.connect(self._maybe_suggest_gear)
@@ -1848,7 +1727,7 @@ class FileBrowser(QWidget):
         if images:
             self.controller.request_asset_discovery([folder], auto_open=True, announce_rgb=True)
         elif self.library_tree.import_subfolders(folder):
-            self.library_section.expand()
+            self.library_requested.emit(False)
 
     def _activate_file(self, index) -> None:
         """Load a thumbnail into the main viewer, skipping a redundant reload of the

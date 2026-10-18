@@ -1,8 +1,10 @@
+from types import SimpleNamespace
+
 import pytest
 
 from negpy.desktop.view.styles.templates import TOOLBAR_BUTTON_HEIGHT
 from negpy.desktop.session import AssetListModel
-from negpy.desktop.view.sidebar.session_panel import SessionPanel
+from negpy.desktop.view.sidebar.files import FileBrowser
 
 from conftest import FakeController as _Controller, FakeRepo as _Repo
 
@@ -11,11 +13,13 @@ from conftest import FakeController as _Controller, FakeRepo as _Repo
 def panel(qapp):
     controller = _Controller(_Repo())
     controller.session.asset_model = AssetListModel(controller.state)
-    panel = SessionPanel(controller)
-    panel.resize(300, 700)
-    panel.show()
+    browser = FileBrowser(controller)
+    browser.resize(300, 700)
+    browser.show()
+    browser.library_tree.resize(300, 400)
+    browser.library_tree.show()
     qapp.processEvents()
-    return panel
+    return SimpleNamespace(file_browser=browser, library_tree=browser.library_tree)
 
 
 def test_each_section_toolbar_has_its_own_sort(panel):
@@ -98,11 +102,11 @@ def test_narrowing_the_panel_raises_a_populated_overflow_menu(panel, qapp):
     """QToolBar's native extension menu was tried first and came up empty: widgets added with
     addWidget() become QWidgetActions its popup cannot host."""
     toolbar = panel.file_browser.film_strip_toolbar
-    panel.resize(420, 700)
+    panel.file_browser.resize(420, 700)
     qapp.processEvents()
     assert not toolbar.overflow_btn.isVisible()
 
-    panel.resize(200, 700)
+    panel.file_browser.resize(200, 700)
     qapp.processEvents()
     assert toolbar.overflow_btn.isVisible()
 
@@ -116,8 +120,8 @@ def test_film_strip_toolbar_minimum_is_not_the_sum_of_its_buttons(panel):
     assert toolbar.minimumSizeHint().width() < toolbar.sizeHint().width()
 
 
-def test_session_panel_shrinks_below_the_old_button_row_floor(panel):
-    assert panel.minimumSizeHint().width() < 268
+def test_film_strip_shrinks_below_the_old_button_row_floor(panel):
+    assert panel.file_browser.minimumSizeHint().width() < 268
 
 
 def test_a_switched_off_toolbar_button_stays_off_across_a_resize(panel):
@@ -140,3 +144,13 @@ def test_turning_an_opt_in_button_on_places_it(panel):
     tree.toolbar.resize(600, tree.toolbar.height())
 
     assert tree.index_btn.isVisible()
+
+
+def test_the_sheet_and_the_roll_list_sort_independently(panel):
+    tree = panel.library_tree
+    tree_before = (tree._sort_order, tree._sort_descending)
+
+    panel.file_browser._apply_sort_direction(True)
+    panel.file_browser._apply_sort_order("date")
+
+    assert (tree._sort_order, tree._sort_descending) == tree_before

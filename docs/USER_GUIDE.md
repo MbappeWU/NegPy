@@ -17,7 +17,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 *   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
 *   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
-*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
+*   **Right, the controls**: tabs **Library** / **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
@@ -117,12 +117,12 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Film strip (left panel)
 
-A green **Update Available** line tops the panel when a newer release is out ([§15](#15-updating-negpy)). Below are the toolbar, the search box and two sections: **Library** (imported rolls) and **Film Strip** (open frames).
+The panel holds the toolbar, the search box and the **Film Strip** (open frames). Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
 
-**Library** lists every **roll** you imported: a named group of frames, not a live view of a folder. **Ctrl+L** expands it.
+The **Library** tab, first on the right panel, lists every **roll** you imported: a named group of frames, not a live view of a folder. **Ctrl+L** opens it.
 
 *   **+**: import a roll (below).
 *   **↻**: finds new roll folders under each parent imported with **Import Subfolders as Rolls…** and recounts each roll's frames.
@@ -1212,7 +1212,7 @@ For crashes on launch or rendering glitches: edit `Documents/NegPy/override.toml
 
 ## 15. Updating NegPy
 
-NegPy checks GitHub once at startup. A new release shows a green **⬇ Update Available: vX.Y.Z** line at the top of the left panel; click it, or **Update to vX.Y.Z…** in the **⋯** menu, for the release notes and the install button. **Check for Updates…** checks by hand.
+NegPy checks GitHub once at startup. A new release adds **Update to vX.Y.Z…** to the **⋯** menu, marked with a green dot; it opens the release notes and the install button. **Check for Updates…** checks by hand.
 
 **Install Update** downloads the build for this install type, closes NegPy, installs and reopens. Nothing is replaced until NegPy exits, so a failure leaves your install as it was.
 

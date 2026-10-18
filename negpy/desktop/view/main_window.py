@@ -34,7 +34,8 @@ from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.custom_routing_dialog import CustomRoutingDialog
 from negpy.desktop.view.sidebar.pick_better_window import PickBetterWindow
 from negpy.desktop.view.sidebar.right_panel import RightPanel
-from negpy.desktop.view.sidebar.session_panel import SessionPanel
+from negpy.desktop.view.sidebar.files import FileBrowser
+from negpy.desktop.view.update_notice import UpdateNotice
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
 from negpy.desktop.view.widgets.command_palette import CommandPalette, FindField
 from negpy.desktop.view.widgets.loading_overlay import LoadingOverlay
@@ -235,7 +236,7 @@ class MainWindow(QMainWindow):
                 self.controller.restore_session()
                 self._schedule_onboarding()
                 return
-        self.session_panel.show_library(ask_if_unset=False)
+        self.show_library(ask_if_unset=False)
         self._schedule_onboarding()
 
     def _schedule_onboarding(self) -> None:
@@ -279,9 +280,9 @@ class MainWindow(QMainWindow):
 
         self.empty_state = _EmptyStateOverlay(self.canvas)
         self.empty_state.tour_requested.connect(self.show_tutorial)
-        # session_panel is built further down; resolve the browser lazily.
-        self.empty_state.add_files_requested.connect(lambda: self.session_panel.file_browser.prompt_add_files())
-        self.empty_state.import_roll_requested.connect(lambda: self.session_panel.library_tree.prompt_import_folder())
+        # The browser and the right panel are built further down; resolve them lazily.
+        self.empty_state.add_files_requested.connect(lambda: self.file_browser.prompt_add_files())
+        self.empty_state.import_roll_requested.connect(lambda: self.right_panel.library_tree.prompt_import_folder())
         self.empty_state.scan_requested.connect(self._show_scan_tab)
         self.empty_state.raise_()
 
@@ -324,7 +325,8 @@ class MainWindow(QMainWindow):
         )
         self.drawer.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
 
-        self.right_panel = RightPanel(self.controller)
+        self.file_browser = FileBrowser(self.controller)
+        self.right_panel = RightPanel(self.controller, library_tree=self.file_browser.library_tree)
         # Back-compat alias: tutorial, keyboard shortcuts, and _sync_tool_buttons reach feature sidebars here.
         self.controls_panel = self.right_panel.controls_panel
 
@@ -341,10 +343,10 @@ class MainWindow(QMainWindow):
         )
         self.session_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.session_dock.setObjectName("session_dock")
-        self.session_panel = SessionPanel(self.controller)
-        self.session_dock.setWidget(self.session_panel)
+        self.session_dock.setWidget(self.file_browser)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.session_dock)
-        self.central_stack.addWidget(self.session_panel.file_browser.light_table_view)
+        self.central_stack.addWidget(self.file_browser.light_table_view)
+        self.update_notice = UpdateNotice(self, self.controller.session.repo)
 
         # Snapshot the pristine layout, with both docked at their home edges at default widths,
         # so the pin and Reset Panel Layout restore the true original position and size rather
@@ -386,6 +388,14 @@ class MainWindow(QMainWindow):
         if not self.drawer.isVisible():
             self.toggle_controls_dock()
         self.right_panel.show_tab_by_key("scan")
+
+    def show_library(self, ask_if_unset: bool = True) -> None:
+        """Open the Library tab, offering an import when there is no roll yet."""
+        if ask_if_unset and not self.controller.has_rolls():
+            self.right_panel.library_tree.prompt_import_folder()
+        if not self.drawer.isVisible():
+            self.toggle_controls_dock()
+        self.right_panel.show_tab_by_key("library")
 
     def show_tutorial(self) -> None:
         from negpy.desktop.view.widgets.tutorial_steps import build
@@ -521,7 +531,7 @@ class MainWindow(QMainWindow):
     def set_light_table(self, on: bool) -> None:
         """Both side panels hide while the grid shows, so it has the whole window; their saved
         visibility is untouched. Esc, Shift+G or opening a frame leaves it."""
-        browser = self.session_panel.file_browser
+        browser = self.file_browser
         # Both panels hide with it, so an empty grid would have no way back but Esc.
         if on and self.controller.session.asset_model.rowCount() == 0:
             on = False
@@ -557,10 +567,17 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         """Wire controller and view."""
-        browser = self.session_panel.file_browser
+        browser = self.file_browser
         browser.light_table_btn.toggled.connect(self.set_light_table)
         browser.light_table_opened.connect(lambda: self.set_light_table(False))
-        self.session_panel.update_found.connect(self.toolbar.set_update_available)
+        browser.library_requested.connect(self.show_library)
+        library = self.right_panel.library_tree
+        # An imported, renamed or deleted roll leaves the cached search walk describing a library
+        # that no longer exists.
+        library.rolls_changed.connect(self.controller.invalidate_library_walk)
+        self.controller.library_cleared.connect(library.reload)
+        self.controller.library_cleared.connect(self.controller.invalidate_library_walk)
+        self.update_notice.update_found.connect(self.toolbar.set_update_available)
         self.controller.session.state_changed.connect(self._update_title)
         self.controller.session.state_changed.connect(self._on_immersive_changed)
 
@@ -896,7 +913,7 @@ class MainWindow(QMainWindow):
         if len(paths) == 1 and os.path.isdir(paths[0]):
             # The same courtesy as Add folder: a dropped folder that only holds subfolders shows
             # them rather than reporting that it found nothing.
-            self.session_panel.file_browser.open_or_browse(paths[0])
+            self.file_browser.open_or_browse(paths[0])
         elif paths:
             self.controller.request_asset_discovery(paths, auto_open=True)
         event.acceptProposedAction()

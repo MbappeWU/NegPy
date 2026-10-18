@@ -16,7 +16,7 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
 from negpy.desktop.session import AssetListModel
-from negpy.desktop.view.sidebar.session_panel import SessionPanel
+from negpy.desktop.view.sidebar.files import FileBrowser
 
 from conftest import FakeController as _Controller, FakeRepo as _Repo
 
@@ -44,12 +44,12 @@ def _browser(qapp):
     controller = _Controller(_Repo())
     controller.state.uploaded_files = _files(8)
     controller.session.asset_model = AssetListModel(controller.state)
-    panel = SessionPanel(controller)
+    panel = FileBrowser(controller)
     panel.resize(400, 800)
     panel.show()
     _panels.append(panel)
     qapp.processEvents()
-    return panel.file_browser
+    return panel
 
 
 def _click(browser, display_row, modifier=Qt.KeyboardModifier.NoModifier):

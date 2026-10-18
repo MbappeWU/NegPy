@@ -95,7 +95,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         return w.right_panel
 
     def fb(w: "MainWindow"):
-        return w.session_panel.file_browser
+        return w.file_browser
 
     step = partial(TutorialStep, also=canvas, post_hook=_put_down)
 
@@ -115,8 +115,8 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             BASICS,
             tr("The Screen"),
             tr(
-                "Left: the <b>Library</b> and the <b>Film Strip</b>. Center: the canvas, where tools act. "
-                "Right: the controls. The <b>Roll</b> tab holds what a roll shares, the <b>Frame</b> tab one "
+                "Left: the <b>Film Strip</b>. Center: the canvas, where tools act. Right: the <b>Library</b> "
+                "tab and the controls. The <b>Roll</b> tab holds what a roll shares, the <b>Frame</b> tab one "
                 "picture's print. Edits save automatically, keyed to the image content."
             ),
             lambda w: rp(w).group_switcher,
@@ -140,7 +140,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
                 "roll. NegPy never moves, renames or deletes your files. <b>Save as Roll…</b> in the Film "
                 "Strip makes a roll of any frames."
             ),
-            lambda w: w.session_panel.library_tree.tree,
+            lambda w: rp(w).library_tree.tree,
             task=tr("Open a frame: double-click a roll, or load the demo negative."),
             watch=lambda w: w.state.current_file_path,
             guide=("library", "Library"),

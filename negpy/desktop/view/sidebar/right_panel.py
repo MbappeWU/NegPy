@@ -1,5 +1,5 @@
 from negpy.kernel.system.i18n import tr
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 from PyQt6.QtCore import QPoint, Qt, QTimer
@@ -21,6 +21,7 @@ from negpy.desktop.view.sidebar.controls_panel import ControlsPanel
 from negpy.desktop.view.sidebar.export import ExportSidebar
 from negpy.desktop.view.sidebar.favourites import FavouritesSidebar
 from negpy.desktop.view.sidebar.history import HistoryPanel
+from negpy.desktop.view.sidebar.library_tree import LibraryTree
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
 from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.fonts import ui_font_family
@@ -100,13 +101,14 @@ def _tab_width(labels: list[str], pixel_size: int) -> int:
 
 
 class RightPanel(QWidget):
-    """Right sidebar panel: a flat tab switcher across Roll / Frame / Metadata / Export / Scan,
-    in the order an edit moves through them. Analysis is pinned above Roll and Frame. Metadata
+    """Right sidebar panel: a flat tab switcher across Library / Roll / Frame / Metadata / Export /
+    Scan, in the order an edit moves through them. Analysis is pinned above Roll and Frame. Metadata
     pins its Preview above its own scroll area, which ends with My Gear and Presets."""
 
-    def __init__(self, controller: AppController):
+    def __init__(self, controller: AppController, library_tree: Optional[LibraryTree] = None):
         super().__init__()
         self.controller = controller
+        self.library_tree = library_tree or LibraryTree(controller)
         # Heal/scratch tool suspended by leaving the Retouch tab; restored on return.
         self._suspended_retouch_tool = None
 
@@ -141,8 +143,13 @@ class RightPanel(QWidget):
         self.scanlight_sidebar = ScanlightSidebar(self.controller, self.scan_output)
         self.scan_page = self._build_scan_page()
 
+        library_page = make_section(
+            self.controller.session.repo, "Rolls", "library", self.library_tree, "fa5s.folder-open", collapsible=False
+        )
+
         # (key, label, content_widget)
         group_specs = [
+            ("library", "Library", library_page),
             ("roll", tr("Roll"), roll_page),
             ("frame", tr("Frame"), frame_page),
             ("metadata", tr("Metadata"), self.metadata_sidebar),
@@ -173,7 +180,7 @@ class RightPanel(QWidget):
             self.group_switcher.add_button(btn, tooltip)
 
             # These pages scroll inside, beside a pinned part; every other page scrolls whole.
-            page = content if key in ("frame", "metadata", "scan") else wrap_scroll(content)
+            page = content if key in ("library", "frame", "metadata", "scan") else wrap_scroll(content)
             self.group_stack.addWidget(page)
             self._group_buttons.append(btn)
             self._group_keys.append(key)
@@ -587,7 +594,7 @@ class RightPanel(QWidget):
         for btn, key, base in zip(self._tab_buttons, self._tab_keys, self._tab_tooltips):
             btn.setToolTip(tooltip_with_shortcut(base, f"tab_{key}"))
         for btn, key, base in zip(self._group_buttons, self._group_keys, self._group_tooltips):
-            btn.setToolTip(tooltip_with_shortcut(base, f"tab_{key}"))
+            btn.setToolTip(tooltip_with_shortcut(base, "show_library" if key == "library" else f"tab_{key}"))
         self._refresh_zone_strip_hint()
         self._sync_parade_overlay()
         self.scan_base_btn.setToolTip(tooltip_with_shortcut(_SCAN_BASE_TIP, "toggle_scan_parade_base"))

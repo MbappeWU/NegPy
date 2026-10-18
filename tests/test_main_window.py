@@ -113,9 +113,7 @@ class TestBatchStartedPopupSuppression(unittest.TestCase):
         return SimpleNamespace(
             controller=controller,
             progress_dialog=MagicMock(),
-            session_panel=SimpleNamespace(
-                file_browser=SimpleNamespace(hot_folder_btn=SimpleNamespace(isChecked=lambda: hot_folder_checked))
-            ),
+            file_browser=SimpleNamespace(hot_folder_btn=SimpleNamespace(isChecked=lambda: hot_folder_checked)),
         )
 
     def test_manual_import_shows_popup_even_when_hot_folder_checked(self):

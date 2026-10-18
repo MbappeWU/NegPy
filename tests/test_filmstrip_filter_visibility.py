@@ -7,7 +7,7 @@ every frame reads as a blank panel under a full count unless both are told about
 import pytest
 
 from negpy.desktop.session import AssetListModel
-from negpy.desktop.view.sidebar.session_panel import SessionPanel
+from negpy.desktop.view.sidebar.files import FileBrowser
 from negpy.services.assets.rolls import create_virtual_roll
 
 from conftest import FakeController as _Controller, FakeRepo as _Repo
@@ -30,11 +30,11 @@ def _browser(qapp, repo=None, files=None):
     controller = _Controller(repo if repo is not None else _Repo())
     controller.state.uploaded_files = files if files is not None else _files(36)
     controller.session.asset_model = AssetListModel(controller.state)
-    panel = SessionPanel(controller)
+    panel = FileBrowser(controller)
     panel.resize(300, 700)
     panel.show()
     qapp.processEvents()
-    return panel.file_browser
+    return panel
 
 
 @pytest.fixture
