@@ -180,7 +180,6 @@ The toolbar's Roll row:
 *   **Save as Roll…**: keeps the loaded frames as a roll ([Rolls that are not folders](#rolls-that-are-not-folders)).
 *   **Unload…**: drops the active frame or selection from the Film Strip. It is back the next time the roll opens.
 *   **Remove from Roll…** (right-click, with a roll open): takes the frame or selection out of the roll for good, with its scene, card locks and own edit in that roll. The file and its shared edit stay. A file in the roll's own folder is skipped when the folder is opened again, until you add it back with **Add Files…**. A half-frame scan goes as one file.
-*   **Show Scenes**: edges each frame in its scene's color ([Scenes](#scenes)).
 *   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
 *   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
 
@@ -287,7 +286,7 @@ The right-click menu also has:
 
 #### Scenes
 
-A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first).
+A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first). A frame in a scene has an edge in the scene's color on the Film Strip and the Light Table.
 
 *   **Scene** (right-click menu): **Group as Scene…** makes the selection a scene; **Add to** *name* and **Remove from Scene** move frames in and out. On a scene's frames, **Analyze Scene…** runs Scene Analysis; **Rename Scene…** and **Delete Scene…** manage it. A frame is in one scene at most. Deleting a scene keeps edits and baselines.
 *   **Sort → Scene**: each scene's frames as a block, frames in no scene last.

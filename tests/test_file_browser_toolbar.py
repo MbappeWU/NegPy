@@ -53,7 +53,6 @@ def test_film_strip_toolbar_holds_roll_scoped_actions(panel):
         browser.roll_settings_btn,
         browser.update_thumbnails_btn,
         browser.unload_btn,
-        browser.scenes_btn,
         browser.sort_btn,
         browser.sheet_btn,
     ]

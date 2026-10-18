@@ -1,5 +1,5 @@
-"""A frame's picture edge takes its scene's color while Show Scenes is on, with the
-selection ring outside it; decode failure owns top-left."""
+"""A frame's picture edge takes its scene's color, with the selection ring outside it;
+decode failure owns top-left."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -43,22 +43,18 @@ def _edge():
     return (r.left() + 1, r.center().y())
 
 
-def test_scene_edge_is_drawn_in_the_scene_color_when_shown(qapp):
-    delegate = _ThumbnailDelegate(state=_state())
-    delegate.set_show_scenes(True)
-    pix = _paint(delegate, {"path": "/a.nef", "hash": "h1", "scene": (2, "s2", "Night")})
+def test_scene_edge_is_drawn_in_the_scene_color(qapp):
+    pix = _paint(_ThumbnailDelegate(state=_state()), {"path": "/a.nef", "hash": "h1", "scene": (2, "s2", "Night")})
     assert _pixel(pix, _edge()) == scene_color(2).upper()
 
 
-def test_scene_edge_is_hidden_when_toggle_is_off(qapp):
-    pix = _paint(_ThumbnailDelegate(state=_state()), {"path": "/a.nef", "hash": "h1", "scene": (1, "s1", "Beach")})
-    assert _pixel(pix, _edge()) != scene_color(1).upper()
+def test_a_frame_in_no_scene_keeps_the_plain_edge(qapp):
+    pix = _paint(_ThumbnailDelegate(state=_state()), {"path": "/a.nef", "hash": "h1"})
+    assert _pixel(pix, _edge()) not in {scene_color(i).upper() for i in range(1, 7)}
 
 
 def test_the_selection_ring_sits_outside_the_scene_edge(qapp):
-    delegate = _ThumbnailDelegate(state=_state())
-    delegate.set_show_scenes(True)
-    pix = _paint_selected(delegate, {"path": "/a.nef", "hash": "h1", "scene": (1, "s1", "Beach")})
+    pix = _paint_selected(_ThumbnailDelegate(state=_state()), {"path": "/a.nef", "hash": "h1", "scene": (1, "s1", "Beach")})
     x, y = _edge()
     assert _pixel(pix, (x, y)) == scene_color(1).upper()
     assert _pixel(pix, (image_rect().left() - _ThumbnailDelegate._SELECTION_OUTSET + 1, y)) == THEME.accent_primary.upper()

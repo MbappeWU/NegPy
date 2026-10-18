@@ -435,7 +435,6 @@ class ShortcutManager:
             "first_file": controller.session.first_file,
             "last_file": controller.session.last_file,
             "toggle_keep": lambda: controller.session.toggle_mark("keeper"),
-            "toggle_scene_overlay": lambda: self.window.file_browser.scenes_btn.click(),
             "toggle_advance_after_mark": lambda: self.window.file_browser.act_advance_after_mark.toggle(),
             "hdr_merge": controller.request_hdr_merge_selected,
             "hdr_unmerge": controller.request_unmerge_hdr,

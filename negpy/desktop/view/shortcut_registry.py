@@ -32,7 +32,6 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "first_file": ShortcutEntry("Home", tr("First file"), tr("Navigation")),
     "last_file": ShortcutEntry("End", tr("Last file"), tr("Navigation")),
     "toggle_keep": ShortcutEntry("K", tr("Mark frame as keeper"), tr("Triage")),
-    "toggle_scene_overlay": ShortcutEntry("", tr("Show or hide scene marks on the film strip"), tr("Triage")),
     "toggle_reject": ShortcutEntry("Shift+X", tr("Reject frame (skipped by batch export)"), tr("Triage")),
     "toggle_advance_after_mark": ShortcutEntry("", tr("Advance to the next frame after marking"), tr("Triage")),
     # No default key: nothing obvious is free, and an invented binding that collides makes Qt

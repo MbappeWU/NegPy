@@ -109,7 +109,7 @@ from negpy.services.film_edge.paint import Palette, paint_strip
 class _ThumbnailDelegate(QStyledItemDelegate):
     """Contact-sheet rendering: scales each cached ~120px thumbnail into its cell and
     draws a subtle 1px border hugging the image outline (no cell box), 2px in the frame's
-    scene color while Show Scenes is on. The selected image is shown full-brightness
+    scene color. The selected image is shown full-brightness
     with the accent ring just outside that border, so both show at once; the others are
     dimmed. A dirty active file gets an accent line along the image's bottom edge.
     Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
@@ -135,7 +135,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     def __init__(self, parent=None, state: Optional[AppState] = None) -> None:
         super().__init__(parent)
         self._state = state
-        self._show_scenes = False
         self._placeholder_icon = qta.icon("fa5s.image", color=THEME.text_muted)
         self._activity_icon = qta.icon("fa5s.image", color=THEME.text_secondary)
         self._activity_key = ""
@@ -144,9 +143,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         self._activity_timer = QTimer(self)
         self._activity_timer.setInterval(self._ACTIVITY_INTERVAL_MS)
         self._activity_timer.timeout.connect(self._advance_activity)
-
-    def set_show_scenes(self, on: bool) -> None:
-        self._show_scenes = on
 
     @pyqtSlot(str)
     def set_activity(self, key: str) -> None:
@@ -256,9 +252,8 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.drawPoint(cx, cy + 4)
 
     def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
-        """The picture's edge line, 2px in its scene's color while Show Scenes is on, and
-        the selection ring outside it."""
-        scene = file_info.get("scene") if self._show_scenes else None
+        """The picture's edge line, 2px in its scene's color, and the selection ring outside it."""
+        scene = file_info.get("scene")
         painter.setBrush(Qt.BrushStyle.NoBrush)
         if scene:
             painter.setPen(QPen(QColor(scene_color(scene[0])), 2))
@@ -1118,11 +1113,6 @@ class FileBrowser(QWidget):
         self.update_thumbnails_btn.setToolTip(tr("Update Thumbnails — re-render every stale thumbnail in the roll"))
         self.update_thumbnails_btn.clicked.connect(self._on_update_thumbnails_clicked)
 
-        self.scenes_btn = QToolButton()
-        self.scenes_btn.setCheckable(True)
-        self.scenes_btn.setToolTip(wrap_tooltip(tr("Show Scenes — frame each picture in its scene's color")))
-        self.scenes_btn.toggled.connect(self._apply_show_scenes)
-
         # Sheet filter dropdown
         self.sheet_btn = QToolButton()
         self.sheet_btn.setToolTip(tr("Sheet — filter the contact sheet by triage mark"))
@@ -1166,7 +1156,6 @@ class FileBrowser(QWidget):
             self.roll_settings_btn,
             self.save_roll_btn,
             self.update_thumbnails_btn,
-            self.scenes_btn,
             self.sort_btn,
             self.sheet_btn,
         ):
@@ -1186,7 +1175,6 @@ class FileBrowser(QWidget):
             (self.update_thumbnails_btn, tr("Update thumbnails")),
             (None, None),
             (self.unload_btn, "Unload…"),
-            (self.scenes_btn, tr("Show Scenes")),
             (self.sort_btn, "Sort"),
             (self.sheet_btn, tr("Sheet filter")),
         ):
@@ -1314,11 +1302,6 @@ class FileBrowser(QWidget):
         # Applied after list_view exists: the filter prunes the selection against the view.
         saved_sheet = self.session.repo.get_global_setting("sheet_filter") or "all"
         self._apply_sheet_filter(str(saved_sheet), save=False)
-        show_scenes = bool(self.session.repo.get_global_setting("show_scenes") or False)
-        self.scenes_btn.blockSignals(True)
-        self.scenes_btn.setChecked(show_scenes)
-        self.scenes_btn.blockSignals(False)
-        self._apply_show_scenes(show_scenes, save=False)
 
     def _connect_signals(self) -> None:
         self.library_tree.folder_roll_created.connect(self._maybe_suggest_gear)
@@ -1752,14 +1735,6 @@ class FileBrowser(QWidget):
             self.scan_timer.start()
         else:
             self.scan_timer.stop()
-
-    def _apply_show_scenes(self, on: bool, save: bool = True) -> None:
-        self.scenes_btn.setIcon(qta.icon("fa5s.layer-group", color="white" if on else THEME.text_primary))
-        for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
-            delegate.set_show_scenes(on)
-            view.viewport().update()
-        if save:
-            self.session.repo.save_global_setting("show_scenes", on)
 
     def _update_hot_folder_style(self, checked: bool) -> None:
         icon_color = "white" if checked else THEME.text_primary
