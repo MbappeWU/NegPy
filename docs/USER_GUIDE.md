@@ -21,7 +21,7 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
-Drag the film strip's top edge to change its height; its header folds it to one line (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows the controls panel and the film strip. **Reset Panel Layout** (**⋯** menu) restores the default layout.
+Drag the film strip's top edge to change its height, which sets the size of its frames; its header folds it to one line (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows the controls panel and the film strip. **Reset Panel Layout** (**⋯** menu) restores the default layout.
 
 ### The tour
 
@@ -117,7 +117,7 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Library and film strip
 
-The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. A taller strip wraps the roll into more rows. Your imported rolls are on the right panel's **Library** tab.
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The strip scrolls sideways, and its height sets the size of the frames. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
@@ -183,7 +183,7 @@ The Film Strip button row:
 *   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
 *   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
 
-Beside the buttons are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle, then a **tally** of frames, keepers and rejects, and a **frame size** slider. If a filter hides everything, **Show all frames** clears it.
+Beside the buttons are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle, then a **tally** of frames, keepers and rejects. If a filter hides everything, **Show all frames** clears it.
 
 #### Filtering the sheet
 

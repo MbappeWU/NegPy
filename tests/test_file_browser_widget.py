@@ -4,11 +4,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QPropertyAnimation, QRect, Qt
 from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QWheelEvent
-from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QStyleOptionViewItem
+from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QListView, QStyleOptionViewItem
 
 from negpy.desktop.session import DesktopSessionManager, composite_kind, composite_summary
 from negpy.desktop.view.sidebar.files import (
-    THUMB_CELL_MAX,
     THUMB_CELL_MIN,
     FileBrowser,
     ThumbnailGridView,
@@ -645,80 +644,34 @@ def test_clearing_filter_clears_error_stylesheet(browser):
     assert browser.search_input.styleSheet() == ""
 
 
-def test_thumbnail_grid_defaults_to_one_filling_column_at_min_sidebar_width(browser):
-    """The session sidebar can't be dragged below ~240px, so that viewport width is
-    the smallest the filmstrip ever lays out at. At the default thumbnail size it
-    must show a single column that *fills* it — the previous 180px cell cap left
-    25% of the panel empty at that width."""
+def test_the_film_strip_is_one_row_as_tall_as_the_strip_scrolling_sideways(browser, qapp):
     view = browser.list_view
-    for viewport_w in (214, 240):  # measured: sidebar at minimum, then default width
-        assert view.columns_for_width(viewport_w) == 1
-        assert view.cell_for_width(viewport_w) / viewport_w > 0.95
+    browser.resize(900, 300)
+    browser.show()
+    qapp.processEvents()
+
+    assert not view.isWrapping()
+    assert view.flow() == QListView.Flow.LeftToRight
+    assert view.gridSize().height() <= view.viewport().height()
+    assert view.viewport().height() - view.gridSize().height() <= 2
+
+    browser.resize(900, 500)
+    qapp.processEvents()
+    assert view.viewport().height() - view.gridSize().height() <= 2
 
 
-def test_thumbnail_grid_stays_single_column_on_a_slightly_wider_sidebar(browser):
-    """Regression: with the old 120px target the grid flipped to two columns as soon
-    as the panel was nudged past ~260px, which is where users actually sit — the
-    reported "two columns by default"."""
+def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     view = browser.list_view
-    for viewport_w in (260, 272, 300, 340):
-        assert view.columns_for_width(viewport_w) == 1, f"split into columns at {viewport_w}px"
+    browser.resize(300, 260)
+    browser.show()
+    qapp.processEvents()
+    bar = view.horizontalScrollBar()
+    assert bar.maximum() > view.gridSize().width(), "fixture strip does not scroll"
 
-
-def test_thumbnail_slider_low_end_fits_two_columns(browser):
-    """The point of the slider's low end: trade size for a second column at the
-    same panel width."""
-    view = browser.list_view
-    browser.thumb_size_slider.setValue(THUMB_CELL_MIN)
-    assert view.columns_for_width(240) == 2
-
-
-def test_slider_maximum_never_pins_a_widened_sidebar_to_one_oversized_column(browser):
-    """Regression: the slider's top end used to hold a widened sidebar at a single
-    column, so the cell grew to the full panel width (~500px). Cells are square, so a
-    3:2 frame in one left ~165px of empty space above and below it. Even at the
-    largest setting a wide panel has to split into columns."""
-    view = browser.list_view
-    browser.thumb_size_slider.setValue(browser.thumb_size_slider.maximum())
-    for viewport_w in (450, 500, 600, 700):
-        assert view.columns_for_width(viewport_w) > 1, f"still one column at {viewport_w}px"
-        assert view.cell_for_width(viewport_w) <= 300, f"oversized cell at {viewport_w}px"
-
-
-def test_thumbnail_slider_drives_the_grid_live(browser):
-    view = browser.list_view
-    browser.thumb_size_slider.setValue(THUMB_CELL_MIN)
-    assert view.target_cell == THUMB_CELL_MIN
-    browser.thumb_size_slider.setValue(THUMB_CELL_MAX)
-    assert view.target_cell == THUMB_CELL_MAX
-
-
-def test_thumbnail_size_persists_only_on_release(browser, session):
-    """Dragging crosses dozens of values; each one must not hit the settings DB."""
-    session.repo.save_global_setting.reset_mock()
-    browser.thumb_size_slider.setValue(180)
-    assert not any(c.args and c.args[0] == "thumbnail_cell_size" for c in session.repo.save_global_setting.call_args_list)
-
-    browser.thumb_size_slider.sliderReleased.emit()
-    session.repo.save_global_setting.assert_called_with("thumbnail_cell_size", 180)
-
-
-def test_thumbnail_size_restored_from_settings(session):
-    session.repo.get_global_setting.side_effect = lambda key, default=None: (150 if key == "thumbnail_cell_size" else None)
-    controller = MagicMock()
-    controller.session = session
-    restored = FileBrowser(controller)
-    assert restored.thumb_size_slider.value() == 150
-    assert restored.list_view.target_cell == 150
-
-
-def test_thumbnail_size_out_of_range_setting_is_clamped(session):
-    """A hand-edited or stale setting must not produce an unusable grid."""
-    session.repo.get_global_setting.side_effect = lambda key, default=None: (9999 if key == "thumbnail_cell_size" else None)
-    controller = MagicMock()
-    controller.session = session
-    restored = FileBrowser(controller)
-    assert restored.list_view.target_cell == THUMB_CELL_MAX
+    view.wheelEvent(_wheel(angle_y=-120))
+    assert bar.value() == view.gridSize().width()
+    view.wheelEvent(_wheel(pixel_y=10))
+    assert bar.value() == view.gridSize().width() - 10
 
 
 # --- Session panel scrolling & empty-space menu ---------------------------
@@ -738,12 +691,12 @@ def _wheel(angle_y: int = 0, pixel_y: int = 0) -> QWheelEvent:
 
 
 def _scrollable(browser, value: int = 0):
-    """Lay the panel out narrow and short so the grid genuinely overflows — the
+    """Lay the Light Table out narrow and short so the grid genuinely overflows — the
     scrollbar range is recomputed from the layout, so it can't just be faked."""
-    browser.resize(240, 300)
-    browser.show()
+    view = browser.light_table_view
+    view.resize(240, 300)
+    view.show()
     QApplication.processEvents()
-    view = browser.list_view
     bar = view.verticalScrollBar()
     assert bar.maximum() > 2 * view._row_step(), "fixture grid does not scroll"
     bar.setValue(value)
@@ -754,18 +707,18 @@ def _scrollable(browser, value: int = 0):
 def test_grid_scrolls_per_pixel(browser):
     """ScrollPerItem snaps to whole rows, so no partial offset (and no easing) is
     representable — it is what made the wheel jump several frames at a time."""
-    assert browser.list_view.verticalScrollMode() == QAbstractItemView.ScrollMode.ScrollPerPixel
+    assert browser.light_table_view.verticalScrollMode() == QAbstractItemView.ScrollMode.ScrollPerPixel
 
 
 def test_one_wheel_notch_scrolls_exactly_one_row(browser):
-    view = browser.list_view
+    view = browser.light_table_view
     _scrollable(browser)
     view.wheelEvent(_wheel(angle_y=-120))
     assert view._scroll_target == view._row_step()
 
 
 def test_wheel_scroll_is_animated_not_instant(browser):
-    view = browser.list_view
+    view = browser.light_table_view
     bar = _scrollable(browser)
     view.wheelEvent(_wheel(angle_y=-120))
     assert view._scroll_anim.state() == QPropertyAnimation.State.Running
@@ -778,7 +731,7 @@ def test_wheel_scroll_is_animated_not_instant(browser):
 def test_consecutive_notches_accumulate_onto_the_running_target(browser):
     """A fast spin must cover the full distance, not restart from wherever the
     easing had reached."""
-    view = browser.list_view
+    view = browser.light_table_view
     _scrollable(browser)
     view.wheelEvent(_wheel(angle_y=-120))
     assert view._scroll_target == view._row_step()
@@ -787,7 +740,7 @@ def test_consecutive_notches_accumulate_onto_the_running_target(browser):
 
 
 def test_wheel_up_scrolls_back(browser):
-    view = browser.list_view
+    view = browser.light_table_view
     bar = _scrollable(browser, value=2 * view._row_step())
     start = bar.value()  # the layout may clamp the requested offset
     view.wheelEvent(_wheel(angle_y=120))
@@ -795,7 +748,7 @@ def test_wheel_up_scrolls_back(browser):
 
 
 def test_wheel_target_is_clamped_to_the_scroll_range(browser):
-    view = browser.list_view
+    view = browser.light_table_view
     bar = _scrollable(browser, value=2 * view._row_step())
     for _ in range(20):
         view.wheelEvent(_wheel(angle_y=120))  # up, well past the top
@@ -805,7 +758,7 @@ def test_wheel_target_is_clamped_to_the_scroll_range(browser):
 
 def test_trackpad_pixel_delta_scrolls_immediately(browser):
     """Trackpads already deliver continuous deltas; easing them would add lag."""
-    view = browser.list_view
+    view = browser.light_table_view
     bar = _scrollable(browser, value=100)
     start = bar.value()
     view.wheelEvent(_wheel(pixel_y=-40))

@@ -34,7 +34,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListView,
     QMenu,
-    QSlider,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
@@ -451,8 +450,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.restore()
 
 
-# The Film Strip's frame-size slider sets a cell's width, one frame pitch; columns justify to the
-# strip's width. The Light Table uses the maximum.
+# A grid cell's target width, one frame pitch on the Light Table; columns justify to the width.
 THUMB_CELL_MIN = 100
 THUMB_CELL_DEFAULT = 220
 THUMB_CELL_MAX = THUMB_CELL_DEFAULT
@@ -949,6 +947,42 @@ class _FilmGridView(ThumbnailGridView):
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
 
 
+class _FilmStripView(_FilmGridView):
+    """The Film Strip: one row of film as tall as the view, scrolling sideways."""
+
+    STRIP_GAP = 0
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent, THUMB_CELL_DEFAULT, THEME.bg_dark, THEME.space_sm)
+        self.setFlow(QListView.Flow.LeftToRight)
+        self.setWrapping(False)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Always on, so the viewport height that sizes the frames never changes as the row grows.
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+    def cell_for_width(self, vw: int) -> int:
+        return max(1, int((self.viewport().height() - 1) / self._aspect))
+
+    def _apply_cell(self, cell: int) -> None:
+        super()._apply_cell(cell)
+        self.horizontalScrollBar().setSingleStep(max(1, cell // 4))
+
+    def _place_scene_runs(self) -> None:
+        self._scene_bands = []
+
+    def wheelEvent(self, event) -> None:
+        """The wheel moves the row a frame a notch; a trackpad moves it by its own pixels."""
+        bar = self.horizontalScrollBar()
+        pixel = event.pixelDelta()
+        if not pixel.isNull():
+            bar.setValue(bar.value() - (pixel.y() or pixel.x()))
+        else:
+            angle = event.angleDelta()
+            bar.setValue(bar.value() - int(round((angle.y() or angle.x()) / 120 * self.gridSize().width())))
+        event.accept()
+
+
 class FileBrowser(QWidget):
     """
     Asset management panel for loading and selecting images.
@@ -1167,21 +1201,12 @@ class FileBrowser(QWidget):
         search_row.addWidget(self.semantic_btn)
         search_row.addWidget(self.library_search_btn)
 
-        # Built here (Film Strip's thumbnail grid needs a starting value below) but added to
-        # the Film Strip section's own tally row, since it only ever affects that grid.
-        saved_cell = self.session.repo.get_global_setting("thumbnail_cell_size") or THUMB_CELL_DEFAULT
-        self.thumb_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.thumb_size_slider.setRange(THUMB_CELL_MIN, THUMB_CELL_MAX)
-        self.thumb_size_slider.setValue(ThumbnailGridView._clamp_target(int(saved_cell)))
-        self.thumb_size_slider.setFixedWidth(72)
-        self.thumb_size_slider.setToolTip(tr("Frame size — smaller fits more frames in each strip"))
-
         self._refresh_progress = ""
         self.tally_label = ElidedLabel("")
         self.tally_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
         self.tally_label.setVisible(False)
 
-        self.list_view = _FilmGridView(target_cell=self.thumb_size_slider.value(), background=THEME.bg_dark, padding=THEME.space_sm)
+        self.list_view = _FilmStripView()
         self._thumbnail_delegate = _FilmDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
@@ -1216,7 +1241,6 @@ class FileBrowser(QWidget):
         control_row.addWidget(self.film_strip_toolbar)
         control_row.addLayout(search_row, 1)
         control_row.addWidget(self.tally_label)
-        control_row.addWidget(self.thumb_size_slider)
         frames_layout.addLayout(control_row)
         frames_layout.addWidget(self.list_view, 1)
         frames_layout.addWidget(self.empty_label, 1)
@@ -1282,10 +1306,6 @@ class FileBrowser(QWidget):
         self.regex_btn.toggled.connect(lambda _: self.filter_timer.start())
         self.semantic_btn.toggled.connect(self._on_semantic_toggled)
         self.library_search_btn.clicked.connect(self.search_library)
-        # Relayout live while dragging, but write the setting only on release: a drag crosses
-        # dozens of values and each save is a DB round-trip.
-        self.thumb_size_slider.valueChanged.connect(self.list_view.set_target_cell)
-        self.thumb_size_slider.sliderReleased.connect(self._save_thumb_size)
 
         # Delete unloads the selected frames, scoped to the thumbnail list so it does not fire
         # while typing in the filter box or editing elsewhere.
@@ -1355,9 +1375,6 @@ class FileBrowser(QWidget):
     def focus_search(self) -> None:
         self.search_input.setFocus()
         self.search_input.selectAll()
-
-    def _save_thumb_size(self) -> None:
-        self.session.repo.save_global_setting("thumbnail_cell_size", self.thumb_size_slider.value())
 
     def _on_files_changed(self) -> None:
         # A mark toggle can hide the active frame under a Sheet filter. Pruning then auto-advances
