@@ -953,7 +953,12 @@ class _FilmStripView(_FilmGridView):
     STRIP_GAP = 0
 
     def __init__(self, parent=None) -> None:
-        super().__init__(parent, THUMB_CELL_DEFAULT, THEME.bg_dark, THEME.space_sm)
+        super().__init__(parent, THUMB_CELL_DEFAULT)
+        self.setStyleSheet(
+            self.styleSheet()
+            + f"QScrollBar:horizontal {{ background: {LIGHT_TABLE_WHITE}; }}"
+            + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
+        )
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

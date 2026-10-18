@@ -660,6 +660,18 @@ def test_the_film_strip_is_one_row_as_tall_as_the_strip_scrolling_sideways(brows
     assert view.viewport().height() - view.gridSize().height() <= 2
 
 
+def test_the_film_strip_lies_on_the_light_table(browser, qapp):
+    from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE
+
+    view = browser.list_view
+    browser.resize(900, 300)
+    browser.show()
+    qapp.processEvents()
+
+    image = view.grab().toImage()
+    assert image.pixelColor(THEME.space_lg, view.height() // 2) == QColor(LIGHT_TABLE_WHITE)
+
+
 def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     view = browser.list_view
     browser.resize(300, 260)
