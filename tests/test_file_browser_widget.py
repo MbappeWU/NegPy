@@ -669,7 +669,28 @@ def test_the_film_strip_lies_on_the_light_table(browser, qapp):
     qapp.processEvents()
 
     image = view.grab().toImage()
-    assert image.pixelColor(THEME.space_lg, view.height() // 2) == QColor(LIGHT_TABLE_WHITE)
+    assert image.pixelColor(view.width() // 2, THEME.space_lg) == QColor(LIGHT_TABLE_WHITE)
+
+
+def test_the_scroll_bars_sit_on_the_edge_and_the_film_runs_off_the_other_edges(browser, qapp):
+    browser.resize(300, 260)
+    browser.show()
+    table = browser.light_table_view
+    table.resize(300, 260)
+    table.show()
+    qapp.processEvents()
+
+    strip, strip_bar = browser.list_view, browser.list_view.horizontalScrollBar()
+    strip_vp = strip.viewport().geometry()
+    assert strip_bar.mapTo(strip, strip_bar.rect().bottomLeft()).y() == strip.height() - 1
+    assert strip_bar.mapTo(strip, strip_bar.rect().topLeft()).y() - strip_vp.bottom() > THEME.space_2xl
+    assert (strip_vp.left(), strip_vp.right()) == (0, strip.width() - 1)
+
+    table_bar = table.verticalScrollBar()
+    table_vp = table.viewport().geometry()
+    assert table_bar.mapTo(table, table_bar.rect().topRight()).x() == table.width() - 1
+    assert table_bar.mapTo(table, table_bar.rect().topLeft()).x() - table_vp.right() > THEME.space_2xl
+    assert (table_vp.top(), table_vp.bottom()) == (0, table.height() - 1)
 
 
 def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):

@@ -927,13 +927,16 @@ class _FilmGridView(ThumbnailGridView):
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         super().__init__(parent, target_cell)
+        # Viewport margins, not QSS padding, which would inset the scroll bars from the edge too. The
+        # film runs off the top and bottom edges.
+        self.setViewportMargins(THEME.space_2xl, 0, THEME.space_2xl, 0)
         self.set_table_color(LIGHT_TABLE_WHITE)
 
     def set_table_color(self, color: str) -> None:
         self.setStyleSheet(self._table_qss(color))
 
     def _table_qss(self, color: str) -> str:
-        return f"QListView {{ background-color: {color}; padding: {THEME.space_2xl}px; }}"
+        return f"QListView {{ background-color: {color}; border: none; }}"
 
     def set_film_aspect(self, aspect: float) -> None:
         if aspect != self._aspect:
@@ -962,6 +965,8 @@ class _FilmStripView(_FilmGridView):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent, THUMB_CELL_DEFAULT)
+        # The film runs off the left and right edges.
+        self.setViewportMargins(0, THEME.space_2xl, 0, THEME.space_2xl)
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
