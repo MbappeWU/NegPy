@@ -147,6 +147,18 @@ def browser(qapp):
     return FileBrowser(controller)
 
 
+def test_the_strip_and_the_light_table_take_the_chosen_surface(browser):
+    from negpy.desktop.view.canvas.toolbar import CANVAS_COLORS
+
+    black = CANVAS_COLORS[0][0]
+    browser.session.set_light_table_bg(0)
+
+    for view in (browser.list_view, browser.light_table_view):
+        assert f"background-color: {black}" in view.styleSheet()
+    assert browser._light_table_delegate._film[2].no_film == QColor(black).getRgb()[:3]
+    browser.session.repo.save_global_setting.assert_any_call("light_table_bg_index", 0)
+
+
 def test_the_light_table_shares_the_strip_selection(browser):
     assert browser.light_table_view.model() is browser.list_view.model()
     assert browser.light_table_view.selectionModel() is browser.list_view.selectionModel()

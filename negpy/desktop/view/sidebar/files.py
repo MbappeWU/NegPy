@@ -45,6 +45,7 @@ from PyQt6.QtWidgets import (
 from negpy.kernel.system.text import count_of
 from negpy.desktop.controller import AppController
 from negpy.desktop.session import AppState, composite_kind
+from negpy.desktop.view.canvas.toolbar import CANVAS_COLORS
 from negpy.desktop.view.confirm import (
     prompt_delete_scene,
     confirm_reset_frames,
@@ -794,17 +795,24 @@ class ThumbnailGridView(QListView):
 
 # Barcode modules this coarse alias, so they print as their mean.
 _DRAFT_PX_PER_MM = 4.0
-# The Light Table is a lit white surface; the perforations show it through the film.
+# The Light Table's default surface, a lit white; the perforations show it through the film.
 LIGHT_TABLE_WHITE = THEME.canvas_bg_white
 
 
-def roll_film(asset: dict, config: WorkspaceConfig, library: Any, half_frame: bool) -> tuple[FilmGeometry, EdgeStyle, Palette]:
+def table_color(index: int) -> str:
+    """The surface of the Film Strip and the Light Table: one of the canvas background choices."""
+    return CANVAS_COLORS[index][0] if 0 <= index < len(CANVAS_COLORS) else LIGHT_TABLE_WHITE
+
+
+def roll_film(
+    asset: dict, config: WorkspaceConfig, library: Any, half_frame: bool, table: str = LIGHT_TABLE_WHITE
+) -> tuple[FilmGeometry, EdgeStyle, Palette]:
     """The roll as film: the active frame's format and edge print, in the contact sheet's palette."""
     frames = [SheetFrame(asset, config)]
     fmt, frame_size = infer_format(frames, half_frame)
     look = sheet_look(frames, fmt, library=library)
-    white = QColor(LIGHT_TABLE_WHITE)
-    return film_geometry(fmt, frame_size), look.edge, replace(palette_for(look), no_film=(white.red(), white.green(), white.blue()))
+    surface = QColor(table)
+    return film_geometry(fmt, frame_size), look.edge, replace(palette_for(look), no_film=(surface.red(), surface.green(), surface.blue()))
 
 
 def picture_in_thumbnail(image: QImage) -> QRect:
@@ -917,15 +925,15 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
 
-    def __init__(
-        self,
-        parent=None,
-        target_cell: int = THUMB_CELL_DEFAULT,
-        background: str = LIGHT_TABLE_WHITE,
-        padding: int = THEME.space_2xl,
-    ) -> None:
+    def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         super().__init__(parent, target_cell)
-        self.setStyleSheet(f"QListView {{ background-color: {background}; padding: {padding}px; }}")
+        self.set_table_color(LIGHT_TABLE_WHITE)
+
+    def set_table_color(self, color: str) -> None:
+        self.setStyleSheet(self._table_qss(color))
+
+    def _table_qss(self, color: str) -> str:
+        return f"QListView {{ background-color: {color}; padding: {THEME.space_2xl}px; }}"
 
     def set_film_aspect(self, aspect: float) -> None:
         if aspect != self._aspect:
@@ -954,17 +962,19 @@ class _FilmStripView(_FilmGridView):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent, THUMB_CELL_DEFAULT)
-        self.setStyleSheet(
-            self.styleSheet()
-            + f"QScrollBar:horizontal {{ background: {LIGHT_TABLE_WHITE}; }}"
-            + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
-        )
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # Always on, so the viewport height that sizes the frames never changes as the row grows.
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+    def _table_qss(self, color: str) -> str:
+        return (
+            super()._table_qss(color)
+            + f"QScrollBar:horizontal {{ background: {color}; }}"
+            + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
+        )
 
     def cell_for_width(self, vw: int) -> int:
         return max(1, int((self.viewport().height() - 1) / self._aspect))
@@ -1293,6 +1303,7 @@ class FileBrowser(QWidget):
         self.list_view.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.hot_folder_btn.toggled.connect(self._on_hot_folder_toggled)
         self.controller.thumbnail_refresh_state_changed.connect(self._on_thumbnail_refresh_state_changed)
+        self.session.light_table_bg_changed.connect(self._sync_film)
         self.controller.thumbnail_refresh_progress.connect(self._on_thumbnail_refresh_progress)
         self.session.state_changed.connect(self.sync_ui)
         self.session.files_changed.connect(self._on_files_changed)
@@ -1331,10 +1342,12 @@ class FileBrowser(QWidget):
         config = state.config
         meta = config.metadata
         half_frame = bool(self.controller.half_frame_mode_for_roll(state.active_roll_id)) if state.active_roll_id else False
+        table = table_color(state.light_table_bg_index)
         key = (
             (meta.film_stock_id, meta.film, meta.film_manufacturer, meta.film_color_type, meta.format, meta.format_other),
             (config.process.process_mode, config.process.positive_source, config.exposure.paper_black),
             (half_frame, asset.get("half")),
+            table,
         )
         if key == self._film_key:
             return
@@ -1343,10 +1356,11 @@ class FileBrowser(QWidget):
             library = self.controller.load_gear_library()
         except Exception:
             library = None
-        film = roll_film(asset, config, library, half_frame)
+        film = roll_film(asset, config, library, half_frame, table)
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
             delegate.set_film(*film)
             view.set_film_aspect(film[0].width / film[0].pitch)
+            view.set_table_color(table)
 
     def _open_from_light_table(self, index) -> None:
         if index.isValid():

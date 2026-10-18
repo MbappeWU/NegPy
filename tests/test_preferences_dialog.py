@@ -48,6 +48,14 @@ class TestPreferencesDialog(unittest.TestCase):
         self.assertTrue(dlg.canvas_pills[2].isChecked())
         self.assertFalse(dlg.canvas_pills[0].isChecked())
 
+    def test_the_light_table_offers_the_canvas_choices_and_starts_white(self):
+        dlg = _dlg()
+        self.assertEqual([p.toolTip() for p in dlg.table_pills], [p.toolTip() for p in dlg.canvas_pills])
+        self.assertTrue(dlg.table_pills[3].isChecked())
+        dlg.table_pills[0].click()
+        dlg.session.set_light_table_bg.assert_called_once_with(0)
+        dlg.session.set_canvas_bg.assert_not_called()
+
     def test_color_vision_offers_every_palette_and_sets_it(self):
         from negpy.desktop.view.styles.color_vision import PALETTES
 

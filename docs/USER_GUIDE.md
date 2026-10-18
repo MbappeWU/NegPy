@@ -168,7 +168,7 @@ The **⋮** menu at the end of the toolbar's Roll row:
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
 
-The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a white light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. It takes the place of the canvas and the Film Strip with its toolbar; the controls panel stays. **Esc** or `Shift+G` goes back.
+The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. It takes the place of the canvas and the Film Strip with its toolbar; the controls panel stays. **Esc** or `Shift+G` goes back.
 
 The toolbar's Roll row:
 
@@ -1158,6 +1158,7 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 *   **Language** (default System Default): English, Simplified Chinese, Japanese or Korean; restart to apply. Other system languages use English. Panel guides use the selected language and fall back to English when a translation is missing.
 *   **UI scale** (80% to 120%): after a restart.
 *   **Canvas background**: black, dark gray, mid gray (neutral for judging) or white (a print on a light table).
+*   **Light table background**: the same choices for the Film Strip and the Light Table; white by default.
 *   **Sticky zoom**: keeps the zoom when you switch frames.
 *   **Reverse scroll zoom**: scroll up zooms out.
 *   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, toolbar picker, default panel layout.

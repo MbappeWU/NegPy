@@ -208,6 +208,8 @@ class AppState:
 
     # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray)
     canvas_bg_index: int = 0
+    # The Film Strip's and the Light Table's surface, from the same choices; White.
+    light_table_bg_index: int = 3
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
     color_vision: str = "standard"
 
@@ -843,6 +845,7 @@ class DesktopSessionManager(QObject):
     settings_pasted = pyqtSignal()
     # A view that reads styles.color_vision repaints on this.
     color_vision_changed = pyqtSignal()
+    light_table_bg_changed = pyqtSignal()
     settings_synced = pyqtSignal(str)  # Bulk "Apply to selected" done — carries a status message
     frames_edited_offscreen = pyqtSignal(list)  # hashes whose saved edits changed without a render
     file_selected = pyqtSignal(str)  # Emits file path when active file changes
@@ -897,6 +900,9 @@ class DesktopSessionManager(QObject):
         saved_bg = self.repo.get_global_setting("canvas_bg_index")
         if saved_bg is not None:
             self.state.canvas_bg_index = int(saved_bg)
+        saved_table = self.repo.get_global_setting("light_table_bg_index")
+        if saved_table is not None:
+            self.state.light_table_bg_index = int(saved_table)
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
         self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
         self.state.cursor_probe = bool(self.repo.get_global_setting("cursor_probe", False))
@@ -1091,6 +1097,12 @@ class DesktopSessionManager(QObject):
         if self.state.canvas_bg_index != index:
             self.state.canvas_bg_index = index
             self.repo.save_global_setting("canvas_bg_index", index)
+
+    def set_light_table_bg(self, index: int) -> None:
+        if self.state.light_table_bg_index != index:
+            self.state.light_table_bg_index = index
+            self.repo.save_global_setting("light_table_bg_index", index)
+            self.light_table_bg_changed.emit()
 
     def set_color_vision(self, key: str) -> None:
         if self.state.color_vision != key:
