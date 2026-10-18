@@ -20,6 +20,7 @@ from negpy.desktop.auto_sliders import record_meters, shown_values
 from negpy.desktop.converters import ImageConverter
 from negpy.desktop.file_manager import move_to_trash
 from negpy.desktop.render_memo import RenderMemo
+from negpy.desktop.sticky import STICKY_CONFIG_KEY
 from negpy.desktop.session import (
     AppState,
     DesktopSessionManager,
@@ -148,6 +149,8 @@ from negpy.services.export.frame_merge import (
 from negpy.features.exposure.analysis import (
     RING_GRID,
     STRIP_GRID,
+    paper_grid,
+    paper_grid_mosaic,
     proof_grid,
     ring_cells,
     ring_overrides,
@@ -156,11 +159,12 @@ from negpy.features.exposure.analysis import (
     strip_center,
     strip_overrides,
 )
+from negpy.features.exposure.papers import DEFAULT_PROFILE_KEY, profiles_for_mode
 from negpy.features.exposure.logic import (
     calculate_wb_shifts,
     calculate_wb_shifts_from_log,
 )
-from negpy.features.altprocess.models import AltProcess
+from negpy.features.altprocess.models import AltProcess, AltProcessConfig
 from negpy.features.finish.models import FinishConfig
 from negpy.features.geometry.logic import (
     apply_fine_rotation,
@@ -185,6 +189,7 @@ from negpy.features.lab.models import LabConfig
 from negpy.features.local.models import LocalAdjustmentsConfig
 from negpy.features.process.path import RenderPath, render_path
 from negpy.features.process.models import (
+    SCAN_SETUP_PAPERS,
     ProcessMode,
     cast_removal_for_mode,
     invalidate_local_bounds,
@@ -390,6 +395,7 @@ def baseline_compare_config(config: WorkspaceConfig) -> WorkspaceConfig:
         exposure=mode_aware_exposure_reset(config.process.process_mode, DEFAULT_WORKSPACE_CONFIG.exposure),
         lab=LabConfig(),
         local=LocalAdjustmentsConfig(),
+        altproc=AltProcessConfig(),
         toning=ToningConfig(),
         finish=FinishConfig(),
         retouch=RetouchConfig(),
@@ -582,6 +588,7 @@ class AppController(QObject):
     capture_requested = pyqtSignal(CaptureRequest)
     capture_light_set = pyqtSignal(int, int, int, int)
     capture_progress = pyqtSignal(float)
+    capture_countdown = pyqtSignal(int)  # seconds left of the Capture Delay; 0 when the shot starts
     capture_channel = pyqtSignal(str)  # "R"/"G"/"B" as each triplet channel starts
     capture_camera_setting_applied = pyqtSignal(str)  # a set_camera_setting call ran to completion
     capture_live_view_failed = pyqtSignal(str)  # preview thread died after retries; session dropped
@@ -1093,6 +1100,7 @@ class AppController(QObject):
         self.capture_requested.connect(self.capture_worker.run_capture)
         self.capture_worker.light_set.connect(self.capture_light_set.emit)
         self.capture_worker.progress.connect(self.capture_progress.emit)
+        self.capture_worker.countdown.connect(self.capture_countdown.emit)
         self.capture_worker.channel.connect(self.capture_channel.emit)
         self.capture_worker.camera_setting_applied.connect(self.capture_camera_setting_applied.emit)
         self.capture_worker.live_view_failed.connect(self.capture_live_view_failed.emit)
@@ -1920,9 +1928,9 @@ class AppController(QObject):
         )
 
     def apply_scan_setup(self, capture: str, light: str) -> None:
-        """Apply the scanning-setup wizard's answer: Linear RAW is a rig property, so it
-        lands on the new-file defaults, the open frame and every already-edited frame at once."""
-        linear_raw = scan_setup_values(capture, light)
+        """Apply the scanning-setup wizard's answer: Linear RAW and the print stock follow the
+        rig, so they land on the new-file defaults, the open frame and every already-edited frame at once."""
+        linear_raw, paper = scan_setup_values(capture, light)
         self.session.repo.save_global_settings(
             {
                 "scan_setup": {"capture": capture, "light": light},
@@ -1930,19 +1938,24 @@ class AppController(QObject):
             }
         )
 
+        def with_rig(config: WorkspaceConfig) -> WorkspaceConfig:
+            exposure = config.exposure
+            if config.process.process_mode == ProcessMode.C41 and exposure.paper_profile in SCAN_SETUP_PAPERS:
+                exposure = replace(exposure, paper_profile=paper)
+            process = replace(config.process, linear_raw=linear_raw, **invalidate_local_bounds(config.process))
+            return replace(config, process=process, exposure=exposure)
+
         reload_needed = False
         if self.state.current_file_hash:
             reload_needed = self.state.config.process.linear_raw != linear_raw
-            new_config = replace(
-                self.state.config,
-                process=replace(
-                    self.state.config.process,
-                    linear_raw=linear_raw,
-                    **invalidate_local_bounds(self.state.config.process),
-                ),
-            )
             # render=False when reloading: bounds must not be analysed on the stale decode.
-            self.session.update_config(new_config, persist=True, render=not reload_needed)
+            self.session.update_config(with_rig(self.state.config), persist=True, render=not reload_needed)
+
+        # After the open frame's persist, which rewrites the new-file snapshot from that frame.
+        sticky = self.session.repo.get_global_setting(STICKY_CONFIG_KEY)
+        sticky = dict(sticky) if isinstance(sticky, dict) else {}
+        if sticky.get("paper_profile", "neutral") in SCAN_SETUP_PAPERS:
+            self.session.repo.save_global_setting(STICKY_CONFIG_KEY, {**sticky, "paper_profile": paper})
 
         count = 0
         changed_hashes: list[str] = []
@@ -1955,14 +1968,7 @@ class AppController(QObject):
             saved = self.session.repo.load_file_settings(file_hash)
             if saved is None:
                 continue
-            updated = replace(
-                saved,
-                process=replace(
-                    saved.process,
-                    linear_raw=linear_raw,
-                    **invalidate_local_bounds(saved.process),
-                ),
-            )
+            updated = with_rig(saved)
             self.session.push_external_history(file_hash, saved, updated)
             self.session.repo.save_file_settings(file_hash, updated, file_path=asset["path"])
             changed_hashes.append(file_hash)
@@ -2649,6 +2655,8 @@ class AppController(QObject):
         exposure = self.state.config.exposure
         if kind == "color":
             exposure = replace(exposure, wb_magenta=0.0, wb_yellow=0.0)
+        elif kind == "paper":
+            exposure = replace(exposure, paper_profile=DEFAULT_PROFILE_KEY)
         else:
             density, grade = strip_center()
             exposure = replace(exposure, density=density, grade=grade)
@@ -3587,11 +3595,19 @@ class AppController(QObject):
         """Print (or clear) the color ring-around — the M/Y filtration proof."""
         self.toggle_test_strip(force, kind="color")
 
-    def toggle_test_strip(self, force: Optional[bool] = None, kind: str = "tone") -> None:
-        """Print (or clear) a proof mosaic: the density × grade strip, or the color ring-around.
-        Entering dispatches one job, since these need pixels the canvas doesn't have.
+    def toggle_paper_strip(self, force: Optional[bool] = None) -> None:
+        """Print (or clear) the paper test strip: a band of the frame per print stock."""
+        self.toggle_test_strip(force, kind="paper")
 
-        Both share the one proof slot, so asking for the other kind swaps it.
+    def paper_strip_keys(self) -> list[str]:
+        """The print stocks the paper strip prints, in band order: the Print stock dropdown's."""
+        return [key for key, _ in profiles_for_mode(self.state.config.process.process_mode)]
+
+    def toggle_test_strip(self, force: Optional[bool] = None, kind: str = "tone") -> None:
+        """Print (or clear) a proof mosaic: the density × grade strip, the color ring-around or
+        the paper strip. Entering dispatches one job, since these need pixels the canvas doesn't have.
+
+        All share the one proof slot, so asking for another kind swaps it.
         """
         showing = (self.state.test_strip or self.state.test_strip_pending) and self.state.test_strip_kind == kind
         target = (not showing) if force is None else bool(force)
@@ -3600,20 +3616,30 @@ class AppController(QObject):
             return
         if self.state.preview_raw is None:
             return
+        # A slide or a Positive frame is rendered from the capture, so every band would match.
+        if kind == "paper" and render_path(self.state.config.process) is not RenderPath.PRINT:
+            return
 
         # The mosaic replaces the frame, so the split has nothing left to compare against.
         self.exit_compare()
+        self.state.test_strip_tiles = None
+        self.state.test_strip_expanded = None
+        self.state.test_strip_grid = None
 
         # Unrotated: one print yields every orientation, so rotating never re-renders.
-        grid = RING_GRID if kind == "color" else STRIP_GRID
-        overrides = ring_overrides() if kind == "color" else strip_overrides()
-        toast = tr("Printing the color ring-around…") if kind == "color" else "Printing test strip…"
+        if kind == "paper":
+            keys = self.paper_strip_keys()
+            grid, overrides, toast = (1, len(keys)), [{"paper_profile": key} for key in keys], tr("Printing the paper test strip…")
+        elif kind == "color":
+            grid, overrides, toast = RING_GRID, ring_overrides(), tr("Printing the color ring-around…")
+        else:
+            grid, overrides, toast = STRIP_GRID, strip_overrides(), tr("Printing test strip…")
 
         # Reprinting an unchanged proof re-renders pixels we already have.
         cached = self._strip_memo.get(self.state.current_file_hash or "", self._strip_memo_key(kind))
         if cached is not None:
             self.state.test_strip_kind = kind
-            self.on_strip_finished(cached["mosaics"], cached["content_rect"], from_cache=True)
+            self.on_strip_finished(cached["mosaics"], cached["content_rect"], cached["tiles"], from_cache=True)
             return
 
         self.state.test_strip_kind = kind
@@ -3639,6 +3665,7 @@ class AppController(QObject):
                 cam_xyz=cam_xyz,
                 camera_wb=camera_wb,
                 source_orientation=self.state.preview_orientation,
+                keep_tiles=kind == "paper",
             )
         )
 
@@ -3657,9 +3684,12 @@ class AppController(QObject):
         self.state.test_strip_mosaic = None
         self.state.test_strip_mosaics = None
         self.state.test_strip_content_rect = None
+        self.state.test_strip_tiles = None
+        self.state.test_strip_expanded = None
+        self.state.test_strip_grid = None
         self.test_strip_changed.emit(False)
 
-    def on_strip_finished(self, mosaics: Any, content_rect: Any, from_cache: bool = False) -> None:
+    def on_strip_finished(self, mosaics: Any, content_rect: Any, tiles: Any = None, from_cache: bool = False) -> None:
         # A render that landed while the strip was building already cancelled it.
         if not (self.state.test_strip_pending or from_cache):
             return
@@ -3672,14 +3702,19 @@ class AppController(QObject):
             self._strip_memo.store(
                 self.state.current_file_hash or "",
                 self._strip_memo_key(self.state.test_strip_kind),
-                {"mosaics": mosaics, "content_rect": content_rect},
+                {"mosaics": mosaics, "content_rect": content_rect, "tiles": tiles},
             )
         self.state.test_strip_pending = False
         self.state.test_strip = True
         self.state.test_strip_mosaics = mosaics
         self.state.test_strip_mosaic = mosaics[self.state.test_strip_rotation]
         self.state.test_strip_content_rect = content_rect
+        self.state.test_strip_tiles = tiles
+        self._fill_paper_grid()
         self.test_strip_changed.emit(True)
+        if self.state.test_strip_kind == "paper":
+            self.set_status(tr("Paper test strip ready — click a paper to see it on the whole frame"), 4000)
+            return
         label = tr("Ring-around") if self.state.test_strip_kind == "color" else tr("Test strip")
         self.set_status(tr("{label} ready — click a patch to keep it", label=label), 4000)
 
@@ -3711,6 +3746,16 @@ class AppController(QObject):
         """
         if not self.state.test_strip:
             return
+        if self.state.test_strip_kind == "paper":
+            count = len(self.state.test_strip_tiles or ())
+            if self.state.test_strip_layout == "grid":
+                index = row * paper_grid(count)[1] + col
+                if index < count:
+                    self.show_paper_strip(index)
+                return
+            bands = rotate_grid(range(count), (1, count), self.state.test_strip_rotation)
+            self.show_paper_strip(bands[row * proof_grid((1, count), self.state.test_strip_rotation)[1] + col])
+            return
         exposure = self.state.config.exposure
         color = self.state.test_strip_kind == "color"
         base_grid = RING_GRID if color else STRIP_GRID
@@ -3723,6 +3768,52 @@ class AppController(QObject):
             new_exposure = replace(exposure, density=first, grade=second)
         self._clear_test_strip()
         self.session.update_config(replace(self.state.config, exposure=new_exposure), persist=True)
+        self.request_render()
+
+    def _paper_strip_up(self) -> bool:
+        return self.state.test_strip and self.state.test_strip_kind == "paper" and bool(self.state.test_strip_tiles)
+
+    def set_paper_strip_layout(self, layout: str) -> None:
+        """Lay the papers out as bands of one frame, or whole in a grid."""
+        self.state.test_strip_layout = layout
+        if self._paper_strip_up():
+            self._fill_paper_grid()
+            self.test_strip_changed.emit(True)
+
+    def _fill_paper_grid(self) -> None:
+        tiles = self.state.test_strip_tiles
+        if tiles and self.state.test_strip_layout == "grid" and self.state.test_strip_grid is None:
+            self.state.test_strip_grid = paper_grid_mosaic(tiles)
+
+    def show_paper_strip(self, index: Optional[int]) -> None:
+        """Show one print stock's band full frame, or the strip again for None."""
+        if not self._paper_strip_up():
+            return
+        self.state.test_strip_expanded = None if index is None else max(0, min(index, len(self.state.test_strip_tiles) - 1))
+        self.test_strip_changed.emit(True)
+
+    def step_paper_strip(self, step: int) -> bool:
+        """The paper next to the one shown, or to the current print stock from the strip; stops
+        at the ends. True = consumed, so the previous/next file keys step papers while it is up."""
+        if not self._paper_strip_up():
+            return False
+        shown = self.state.test_strip_expanded
+        if shown is None:
+            keys = self.paper_strip_keys()
+            current = self.state.config.exposure.paper_profile
+            shown = keys.index(current) if current in keys else 0
+        self.show_paper_strip(shown + step)
+        return True
+
+    def keep_paper_strip(self) -> None:
+        """Print on the paper shown full frame: commit its print stock, then drop the proof."""
+        if not self._paper_strip_up() or self.state.test_strip_expanded is None:
+            return
+        key = self.paper_strip_keys()[self.state.test_strip_expanded]
+        self._clear_test_strip()
+        self.session.update_config(
+            replace(self.state.config, exposure=replace(self.state.config.exposure, paper_profile=key)), persist=True
+        )
         self.request_render()
 
     def _request_pick_better_pair(self) -> None:
@@ -5157,7 +5248,7 @@ class AppController(QObject):
             sheet_note = (
                 f"Note: the Sheet filter is on — only the {count_of(total, 'visible frame')} {plural(total, 'is', 'are')} analyzed.\n\n"
             )
-        if title == "Roll Analysis":
+        if title == tr("Roll Analysis"):
             summary = (
                 "Roll Analysis measures the exposure bounds of every file outside a scene and "
                 "applies their average to those files, so they share a consistent baseline."
@@ -5236,7 +5327,7 @@ class AppController(QObject):
         if not queue:
             self.set_status(tr("No scene has a loaded frame"), 3000)
             return
-        if not self._confirm_normalization([f for _sid, frames in queue for f in frames], "Scene Analysis", filtered=False):
+        if not self._confirm_normalization([f for _sid, frames in queue for f in frames], tr("Scene Analysis"), filtered=False):
             return
         if self._begin_batch("normalization", tr("Analyzing scenes"), abortable=True) is None:
             return
@@ -5465,10 +5556,10 @@ class AppController(QObject):
         "film",
         "sensor",
         "cast_removal",
+        "process",
         "autocrop",
         "auto_crop",
         "baseline",
-        "process",
         "demosaic",
         "lens",
         "flatfield",
@@ -5483,7 +5574,7 @@ class AppController(QObject):
         "sensor": "Calibration",
         "cast_removal": "Calibration",
         "demosaic": "Raw Decode",
-        "baseline": "Roll Analysis",
+        "baseline": tr("Roll Analysis"),
         "process": "Metering",
         "autocrop": "Crop",
         "auto_crop": "Crop",
@@ -5492,7 +5583,7 @@ class AppController(QObject):
         "metadata_gear": "Analog Gear",
         "metadata_capture": "Capture",
         "metadata_process": "Process",
-        "metadata_scanning": "Scanning",
+        "metadata_scanning": tr("Scanning"),
         "metadata_exposure": "Exposure",
     }
     # The Crop section's two cards push and reset separately, so the status names whichever went.

@@ -384,9 +384,9 @@ class RightPanel(QWidget):
     def _build_roll_page(self) -> QWidget:
         """Facts the whole roll shares, not one frame's own edit: what film it is (Film
         Mode), how its files become frames (Frame Assembly), what the rig does to it
-        (Calibration) and the frame's shape (Crop), its shared exposure baseline (Roll
-        Analysis) and each frame's own (Metering), and how it decodes and the scanning
-        optics (Raw Decode, Optics). Film Mode leads, since it decides which of the others
+        (Calibration), each frame's own exposure baseline (Metering), the frame's shape
+        (Crop) and the roll's shared baseline (Roll Analysis), and how it decodes and the
+        scanning optics (Raw Decode, Optics). Film Mode leads, since it decides which of the others
         even apply."""
         cp = self.controls_panel
         page = QWidget()
@@ -399,9 +399,9 @@ class RightPanel(QWidget):
             (
                 cp.film_section,
                 cp.sensor_section,
+                cp.process_section,
                 cp.autocrop_section,
                 cp.baseline_section,
-                cp.process_section,
                 cp.demosaic_section,
                 cp.optics_section,
             )
@@ -416,9 +416,9 @@ class RightPanel(QWidget):
             cp.film_section,
             cp.assembly_section,
             cp.sensor_section,
+            cp.process_section,
             cp.autocrop_section,
             cp.baseline_section,
-            cp.process_section,
             cp.demosaic_section,
             cp.optics_section,
         ):

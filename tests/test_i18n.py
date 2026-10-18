@@ -186,6 +186,62 @@ def test_fresh_chinese_ui_keeps_enum_and_metadata_keys(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+@pytest.mark.parametrize("locale", CATALOGS)
+def test_localized_scan_setup_and_scope_choices_keep_stored_values(tmp_path: Path, locale: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", _SCAN_SETUP_AND_SCOPE_UI, locale],
+        cwd=ROOT,
+        env={**os.environ, "NEGPY_USER_DIR": str(tmp_path), "QT_QPA_PLATFORM": "offscreen"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+_SCAN_SETUP_AND_SCOPE_UI = """
+import sys
+from negpy.kernel.system.i18n import configure, tr
+configure(sys.argv[1])
+from PyQt6.QtWidgets import QApplication, QDialog
+app = QApplication([])
+from negpy.desktop.view.widgets.scan_setup_dialog import ScanSetupDialog
+from negpy.desktop.view.widgets.granular_settings_dialog import GranularSettingsDialog
+from negpy.domain.models import WorkspaceConfig
+
+for capture in ('camera', 'scanner'):
+    for light in ('white', 'narrowband'):
+        dlg = ScanSetupDialog(None, {'capture': capture, 'light': light})
+        assert dlg.capture_btn.currentData() == capture
+        assert dlg.light_btn.currentData() == light
+        assert dlg.capture_btn._choices[0][1] == tr('Camera') != 'Camera'
+        assert dlg.light_btn._choices[0][1] == tr('White Light') != 'White Light'
+        dlg.next_btn.click()
+        assert dlg.pages.currentIndex() == 1
+        decode = tr('Camera WB') if (capture, light) == ('camera', 'white') else tr('Linear RAW')
+        paper = 'Digital (Adobe RGB)' if light == 'white' else 'Digital (Pakon Minilab)'
+        assert dlg.summary.text() == tr('Sets {decode} · Print stock {paper}', decode=decode, paper=paper)
+        assert not dlg.summary.text().startswith('Sets ')
+        assert dlg.stock_hint.text() != ''
+        dlg.next_btn.click()
+        assert dlg.result() == QDialog.DialogCode.Accepted
+        assert dlg.choice() == {'capture': capture, 'light': light}
+
+dlg = GranularSettingsDialog(
+    None, WorkspaceConfig(), 'scan.raw', show_scope=True, show_current=True,
+    show_apply_mode=True, sel_count=2, roll_count=3,
+)
+assert dlg._scope_choice._choices[1][1] == tr('Selected Frames ({sel_count})', sel_count=2)
+assert dlg._scope_choice._choices[1][1] != 'Selected Frames (2)'
+for scope in ('current', 'selection', 'roll'):
+    dlg._scope_choice.setCurrentIndex(dlg._scope_choice.findData(scope))
+    dlg._on_apply()
+    assert dlg.scope() == scope
+dlg.mode_choice.setCurrentIndex(dlg.mode_choice.findData('replace'))
+assert dlg.apply_mode() == 'replace'
+"""
+
+
 _CHINESE_UI = """
 from dataclasses import replace
 from negpy.kernel.system.i18n import configure, install_qt_translations, tr

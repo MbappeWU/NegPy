@@ -182,7 +182,7 @@ class TutorialOverlay(QWidget):
         btn_row.setSpacing(6)
         self._prev_btn = labeled_action("fa5s.arrow-left", "", tr("Back (←)"))
         self._prev_btn.clicked.connect(self._prev)
-        self._skip_btn = labeled_action("", tr("Skip Chapter"), tr("Go to the next chapter of the tour"))
+        self._skip_btn = labeled_action("", tr("Skip Chapter"), tr("Go to the next chapter of the tour, or to its last step"))
         self._skip_btn.clicked.connect(self._skip_chapter)
         self._next_btn = labeled_action("", tr("Next"), tr("Next (→ or Enter). Esc ends the tour"), primary=True)
         self._next_btn.clicked.connect(self._next)
@@ -260,6 +260,8 @@ class TutorialOverlay(QWidget):
         pos = self._chapters.index(self._steps[self._idx].chapter)
         if pos + 1 < len(self._chapters):
             self.goto(self._chapter_start(self._chapters[pos + 1]))
+        else:
+            self.goto(len(self._steps) - 1)
 
     def _jump_chapter(self, pos: int) -> None:
         self.goto(self._chapter_start(self._chapters[pos]))
@@ -299,7 +301,7 @@ class TutorialOverlay(QWidget):
         self._task_lbl.setText(step.task)
         self._more_btn.setVisible(bool(step.guide[0]) and has_guide(step.guide[0]))
         self._prev_btn.setVisible(idx > 0)
-        self._skip_btn.setVisible(pos < len(self._chapters) - 1)
+        self._skip_btn.setVisible(idx < len(self._steps) - 1)
         self._sync_task()
         self._sync_offer()
 

@@ -67,7 +67,7 @@ class SensorSidebar(BaseSidebar):
         self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
         self.scan_setup_btn = self._icon_action(
             "mdi6.lightbulb-on-outline",
-            tr("Scanning setup — set Camera WB or Linear RAW from your camera/scanner and its light source"),
+            tr("Scanning setup — set Camera WB or Linear RAW and the print stock from your camera/scanner and its light source"),
         )
         self.layout.addLayout(header_row(self.capture_header, self.scan_setup_btn))
         self.layout.addWidget(self.linear_raw_btn)
@@ -265,7 +265,7 @@ class SensorSidebar(BaseSidebar):
     # the hint label rather than the combo it describes.
     _SENSOR_BLOCKED = {
         "linear_raw": (
-            "Requires Linear RAW.",
+            tr("Requires Linear RAW."),
             tr(
                 "Sensor profiles are calibrated against neutral white balance. With Linear RAW "
                 "off, RAW decodes carry the camera's as-shot gains instead, which would misapply "

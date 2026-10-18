@@ -5,14 +5,12 @@ from functools import partial
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QRadioButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -21,6 +19,7 @@ from PyQt6.QtWidgets import (
 from negpy.desktop.settings_catalog import SettingRow, catalog_sections
 from negpy.desktop.view.styles.templates import field_label, hint_label, pin_dialog_default, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 
@@ -29,46 +28,28 @@ def _triplet(values) -> str:
     return " / ".join(f"{v:g}" for v in values)
 
 
-class ScopeRadios:
-    """The radios build_scope_row built, and the scope they resolve to."""
-
-    __slots__ = ("current", "sel", "roll")
-
-    def __init__(self, current: QRadioButton | None, sel: QRadioButton, roll: QRadioButton) -> None:
-        self.current = current
-        self.sel = sel
-        self.roll = roll
-
-    def value(self) -> str:
-        if self.current is not None and self.current.isChecked():
-            return "current"
-        return "selection" if self.sel.isChecked() else "roll"
-
-
-def build_scope_row(parent: QWidget, sel_count: int, roll_count: int, show_current: bool = False) -> tuple[QHBoxLayout, ScopeRadios]:
-    """Current/Selected/Whole roll radio row, shared by every dialog that applies settings
-    to more than the active frame."""
-    row = QHBoxLayout()
-    group = QButtonGroup(parent)
-    current: QRadioButton | None = None
+def build_scope_row(sel_count: int, roll_count: int, show_current: bool = False) -> tuple[QHBoxLayout, SegmentedChoice]:
+    """Current/Selected/Whole Roll choice row, shared by every dialog that applies settings
+    to more than the active frame. Its data is "current", "selection" or "roll"."""
+    choices = [
+        ("selection", tr("Selected Frames ({sel_count})", sel_count=sel_count), sel_count),
+        ("roll", tr("Whole Roll ({roll_count})", roll_count=roll_count), roll_count),
+    ]
     if show_current:
-        current = QRadioButton(tr("Current frame"))
-        group.addButton(current)
-        row.addWidget(current)
-    sel = QRadioButton(tr("Selected frames ({sel_count})", sel_count=sel_count))
-    sel.setEnabled(sel_count > 0)
-    roll = QRadioButton(tr("Whole roll ({roll_count})", roll_count=roll_count))
-    roll.setEnabled(roll_count > 0)
-    group.addButton(sel)
-    group.addButton(roll)
-    if current is not None:
-        current.setChecked(True)
-    else:
-        (sel if sel_count > 0 else roll).setChecked(True)
-    row.addWidget(sel)
-    row.addWidget(roll)
+        choices.insert(0, ("current", tr("Current Frame"), 1))
+    choice = SegmentedChoice(
+        tuple(("", label) for _key, label, _count in choices),
+        tr("The frames the settings go to"),
+        data=tuple(key for key, *_ in choices),
+    )
+    for i, (_key, _label, count) in enumerate(choices):
+        choice.set_choice_enabled(i, count > 0)
+    if not show_current:
+        choice.setCurrentIndex(choice.findData("selection" if sel_count > 0 else "roll"))
+    row = QHBoxLayout()
+    row.addWidget(choice)
     row.addStretch()
-    return row, ScopeRadios(current, sel, roll)
+    return row, choice
 
 
 class GranularSettingsDialog(QDialog):
@@ -102,7 +83,7 @@ class GranularSettingsDialog(QDialog):
         self._sections: list[tuple[QWidget, int]] = []
         self._section_ids: list[tuple[str, ...]] = []
         self._section_rows: list[tuple[CollapsibleSection, tuple[str, ...]]] = []
-        self._scope_radios: ScopeRadios | None = None
+        self._scope_choice: SegmentedChoice | None = None
         self._preselect_ids = preselect_ids
         self._bounds_luma: QCheckBox | None = None
         self._bounds_color: QCheckBox | None = None
@@ -152,21 +133,21 @@ class GranularSettingsDialog(QDialog):
         remember_dialog_geometry(self, repo, "granular_settings")
 
     def _build_scope_row(self, sel_count: int, roll_count: int, show_current: bool = False) -> QHBoxLayout:
-        row, self._scope_radios = build_scope_row(self, sel_count, roll_count, show_current)
+        row, self._scope_choice = build_scope_row(sel_count, roll_count, show_current)
         return row
 
     def _build_mode_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        self.mode_group = QButtonGroup(self)
-        self.overlay_radio = QRadioButton(tr("Apply on top"))
-        self.overlay_radio.setToolTip(tr("Only the ticked settings change; the rest of each frame's edit stays"))
-        self.replace_radio = QRadioButton(tr("Replace look"))
-        self.replace_radio.setToolTip(tr("Reset look settings to defaults first — crop, rotation, metadata, export and retouch marks stay"))
-        self.mode_group.addButton(self.overlay_radio)
-        self.mode_group.addButton(self.replace_radio)
-        self.overlay_radio.setChecked(True)
-        row.addWidget(self.overlay_radio)
-        row.addWidget(self.replace_radio)
+        self.mode_choice = SegmentedChoice(
+            (("", tr("Apply on Top")), ("", tr("Replace Look"))),
+            tr("How the ticked settings meet each frame's edit"),
+            data=("overlay", "replace"),
+        )
+        self.mode_choice.set_choice_tooltip(0, tr("Only the ticked settings change; the rest of each frame's edit stays"))
+        self.mode_choice.set_choice_tooltip(
+            1, tr("Reset look settings to defaults first — crop, rotation, metadata, export and retouch marks stay")
+        )
+        row.addWidget(self.mode_choice)
         row.addStretch()
         return row
 
@@ -343,8 +324,8 @@ class GranularSettingsDialog(QDialog):
         self.apply_btn.setEnabled(enabled)
 
     def _on_apply(self) -> None:
-        if self._scope_radios is not None:
-            self._scope = self._scope_radios.value()
+        if self._scope_choice is not None:
+            self._scope = self._scope_choice.currentData()
         self.accept()
 
     def selected(self) -> list[SettingRow]:
@@ -411,9 +392,8 @@ class GranularSettingsDialog(QDialog):
         return self._scope
 
     def apply_mode(self) -> str:
-        if getattr(self, "replace_radio", None) is not None and self.replace_radio.isChecked():
-            return "replace"
-        return "overlay"
+        mode = getattr(self, "mode_choice", None)
+        return mode.currentData() if mode is not None else "overlay"
 
 
 class SyncBoundsDialog(QDialog):
@@ -436,7 +416,7 @@ class SyncBoundsDialog(QDialog):
         value.setStyleSheet(f"color: {THEME.text_hint};")
         root.addWidget(value)
 
-        row, self._scope_radios = build_scope_row(self, sel_count, roll_count)
+        row, self._scope_choice = build_scope_row(sel_count, roll_count)
         root.addLayout(row)
 
         self.luma_box = QCheckBox(tr("Tonal span"))
@@ -466,7 +446,7 @@ class SyncBoundsDialog(QDialog):
         return self.luma_box.isChecked(), self.color_box.isChecked()
 
     def scope(self) -> str:
-        return self._scope_radios.value()
+        return self._scope_choice.currentData()
 
 
 def _apply_targets(session) -> tuple[int, int, int] | None:
@@ -557,8 +537,7 @@ class SequentialFrameDialog(QDialog):
     """A running capture-frame number across the selection or the whole roll. The first
     frame gets the start number and each later frame adds the step (subtracted when
     descending). The active frame is always a target, so the scope row carries no
-    "Current frame" radio — it is never outside the run. Radio buttons stay a dialog
-    form, per the panel convention."""
+    Current Frame choice — it is never outside the run."""
 
     def __init__(
         self, parent, sel_count: int, roll_count: int, start: int, sel_rejected: int = 0, roll_rejected: int = 0, *, repo=None
@@ -576,7 +555,7 @@ class SequentialFrameDialog(QDialog):
         root.setContentsMargins(THEME.space_2xl, THEME.space_2xl, THEME.space_2xl, THEME.space_2xl)
         root.setSpacing(THEME.space_xl)
 
-        row, self._scope_radios = build_scope_row(self, sel_count, roll_count, show_current=False)
+        row, self._scope_choice = build_scope_row(sel_count, roll_count)
         root.addLayout(row)
 
         fields = QHBoxLayout()
@@ -598,12 +577,10 @@ class SequentialFrameDialog(QDialog):
         root.addLayout(fields)
 
         dir_row = QHBoxLayout()
-        dir_row.setSpacing(THEME.space_xl)
-        self.asc_radio = QRadioButton(tr("Ascending"))
-        self.asc_radio.setChecked(True)
-        self.desc_radio = QRadioButton(tr("Descending"))
-        dir_row.addWidget(self.asc_radio)
-        dir_row.addWidget(self.desc_radio)
+        self.direction_choice = SegmentedChoice(
+            (("", tr("Ascending")), ("", tr("Descending"))), tr("Count up or down from the start number"), data=("asc", "desc")
+        )
+        dir_row.addWidget(self.direction_choice)
         dir_row.addStretch()
         root.addLayout(dir_row)
 
@@ -628,13 +605,15 @@ class SequentialFrameDialog(QDialog):
         pin_dialog_default(self.apply_btn, cancel_btn)
         root.addLayout(footer)
 
-        for w in (self.start_edit, self.step_edit, self.asc_radio, self.desc_radio, self._scope_radios.sel, self._scope_radios.roll):
-            w.toggled.connect(self._refresh_preview) if hasattr(w, "toggled") else w.textChanged.connect(self._refresh_preview)
+        for edit in (self.start_edit, self.step_edit):
+            edit.textChanged.connect(self._refresh_preview)
+        for choice in (self.direction_choice, self._scope_choice):
+            choice.currentChanged.connect(self._refresh_preview)
         self._refresh_preview()
         remember_dialog_geometry(self, repo, "sequential_frame")
 
     def _count(self) -> int:
-        if self._scope_radios.value() == "roll":
+        if self._scope_choice.currentData() == "roll":
             base, rejected = self._roll_count, self._roll_rejected
         else:
             base, rejected = self._sel_count, self._sel_rejected
@@ -656,7 +635,7 @@ class SequentialFrameDialog(QDialog):
         return max(1, abs(step))
 
     def _direction(self) -> str:
-        return "desc" if self.desc_radio.isChecked() else "asc"
+        return self.direction_choice.currentData()
 
     def _refresh_preview(self, *_args) -> None:
         n = self._count()
@@ -671,7 +650,7 @@ class SequentialFrameDialog(QDialog):
         self.preview.setText(f"{shown}{tail}    ({count_of(n, 'frame')})")
 
     def result(self) -> tuple[int, int, str, str, bool]:
-        return (self._start(), self._step(), self._direction(), self._scope_radios.value(), self.skip_reject_box.isChecked())
+        return (self._start(), self._step(), self._direction(), self._scope_choice.currentData(), self.skip_reject_box.isChecked())
 
 
 def open_sequential_frame_dialog(parent, session) -> tuple[int, int, str, str, bool] | None:

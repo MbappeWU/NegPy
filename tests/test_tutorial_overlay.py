@@ -75,6 +75,9 @@ def test_chapters_skip_and_jump() -> None:
     assert overlay._chapter_btn is not None
     overlay._chapter_btn.setCurrentIndex(2)
     assert overlay.index == 4
+    # The last chapter skips to the final step.
+    _click(overlay._skip_btn)
+    assert overlay.index == 5
     assert not overlay._skip_btn.isVisible()
 
 

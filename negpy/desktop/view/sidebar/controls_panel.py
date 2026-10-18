@@ -1104,9 +1104,9 @@ class ControlsPanel(QWidget):
         return (
             ("film", self.film_section),
             ("sensor", self.sensor_section),
+            ("process", self.process_section),
             ("autocrop", self.autocrop_section),
             ("baseline", self.baseline_section),
-            ("process", self.process_section),
             ("demosaic", self.demosaic_section),
             ("optics", self.optics_section),
         )
