@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewI
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
 from negpy.desktop.view.main_window import MainWindow
-from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE, FileBrowser, _FilmDelegate, print_dmax, roll_film, picture_in_thumbnail
+from negpy.desktop.view.sidebar.files import FileBrowser, _FilmDelegate, print_dmax, roll_film, picture_in_thumbnail
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.geometry.models import GeometryConfig
@@ -21,6 +21,9 @@ from negpy.infrastructure.storage.repository import StorageRepository
 from negpy.kernel.image.logic import prepare_thumbnail
 from negpy.services.assets.gear import GearProfiles
 from negpy.services.film_edge.geometry import PERF_ACROSS, PERF_FROM_EDGE, SheetFormat, perforation_centers
+
+
+WHITE = THEME.canvas_bg_white
 
 
 class _Dock:
@@ -245,13 +248,13 @@ def _hp5(**meta) -> tuple[WorkspaceConfig, GearLibrary]:
 def test_the_roll_film_is_the_rolls_stock_on_white(qapp):
     config, library = _hp5()
 
-    geometry, style, palette = roll_film({}, config, library, half_frame=False)
+    geometry, style, palette = roll_film({}, config, library, half_frame=False, table=WHITE)
 
     assert geometry.format == SheetFormat.FULL_FRAME
     assert (style.maker, style.text) == ("ILFORD", "HP5 PLUS")
-    assert palette.no_film == QColor(LIGHT_TABLE_WHITE).getRgb()[:3]
-    assert roll_film({}, config, library, half_frame=True)[0].format == SheetFormat.HALF_FRAME
-    assert roll_film({}, _hp5(format="120")[0], library, half_frame=False)[0].format == SheetFormat.MEDIUM
+    assert palette.no_film == QColor(WHITE).getRgb()[:3]
+    assert roll_film({}, config, library, half_frame=True, table=WHITE)[0].format == SheetFormat.HALF_FRAME
+    assert roll_film({}, _hp5(format="120")[0], library, half_frame=False, table=WHITE)[0].format == SheetFormat.MEDIUM
 
 
 def test_the_gear_library_is_read_again_only_when_the_film_changes(browser):
@@ -282,7 +285,7 @@ def test_a_light_table_cell_is_one_frame_of_film(browser):
     assert cell.height() == round(35.0 * s) + view.STRIP_GAP
 
     canvas = QImage(cell.width(), cell.height(), QImage.Format.Format_RGB888)
-    canvas.fill(QColor(LIGHT_TABLE_WHITE))
+    canvas.fill(QColor(WHITE))
     option = QStyleOptionViewItem()
     option.rect = QRect(0, 0, cell.width(), cell.height())
     painter = QPainter(canvas)
@@ -292,7 +295,7 @@ def test_a_light_table_cell_is_one_frame_of_film(browser):
     top = (cell.height() - round(35.0 * s)) // 2
     hole = canvas.pixelColor(round(perforation_centers(0.0, 38.0)[0] * s), top + round((PERF_FROM_EDGE + PERF_ACROSS / 2) * s))
     rebate = canvas.pixelColor(cell.width() // 2, top + round(4.5 * s))
-    assert hole == QColor(LIGHT_TABLE_WHITE)
+    assert hole == QColor(WHITE)
     assert max(rebate.red(), rebate.green(), rebate.blue()) < 40
 
 
@@ -302,7 +305,7 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
     upright.paste((220, 0, 0), (0, 0, 200, 150))
     icon = QIcon(QPixmap.fromImage(_qimage(prepare_thumbnail(upright, 120))))
     delegate = _FilmDelegate(frame_geometry=lambda asset: GeometryConfig(rotation=rotation))
-    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False))
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE))
     model = QStandardItemModel()
     model.appendRow(QStandardItem())
 
@@ -315,7 +318,7 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
 @pytest.mark.parametrize("hover", [False, True])
 def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover):
     delegate = _FilmDelegate()
-    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False))
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE))
     model = QStandardItemModel()
     item = QStandardItem()
     item.setData(
@@ -324,7 +327,7 @@ def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover)
     )
     model.appendRow(item)
     canvas = QImage(380, 350, QImage.Format.Format_RGB888)
-    canvas.fill(QColor(LIGHT_TABLE_WHITE))
+    canvas.fill(QColor(WHITE))
     option = QStyleOptionViewItem()
     option.rect = QRect(0, 0, 380, 350)
     if hover:

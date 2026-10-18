@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QAbstractItemView, QApplication, QDialog, QListView,
 
 from negpy.desktop.session import DesktopSessionManager, composite_kind, composite_summary
 from negpy.desktop.view.sidebar.files import (
-    THUMB_CELL_MIN,
     FileBrowser,
     ThumbnailGridView,
     _ThumbnailDelegate,
@@ -729,7 +728,7 @@ def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     assert bar.value() == view.gridSize().width() - 10
 
 
-# --- Session panel scrolling & empty-space menu ---------------------------
+# --- Grid scrolling & empty-space menu -------------------------------------
 
 
 def _wheel(angle_y: int = 0, pixel_y: int = 0) -> QWheelEvent:
@@ -1054,14 +1053,14 @@ def test_placeholder_fills_the_square_thumbnail_cell(qapp):
 
 
 def test_placeholder_item_uses_the_full_thumbnail_cell(qapp):
-    view = ThumbnailGridView(target_cell=THUMB_CELL_MIN)
+    view = ThumbnailGridView(target_cell=100)
     delegate = _ThumbnailDelegate(view)
 
     assert delegate.sizeHint(QStyleOptionViewItem(), QModelIndex()) == view.iconSize()
 
 
 def test_grid_hover_follows_a_plain_pointer_move(qapp):
-    view = ThumbnailGridView(target_cell=THUMB_CELL_MIN)
+    view = ThumbnailGridView(target_cell=100)
 
     assert view.viewport().hasMouseTracking()
     assert view.viewport().testAttribute(Qt.WidgetAttribute.WA_Hover)
@@ -1077,7 +1076,7 @@ def test_active_placeholder_curtain_advances_across_the_glyph(qapp):
 
 
 def test_placeholder_animation_repaints_only_the_active_cell(session, qapp):
-    view = ThumbnailGridView(target_cell=THUMB_CELL_MIN)
+    view = ThumbnailGridView(target_cell=100)
     view.resize(320, 240)
     view.setModel(session.asset_model)
     delegate = _ThumbnailDelegate(view, state=session.state)

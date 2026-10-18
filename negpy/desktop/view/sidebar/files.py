@@ -452,27 +452,12 @@ class _ThumbnailDelegate(QStyledItemDelegate):
 
 
 # A grid cell's target width, one frame pitch on the Light Table; columns justify to the width.
-THUMB_CELL_MIN = 100
 THUMB_CELL_DEFAULT = 220
-THUMB_CELL_MAX = THUMB_CELL_DEFAULT
 
 
 class ThumbnailGridView(QListView):
-    """
-    Icon-mode grid that justifies thumbnails to the panel width. It fits as many
-    columns of at least ``target_cell`` as the viewport allows, then grows the cell to
-    fill the leftover width exactly; once another target-wide column fits it adds one
-    and the cells snap back down. So ``target_cell`` sets thumbnail size and the panel
-    width sets how many fit — e.g. at the default 220 a 240px-wide panel shows one
-    236px column, and widening past ~444px splits into two.
-
-    Cells are not capped directly — at one column the frame is meant to fill the panel
-    — but capping the *target* at the default bounds them in practice: a target above
-    it only delays the split to two columns, which is what produced oversized cells
-    (and, since cells are square, large empty bands around a 3:2 frame) on a widened
-    sidebar. Cells can still exceed APP_CONFIG.thumbnail_size and upscale on a very
-    wide panel; the frames stay legible because the canvas is the place for detail.
-    """
+    """Icon-mode grid that justifies cells to the view width: as many columns of at least
+    ``target_cell`` as fit, each grown to fill the width exactly."""
 
     SPACING = 2
     # Scene sort: the gap between two scenes' blocks, and each block's tinted band.
@@ -487,7 +472,7 @@ class ThumbnailGridView(QListView):
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT):
         super().__init__(parent)
         self._last_cell = -1
-        self._target_cell = self._clamp_target(target_cell)
+        self._target_cell = target_cell
         self._pending_click_row: Optional[int] = None
         self._pending_click_modifiers = Qt.KeyboardModifier.NoModifier
         self._pending_mode: Optional[str] = None  # "range" | "ctrl"
@@ -514,22 +499,6 @@ class ThumbnailGridView(QListView):
         self._scroll_anim.setDuration(self.SCROLL_ANIM_MS)
         self._scroll_target = 0
         self._apply_cell(self._target_cell)
-
-    @staticmethod
-    def _clamp_target(cell: int) -> int:
-        return max(THUMB_CELL_MIN, min(THUMB_CELL_MAX, int(cell)))
-
-    @property
-    def target_cell(self) -> int:
-        return self._target_cell
-
-    def set_target_cell(self, cell: int) -> None:
-        """Set the preferred thumbnail size and re-justify to the current width."""
-        cell = self._clamp_target(cell)
-        if cell == self._target_cell:
-            return
-        self._target_cell = cell
-        self._relayout()
 
     def columns_for_width(self, vw: int) -> int:
         return max(1, (vw - self.SPACING) // (self._target_cell + self.SPACING))
@@ -795,13 +764,11 @@ class ThumbnailGridView(QListView):
 
 # Barcode modules this coarse alias, so they print as their mean.
 _DRAFT_PX_PER_MM = 4.0
-# A lit white light table; the perforations show the surface through the film.
-LIGHT_TABLE_WHITE = THEME.canvas_bg_white
 
 
 def table_color(index: int) -> str:
-    """The surface of the Film Strip and the Light Table: the canvas background."""
-    return CANVAS_COLORS[index][0] if 0 <= index < len(CANVAS_COLORS) else LIGHT_TABLE_WHITE
+    """The surface of the Film Strip and the Light Table, shown through the perforations: the canvas background."""
+    return CANVAS_COLORS[index][0]
 
 
 # The perforation rim sits this far above the rebate, as in the contact sheet's palettes.
@@ -815,11 +782,11 @@ def roll_film(
     config: WorkspaceConfig,
     library: Any,
     half_frame: bool,
-    table: str = LIGHT_TABLE_WHITE,
+    table: str,
     rebate: Optional[tuple[int, int, int]] = None,
 ) -> tuple[FilmGeometry, EdgeStyle, Palette]:
-    """The roll as film: the active frame's format and edge print, in the contact sheet's palette, or
-    with the rebate in the color the roll's prints reach at D-max."""
+    """The roll as film: the active frame's format and edge print in the contact sheet's palette; `rebate`,
+    the roll's D-max, replaces the rebate color."""
     frames = [SheetFrame(asset, config)]
     fmt, frame_size = infer_format(frames, half_frame)
     look = sheet_look(frames, fmt, library=library)
@@ -870,7 +837,7 @@ def picture_in_thumbnail(image: QImage) -> QRect:
 
 
 class _FilmDelegate(_ThumbnailDelegate):
-    """Light Table cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film."""
+    """Cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film."""
 
     _CACHE_LIMIT = 512
     _IDLE_OPACITY = 1.0
@@ -961,12 +928,11 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
 
-    def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
-        super().__init__(parent, target_cell)
-        # Viewport margins, not QSS padding, which would inset the scroll bars from the edge too. The
-        # film runs off the top and bottom edges.
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
         self.setViewportMargins(THEME.space_2xl, 0, THEME.space_2xl, 0)
-        self.set_table_color(LIGHT_TABLE_WHITE)
+        self.set_table_color(table_color(AppState.canvas_bg_index))
 
     def set_table_color(self, color: str) -> None:
         self.setStyleSheet(self._table_qss(color))
@@ -1002,7 +968,7 @@ class _FilmStripView(_FilmGridView):
     MARGIN_SHARE = 0.06
 
     def __init__(self, parent=None) -> None:
-        super().__init__(parent, THUMB_CELL_DEFAULT)
+        super().__init__(parent)
         self._fit_margins(self.height())
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
@@ -1036,6 +1002,7 @@ class _FilmStripView(_FilmGridView):
         self.horizontalScrollBar().setSingleStep(max(1, cell // 4))
 
     def _place_scene_runs(self) -> None:
+        # One row: scenes keep their order, without the Light Table's blocks.
         self._scene_bands = []
 
     def wheelEvent(self, event) -> None:
@@ -1275,7 +1242,7 @@ class FileBrowser(QWidget):
         self._thumbnail_delegate = _FilmDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
-        self.light_table_view = _FilmGridView(target_cell=THUMB_CELL_MAX)
+        self.light_table_view = _FilmGridView()
         self._light_table_delegate = _FilmDelegate(self.light_table_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.light_table_view, self._light_table_delegate)
         self.light_table_view.setSelectionModel(self.list_view.selectionModel())

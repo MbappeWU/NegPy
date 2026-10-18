@@ -3890,8 +3890,7 @@ class CanvasOverlay(QWidget):
         self.cursor_left.emit()
         # Park the cursor outside the view. Every cursor-following overlay (crosshair, brush
         # ring, loupe) reads _mouse_pos in paint, so a stale value leaves them drawn at the last
-        # position. That shows whenever the cursor exits over the floating toolbar, which sits
-        # inside the image rect.
+        # position.
         self._mouse_pos = QPointF(-1.0, -1.0)
         self._set_zone_hover(None)
         self.update()

@@ -142,7 +142,7 @@ _UNBOUNDED_HEIGHT = 16777215  # QWIDGETSIZE_MAX, Qt's "no maximum"
 # (canvas, Film Strip) heights until the splitter is first dragged; Qt scales them to the window.
 _STRIP_DEFAULT_SPLIT = (700, 300)
 _CANVAS_MIN_HEIGHT = 120
-# The Film Strip's own section header kept its state here.
+# The Film Strip section's key, so a strip folded before keeps its fold.
 _STRIP_EXPANDED_KEY = "section_expanded_frames"
 
 
@@ -611,7 +611,7 @@ class MainWindow(QMainWindow):
             self.set_film_strip_expanded(self._strip_open_before_light_table, persist=False)
 
     def reset_panel_layout(self) -> None:
-        """Restore the controls panel to its original edge and width, and show it and the Film Strip."""
+        """Restore the controls panel to its original edge and width, show it and expand the Film Strip."""
         self._restore_default_dock_state()
         self.drawer.setVisible(True)
         self.set_film_strip_expanded(True)

@@ -270,7 +270,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_side_panels": ShortcutEntry("Shift+H", tr("Hide the controls panel and collapse the Film Strip, or bring both back"), tr("View")),
     "toggle_light_table": ShortcutEntry("Shift+G", tr("Light Table: the roll as a grid in place of the canvas"), tr("View")),
     "toggle_reference": ShortcutEntry("Shift+R", tr("Reference view: pin this frame beside the canvas to match others to it"), tr("View")),
-    "edit_toolbar": ShortcutEntry("", tr("Edit the canvas toolbar (which controls it shows, in what order)"), tr("View")),
+    "edit_toolbar": ShortcutEntry("", tr("Edit the toolbar (which controls it shows, in what order)"), tr("View")),
     "tab_roll": ShortcutEntry("Ctrl+1", tr("Roll tab"), tr("Tabs")),
     "tab_geometry": ShortcutEntry("Ctrl+2", tr("Geometry tab"), tr("Tabs")),
     "tab_tone": ShortcutEntry("Ctrl+3", tr("Exposure tab"), tr("Tabs")),

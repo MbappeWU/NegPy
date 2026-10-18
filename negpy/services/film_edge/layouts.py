@@ -125,7 +125,7 @@ _ILFORD_135 = (
     EdgeRun("number", TOP, "{maker} {text}", 1.5, at=2.5),
     *_ILFORD_BATCH,
 )
-# Measured on a Pan 400 roll: a monospaced name, numbers near the film edge, a long wedge before each A number.
+# A monospaced name, numbers near the film edge, a long wedge before each A number.
 _KENTMERE_135 = (
     EdgeRun("number", BOTTOM, "{label}", 1.55, 0.85),
     EdgeRun("half", BOTTOM, "{label}", 1.05, 0.85, at=1.0, lead="wedge"),

@@ -290,7 +290,7 @@ def load_toolbar_items(repo) -> list[str]:
 
 
 class ActionToolbar(QWidget):
-    """The bar on top of the Film Strip: the photo's tools or, in Roll mode, the strip's own row."""
+    """The bar under the Film Strip: the photo's tools or, in Roll mode, the strip's own row."""
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -1591,7 +1591,6 @@ class ActionToolbar(QWidget):
         """Show as many of the chosen controls as fit the bar width. The overflow menu always
         carries the full action set (see _init_ui), so the menu does not follow the row."""
         self._available_width = w
-        budget = w
 
         if not self._tool_row.isHidden():
             # The hint goes first, then the slider: the name, undo and Done always stay.
@@ -1599,7 +1598,7 @@ class ActionToolbar(QWidget):
             for widget in optional:
                 widget.setVisible(True)
             for widget in optional:
-                if self._bar_width() <= budget:
+                if self._bar_width() <= w:
                     break
                 widget.setVisible(False)
             self._activate_layout()
@@ -1614,7 +1613,7 @@ class ActionToolbar(QWidget):
 
         extras = [item_id for item_id in reversed(self._item_ids) if item_id not in _COLLAPSE_ORDER]
         for item_id in extras + [item_id for item_id in _COLLAPSE_ORDER if item_id in self._item_ids]:
-            if self._bar_width() <= budget:
+            if self._bar_width() <= w:
                 break
             self._row_widgets[item_id].setVisible(False)
             self._sync_separators()
