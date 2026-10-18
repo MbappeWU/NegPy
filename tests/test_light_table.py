@@ -418,8 +418,8 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
     assert (picture.pixelColor(5, picture.height() // 2).red() > 150) == top_lies_left
 
 
-def _paint_cell(delegate: _FilmDelegate, hover: bool) -> tuple[QImage, QRect]:
-    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE))
+def _paint_cell(delegate: _FilmDelegate, hover: bool, edges: bool = True) -> tuple[QImage, QRect]:
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE), edges=edges)
     model = QStandardItemModel()
     item = QStandardItem()
     item.setData(
@@ -447,6 +447,13 @@ def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover)
     assert canvas.pixelColor(window.center()) == QColor(40, 160, 220)
     ring = canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1)
     assert (ring == QColor(THEME.accent_primary)) == hover
+
+
+@pytest.mark.parametrize("edges", [True, False])
+def test_a_gray_border_edges_the_picture_only_without_film_edges(qapp, edges):
+    canvas, window = _paint_cell(_FilmDelegate(), False, edges)
+
+    assert (canvas.pixelColor(window.center().x(), window.top()) == QColor(40, 160, 220)) == edges
 
 
 @pytest.mark.parametrize("hover", [False, True])

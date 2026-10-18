@@ -829,6 +829,12 @@ class _FilmDelegate(_ThumbnailDelegate):
     def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
         super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
 
+    def _border_pen(self, hover: bool) -> QPen:
+        # On film the rebate frames the picture.
+        if self._film is not None and self._edges:
+            return QPen(Qt.PenStyle.NoPen)
+        return super()._border_pen(hover)
+
     def _thumbnail(self, icon: QIcon, index: QModelIndex) -> QPixmap:
         base = super()._thumbnail(icon, index)
         film = self._film
