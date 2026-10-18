@@ -1317,14 +1317,16 @@ class FileBrowser(QWidget):
         # Shown in the right panel's Library tab; the strip reloads it and reads its state.
         self.library_tree = LibraryTree(self.controller)
 
-        self.guide_btn = header_button(qta.icon("fa5s.info-circle", color=THEME.text_muted), "What am I looking at? — Film Strip guide")
+        self.guide_btn = header_button(
+            qta.icon("fa5s.info-circle", color=THEME.text_muted), tr("What am I looking at? — {title} guide", title=tr("Film Strip"))
+        )
         self.guide_btn.clicked.connect(self._show_guide)
         self.roll_menu_btn = QToolButton()
         self.roll_menu_btn.setIcon(qta.icon("fa5s.ellipsis-v", color=THEME.text_primary))
         self.roll_menu_btn.setIconSize(icon_size)
         self.roll_menu_btn.setFixedHeight(btn_height)
         self.roll_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.roll_menu_btn.setToolTip("Start, close or reset the roll")
+        self.roll_menu_btn.setToolTip(tr("Start, close or reset the roll"))
         self.roll_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.roll_menu_btn.setObjectName("toolbar_overflow")
         roll_menu = QMenu(self.roll_menu_btn)
@@ -1487,7 +1489,7 @@ class FileBrowser(QWidget):
     def _show_guide(self) -> None:
         from negpy.desktop.view.widgets.section_help_dialog import SectionHelpDialog
 
-        SectionHelpDialog("frames", "Film Strip", self, repo=self.session.repo).exec()
+        SectionHelpDialog("frames", tr("Film Strip"), self, repo=self.session.repo).exec()
 
     def focus_search(self) -> None:
         self.search_input.setFocus()

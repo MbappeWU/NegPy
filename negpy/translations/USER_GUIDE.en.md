@@ -14,14 +14,15 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 ### Screen layout
 
-*   **Left, the film strip**: your frames as a contact sheet, with import, sorting and triage tools.
-*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§15). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Below the canvas, the film strip**: your frames as strips of film, with the toolbar under it at the bottom of the window.
+*   **The toolbar**: its **Photo / Roll** switch picks the row it shows. **Roll** holds the film strip's import, sorting and triage tools and its filter (§2). **Photo** holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**.
+*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
-*   **Right, the controls**: tabs **Roll** / **Frame** / **Metadata** / **Gear** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
+*   **Right, the controls**: tabs **Library** / **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
-Drag a panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows both panels. **Reset Panel Layout** (**⋯** menu) restores the default layout.
+Drag the film strip's top edge to change its height, which sets the size of its frames; the chevron at the toolbar's right end folds the strip away, and the canvas then sits on the toolbar (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides the controls panel and folds the film strip, or brings both back. **Reset Panel Layout** (**⋯** menu) restores the default layout.
 
 ### The tour
 
@@ -73,8 +74,7 @@ Tabs that do not change the render:
 | Tab | Panels | What it is for |
 |-----|--------|---------------|
 | **Export** | Export settings | Format, size, color, batch |
-| **Metadata** | Archival metadata | Camera, lens, film |
-| **Gear** | Gear library | Cameras, lenses, films, processes, scan setups |
+| **Metadata** | Archival metadata · My Gear · Presets | Camera, lens, film; your gear library and metadata presets |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
 On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
@@ -116,14 +116,14 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 ---
 
 <!-- panel:frames -->
-## 2. Film strip (left panel)
+## 2. Library and film strip
 
-A green **Update Available** line tops the panel when a newer release is out ([§16](#16-updating-negpy)). Below are the toolbar, the search box and two sections: **Library** (imported rolls) and **Film Strip** (open frames).
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The rebate takes the roll's mean print D-max, the deepest tone its thumbnails reach. The strip scrolls sideways, and its height sets the size of the frames; frames other than the selection are dimmed. The toolbar's **Roll** mode shows the strip's buttons, filter and tally, and its **ⓘ** opens this guide. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
 
-**Library** lists every **roll** you imported: a named group of frames, not a live view of a folder. **Ctrl+L** expands it.
+The **Library** tab, first on the right panel, lists every **roll** you imported: a named group of frames, not a live view of a folder. **Ctrl+L** opens it.
 
 *   **+**: import a roll (below).
 *   **↻**: finds new roll folders under each parent imported with **Import Subfolders as Rolls…** and recounts each roll's frames.
@@ -162,15 +162,15 @@ A frame has one edit in every roll that holds it. On a frame in more than one ro
 
 **Nikon High Efficiency raw**: Z 8 and Z 9 NEFs in **HE** or **HE\*** use a licensed codec that NegPy cannot decode. Shoot **Lossless Compressed**, or convert with Adobe DNG Converter.
 
-The **⋮** menu on the Film Strip header:
+The **⋮** menu at the end of the toolbar's Roll row:
 
 *   **New Roll…**: clears the film strip, to drag in frames and keep them with **Save as Roll…**.
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
 
-The grid button on the same header opens the **Light Table** (`Shift+G`): the roll as a full-window grid for culling, with the same selection, marks and menus. **Esc** or `Shift+G` goes back.
+The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a light table for culling, with the same selection, marks and menus. It takes the place of the canvas and the Film Strip; the toolbar and the controls panel stay. `+` and `-`, or **Ctrl** and the wheel, make the frames larger or smaller, one frame a row at a time; the size is kept. **Esc**, `Shift+G` or the grid button goes back.
 
-The Film Strip button row:
+The toolbar's Roll row:
 
 *   **Add**: **Add Files…** or **Add Folder…** (or drop a folder on the window). A folder with no images of its own imports its subfolders as rolls.
 *   **Hot Folder**: loads new files as they appear in the current folder, for a scanner or tethering app.
@@ -180,11 +180,10 @@ The Film Strip button row:
 *   **Save as Roll…**: keeps the loaded frames as a roll ([Rolls that are not folders](#rolls-that-are-not-folders)).
 *   **Unload…**: drops the active frame or selection from the Film Strip. It is back the next time the roll opens.
 *   **Remove from Roll…** (right-click, with a roll open): takes the frame or selection out of the roll for good, with its scene, card locks and own edit in that roll. The file and its shared edit stay. A file in the roll's own folder is skipped when the folder is opened again, until you add it back with **Add Files…**. A half-frame scan goes as one file.
-*   **Show Scenes**: edges each frame in its scene's color ([Scenes](#scenes)).
 *   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
 *   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
 
-Above both sections are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle. The Film Strip has a **tally** of frames, keepers and rejects, and a **thumbnail size** slider. If a filter hides everything, **Show all frames** clears it.
+Beside the buttons are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle, then a **tally** of frames, keepers and rejects. If a filter hides everything, **Show all frames** clears it.
 
 #### Filtering the sheet
 
@@ -287,7 +286,7 @@ The right-click menu also has:
 
 #### Scenes
 
-A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first).
+A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first). On the Film Strip and the Light Table, an outline in the scene's color runs along the film's edge around each run of its frames.
 
 *   **Scene** (right-click menu): **Group as Scene…** makes the selection a scene; **Add to** *name* and **Remove from Scene** move frames in and out. On a scene's frames, **Analyze Scene…** runs Scene Analysis; **Rename Scene…** and **Delete Scene…** manage it. A frame is in one scene at most. Deleting a scene keeps edits and baselines.
 *   **Sort → Scene**: each scene's frames as a block, frames in no scene last.
@@ -315,7 +314,7 @@ In Peek Negative the density histogram splits into R, G, B and luminance: a spik
 
 The selector under the chart picks the chart. **Curve** is the paper curve and histograms above. **Waveform** plots print tone across the frame's width; a red tick marks a column that reaches paper black or white. **Parade** plots the print's R, G and B side by side, each channel's tone across the frame. A neutral sits at one height in all three, so judge a cast on neutrals; on neutral or even content, a channel that drifts across the frame is uneven light or a Flat Field mismatch. While you hover, a dashed line marks the pixel's green level in all three panels. In Peek Negative the Parade shows the scan: each channel's density in the camera's own channels (−log10 of the scan after any Crosstalk unmix, 0 at sensor full scale at the top, 3.0 at the bottom). On a negative, the solid lines are the range the stretch maps onto the curve, and the number beside each channel letter is that range. Scan exposure moves the traces (0.3 per stop) but not the range, so compare scans from one camera or scanner, light and unmix by their ranges. The dotted line is the clear film base: the Film Base set on the roll, else the base read from the rebate. A red tick marks a column with pixels at sensor clip (top) or in the axis's last step (bottom). **Vectorscope** plots the print's colors on the CIELAB a\*b\* plane, neutral at the center. On a color frame, a cluster off the center is a cast; on a toned B&W print, a toner draws an arm toward its hue.
 
-*   **Parade Overlay** (layers icon): R, G and B on one plot, white where they agree. Grayed out under any Color vision choice but Standard (§15), and on the scan unless Base Relative is on.
+*   **Parade Overlay** (layers icon): R, G and B on one plot, white where they agree. Grayed out under any Color vision choice but Standard (§14), and on the scan unless Base Relative is on.
 *   **Base Relative** (ruler icon, Peek Negative): moves each channel so its film base, else its thin line, sits at the top, so the channels and the hover line compare at one height. The caption names the zero.
 
 #### Lin / Log
@@ -342,7 +341,7 @@ A 21-step wedge printed through the current curve, alternative process and tonin
 
 Eleven cells on the Adams scale (**0** paper black, **V** 18% mid-gray, **X** paper white), each zone rounded to the nearest as the Zone Overlay counts it; opacity shows how much of the frame lands in each. The two cells at each end turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
 
-Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the canvas toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
+Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
 
 #### Probe
 
@@ -824,7 +823,7 @@ Meters the roll once and shares the result, so frames of one film match.
 *   **Use average: Cast** (Color Negative only): takes Cast Removal's gray balance from the roll or scene analysis, so frames under one light render alike. An analysis turns it on, except on frames far from the rest.
 *   **Baseline**: names the roll, scene or frame the baseline came from, and warns when there is none or when an older version of the analysis measured it.
 *   **Rolls** (picker): every roll in your library; a ticked roll has a saved baseline. Defaults to the loaded roll. A baseline from an older analysis shows an amber hint until you run **Reanalyze**.
-*   **Reanalyze** (also in the Library, [§2](#2-film-strip-left-panel)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.5](#105-crop)) first for consistent crops.
+*   **Reanalyze** (also in the Library, [§2](#2-library-and-film-strip)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.5](#105-crop)) first for consistent crops.
 *   **Use This Frame**: saves this frame's bounds as the roll's baseline.
 *   **Scenes**: the loaded roll's [scenes](#scenes). **Analyze** runs Scene Analysis (Reanalyze over the scene only), **Select** selects its frames, and **Delete** forgets it. An amber ✓ marks a scene baseline from an older analysis.
 
@@ -872,7 +871,7 @@ Metadata for the original analog capture (camera, lens, film, process), written 
 <!-- panel:metadata_presets -->
 ### Metadata Presets
 
-Saved sets of metadata values in `~/NegPy/presets/metadata/`, managed on the **Gear** tab (§12).
+Saved sets of metadata values in `~/NegPy/presets/metadata/`, managed in **Presets** at the bottom of the tab.
 
 *   **Preset** + **Load**: writes the preset's fields onto this frame; other fields stay.
 
@@ -881,7 +880,7 @@ Gear loads as one unit (camera, lens, film stock, format). A film stock sets the
 <!-- panel:metadata_gear -->
 ### Analog Gear
 
-Searches your own gear (§12). **Other…** opens the full built-in catalog.
+Searches your own gear (**My Gear** at the bottom of the tab). **Other…** opens the full built-in catalog.
 
 *   **Camera / Lens / Film stock**: empty means not set.
 *   **Clear**: empties all three.
@@ -924,16 +923,10 @@ A live view of what goes into the file. **Description…** picks the fields join
 
 Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`. A star rating set in the camera carries over as `xmp:Rating`.
 
----
-
-## 12. Gear tab
-
-A gear library for Metadata (§11), Roll Settings and every gear picker. **My Gear** holds physical gear; **Presets** holds metadata field sets.
-
 <!-- panel:gear_items -->
 ### My Gear
 
-**Category**: **Cameras**, **Lenses**, **Film Stocks**, **Process** (a development recipe) or **Scanning** (a digitizing setup). Your gear is saved to `~/NegPy/gear/`.
+Your gear library, for Metadata, Roll Settings and every gear picker. **Category**: **Cameras**, **Lenses**, **Film Stocks**, **Process** (a development recipe) or **Scanning** (a digitizing setup). Your gear is saved to `~/NegPy/gear/`.
 
 *   **+**: copy an item from the built-in catalog into your list, or **Add Custom** to enter one by hand.
 *   **Catalog**: also shows the built-in reference models. Off by default.
@@ -942,6 +935,8 @@ A gear library for Metadata (§11), Roll Settings and every gear picker. **My Ge
 <!-- panel:gear_presets -->
 ### Presets
 
+Metadata field sets, loaded with **Metadata Presets** above.
+
 *   **+**: stores the current frame's metadata under a name.
 *   **pen**: rename, or change which fields it stores.
 *   **copy / trash**: duplicate or delete.
@@ -949,7 +944,7 @@ A gear library for Metadata (§11), Roll Settings and every gear picker. **My Ge
 
 ---
 
-## 13. Export tab
+## 12. Export tab
 
 ### Output intent
 
@@ -1026,7 +1021,7 @@ A darkroom proof of the roll: every visible frame at true size, as cut film stri
 *   **Order**: **Date**, or **Scene**, where each scene starts a new strip.
 *   **Print**: **As Edited**, or **Straight Proof**: the whole roll at one exposure on grade 2 from its Roll Analysis baseline, so thin and dense negatives print light and dark. It needs the roll scanned at one exposure.
 *   **Pick Frames**: click a frame to leave it out or put it back; rejected frames start out.
-*   **Edge Print**: the maker's markings on the film edge (stock name, frame numbers, DX barcode).
+*   **Edge Print**: the maker's markings on the film edge (stock name, frame numbers, DX barcode). A built-in stock prints its own codes and DX number where they are known, a cine stock or its respool its KEYKODE numbers and barcode; other stocks get the maker's usual layout with the stock name.
 *   **Roll Label**: the roll name, film, developer, camera and date above the strips.
 *   **White Paper**: white paper in place of the darkroom black, to save ink on a home printer.
 *   **Film Base** (on): prints the film base black, as a darkroom contact print. Off prints it as paper with the strip outlined, to save more ink.
@@ -1054,7 +1049,7 @@ Preview only; exports are never proofed. Paper is dimmer and has a smaller gamut
 
 ---
 
-## 14. Scan tab
+## 13. Scan tab
 
 Capture film directly into NegPy. The **Scanner** card picks the scanner; the tab shows its cards, the shared **Output** card and the **Scan** button.
 
@@ -1153,7 +1148,7 @@ Dialogs end with **Cancel**, **Apply** (keep the framing) and **Scan**. During a
 
 ---
 
-## 15. Preferences
+## 14. Preferences
 
 Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Changes apply at once; startup rows show a restart notice.
 
@@ -1161,11 +1156,11 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 
 *   **Language** (default System Default): English, Simplified Chinese, Japanese or Korean; restart to apply. Other system languages use English. Panel guides use the selected language and fall back to English when a translation is missing.
 *   **UI scale** (80% to 120%): after a restart.
-*   **Canvas background**: black, dark gray, mid gray (neutral for judging) or white (a print on a light table).
-*   **Immersive canvas**: the toolbar floats over the image.
+*   **Canvas background**: black, dark gray, mid gray (neutral for judging, the default), light gray or white (a print on a light table). The Film Strip and the Light Table lie on it too.
+*   **Film edges** (on by default): draws the frames of the Film Strip and the Light Table as film, with rebate, perforations and edge print. Off shows the pictures alone.
 *   **Sticky zoom**: keeps the zoom when you switch frames.
 *   **Reverse scroll zoom**: scroll up zooms out.
-*   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, canvas toolbar picker, default panel layout.
+*   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, toolbar picker, default panel layout.
 
 ### Accessibility
 
@@ -1215,9 +1210,9 @@ For crashes on launch or rendering glitches: edit `Documents/NegPy/override.toml
 
 ---
 
-## 16. Updating NegPy
+## 15. Updating NegPy
 
-NegPy checks GitHub once at startup. A new release shows a green **⬇ Update Available: vX.Y.Z** line at the top of the left panel; click it, or **Update to vX.Y.Z…** in the **⋯** menu, for the release notes and the install button. **Check for Updates…** checks by hand.
+NegPy checks GitHub once at startup. A new release adds **Update to vX.Y.Z…** to the **⋯** menu, marked with a green dot; it opens the release notes and the install button. **Check for Updates…** checks by hand.
 
 **Install Update** downloads the build for this install type, closes NegPy, installs and reopens. Nothing is replaced until NegPy exits, so a failure leaves your install as it was.
 

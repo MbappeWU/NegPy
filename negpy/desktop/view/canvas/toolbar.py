@@ -47,7 +47,7 @@ CANVAS_COLORS = [
     (THEME.canvas_bg_dark_grey, (0.11, 0.11, 0.11), tr("Dark Gray")),
     (THEME.canvas_bg_mid_grey, (0.25, 0.25, 0.25), tr("Mid Gray")),
     (THEME.canvas_bg_white, (0.902, 0.902, 0.902), tr("White")),
-    (THEME.canvas_bg_light_grey, (0.627, 0.627, 0.627), "Light Gray"),
+    (THEME.canvas_bg_light_grey, (0.627, 0.627, 0.627), tr("Light Gray")),
 ]
 
 
@@ -341,8 +341,8 @@ class ActionToolbar(QWidget):
 
         saved_mode = self.session.repo.get_global_setting(_MODE_SETTING_KEY, _MODES[0])
         self._mode = saved_mode if saved_mode in _MODES else _MODES[0]
-        mode_tip = "What the toolbar shows: the photo's tools, or the roll's filter, sort and actions"
-        self.mode_switch = SegmentedChoice((("fa5s.image", "Photo"), ("fa5s.film", "Roll")), mode_tip, data=_MODES)
+        mode_tip = tr("What the toolbar shows: the photo's tools, or the roll's filter, sort and actions")
+        self.mode_switch = SegmentedChoice((("fa5s.image", tr("Photo")), ("fa5s.film", tr("Roll"))), mode_tip, data=_MODES)
         self._tip(self.mode_switch, mode_tip, "toggle_toolbar_mode")
         self.mode_switch.setCurrentIndex(_MODES.index(self._mode))
         self.mode_switch.currentChanged.connect(lambda _i: self.set_mode(self.mode_switch.currentData()))
@@ -350,7 +350,7 @@ class ActionToolbar(QWidget):
         # 0. Panel toggles (live at the bar's right end)
         # Not checkable: an open panel is the resting state, and the accent means armed.
         self.btn_toggle_strip = QToolButton()
-        self._tip(self.btn_toggle_strip, "Collapse or expand the Film Strip", "toggle_film_strip")
+        self._tip(self.btn_toggle_strip, tr("Collapse or expand the Film Strip"), "toggle_film_strip")
         self.set_strip_expanded(True)
         self.btn_toggle_right = QToolButton()
         self.btn_toggle_right.setIcon(qta.icon("fa5s.sliders-h", color=icon_color))
