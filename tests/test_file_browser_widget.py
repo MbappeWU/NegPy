@@ -695,17 +695,24 @@ def test_the_scroll_bars_sit_on_the_edge_and_the_film_runs_off_the_other_edges(b
 
 
 def test_the_strip_margin_above_and_below_the_film_follows_its_height(browser, qapp):
+    from PyQt6.QtWidgets import QWidget
+
     view = browser.list_view
-    browser.show()
+    # A child resizes at once; a window's size can settle late.
+    host = QWidget()
+    browser.setParent(host)
+    host.resize(1000, 600)
+    host.show()
     margins = []
     for height in (400, 120):
-        browser.resize(900, height)
+        browser.setGeometry(0, 0, 900, height)
         qapp.processEvents()
         assert view.viewport().geometry().top() == round(view.height() * view.MARGIN_SHARE)
         assert view.viewport().height() - view.gridSize().height() <= 2
         margins.append(view.viewport().geometry().top())
 
     assert margins[0] > margins[1] > 0
+    host.hide()
 
 
 def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):

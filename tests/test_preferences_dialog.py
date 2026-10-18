@@ -38,15 +38,24 @@ class TestPreferencesDialog(unittest.TestCase):
 
         dlg = _dlg()
         self.assertEqual(len(dlg.canvas_pills), len(CANVAS_COLORS))
-        self.assertTrue(dlg.canvas_pills[0].isChecked())
+        self.assertTrue(dlg.canvas_pills[2].isChecked(), "Mid Gray is the default")
         self.assertEqual([p.toolTip() for p in dlg.canvas_pills], [label for _, _, label in CANVAS_COLORS])
+
+    def test_the_pills_run_darkest_to_lightest_and_white_keeps_its_saved_index(self):
+        from PyQt6.QtWidgets import QHBoxLayout
+
+        dlg = _dlg()
+        row = next(layout for layout in dlg.findChildren(QHBoxLayout) if layout.indexOf(dlg.canvas_pills[0]) >= 0)
+        shown = [row.itemAt(i).widget().toolTip() for i in range(row.count())]
+        self.assertEqual(shown, ["Black", "Dark Gray", "Mid Gray", "Light Gray", "White"])
+        self.assertEqual(dlg.canvas_pills[3].toolTip(), "White")
 
     def test_clicking_a_pill_sets_that_background(self):
         dlg = _dlg()
-        dlg.canvas_pills[2].click()
-        dlg.session.set_canvas_bg.assert_called_once_with(2)
-        self.assertTrue(dlg.canvas_pills[2].isChecked())
-        self.assertFalse(dlg.canvas_pills[0].isChecked())
+        dlg.canvas_pills[1].click()
+        dlg.session.set_canvas_bg.assert_called_once_with(1)
+        self.assertTrue(dlg.canvas_pills[1].isChecked())
+        self.assertFalse(dlg.canvas_pills[2].isChecked())
 
     def test_color_vision_offers_every_palette_and_sets_it(self):
         from negpy.desktop.view.styles.color_vision import PALETTES

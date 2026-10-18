@@ -259,6 +259,7 @@ class PreferencesDialog(QDialog):
             pill.clicked.connect(lambda _checked=False, i=idx: self._on_canvas_bg_changed(i))
             self.canvas_group.addButton(pill, idx)
             self.canvas_pills.append(pill)
+        for pill, (hex_color, _, _) in sorted(zip(self.canvas_pills, _canvas_colors()), key=lambda pair: QColor(pair[1][0]).lightness()):
             pills.addWidget(pill, 1)
         grid.addLayout(pills, row, 1)
         row += 1

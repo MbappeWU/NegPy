@@ -206,8 +206,8 @@ class AppState:
     # Process-mode autodetect on file load (opt-in)
     autodetect_enabled: bool = False
 
-    # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray)
-    canvas_bg_index: int = 0
+    # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray, 3=White, 4=Light Gray)
+    canvas_bg_index: int = 2
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
     color_vision: str = "standard"
 
