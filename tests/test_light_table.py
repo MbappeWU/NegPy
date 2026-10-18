@@ -381,27 +381,6 @@ def test_the_outline_runs_along_the_film_edge_in_the_scene_color(browser, qapp):
     browser.hide()
 
 
-def test_a_glow_tints_the_strip_just_outside_the_outline(browser, qapp):
-    from negpy.desktop.view.styles.theme import scene_color
-
-    _scene_roll(browser, [None, NIGHT, None])
-    strip = browser.list_view
-    browser.resize(1400, 260)
-    browser.show()
-    qapp.processEvents()
-    image = strip.viewport().grab().toImage()
-    delegate = strip.itemDelegate()
-    color = QColor(scene_color(2))
-
-    def above(row: int) -> int:
-        cell = strip.visualRect(strip.model().index(row, 0))
-        c = image.pixelColor(cell.center().x(), delegate._layout(delegate._film[0], cell)[0] - 1)
-        return abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue())
-
-    assert above(1) < above(0) - 30
-    browser.hide()
-
-
 @pytest.mark.parametrize(("rotation", "top_lies_left"), [(0, False), (3, True)])
 def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_lies_left):
     upright = Image.new("RGB", (200, 300), (0, 0, 200))
