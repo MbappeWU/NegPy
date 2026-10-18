@@ -1,4 +1,5 @@
 from negpy.kernel.system.i18n import tr
+import math
 import os
 from dataclasses import replace
 from typing import Any, Callable, List, Optional
@@ -442,6 +443,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
 
 # A grid cell's target width, one frame pitch on the Light Table; columns justify to the width.
 THUMB_CELL_DEFAULT = 220
+THUMB_CELL_MIN = 110
 
 
 class ThumbnailGridView(QListView):
@@ -898,9 +900,11 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
     _edges = True
+    cell_zoomed = pyqtSignal(int)
 
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
+    def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
+        super().__init__(parent, target_cell)
+        self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
         self.setViewportMargins(THEME.space_2xl, 0, THEME.space_2xl, 0)
         self.set_table_color(table_color(AppState.canvas_bg_index))
@@ -921,6 +925,29 @@ class _FilmGridView(ThumbnailGridView):
     def cell_for_width(self, vw: int) -> int:
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
         return max(1, (vw - 1) // self.columns_for_width(vw))
+
+    def zoom(self, steps: int) -> None:
+        """One frame fewer a row per step; at the largest, one row of film fits the view's height."""
+        vw, vh = self.viewport().width(), self.viewport().height()
+        fewest = max(1, math.ceil(vw * self._aspect / max(1, vh)))
+        most = max(fewest, vw // THUMB_CELL_MIN)
+        columns = min(most, max(fewest, self.columns_for_width(vw) - steps))
+        self._target_cell = vw // columns
+        self._relayout()
+        self.scrollTo(self.currentIndex())
+        self.cell_zoomed.emit(self._target_cell)
+
+    def wheelEvent(self, event) -> None:
+        if not event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            super().wheelEvent(event)
+            return
+        # A trackpad sends one notch as many small deltas.
+        self._zoom_angle += event.angleDelta().y()
+        steps = int(self._zoom_angle / 120)
+        if steps:
+            self._zoom_angle -= steps * 120
+            self.zoom(steps)
+        event.accept()
 
     def _apply_cell(self, cell: int) -> None:
         if cell == self._last_cell:
@@ -1258,7 +1285,10 @@ class FileBrowser(QWidget):
         self._thumbnail_delegate = _FilmStripDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
-        self.light_table_view = _FilmGridView()
+        self.light_table_view = _FilmGridView(
+            target_cell=int(self.session.repo.get_global_setting("light_table_cell") or THUMB_CELL_DEFAULT)
+        )
+        self.light_table_view.cell_zoomed.connect(lambda cell: self.session.repo.save_global_setting("light_table_cell", cell))
         self._light_table_delegate = _FilmDelegate(self.light_table_view, state=self.session.state, frame_geometry=self._frame_geometry)
         self._make_grid(self.light_table_view, self._light_table_delegate)
         self.light_table_view.setSelectionModel(self.list_view.selectionModel())

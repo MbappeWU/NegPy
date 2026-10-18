@@ -5,14 +5,22 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from PIL import Image
-from PyQt6.QtCore import QRect, Qt
-from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QStandardItem, QStandardItemModel
+from PyQt6.QtCore import QPoint, QPointF, QRect, Qt
+from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QStandardItem, QStandardItemModel, QWheelEvent
 from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QToolButton, QWidget
 
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
 from negpy.desktop.view.main_window import MainWindow
-from negpy.desktop.view.sidebar.files import FileBrowser, _FilmDelegate, _FilmStripDelegate, print_dmax, roll_film, picture_in_thumbnail
+from negpy.desktop.view.sidebar.files import (
+    THUMB_CELL_MIN,
+    FileBrowser,
+    _FilmDelegate,
+    _FilmStripDelegate,
+    print_dmax,
+    roll_film,
+    picture_in_thumbnail,
+)
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.geometry.models import GeometryConfig
@@ -321,6 +329,56 @@ def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
 
     window = delegate._layout(delegate._film[0], option.rect)[1]
     assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == QColor(WHITE)
+
+
+def _shown_table(browser, qapp):
+    view = browser.light_table_view
+    view.resize(1200, 700)
+    view.show()
+    qapp.processEvents()
+    return view, view.viewport().width()
+
+
+def test_zoom_takes_one_frame_a_row_away_and_saves_the_size(browser, qapp):
+    view, vw = _shown_table(browser, qapp)
+    columns = view.columns_for_width(vw)
+
+    view.zoom(1)
+    assert view.columns_for_width(vw) == columns - 1
+    browser.session.repo.save_global_setting.assert_called_with("light_table_cell", view._target_cell)
+
+    view.zoom(-100)
+    assert view.gridSize().width() >= THUMB_CELL_MIN
+    view.zoom(100)
+    assert view.gridSize().height() - view.STRIP_GAP <= view.viewport().height()
+    assert view.columns_for_width(vw) > 1
+    view.hide()
+
+
+def _ctrl_wheel(angle_y: int, modifiers=Qt.KeyboardModifier.ControlModifier) -> QWheelEvent:
+    at = QPointF(10.0, 10.0)
+    return QWheelEvent(at, at, QPoint(), QPoint(0, angle_y), Qt.MouseButton.NoButton, modifiers, Qt.ScrollPhase.NoScrollPhase, False)
+
+
+def test_ctrl_and_the_wheel_zoom_the_light_table(browser, qapp):
+    view, vw = _shown_table(browser, qapp)
+    columns = view.columns_for_width(vw)
+
+    view.wheelEvent(_ctrl_wheel(120))
+    assert view.columns_for_width(vw) == columns - 1
+    view.wheelEvent(_ctrl_wheel(-60))
+    assert view.columns_for_width(vw) == columns - 1
+    view.wheelEvent(_ctrl_wheel(-60))
+    assert view.columns_for_width(vw) == columns
+    view.wheelEvent(_ctrl_wheel(-120, Qt.KeyboardModifier.NoModifier))
+    assert view.columns_for_width(vw) == columns
+    view.hide()
+
+
+def test_the_light_table_opens_at_the_saved_frame_size(browser):
+    browser.session.repo.get_global_setting.side_effect = lambda key, default=None: 300 if key == "light_table_cell" else default
+
+    assert FileBrowser(browser.controller).light_table_view._target_cell == 300
 
 
 def _scene_roll(browser, scenes):

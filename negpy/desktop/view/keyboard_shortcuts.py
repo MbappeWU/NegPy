@@ -103,6 +103,11 @@ def _step_file(controller, step: int) -> None:
         (controller.session.next_file if step > 0 else controller.session.prev_file)()
 
 
+def _zoom_light_table(window, steps: int) -> None:
+    if window.light_table_active():
+        window.file_browser.light_table_view.zoom(steps)
+
+
 def _context_cancel(controller, window) -> None:
     """Esc ladder: whatever has taken the canvas over goes first — a test strip, any peek,
     the before/after split — then the grain focuser loupe, then an armed zone, then
@@ -601,6 +606,8 @@ class ShortcutManager:
             "toggle_side_panels": self.window.toggle_side_panels,
             "toggle_reference": self.window.toggle_reference,
             "toggle_light_table": lambda: self.window.set_light_table(not self.window.light_table_active()),
+            "light_table_zoom_in": lambda: _zoom_light_table(self.window, 1),
+            "light_table_zoom_out": lambda: _zoom_light_table(self.window, -1),
             "show_analysis_help": self.window.right_panel.show_analysis_help,
             "check_for_updates": lambda: self.window.update_notice.check_for_updates(),
             "show_about": self.window.show_about,

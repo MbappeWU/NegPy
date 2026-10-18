@@ -78,6 +78,8 @@ Actions with no default key are not listed; every one of them can still be bound
 | `Ctrl + Shift + L` | Dock the controls panel and expand the Film Strip |
 | `Shift + H` | Hide the controls panel and collapse the Film Strip, or bring both back |
 | `Shift + G` | Light Table: the roll as a grid in place of the canvas |
+| ` + ` | Light Table: larger frames, fewer to a row |
+| `-` | Light Table: smaller frames, more to a row |
 | `Shift + R` | Reference view: pin this frame beside the canvas to match others to it |
 | `0` | Fit to window |
 | `1` | Zoom 100% |

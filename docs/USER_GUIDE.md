@@ -168,7 +168,7 @@ The **⋮** menu at the end of the toolbar's Roll row:
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
 
-The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a light table for culling, with the same selection, marks and menus. It takes the place of the canvas and the Film Strip; the toolbar and the controls panel stay. **Esc**, `Shift+G` or the grid button goes back.
+The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a light table for culling, with the same selection, marks and menus. It takes the place of the canvas and the Film Strip; the toolbar and the controls panel stay. `+` and `-`, or **Ctrl** and the wheel, make the frames larger or smaller, one frame a row at a time; the size is kept. **Esc**, `Shift+G` or the grid button goes back.
 
 The toolbar's Roll row:
 
