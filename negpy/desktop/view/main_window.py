@@ -497,7 +497,7 @@ class MainWindow(QMainWindow):
 
     def _sync_strip_handle(self) -> None:
         """The handle above the strip takes the table's color and no grip, so it reads as the strip's top edge."""
-        color = table_color(self.state.light_table_bg_index)
+        color = table_color(self.state.canvas_bg_index)
         self.strip_splitter.setStyleSheet(f"QSplitter#strip_splitter::handle {{ background: {color}; }}")
 
     def _on_strip_splitter_moved(self, *_args) -> None:
@@ -621,7 +621,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Wire controller and view."""
         browser = self.file_browser
-        self.controller.session.light_table_bg_changed.connect(self._sync_strip_handle)
+        self.controller.session.canvas_bg_changed.connect(self._sync_strip_handle)
         browser.light_table_opened.connect(lambda: self.set_light_table(False))
         browser.library_requested.connect(self.show_library)
         library = self.right_panel.library_tree

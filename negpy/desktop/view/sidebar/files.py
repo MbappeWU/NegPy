@@ -795,12 +795,12 @@ class ThumbnailGridView(QListView):
 
 # Barcode modules this coarse alias, so they print as their mean.
 _DRAFT_PX_PER_MM = 4.0
-# The Light Table's default surface, a lit white; the perforations show it through the film.
+# A lit white light table; the perforations show the surface through the film.
 LIGHT_TABLE_WHITE = THEME.canvas_bg_white
 
 
 def table_color(index: int) -> str:
-    """The surface of the Film Strip and the Light Table: one of the canvas background choices."""
+    """The surface of the Film Strip and the Light Table: the canvas background."""
     return CANVAS_COLORS[index][0] if 0 <= index < len(CANVAS_COLORS) else LIGHT_TABLE_WHITE
 
 
@@ -1362,7 +1362,7 @@ class FileBrowser(QWidget):
         self.list_view.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.hot_folder_btn.toggled.connect(self._on_hot_folder_toggled)
         self.controller.thumbnail_refresh_state_changed.connect(self._on_thumbnail_refresh_state_changed)
-        self.session.light_table_bg_changed.connect(self._sync_film)
+        self.session.canvas_bg_changed.connect(self._sync_film)
         model = self.session.asset_model
         for signal in (model.dataChanged, model.layoutChanged, model.modelReset, model.rowsInserted, model.rowsRemoved):
             signal.connect(lambda *_args: self._rebate_timer.start())
@@ -1425,7 +1425,7 @@ class FileBrowser(QWidget):
         config = state.config
         meta = config.metadata
         half_frame = bool(self.controller.half_frame_mode_for_roll(state.active_roll_id)) if state.active_roll_id else False
-        table = table_color(state.light_table_bg_index)
+        table = table_color(state.canvas_bg_index)
         key = (
             (meta.film_stock_id, meta.film, meta.film_manufacturer, meta.film_color_type, meta.format, meta.format_other),
             (config.process.process_mode, config.process.positive_source, config.exposure.paper_black),

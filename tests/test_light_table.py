@@ -166,16 +166,15 @@ def browser(qapp):
     return FileBrowser(controller)
 
 
-def test_the_strip_and_the_light_table_take_the_chosen_surface(browser):
+def test_the_strip_and_the_light_table_lie_on_the_canvas_background(browser):
     from negpy.desktop.view.canvas.toolbar import CANVAS_COLORS
 
-    black = CANVAS_COLORS[0][0]
-    browser.session.set_light_table_bg(0)
+    gray = CANVAS_COLORS[2][0]
+    browser.session.set_canvas_bg(2)
 
     for view in (browser.list_view, browser.light_table_view):
-        assert f"background-color: {black}" in view.styleSheet()
-    assert browser._light_table_delegate._film[2].no_film == QColor(black).getRgb()[:3]
-    browser.session.repo.save_global_setting.assert_any_call("light_table_bg_index", 0)
+        assert f"background-color: {gray}" in view.styleSheet()
+    assert browser._light_table_delegate._film[2].no_film == QColor(gray).getRgb()[:3]
 
 
 def test_the_light_table_shares_the_strip_selection(browser):
@@ -273,6 +272,7 @@ def test_the_gear_library_is_read_again_only_when_the_film_changes(browser):
 
 def test_a_light_table_cell_is_one_frame_of_film(browser):
     view, delegate = browser.light_table_view, browser._light_table_delegate
+    browser.session.state.canvas_bg_index = 3  # White
     browser._film_key = None
     browser.sync_ui()
     view.resize(900, 600)

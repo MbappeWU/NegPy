@@ -30,7 +30,7 @@ def win(qapp):
         _strip_open_height=300,
         _strip_handle_width=splitter.handleWidth(),
         controller=MagicMock(),
-        state=SimpleNamespace(light_table_bg_index=0),
+        state=SimpleNamespace(canvas_bg_index=0),
     )
     for name in ("film_strip_expanded", "set_film_strip_expanded", "_apply_strip_constraints"):
         setattr(win, name, getattr(MainWindow, name).__get__(win))

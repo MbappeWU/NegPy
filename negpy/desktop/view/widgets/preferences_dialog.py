@@ -244,11 +244,23 @@ class PreferencesDialog(QDialog):
         row += 1
 
         grid.addWidget(field_label(tr("Canvas background")), row, 0)
-        self.canvas_group, self.canvas_pills = self._color_pills(grid, row, state.canvas_bg_index, self._on_canvas_bg_changed)
-        row += 1
-
-        grid.addWidget(field_label("Light table background"), row, 0)
-        self.table_group, self.table_pills = self._color_pills(grid, row, state.light_table_bg_index, self.session.set_light_table_bg)
+        pills = QHBoxLayout()
+        pills.setSpacing(THEME.space_sm)
+        self.canvas_group = QButtonGroup(self)
+        self.canvas_group.setExclusive(True)
+        self.canvas_pills: list[QPushButton] = []
+        for idx, (hex_color, _, label) in enumerate(_canvas_colors()):
+            pill = QPushButton()
+            pill.setCheckable(True)
+            pill.setChecked(idx == state.canvas_bg_index)
+            pill.setFixedHeight(default_button_height())
+            pill.setToolTip(label)
+            pill.setStyleSheet(_pill_qss(hex_color))
+            pill.clicked.connect(lambda _checked=False, i=idx: self._on_canvas_bg_changed(i))
+            self.canvas_group.addButton(pill, idx)
+            self.canvas_pills.append(pill)
+            pills.addWidget(pill, 1)
+        grid.addLayout(pills, row, 1)
         row += 1
 
         self.sticky_zoom_box = self._add_checkbox(
@@ -491,26 +503,6 @@ class PreferencesDialog(QDialog):
     def _on_sticky_settings_changed(self, checked: bool) -> None:
         self.session.set_sticky_settings_enabled(checked)
         self._persistent_settings_button.setEnabled(checked)
-
-    def _color_pills(self, grid, row: int, current: int, on_pick) -> tuple[QButtonGroup, list[QPushButton]]:
-        pills = QHBoxLayout()
-        pills.setSpacing(THEME.space_sm)
-        group = QButtonGroup(self)
-        group.setExclusive(True)
-        buttons: list[QPushButton] = []
-        for idx, (hex_color, _, label) in enumerate(_canvas_colors()):
-            pill = QPushButton()
-            pill.setCheckable(True)
-            pill.setChecked(idx == current)
-            pill.setFixedHeight(default_button_height())
-            pill.setToolTip(label)
-            pill.setStyleSheet(_pill_qss(hex_color))
-            pill.clicked.connect(lambda _checked=False, i=idx: on_pick(i))
-            group.addButton(pill, idx)
-            buttons.append(pill)
-            pills.addWidget(pill, 1)
-        grid.addLayout(pills, row, 1)
-        return group, buttons
 
     def _on_canvas_bg_changed(self, index: int) -> None:
         self.session.set_canvas_bg(index)
