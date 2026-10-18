@@ -323,6 +323,75 @@ def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
     assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == QColor(WHITE)
 
 
+def _scene_roll(browser, scenes):
+    state = browser.session.state
+    state.uploaded_files = [
+        {"name": f"{i}.tif", "path": f"/r/{i}.tif", "hash": f"h{i}", **({"scene": scene} if scene else {})}
+        for i, scene in enumerate(scenes)
+    ]
+    browser.session.asset_model.refresh()
+    browser.controller.load_gear_library.return_value = _hp5()[1]
+    browser._film_key = None
+    browser.sync_ui()
+
+
+BEACH, NIGHT = (1, "s1", "Beach"), (2, "s2", "Night")
+
+
+def test_a_loop_rings_each_run_of_a_scenes_frames_on_one_row(browser, qapp):
+    _scene_roll(browser, [None, BEACH, BEACH, NIGHT, None, BEACH])
+    strip, table = browser.list_view, browser.light_table_view
+    browser.resize(1400, 200)
+    browser.show()
+    qapp.processEvents()
+
+    runs = [(scene, index.row(), first, last) for scene, index, first, last in strip.scene_runs_on_rows()]
+    assert [(scene, row) for scene, row, _first, _last in runs] == [(BEACH, 1), (NIGHT, 3), (BEACH, 5)]
+    assert runs[0][3] == strip.visualRect(strip.model().index(2, 0))
+
+    table.resize(table.gridSize().width() * 2 + 2 * THEME.space_2xl + 30, 600)  # two frames a row
+    table._relayout()
+    table.show()
+    qapp.processEvents()
+    assert [index.row() for _scene, index, _first, _last in table.scene_runs_on_rows()] == [1, 2, 3, 5]
+    browser.hide()
+
+
+def test_the_loop_is_drawn_in_the_scene_color_beside_the_film(browser, qapp):
+    from negpy.desktop.view.styles.theme import scene_color
+
+    _scene_roll(browser, [None, NIGHT, NIGHT, None])
+    strip = browser.list_view
+    browser.resize(1400, 260)
+    browser.show()
+    qapp.processEvents()
+    image = strip.viewport().grab().toImage()
+    first = strip.visualRect(strip.model().index(1, 0))
+    film_top = strip.itemDelegate()._layout(strip.itemDelegate()._film[0], first)[0]
+    color = QColor(scene_color(2))
+
+    def near(x: int) -> bool:
+        column = [image.pixelColor(x, y) for y in range(first.top(), film_top)]
+        return any(abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 90 for c in column)
+
+    assert near(first.right())
+    assert not near(strip.visualRect(strip.model().index(0, 0)).center().x())
+    browser.hide()
+
+
+def test_a_loop_keeps_its_wobble_for_its_seed():
+    from PyQt6.QtCore import QRectF
+
+    from negpy.desktop.view.sidebar.files import grease_loop
+
+    def points(seed):
+        path = grease_loop(QRectF(0, 0, 300, 120), 12.0, 1.5, seed)
+        return [(path.elementAt(i).x, path.elementAt(i).y) for i in range(path.elementCount())]
+
+    assert points("s1:h1") == points("s1:h1")
+    assert points("s1:h1") != points("s2:h1")
+
+
 @pytest.mark.parametrize(("rotation", "top_lies_left"), [(0, False), (3, True)])
 def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_lies_left):
     upright = Image.new("RGB", (200, 300), (0, 0, 200))

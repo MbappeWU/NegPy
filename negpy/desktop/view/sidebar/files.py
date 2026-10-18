@@ -1,5 +1,7 @@
 from negpy.kernel.system.i18n import tr
+import math
 import os
+import random
 from dataclasses import replace
 from typing import Any, Callable, List, Optional
 
@@ -14,6 +16,7 @@ from PyQt6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
+    QPointF,
     QPropertyAnimation,
     QRect,
     QRectF,
@@ -108,8 +111,7 @@ from negpy.services.film_edge.paint import Palette, paint_strip
 
 class _ThumbnailDelegate(QStyledItemDelegate):
     """Contact-sheet rendering: scales each cached ~120px thumbnail into its cell and
-    draws a subtle 1px border hugging the image outline (no cell box), 2px in the frame's
-    scene color. The selected image is shown full-brightness
+    draws a subtle 1px border hugging the image outline (no cell box). The selected image is shown full-brightness
     with the accent ring just outside that border, so both show at once; the others are
     dimmed. A dirty active file gets an accent line along the image's bottom edge.
     Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
@@ -252,15 +254,10 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.drawPoint(cx, cy + 4)
 
     def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
-        """The picture's edge line, 2px in its scene's color, and the selection ring outside it."""
-        scene = file_info.get("scene")
+        """The picture's edge line and the selection ring outside it."""
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        if scene:
-            painter.setPen(QPen(QColor(scene_color(scene[0])), 2))
-            painter.drawRoundedRect(QRectF(img_rect).adjusted(1, 1, -2, -2), self._RADIUS, self._RADIUS)
-        else:
-            painter.setPen(self._border_pen(hover))
-            painter.drawRoundedRect(img_rect.adjusted(0, 0, -1, -1), self._RADIUS, self._RADIUS)
+        painter.setPen(self._border_pen(hover))
+        painter.drawRoundedRect(img_rect.adjusted(0, 0, -1, -1), self._RADIUS, self._RADIUS)
         if selected:
             out = self._SELECTION_OUTSET
             painter.setPen(QPen(QColor(THEME.accent_primary), 2))
@@ -455,10 +452,8 @@ class ThumbnailGridView(QListView):
     ``target_cell`` as fit, each grown to fill the width exactly."""
 
     SPACING = 2
-    # Scene sort: the gap between two scenes' blocks, and each block's tinted band.
+    # Scene sort: the gap between two scenes' blocks.
     SCENE_GAP = THEME.space_lg
-    SCENE_BAND_ALPHA = 0.18
-    SCENE_BAND_RADIUS = 6
     # One notch scrolls one row of thumbnails. Qt's default, three "lines" a notch, advanced
     # several frames at a time in a single-column panel.
     WHEEL_ROWS_PER_NOTCH = 1.0
@@ -475,7 +470,6 @@ class ThumbnailGridView(QListView):
         self._ctrl_target: set[QPersistentModelIndex] = set()
         self._pre_press_selection: set[QPersistentModelIndex] = set()
         self._placing_scenes = False
-        self._scene_bands: list[tuple[int, int, int, QRect]] = []  # (ordinal, first row, last row, band)
         # Hover tracks the pointer, not only a scroll. The macOS style turns on neither, so a
         # plain move never reaches the view.
         self.setMouseTracking(True)
@@ -535,51 +529,19 @@ class ThumbnailGridView(QListView):
         each one; every other order keeps Qt's own flow."""
         model = self.model()
         runs = model.scene_runs() if hasattr(model, "scene_runs") else []
-        self._scene_bands = []
         if not runs:
             return
         grid, cell = self.gridSize(), self.iconSize()
         cols = self.columns_for_width(self.viewport().width())
         inset = (grid.width() - cell.width()) // 2  # Qt centers a cell in its grid square
-        pad = self.SCENE_GAP // 2 - 1
         y = self.SCENE_GAP // 2
-        for ordinal, first, last in runs:
+        for _ordinal, first, last in runs:
             count = last - first + 1
             for n in range(count):
                 position = QPoint(inset + (n % cols) * grid.width(), y + (n // cols) * grid.height())
                 self.setPositionForIndex(position, model.index(first + n, 0))
             lines = (count - 1) // cols + 1
-            if ordinal is not None:
-                height = (lines - 1) * grid.height() + cell.height() + 2 * pad
-                self._scene_bands.append((ordinal, first, last, QRect(0, y - pad, min(count, cols) * grid.width(), height)))
             y += lines * grid.height() + self.SCENE_GAP
-
-    def paintEvent(self, event) -> None:
-        if self._scene_bands:
-            self._paint_scene_bands()
-        super().paintEvent(event)
-
-    def _paint_scene_bands(self) -> None:
-        """Each scene's band, cut away under every picture: a dimmed or letterboxed
-        thumbnail would otherwise show the tint through it."""
-        model, delegate = self.model(), self.itemDelegate()
-        painter = QPainter(self.viewport())
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        painter.setPen(Qt.PenStyle.NoPen)
-        for ordinal, first, last, rect in self._scene_bands:
-            band = QPainterPath()
-            band.addRoundedRect(QRectF(rect.translated(0, -self.verticalOffset())), self.SCENE_BAND_RADIUS, self.SCENE_BAND_RADIUS)
-            if isinstance(delegate, _ThumbnailDelegate):
-                pictures = QPainterPath()
-                for row in range(first, last + 1):
-                    index = model.index(row, 0)
-                    picture = QRectF(delegate.picture_rect(self.visualRect(index), index))
-                    pictures.addRoundedRect(picture, delegate._RADIUS, delegate._RADIUS)
-                band = band.subtracted(pictures)
-            color = QColor(scene_color(ordinal))
-            color.setAlphaF(self.SCENE_BAND_ALPHA)
-            painter.fillPath(band, color)
-        painter.end()
 
     def _begin_click_selection(self, pre_press_current: QModelIndex) -> None:
         """Decides the gesture's mode and range anchor exactly once, from the modifiers and
@@ -815,6 +777,47 @@ def print_dmax(image: QImage) -> Optional[tuple[int, int, int]]:
     return red, green, blue
 
 
+def grease_loop(rect: QRectF, radius: float, jitter: float, seed: str) -> QPainterPath:
+    """A hand-drawn loop around `rect` whose end runs past its start; `seed` fixes the wobble, so
+    every repaint draws the same line."""
+    rnd = random.Random(seed)
+    x1, y1, x2, y2, r = rect.left(), rect.top(), rect.right(), rect.bottom(), radius
+    step = max(14.0, rect.width() / 14)
+    points: list[tuple[float, float]] = []
+
+    def side(fixed: float, start: float, stop: float, horizontal: bool) -> None:
+        sign = 1 if stop > start else -1
+        v = start
+        while (stop - v) * sign > 0:
+            points.append((v, fixed) if horizontal else (fixed, v))
+            v += step * sign
+
+    def corner(cx: float, cy: float, start: float) -> None:
+        for t in range(5):
+            a = start + math.pi / 8 * t
+            points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+
+    side(y1, x1 + r, x2 - r, True)
+    corner(x2 - r, y1 + r, -math.pi / 2)
+    side(x2, y1 + r + step, y2 - r, False)
+    corner(x2 - r, y2 - r, 0.0)
+    side(y2, x2 - r - step, x1 + r, True)
+    corner(x1 + r, y2 - r, math.pi / 2)
+    side(x1, y2 - r - step, y1 + r, False)
+    corner(x1 + r, y1 + r, math.pi)
+    closing = len(points)
+    points += points[1:4]
+    pts = [
+        QPointF(x + (rnd.random() - 0.5) * jitter, y + (rnd.random() - 0.5) * jitter + (0.8 * jitter if k > closing else 0.0))
+        for k, (x, y) in enumerate(points)
+    ]
+    path = QPainterPath(pts[0])
+    for k in range(len(pts) - 1):  # a Catmull-Rom spline through the points
+        p0, p1, p2, p3 = pts[max(0, k - 1)], pts[k], pts[k + 1], pts[min(len(pts) - 1, k + 2)]
+        path.cubicTo(p1 + (p2 - p0) / 6, p2 - (p3 - p1) / 6, p2)
+    return path
+
+
 def picture_in_thumbnail(image: QImage) -> QRect:
     """The picture inside a thumbnail that prepare_thumbnail padded to a square, centered on one axis."""
     pixels = _rgb_pixels(image).astype(np.int16)
@@ -926,7 +929,8 @@ class _FilmStripDelegate(_FilmDelegate):
 
 
 class _FilmGridView(ThumbnailGridView):
-    """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip."""
+    """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. A
+    grease-pencil loop in the scene's color rings each run of a scene's frames on one row."""
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
@@ -956,26 +960,79 @@ class _FilmGridView(ThumbnailGridView):
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
         return max(1, (vw - 1) // self.columns_for_width(vw))
 
+    def _strip_gap(self) -> int:
+        return self.STRIP_GAP if self._edges else 0
+
     def _apply_cell(self, cell: int) -> None:
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        size = QSize(cell, int(round(cell * self._aspect)) + (self.STRIP_GAP if self._edges else 0))
+        size = QSize(cell, int(round(cell * self._aspect)) + self._strip_gap())
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
+
+    def scene_runs_on_rows(self) -> list[tuple[tuple, QModelIndex, QRect, QRect]]:
+        """(scene, first index, first cell, last cell) per run of one scene's consecutive frames on one row."""
+        model = self.model()
+        runs: list[tuple[tuple, QModelIndex, QRect, QRect]] = []
+        current = None
+        for row in range(model.rowCount() if model is not None else 0):
+            index = model.index(row, 0)
+            scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
+            rect = self.visualRect(index)
+            if scene and current and current[0] == scene and current[3].top() == rect.top():
+                current = (scene, current[1], current[2], rect)
+                runs[-1] = current
+            elif scene:
+                current = (scene, index, rect, rect)
+                runs.append(current)
+            else:
+                current = None
+        return runs
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        delegate = self.itemDelegate()
+        if not isinstance(delegate, _FilmDelegate) or delegate._film is None:
+            return
+        runs = self.scene_runs_on_rows()
+        if not runs:
+            return
+        geometry = delegate._film[0]
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for scene, index, first, last in runs:
+            s = first.width() / geometry.pitch
+            top, window = delegate._layout(geometry, first)
+            # Halfway between the cell's edge and the film (or, without edges, the picture), so the
+            # sides pass through the frame gaps.
+            above, below = (top, top + geometry.width * s) if delegate._edges else (window.top(), window.top() + window.height())
+            left = (first.left() + window.left()) / 2
+            right = last.right() + 1 - (window.left() - first.left()) / 2
+            rect = QRectF(left, (first.top() + above) / 2, right - left, (first.bottom() + 1 + below) / 2 - (first.top() + above) / 2)
+            color = QColor(scene_color(scene[0]))
+            color.setAlphaF(0.9)
+            pen = QPen(color, max(1.5, min(3.0, 0.45 * s)))
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            seed = f"{scene[1]}:{(index.data(Qt.ItemDataRole.UserRole) or {}).get('hash', '')}"
+            painter.drawPath(grease_loop(rect, min(4 * s, rect.height() / 4), min(1.6, 0.3 * s), seed))
+        painter.end()
 
 
 class _FilmStripView(_FilmGridView):
     """The Film Strip: one row of film as tall as the view, scrolling sideways."""
 
-    STRIP_GAP = 0
     # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
     MARGIN_SHARE = 0.06
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._fit_margins(self.height())
+        # The film runs off the left and right edges.
+        self.setViewportMargins(0, 0, 0, 0)
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -990,18 +1047,20 @@ class _FilmStripView(_FilmGridView):
             + "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }"
         )
 
-    def _fit_margins(self, height: int) -> None:
-        # The film runs off the left and right edges.
-        margin = round(height * self.MARGIN_SHARE)
-        self.setViewportMargins(0, margin, 0, margin)
+    def _margin(self) -> int:
+        return round(self.height() * self.MARGIN_SHARE)
+
+    def _strip_gap(self) -> int:
+        # In the cells, not viewport margins: the scene loops run around the film there.
+        return 2 * self._margin()
 
     def resizeEvent(self, event) -> None:
-        # Not event.size(): the viewport's own resizes arrive here too.
-        self._fit_margins(self.height())
+        # The margin follows the height, though the frame width may round to the same cell.
+        self._last_cell = -1
         super().resizeEvent(event)
 
     def cell_for_width(self, vw: int) -> int:
-        return max(1, int((self.viewport().height() - 1) / self._aspect))
+        return max(1, int((self.viewport().height() - self._strip_gap() - 1) / self._aspect))
 
     def _apply_cell(self, cell: int) -> None:
         super()._apply_cell(cell)
@@ -1009,7 +1068,7 @@ class _FilmStripView(_FilmGridView):
 
     def _place_scene_runs(self) -> None:
         # One row: scenes keep their order, without the Light Table's blocks.
-        self._scene_bands = []
+        return
 
     def wheelEvent(self, event) -> None:
         """The wheel moves the row a frame a notch; a trackpad moves it by its own pixels."""

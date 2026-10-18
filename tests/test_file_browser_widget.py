@@ -683,7 +683,7 @@ def test_the_scroll_bars_sit_on_the_edge_and_the_film_runs_off_the_other_edges(b
     strip, strip_bar = browser.list_view, browser.list_view.horizontalScrollBar()
     strip_vp = strip.viewport().geometry()
     assert strip_bar.mapTo(strip, strip_bar.rect().bottomLeft()).y() == strip.height() - 1
-    assert strip_bar.mapTo(strip, strip_bar.rect().topLeft()).y() > strip_vp.bottom() + 1
+    assert strip_bar.mapTo(strip, strip_bar.rect().topLeft()).y() == strip_vp.bottom() + 1
     assert (strip_vp.left(), strip_vp.right()) == (0, strip.width() - 1)
 
     table_bar = table.verticalScrollBar()
@@ -706,9 +706,11 @@ def test_the_strip_margin_above_and_below_the_film_follows_its_height(browser, q
     for height in (400, 120):
         browser.setGeometry(0, 0, 900, height)
         qapp.processEvents()
-        assert view.viewport().geometry().top() == round(view.height() * view.MARGIN_SHARE)
-        assert view.viewport().height() - view.gridSize().height() <= 2
-        margins.append(view.viewport().geometry().top())
+        cell = view.gridSize()
+        film = round(cell.width() * view._aspect)
+        assert cell.height() - film == 2 * round(view.height() * view.MARGIN_SHARE)
+        assert view.viewport().height() - cell.height() <= 2
+        margins.append((cell.height() - film) // 2)
 
     assert margins[0] > margins[1] > 0
     host.hide()

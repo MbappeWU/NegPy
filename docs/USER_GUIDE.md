@@ -286,7 +286,7 @@ The right-click menu also has:
 
 #### Scenes
 
-A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first). A frame in a scene has an edge in the scene's color on the Film Strip and the Light Table.
+A scene is a group of frames in one roll shot in the same light. It has its own baseline, so its frames match each other, not the rest of the roll. Scenes need a roll (**Save as Roll…** first). On the Film Strip and the Light Table, a grease-pencil loop in the scene's color rings each run of its frames.
 
 *   **Scene** (right-click menu): **Group as Scene…** makes the selection a scene; **Add to** *name* and **Remove from Scene** move frames in and out. On a scene's frames, **Analyze Scene…** runs Scene Analysis; **Rename Scene…** and **Delete Scene…** manage it. A frame is in one scene at most. Deleting a scene keeps edits and baselines.
 *   **Sort → Scene**: each scene's frames as a block, frames in no scene last.
