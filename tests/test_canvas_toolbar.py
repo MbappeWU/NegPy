@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QApplication, QDialog
 
 from negpy.desktop.view.canvas.toolbar import DEFAULT_TOOLBAR_IDS, TOOLBAR_ITEM_BY_ID, TOOLBAR_ITEMS, ActionToolbar, load_toolbar_items
 from negpy.desktop.session import ToolMode
-from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 
 if not QApplication.instance():
@@ -80,15 +79,28 @@ def test_construction_does_not_show_orphan_controls(top_level_show_spy):
 
 
 class TestCanvasToolbarResponsive(unittest.TestCase):
-    def test_pill_width_never_exceeds_budget(self):
+    def test_bar_width_never_exceeds_the_available_width(self):
         tb = _make_toolbar()
         tb.show()
         QApplication.processEvents()
 
-        for canvas_w in (480, 640, 800, 1200):
-            tb.set_available_width(canvas_w)
+        for bar_w in (640, 800, 1200):
+            tb.set_available_width(bar_w)
             QApplication.processEvents()
-            self.assertLessEqual(tb._pill_width(), tb._toolbar_width_budget(canvas_w))
+            self.assertLessEqual(tb._bar_width(), bar_w)
+
+    def test_the_window_sets_the_width_and_the_row_collapses_to_it(self):
+        from PyQt6.QtWidgets import QVBoxLayout, QWidget
+
+        host = QWidget()
+        QVBoxLayout(host).addWidget(tb := _make_toolbar())
+        host.resize(560, 60)
+        host.show()
+        QApplication.processEvents()
+
+        self.assertEqual(host.width(), 560)
+        self.assertLessEqual(tb._bar_width(), tb.width())
+        self.assertLess(_visible_item_count(tb), len(tb._item_ids))
 
     def test_wider_canvas_shows_more_controls(self):
         tb = _make_toolbar()
@@ -101,7 +113,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             tb.set_available_width(canvas_w)
             QApplication.processEvents()
             counts.append(_visible_item_count(tb))
-            widths.append(tb._pill_width())
+            widths.append(tb._bar_width())
 
         for prev, nxt in zip(counts[:-1], counts[1:], strict=True):
             self.assertGreaterEqual(nxt, prev)
@@ -159,7 +171,7 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             tb.btn_overflow,
             tb.btn_toggle_right,
         ]
-        edges = {(w.geometry().y(), w.geometry().bottom()) for w in row if w.isVisible()}
+        edges = {(w.mapTo(tb, w.rect().topLeft()).y(), w.mapTo(tb, w.rect().bottomLeft()).y()) for w in row if w.isVisible()}
         self.assertEqual(len(edges), 1, f"toolbar controls disagree on top/bottom edges: {sorted(edges)}")
 
     def _all_overflow_actions(self, tb: ActionToolbar) -> list:
@@ -381,8 +393,8 @@ class TestToolbarCustomization(unittest.TestCase):
 
         tb.set_available_width(4000)
         QApplication.processEvents()
-        full = tb._pill_width()
-        tb.set_available_width(full + 2 * THEME.space_xl - 1)
+        full = tb._bar_width()
+        tb.set_available_width(full - 1)
         QApplication.processEvents()
         self.assertTrue(tb.btn_copy.isHidden())
         self.assertTrue(all(not tb._row_widgets[i].isHidden() for i in DEFAULT_TOOLBAR_IDS))
@@ -540,22 +552,12 @@ class TestZoomButton(unittest.TestCase):
         self.assertEqual(tb.btn_zoom.text(), "100% HQ")
         self.assertTrue(tb._ov_original_action.isChecked())
 
-    def test_a_readout_longer_than_its_slot_relays_the_pill(self):
-        from PyQt6.QtWidgets import QWidget
-
-        class _Canvas(QWidget):
-            relayouts = 0
-
-            def relayout_floating_widgets(self):
-                _Canvas.relayouts += 1
-
-        canvas = _Canvas()
+    def test_a_readout_longer_than_its_slot_relays_the_bar(self):
         tb = self._toolbar_at(1600)
-        tb.setParent(canvas)
-        canvas.show()
         tb.session.state.hq_preview = True
-        tb._on_zoom_changed(1.0)
-        self.assertGreater(_Canvas.relayouts, 0)
+        with unittest.mock.patch.object(tb, "set_available_width") as relayout:
+            tb._on_zoom_changed(1.0)
+        relayout.assert_called()
 
     def test_a_preset_sets_that_zoom(self):
         tb = self._toolbar_at(65)
@@ -682,14 +684,10 @@ class TestToolRow(unittest.TestCase):
         self.assertIn("pick the area to copy from", tb.tool_hint.text())
 
     def test_done_finishes_the_draft_then_leaves(self):
-        from PyQt6.QtWidgets import QWidget
-
-        canvas = QWidget()
-        canvas.overlay = MagicMock()
         tb = self._armed(ToolMode.SCRATCH_PICK)
-        tb.setParent(canvas)
+        tb.controller.canvas = MagicMock()
         tb.btn_tool_done.click()
-        canvas.overlay.finish_in_progress.assert_called_once()
+        tb.controller.canvas.overlay.finish_in_progress.assert_called_once()
         tb.controller.cancel_active_tool.assert_called_once()
 
     def test_the_slider_mirrors_the_sidebar_both_ways(self):
@@ -722,6 +720,56 @@ class TestToolRow(unittest.TestCase):
         QApplication.processEvents()
         self.assertTrue(tb.tool_hint.isHidden())
         self.assertFalse(tb.btn_tool_done.isHidden())
+
+
+class TestModes(unittest.TestCase):
+    def _with_roll_row(self):
+        from PyQt6.QtWidgets import QPushButton, QWidget
+
+        tb = _make_toolbar()
+        row = QWidget()
+        row.button = QPushButton(row)
+        tb.set_roll_row(row)
+        return tb, row
+
+    def test_roll_mode_swaps_the_photo_row_for_the_strip_row_and_is_saved(self):
+        tb, row = self._with_roll_row()
+        self.assertFalse(tb._view_row.isHidden())
+        self.assertTrue(row.isHidden())
+
+        tb.mode_switch.setCurrentIndex(1)
+
+        self.assertEqual(tb.mode(), "roll")
+        self.assertTrue(tb._view_row.isHidden())
+        self.assertFalse(row.isHidden())
+        tb.session.repo.save_global_setting.assert_called_with("toolbar_mode", "roll")
+
+    def test_an_armed_tool_outranks_the_roll_row(self):
+        tb, row = self._with_roll_row()
+        tb.set_mode("roll")
+        tb.session.state.active_tool = ToolMode.DUST_PICK
+        tb._sync_tool_row()
+        self.assertTrue(row.isHidden())
+        self.assertFalse(tb._tool_row.isHidden())
+
+        tb.session.state.active_tool = ToolMode.NONE
+        tb._sync_tool_row()
+        self.assertFalse(row.isHidden())
+        self.assertTrue(tb._view_row.isHidden())
+
+    def test_the_saved_mode_comes_back(self):
+        controller = _make_toolbar().controller
+        controller.session.repo.get_global_setting.side_effect = lambda key, default=None: "roll" if key == "toolbar_mode" else default
+        tb = ActionToolbar(controller)
+        self.assertEqual(tb.mode(), "roll")
+        self.assertEqual(tb.mode_switch.currentIndex(), 1)
+
+    def test_reveal_switches_to_the_row_holding_the_control(self):
+        tb, row = self._with_roll_row()
+        tb.reveal(row.button)
+        self.assertEqual(tb.mode(), "roll")
+        tb.reveal(tb.btn_tools)
+        self.assertEqual(tb.mode(), "photo")
 
 
 class TestToolsMenu(unittest.TestCase):

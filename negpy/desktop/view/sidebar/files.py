@@ -68,11 +68,12 @@ from negpy.desktop.view.widgets.elided_label import ElidedLabel
 from negpy.desktop.view.widgets.marks import draw_mark_badge
 from negpy.desktop.view.widgets.sort_button import SortButton
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
-from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
+from negpy.desktop.view.shortcut_registry import label_with_shortcut
 from negpy.desktop.view.styles.templates import (
     ICON_BUTTON_WIDTH,
     TOOLBAR_BUTTON_HEIGHT,
     TOOLBAR_ICON_SIZE,
+    header_button,
     icon_button,
     tool_toggle,
     wrap_tooltip,
@@ -90,7 +91,6 @@ from negpy.services.assets.presets import is_valid_preset_name
 from negpy.infrastructure.filesystem.watcher import FolderWatchService
 from negpy.infrastructure.loaders.helpers import get_supported_raw_wildcards
 from negpy.desktop.view.sidebar.library_tree import LibraryTree
-from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
 from negpy.desktop.view.widgets.file_dialogs import last_open_folder
 from negpy.services.assets.library import folder_counts, folder_label
 from negpy.services.assets.thumbnails import asset_thumbnail_key
@@ -1038,8 +1038,6 @@ class FileBrowser(QWidget):
         icon_size = QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE)
         btn_height = TOOLBAR_BUTTON_HEIGHT
 
-        # No top-level toolbar: every action lives in the row of the section it acts on --
-        # Library's own +/refresh corner, or film_strip_toolbar next to the loaded frames.
         self.film_strip_toolbar = OverflowBar(height=btn_height, spacing=4)
 
         # One button for both: Add Files and Add Folder are two pickers for the same job
@@ -1237,38 +1235,39 @@ class FileBrowser(QWidget):
         # Shown in the right panel's Library tab; the strip reloads it and reads its state.
         self.library_tree = LibraryTree(self.controller)
 
-        frames = QWidget()
-        frames_layout = QVBoxLayout(frames)
-        frames_layout.setContentsMargins(0, 0, 0, 0)
-        frames_layout.setSpacing(4)
-        # One row: the tools, the box that filters the frames and searches the library, the tally.
-        control_row = QHBoxLayout()
-        control_row.addWidget(self.film_strip_toolbar)
-        control_row.addLayout(search_row, 1)
-        control_row.addWidget(self.tally_label)
-        frames_layout.addLayout(control_row)
-        frames_layout.addWidget(self.list_view, 1)
-        frames_layout.addWidget(self.empty_label, 1)
-        self.frames_section = self._make_section(tr("Film Strip"), "frames", "fa5s.film", frames)
-        self.light_table_btn = self.frames_section.add_header_toggle(
-            "fa5s.th-large", tooltip_with_shortcut(tr("Light Table — the roll as a grid in place of the canvas"), "toggle_light_table")
-        )
-
-        # Clearing the strip is how you start a roll you will build entirely by drag-drop,
-        # so it lives on the section header rather than its own toolbar button -- the
-        # header has room a wrapping toolbar row does not.
-        frames_menu = QMenu(self.frames_section)
-        frames_menu.addAction(tr("New Roll…")).triggered.connect(self._on_clear_all)
-        self.close_roll_action = frames_menu.addAction(label_with_shortcut(tr("Close Roll…"), "close_roll"))
+        self.guide_btn = header_button(qta.icon("fa5s.info-circle", color=THEME.text_muted), "What am I looking at? — Film Strip guide")
+        self.guide_btn.clicked.connect(self._show_guide)
+        self.roll_menu_btn = QToolButton()
+        self.roll_menu_btn.setIcon(qta.icon("fa5s.ellipsis-v", color=THEME.text_primary))
+        self.roll_menu_btn.setIconSize(icon_size)
+        self.roll_menu_btn.setFixedHeight(btn_height)
+        self.roll_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.roll_menu_btn.setToolTip("Start, close or reset the roll")
+        self.roll_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.roll_menu_btn.setObjectName("toolbar_overflow")
+        roll_menu = QMenu(self.roll_menu_btn)
+        roll_menu.addAction(tr("New Roll…")).triggered.connect(self._on_clear_all)
+        self.close_roll_action = roll_menu.addAction(label_with_shortcut(tr("Close Roll…"), "close_roll"))
         self.close_roll_action.triggered.connect(lambda: _close_roll(self, self.controller))
-        frames_menu.aboutToShow.connect(self._sync_close_roll_action)
-        frames_menu.addAction(label_with_shortcut(tr("Reset Roll to Defaults…"), "reset_roll")).triggered.connect(self._on_reset_roll)
-        self.frames_section.set_actions_menu(
-            frames_menu,
-            tr("Start, close or reset the roll"),
-        )
+        roll_menu.aboutToShow.connect(self._sync_close_roll_action)
+        roll_menu.addAction(label_with_shortcut(tr("Reset Roll to Defaults…"), "reset_roll")).triggered.connect(self._on_reset_roll)
+        self.roll_menu_btn.setMenu(roll_menu)
 
-        layout.addWidget(self.frames_section, 1)
+        # The toolbar's Roll mode shows this row: the tools, the box that filters the frames and
+        # searches the library, the tally.
+        self.roll_row = QWidget()
+        roll_layout = QHBoxLayout(self.roll_row)
+        roll_layout.setContentsMargins(0, 0, 0, 0)
+        roll_layout.setSpacing(6)
+        roll_layout.addWidget(self.film_strip_toolbar)
+        roll_layout.addWidget(self._create_separator())
+        roll_layout.addLayout(search_row, 1)
+        roll_layout.addWidget(self.tally_label)
+        roll_layout.addWidget(self.guide_btn)
+        roll_layout.addWidget(self.roll_menu_btn)
+
+        layout.addWidget(self.list_view, 1)
+        layout.addWidget(self.empty_label, 1)
 
         # Applied after list_view exists: the filter prunes the selection against the view.
         saved_sheet = self.session.repo.get_global_setting("sheet_filter") or "all"
@@ -1278,9 +1277,6 @@ class FileBrowser(QWidget):
         self.scenes_btn.setChecked(show_scenes)
         self.scenes_btn.blockSignals(False)
         self._apply_show_scenes(show_scenes, save=False)
-
-    def _make_section(self, title: str, key: str, icon: str, content: QWidget) -> CollapsibleSection:
-        return make_section(self.session.repo, title, key, content, icon, default_expanded=True)
 
     def _connect_signals(self) -> None:
         self.library_tree.folder_roll_created.connect(self._maybe_suggest_gear)
@@ -1376,6 +1372,11 @@ class FileBrowser(QWidget):
             self.controller.request_library_semantic_search(self.search_input.text())
         else:
             self.controller.request_library_search(self.search_input.text())
+
+    def _show_guide(self) -> None:
+        from negpy.desktop.view.widgets.section_help_dialog import SectionHelpDialog
+
+        SectionHelpDialog("frames", "Film Strip", self, repo=self.session.repo).exec()
 
     def focus_search(self) -> None:
         self.search_input.setFocus()

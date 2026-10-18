@@ -840,7 +840,7 @@ def test_new_roll_menu_action_clears_the_session_like_clear_all(browser, session
     """Distinct from Unload: this is the deliberate "start over" action, for building a
     roll entirely by drag-drop, so it confirms and clears everything, not the selection."""
     session.clear_files = MagicMock()
-    menu = browser.frames_section.actions_btn.menu()
+    menu = browser.roll_menu_btn.menu()
     action = next(a for a in menu.actions() if a.text() == "New Roll…")
     with patch("negpy.desktop.view.sidebar.files.confirm_unload", return_value=True) as confirm:
         action.trigger()
@@ -849,7 +849,7 @@ def test_new_roll_menu_action_clears_the_session_like_clear_all(browser, session
 
 
 def test_reset_roll_menu_action_resets_every_visible_frame(browser, session):
-    menu = browser.frames_section.actions_btn.menu()
+    menu = browser.roll_menu_btn.menu()
     action = next(a for a in menu.actions() if a.text() == "Reset Roll to Defaults…")
     with patch("negpy.desktop.view.sidebar.files.confirm_reset_frames", return_value=True) as confirm:
         action.trigger()
@@ -1163,7 +1163,7 @@ def test_adding_a_folder_without_images_imports_its_roll_folders(browser, tmp_pa
 
 
 def test_film_strip_menu_offers_close_roll(browser, session):
-    menu = browser.frames_section.actions_btn.menu()
+    menu = browser.roll_menu_btn.menu()
     session.state.active_roll_id = None
     browser._sync_close_roll_action()
     assert browser.close_roll_action.text().startswith("Unload All…")

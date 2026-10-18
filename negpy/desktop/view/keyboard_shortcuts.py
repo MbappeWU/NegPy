@@ -530,16 +530,16 @@ class ShortcutManager:
             "toggle_soft_proof": lambda: controller.set_soft_proof(not controller.state.soft_proof_enabled),
             "cancel_tool": lambda: _context_cancel(controller, self.window),
             "show_library": self.window.show_library,
-            "focus_search": self.window.file_browser.focus_search,
+            "focus_search": self.window.focus_search,
             "search_library": self.window.file_browser.search_library,
             "library_discovery_filters": self.window.right_panel.library_tree.edit_discovery_filters,
-            "toggle_immersive_canvas": lambda: controller.session.set_immersive_canvas(not controller.session.state.immersive_canvas),
             "toggle_sticky_zoom": lambda: controller.session.set_sticky_zoom(not controller.session.state.sticky_zoom),
             "toggle_sticky_settings": lambda: controller.session.set_sticky_settings_enabled(
                 not controller.session.state.sticky_settings_enabled
             ),
             "toggle_invert_zoom_scroll": lambda: controller.session.set_invert_zoom_scroll(not controller.session.state.invert_zoom_scroll),
             "toggle_film_strip": self.window.toggle_film_strip,
+            "toggle_toolbar_mode": self.window.toolbar.toggle_mode,
             "toggle_right_panel": self.window.toggle_controls_dock,
             "reset_panel_layout": self.window.reset_panel_layout,
             "edit_toolbar": toolbar.open_toolbar_editor,

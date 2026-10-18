@@ -508,7 +508,6 @@ class CanvasOverlay(QWidget):
         self.zoom_level: float = 1.0
         self.pan_x: float = 0.0
         self.pan_y: float = 0.0
-        self.fit_height_reserve: float = 0.0
         self.fit_margin: float = 0.0
 
         self._view_rect: QRectF = QRectF()
@@ -854,17 +853,16 @@ class CanvasOverlay(QWidget):
         w, h = self.width(), self.height()
         img_w, img_h = size.width(), size.height()
 
-        fit_h = max(1.0, h - self.fit_height_reserve)
         margin = 2.0 * self.fit_margin
-        scale_fit = min(max(1.0, w - margin) / img_w, max(1.0, fit_h - margin) / img_h)
+        scale_fit = min(max(1.0, w - margin) / img_w, max(1.0, h - margin) / img_h)
         total_scale = scale_fit * self.zoom_level
 
         final_w = img_w * total_scale
         final_h = img_h * total_scale
 
-        # Zoom scales about the widget center to match the GPU shader; the fit area's center moves with it.
+        # Zoom scales about the widget center to match the GPU shader.
         center_x = (w / 2) + (self.pan_x * w)
-        center_y = (h / 2) + ((fit_h - h) / 2) * self.zoom_level + (self.pan_y * h)
+        center_y = (h / 2) + (self.pan_y * h)
 
         self._view_rect = QRectF(center_x - (final_w / 2), center_y - (final_h / 2), final_w, final_h)
         self._remap_inflight_points(old_rect)

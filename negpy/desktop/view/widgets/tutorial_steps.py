@@ -177,7 +177,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
                 "{value} opens the <b>Light Table</b>: the roll as film over the window. Right-click a selection: <b>Stitch Selected Frames</b> joins parts of a large negative, <b>Merge Exposures (HDR)</b> joins a bracket, and <b>Scene</b> groups frames of one subject.",
                 value=_k("toggle_light_table"),
             ),
-            lambda w: fb(w).light_table_btn,
+            lambda w: w.toolbar.btn_light_table,
             guide=("frames", "Film Strip"),
         ),
         step(

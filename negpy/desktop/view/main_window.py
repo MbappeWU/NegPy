@@ -91,8 +91,7 @@ class _EmptyStateOverlay(QWidget):
     """Shown on top of the canvas when no image is loaded.
 
     Tracks the canvas rather than the window: hiding a dock resizes the canvas
-    without resizing the window, which used to leave this stranded off-centre
-    while the floating toolbar (which the canvas lays out) moved with it.
+    without resizing the window.
     """
 
     add_files_requested = pyqtSignal()
@@ -143,6 +142,8 @@ _UNBOUNDED_HEIGHT = 16777215  # QWIDGETSIZE_MAX, Qt's "no maximum"
 # (canvas, Film Strip) heights until the splitter is first dragged; Qt scales them to the window.
 _STRIP_DEFAULT_SPLIT = (700, 300)
 _CANVAS_MIN_HEIGHT = 120
+# The Film Strip's own section header kept its state here.
+_STRIP_EXPANDED_KEY = "section_expanded_frames"
 
 
 class MainWindow(QMainWindow):
@@ -282,7 +283,6 @@ class MainWindow(QMainWindow):
         self.controller.register_canvas(self.canvas)
         self.canvas.set_controller(self.controller)
         self.toolbar = ActionToolbar(self.controller)
-        self.canvas.set_floating_toolbar(self.toolbar)
 
         self.empty_state = _EmptyStateOverlay(self.canvas)
         self.empty_state.tour_requested.connect(self.show_tutorial)
@@ -317,17 +317,24 @@ class MainWindow(QMainWindow):
         self.central_splitter.addWidget(self.reference_pane)
         self.central_splitter.addWidget(self.central_stack)
         self.central_splitter.setCollapsible(1, False)
-        # The Film Strip under the canvas: the splitter sets its height, its header collapses it.
+        # The Film Strip under the canvas with the toolbar on top: the splitter sets its height, the
+        # toolbar's chevron collapses it to the toolbar alone.
         self.file_browser = FileBrowser(self.controller)
+        self.toolbar.set_roll_row(self.file_browser.roll_row)
+        self.strip_pane = QWidget()
+        pane_layout = QVBoxLayout(self.strip_pane)
+        pane_layout.setContentsMargins(0, 0, 0, 0)
+        pane_layout.setSpacing(0)
+        pane_layout.addWidget(self.toolbar)
+        pane_layout.addWidget(self.file_browser, 1)
         self.strip_splitter = QSplitter(Qt.Orientation.Vertical)
         self.strip_splitter.addWidget(self.central_splitter)
-        self.strip_splitter.addWidget(self.file_browser)
+        self.strip_splitter.addWidget(self.strip_pane)
         self.strip_splitter.setCollapsible(0, False)
         self.strip_splitter.setCollapsible(1, False)
         self.strip_splitter.setStretchFactor(0, 1)
         self.strip_splitter.setStretchFactor(1, 0)
         self.central_layout.addWidget(self.strip_splitter, stretch=1)
-        self._panels_before_light_table: list = []
 
         self.setCentralWidget(self.central_widget)
 
@@ -363,7 +370,6 @@ class MainWindow(QMainWindow):
             self.restoreState(QByteArray.fromBase64(saved_docks.encode("ascii")))
         # The visibility keys are what the toggles write, so they win over the dock snapshot.
         self.drawer.setVisible(repo.get_global_setting("panel_right_visible", True))
-        self.file_browser.setVisible(repo.get_global_setting("film_strip_visible", True))
         saved_strip = repo.get_global_setting("film_strip_splitter_sizes")
         if isinstance(saved_strip, list) and len(saved_strip) == 2:
             self.strip_splitter.setSizes([int(s) for s in saved_strip])
@@ -371,9 +377,10 @@ class MainWindow(QMainWindow):
             self.strip_splitter.setSizes(list(_STRIP_DEFAULT_SPLIT))
         self._strip_open_height = self.strip_splitter.sizes()[1]
         self.strip_splitter.splitterMoved.connect(self._on_strip_splitter_moved)
-        section = self.file_browser.frames_section
-        section.expanded_changed.connect(self._apply_strip_constraints)
-        self._apply_strip_constraints(section.toggle_button.isChecked())
+        expanded = bool(repo.get_global_setting(_STRIP_EXPANDED_KEY, True))
+        self.file_browser.setVisible(expanded)
+        self.toolbar.set_strip_expanded(expanded)
+        self._apply_strip_constraints(expanded)
 
     TOOL_LABELS: dict[ToolMode, str] = {
         ToolMode.WB_PICK: tr("WB Picker"),
@@ -392,11 +399,6 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(tr("{prefix}NegPy — {tool_prefix}{filename}", prefix=prefix, tool_prefix=tool_prefix, filename=filename))
         else:
             self.setWindowTitle(tr("NegPy"))
-
-    def _on_immersive_changed(self) -> None:
-        if getattr(self, "_last_immersive", None) != self.controller.session.state.immersive_canvas:
-            self._last_immersive = self.controller.session.state.immersive_canvas
-            self.canvas.fit_to_window()
 
     def _show_scan_tab(self) -> None:
         if not self.drawer.isVisible():
@@ -472,39 +474,53 @@ class MainWindow(QMainWindow):
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
 
     def _apply_strip_constraints(self, expanded: bool) -> None:
-        """A collapsed Film Strip is exactly its header tall, so no drag can open an empty pane;
+        """A collapsed Film Strip is exactly its toolbar tall, so no drag can open an empty pane;
         expanding gives back the height it had open."""
-        strip = self.file_browser
+        pane = self.strip_pane
         total = sum(self.strip_splitter.sizes())
-        if not expanded:
-            if strip.maximumHeight() == _UNBOUNDED_HEIGHT and strip.height() > 0:
-                self._strip_open_height = strip.height()
-            height = strip.frames_section.toggle_button.height()
-            strip.setFixedHeight(height)
-        else:
-            strip.setMinimumHeight(0)
-            strip.setMaximumHeight(_UNBOUNDED_HEIGHT)
+        if expanded:
+            pane.setMinimumHeight(0)
+            pane.setMaximumHeight(_UNBOUNDED_HEIGHT)
             height = min(self._strip_open_height, total - _CANVAS_MIN_HEIGHT)
+        else:
+            height = self.toolbar.sizeHint().height()
+            pane.setFixedHeight(height)
         # A splitter keeps its handle where it was; the canvas takes what the strip gives up.
         if total > 0:
             self.strip_splitter.setSizes([total - height, height])
 
     def _on_strip_splitter_moved(self, *_args) -> None:
-        if not self.file_browser.frames_section.toggle_button.isChecked():
+        if not self.film_strip_expanded():
             return
         self._strip_open_height = self.strip_splitter.sizes()[1]
         self.controller.session.repo.save_global_setting("film_strip_splitter_sizes", self.strip_splitter.sizes())
 
+    def film_strip_expanded(self) -> bool:
+        return not self.file_browser.isHidden()
+
+    def set_film_strip_expanded(self, expanded: bool) -> None:
+        if not expanded and self.film_strip_expanded():
+            self._strip_open_height = self.strip_pane.height()
+        self.file_browser.setVisible(expanded)
+        self.toolbar.set_strip_expanded(expanded)
+        self.controller.session.repo.save_global_setting(_STRIP_EXPANDED_KEY, expanded)
+        self._apply_strip_constraints(expanded)
+
     def toggle_film_strip(self) -> None:
-        """Show a hidden Film Strip, else collapse or expand it."""
-        strip = self.file_browser
-        if not strip.isVisible():
-            strip.setVisible(True)
-            strip.frames_section.set_expanded(True)
-            self.controller.session.repo.save_global_setting("film_strip_visible", True)
-            return
-        section = strip.frames_section
-        section.set_expanded(not section.toggle_button.isChecked())
+        self.set_film_strip_expanded(not self.film_strip_expanded())
+
+    def focus_search(self) -> None:
+        """The filter sits on the toolbar's Roll row, over the strip it filters."""
+        self.toolbar.set_mode("roll")
+        if not self.film_strip_expanded():
+            self.set_film_strip_expanded(True)
+        self.file_browser.focus_search()
+
+    def reveal_strip_widget(self, target: QWidget) -> None:
+        """Bring a toolbar or Film Strip control into view, for the tour."""
+        self.toolbar.reveal(target)
+        if self.file_browser.isAncestorOf(target) and not self.film_strip_expanded():
+            self.set_film_strip_expanded(True)
 
     def toggle_controls_dock(self) -> None:
         if self.drawer.isFloating():
@@ -515,14 +531,12 @@ class MainWindow(QMainWindow):
         self.controller.session.repo.save_global_setting("panel_right_visible", visible)
 
     def toggle_side_panels(self) -> None:
-        """Hide the controls panel and the Film Strip together, or bring both back."""
-        show = not (self.file_browser.isVisible() or self.drawer.isVisible())
-        repo = self.controller.session.repo
+        """Hide the controls panel and collapse the Film Strip together, or bring both back."""
+        show = not (self.film_strip_expanded() or self.drawer.isVisible())
         if not self.drawer.isFloating():
             self.drawer.setVisible(show)
-            repo.save_global_setting("panel_right_visible", show)
-        self.file_browser.setVisible(show)
-        repo.save_global_setting("film_strip_visible", show)
+            self.controller.session.repo.save_global_setting("panel_right_visible", show)
+        self.set_film_strip_expanded(show)
 
     def toggle_reference(self) -> None:
         if self.reference_pane.isVisible():
@@ -560,24 +574,17 @@ class MainWindow(QMainWindow):
             self.set_light_table(False)
 
     def set_light_table(self, on: bool) -> None:
-        """The controls panel and the Film Strip hide while the grid shows, so it has the whole
-        window; their saved visibility is untouched. Esc, Shift+G or opening a frame leaves it."""
-        browser = self.file_browser
-        # Both panels hide with it, so an empty grid would have no way back but Esc.
+        """The grid takes the canvas and the Film Strip's place, toolbar included; the controls panel
+        stays as it is. Esc, Shift+G or opening a frame leaves it."""
+        # The toolbar hides with it, so an empty grid would have no way back but Esc.
         if on and self.controller.session.asset_model.rowCount() == 0:
             on = False
             self.controller.set_status(tr("No frames match the filter") if self.state.uploaded_files else tr("No frames loaded"), 3000)
-        browser.light_table_btn.blockSignals(True)
-        browser.light_table_btn.setChecked(on)
-        browser.light_table_btn.blockSignals(False)
         if on == self.light_table_active():
             return
-        view = browser.light_table_view
+        view = self.file_browser.light_table_view
+        self.strip_pane.setVisible(not on)
         if on:
-            panels = [self.file_browser] + ([self.drawer] if not self.drawer.isFloating() else [])
-            self._panels_before_light_table = [panel for panel in panels if panel.isVisible()]
-            for panel in self._panels_before_light_table:
-                panel.setVisible(False)
             self.central_stack.setCurrentIndex(1)
             row = self.controller.session.asset_model.actual_to_display(self.state.selected_file_idx)
             if row >= 0:
@@ -585,23 +592,18 @@ class MainWindow(QMainWindow):
             view.setFocus()
         else:
             self.central_stack.setCurrentIndex(0)
-            for panel in self._panels_before_light_table:
-                panel.setVisible(True)
 
     def reset_panel_layout(self) -> None:
         """Restore the controls panel to its original edge and width, and show it and the Film Strip."""
         self._restore_default_dock_state()
         self.drawer.setVisible(True)
-        self.file_browser.setVisible(True)
-        self.file_browser.frames_section.set_expanded(True)
+        self.set_film_strip_expanded(True)
         self.controller.session.repo.save_global_setting("panel_right_visible", True)
-        self.controller.session.repo.save_global_setting("film_strip_visible", True)
         self.canvas.hud.showMessage(tr("Panel layout reset"), timeout=1500)
 
     def _connect_signals(self) -> None:
         """Wire controller and view."""
         browser = self.file_browser
-        browser.light_table_btn.toggled.connect(self.set_light_table)
         browser.light_table_opened.connect(lambda: self.set_light_table(False))
         browser.library_requested.connect(self.show_library)
         library = self.right_panel.library_tree
@@ -612,7 +614,6 @@ class MainWindow(QMainWindow):
         self.controller.library_cleared.connect(self.controller.invalidate_library_walk)
         self.update_notice.update_found.connect(self.toolbar.set_update_available)
         self.controller.session.state_changed.connect(self._update_title)
-        self.controller.session.state_changed.connect(self._on_immersive_changed)
 
         # visibilityChanged only mirrors the button, and it also fires on close and minimize, so
         # persist in the toggle methods instead and the saved state survives exit.

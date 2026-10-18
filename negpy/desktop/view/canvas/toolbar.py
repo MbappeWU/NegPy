@@ -8,7 +8,9 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QMenu,
+    QSizePolicy,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -71,7 +73,6 @@ TOOLBAR_ITEMS: tuple[ToolbarItem, ...] = (
     ToolbarItem("source", tr("View"), tr("Print or Peek")),
     ToolbarItem("overlays", tr("View"), tr("Overlays")),
     ToolbarItem("reference", tr("View"), tr("Reference View")),
-    ToolbarItem("light_table", tr("View"), tr("Light Table")),
     ToolbarItem("copy", tr("Settings"), tr("Copy Settings")),
     ToolbarItem("copy_bounds", tr("Settings"), tr("Copy Settings + Bounds")),
     ToolbarItem("paste", tr("Settings"), tr("Paste Settings")),
@@ -122,14 +123,13 @@ _TOOLBAR_SETTING_KEY = "toolbar_items"
 _ADDED_IDS = {"tools": "undo"}
 _ADDED_SETTING_KEY = "toolbar_added_items"
 
-# A narrow canvas hides these first to last; items not listed (menu actions put on the row) go
+# A narrow bar hides these first to last; items not listed (menu actions put on the row) go
 # before them, from the end of the user's order.
 _COLLAPSE_ORDER = (
     "flip_v",
     "flip_h",
     "rot_r",
     "rot_l",
-    "light_table",
     "reference",
     "overlays",
     "redo",
@@ -143,6 +143,10 @@ _COLLAPSE_ORDER = (
 )
 
 _ZOOM_PRESETS = (25, 50, 100, 200, 400)
+
+# What the bar shows when no canvas row has it: the photo's tools or the Film Strip's.
+_MODES = ("photo", "roll")
+_MODE_SETTING_KEY = "toolbar_mode"
 
 # (state flag, icon, label, shortcut id, tooltip); index 0 is the edit itself.
 _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
@@ -284,9 +288,7 @@ def load_toolbar_items(repo) -> list[str]:
 
 
 class ActionToolbar(QWidget):
-    """
-    Unified toolbar for file navigation, geometry actions, and session management.
-    """
+    """The bar on top of the Film Strip: the photo's tools or, in Roll mode, the strip's own row."""
 
     def __init__(self, controller: AppController):
         super().__init__()
@@ -306,22 +308,28 @@ class ActionToolbar(QWidget):
         return line
 
     def _init_ui(self) -> None:
+        self.setObjectName("action_bar")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        # The window sets the width, never the buttons: set_available_width hides what does not fit.
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 10, 0, 10)
+        main_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
+        main_layout.setContentsMargins(THEME.space_lg, THEME.space_sm, THEME.space_lg, THEME.space_sm)
+        main_layout.setSpacing(6)
 
-        container = QFrame()
-        container.setObjectName("toolbar_container")
-        self._toolbar_container = container
-        v_layout = QVBoxLayout(container)
-        v_layout.setContentsMargins(6, 4, 6, 4)
+        self._rows = QWidget()
+        v_layout = QVBoxLayout(self._rows)
+        v_layout.setContentsMargins(0, 0, 0, 0)
         v_layout.setSpacing(0)
+        self._rows_layout = v_layout
+        self._roll_row: QWidget | None = None
 
         # Controls need a parent before _rebuild_row() applies visibility.
         self._view_row = QWidget()
         row_layout = QHBoxLayout(self._view_row)
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(6)
-        v_layout.addWidget(self._view_row)
+        v_layout.addWidget(self._view_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
         icon_color = THEME.text_primary
         icon_size = QSize(16, 16)
@@ -329,11 +337,19 @@ class ActionToolbar(QWidget):
         self._shortcut_tips: list = []
         self._shortcut_labels: list = []
 
-        # 0. Panel toggles (live at the toolbar's outer edges)
+        saved_mode = self.session.repo.get_global_setting(_MODE_SETTING_KEY, _MODES[0])
+        self._mode = saved_mode if saved_mode in _MODES else _MODES[0]
+        mode_tip = "What the toolbar shows: the photo's tools, or the roll's filter, sort and actions"
+        self.mode_switch = SegmentedChoice((("fa5s.image", "Photo"), ("fa5s.film", "Roll")), mode_tip, data=_MODES)
+        self._tip(self.mode_switch, mode_tip, "toggle_toolbar_mode")
+        self.mode_switch.setCurrentIndex(_MODES.index(self._mode))
+        self.mode_switch.currentChanged.connect(lambda _i: self.set_mode(self.mode_switch.currentData()))
+
+        # 0. Panel toggles (live at the bar's right end)
         # Not checkable: an open panel is the resting state, and the accent means armed.
         self.btn_toggle_strip = QToolButton()
-        self.btn_toggle_strip.setIcon(qta.icon("fa5s.film", color=icon_color))
-        self._tip(self.btn_toggle_strip, tr("Toggle Film Strip"), "toggle_film_strip")
+        self._tip(self.btn_toggle_strip, "Collapse or expand the Film Strip", "toggle_film_strip")
+        self.set_strip_expanded(True)
         self.btn_toggle_right = QToolButton()
         self.btn_toggle_right.setIcon(qta.icon("fa5s.sliders-h", color=icon_color))
         self._tip(self.btn_toggle_right, tr("Toggle Controls Panel"), "toggle_right_panel")
@@ -787,7 +803,6 @@ class ActionToolbar(QWidget):
             "source": self.source_choice,
             "overlays": self.overlays_menu,
             "reference": self.btn_reference,
-            "light_table": self.btn_light_table,
             "copy": self.btn_copy,
             "copy_bounds": self.btn_copy_bounds,
             "paste": self.btn_paste,
@@ -809,11 +824,16 @@ class ActionToolbar(QWidget):
         self._build_paper_row(v_layout, btn_height)
         self._build_zone_row(v_layout)
 
-        # Size the pill to its controls; don't stretch it across the canvas.
-        main_layout.addWidget(container, 0, Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self.mode_switch)
+        main_layout.addWidget(self._create_separator())
+        main_layout.addWidget(self._rows, 1)
+        main_layout.addWidget(self._create_separator())
+        for btn in (self.btn_light_table, self.btn_overflow, self.btn_toggle_right, self.btn_toggle_strip):
+            main_layout.addWidget(btn)
+        self._sync_rows()
 
     def _build_tool_row(self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, btn_height: int) -> None:
-        """While a canvas tool is armed the pill shows its own row: what the tool is, how to use it,
+        """While a canvas tool is armed the bar shows its own row: what the tool is, how to use it,
         the slider it is sized or tuned by, undo and Done."""
         self._tool_row = QWidget()
         self._tool_row.hide()
@@ -850,7 +870,7 @@ class ActionToolbar(QWidget):
             "cancel_tool",
         )
         self.btn_tool_done.setFixedHeight(btn_height)
-        # The pill lays out at minimum widths, which would cut the label down to the icon.
+        # A narrow bar lays out at minimum widths, which would cut the label down to the icon.
         self.btn_tool_done.setMinimumWidth(self.btn_tool_done.sizeHint().width())
         self.btn_tool_done.clicked.connect(self._on_tool_done)
 
@@ -861,10 +881,10 @@ class ActionToolbar(QWidget):
         layout.addWidget(self.btn_tool_undo)
         layout.addWidget(self.btn_tool_redo)
         layout.addWidget(self.btn_tool_done)
-        v_layout.addWidget(self._tool_row)
+        v_layout.addWidget(self._tool_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _build_paper_row(self, v_layout: QVBoxLayout, btn_height: int) -> None:
-        """While the paper test strip is up the pill names it; once a band is shown full frame it
+        """While the paper test strip is up the bar names it; once a band is shown full frame it
         steps between papers and keeps one."""
         self._paper_row = QWidget()
         self._paper_row.hide()
@@ -896,7 +916,7 @@ class ActionToolbar(QWidget):
         self.btn_paper_keep.clicked.connect(lambda: self.controller.keep_paper_strip())
         for btn in (self.btn_paper_back, self.btn_paper_keep):
             btn.setFixedHeight(btn_height)
-            # The pill lays out at minimum widths, which would cut the label down to the icon.
+            # A narrow bar lays out at minimum widths, which would cut the label down to the icon.
             btn.setMinimumWidth(btn.sizeHint().width())
         self.btn_paper_close = icon_button("fa5s.times", tr("Close the Paper Test Strip"))
         self.btn_paper_close.clicked.connect(lambda: self.controller.toggle_paper_strip(force=False))
@@ -911,7 +931,7 @@ class ActionToolbar(QWidget):
             self.btn_paper_close,
         ):
             layout.addWidget(widget)
-        v_layout.addWidget(self._paper_row)
+        v_layout.addWidget(self._paper_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _sync_paper_row(self) -> None:
         combo = self.paper_strip_combo
@@ -935,12 +955,10 @@ class ActionToolbar(QWidget):
         self.paper_strip_hint.setVisible(shown is None)
         for widget in (combo, self._paper_separator, self.btn_paper_back, self.btn_paper_keep):
             widget.setVisible(shown is not None)
-        canvas = self.parentWidget()
-        if hasattr(canvas, "relayout_floating_widgets"):
-            canvas.relayout_floating_widgets()
+        self._relayout()
 
     def _build_zone_row(self, v_layout: QVBoxLayout) -> None:
-        """While the Zone Overlay is up the pill shows its look, its legend and a close button."""
+        """While the Zone Overlay is up the bar shows its look, its legend and a close button."""
         self._zone_row = QWidget()
         self._zone_row.hide()
         layout = QHBoxLayout(self._zone_row)
@@ -961,7 +979,7 @@ class ActionToolbar(QWidget):
         layout.addWidget(self._create_separator())
         layout.addWidget(self.zone_legend)
         layout.addWidget(self.btn_zone_close)
-        v_layout.addWidget(self._zone_row)
+        v_layout.addWidget(self._zone_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _sync_zone_row(self) -> None:
         state = self.session.state
@@ -991,7 +1009,7 @@ class ActionToolbar(QWidget):
             self.tool_name.setToolTip(self.tool_hint.text())
             self.btn_tool_undo.setEnabled(state.undo_index > 0)
             self.btn_tool_redo.setEnabled(state.undo_index < state.max_history_index)
-        # After the texts: the canvas sizes the pill from them.
+        # After the texts: the bar measures them.
         if mode != self._shown_tool:
             self._shown_tool = mode
             self._swap_tool_slider(spec[2] if spec else "")
@@ -1008,10 +1026,7 @@ class ActionToolbar(QWidget):
             self._tool_row.setVisible(rows[0])
             self._paper_row.setVisible(rows[1])
             self._zone_row.setVisible(rows[2])
-            self._view_row.setVisible(not any(rows))
-            canvas = self.parentWidget()
-            if hasattr(canvas, "relayout_floating_widgets"):
-                canvas.relayout_floating_widgets()
+            self._sync_rows()
         if self._tool_slider is not None:
             self._tool_slider.setEnabled(self._tool_slider_source.isEnabled())
 
@@ -1099,10 +1114,50 @@ class ActionToolbar(QWidget):
         self.btn_tools.choice_menu.exec(QCursor.pos())
 
     def _on_tool_done(self) -> None:
-        overlay = getattr(self.parentWidget(), "overlay", None)
-        if overlay is not None:
-            overlay.finish_in_progress()
+        canvas = getattr(self.controller, "canvas", None)
+        if canvas is not None:
+            canvas.overlay.finish_in_progress()
         self.controller.cancel_active_tool()
+
+    def set_roll_row(self, row: QWidget) -> None:
+        """The Film Strip's own row, which Roll mode shows."""
+        self._roll_row = row
+        self._rows_layout.addWidget(row)
+        self._sync_rows()
+
+    def _sync_rows(self) -> None:
+        """A canvas row (an armed tool, the paper strip, the Zone Overlay) outranks the mode's row."""
+        free = not any(self._shown_rows)
+        self._view_row.setVisible(free and self._mode == "photo")
+        if self._roll_row is not None:
+            self._roll_row.setVisible(free and self._mode == "roll")
+        self._relayout()
+
+    def mode(self) -> str:
+        return self._mode
+
+    def set_mode(self, mode: str) -> None:
+        if mode == self._mode:
+            return
+        self._mode = mode
+        self.session.repo.save_global_setting(_MODE_SETTING_KEY, mode)
+        self.mode_switch.blockSignals(True)
+        self.mode_switch.setCurrentIndex(_MODES.index(mode))
+        self.mode_switch.blockSignals(False)
+        self._sync_rows()
+
+    def toggle_mode(self) -> None:
+        self.set_mode("roll" if self._mode == "photo" else "photo")
+
+    def reveal(self, target: QWidget) -> None:
+        """Switch to the mode whose row holds target."""
+        if self._view_row.isAncestorOf(target):
+            self.set_mode("photo")
+        elif self._roll_row is not None and self._roll_row.isAncestorOf(target):
+            self.set_mode("roll")
+
+    def set_strip_expanded(self, expanded: bool) -> None:
+        self.btn_toggle_strip.setIcon(qta.icon("fa5s.chevron-down" if expanded else "fa5s.chevron-up", color=THEME.text_primary))
 
     def _sync_view_state(self, *_args) -> None:
         """Mirror the canvas source and the overlays from state, which the controller sets before it signals."""
@@ -1232,14 +1287,11 @@ class ActionToolbar(QWidget):
     def _refresh_zoom_readout(self) -> None:
         hq = " HQ" if self.session.state.hq_preview else ""
         self.btn_zoom.setText(tr("{value}%{value1}", value=self._zoom_percent, value1=hq))
-        # The pill is laid out from minimum widths and the canvas fixes its size, so a longer readout
-        # raises the minimum and asks for a new layout, or it clips under the chevron.
+        # A longer readout raises the minimum and asks for a new layout, or it clips under the chevron.
         width = max(self._zoom_min_width, self.btn_zoom.sizeHint().width())
         if width != self.btn_zoom.minimumWidth():
             self.btn_zoom.setMinimumWidth(width)
-            canvas = self.parentWidget()
-            if hasattr(canvas, "relayout_floating_widgets"):
-                canvas.relayout_floating_widgets()
+            self._relayout()
 
     def _on_zoom_preset(self, percent: int) -> None:
         canvas = getattr(self.controller, "canvas", None)
@@ -1412,30 +1464,17 @@ class ActionToolbar(QWidget):
         if "reset_to_roll" in self._item_ids:
             self.btn_reset_to_roll.setEnabled(bool(self.controller.can_revert_frame_to_roll()))
 
-    @staticmethod
-    def _toolbar_width_budget(canvas_width: int) -> int:
-        """Horizontal space the pill may occupy inside the canvas."""
-        return max(240, canvas_width - 2 * THEME.space_xl)
-
     def _activate_layout(self) -> None:
         # Innermost first: an outer layout reads its rows' size hints as of their last activation.
-        for widget in (self._view_row, self._tool_row, self._toolbar_container, self):
+        for widget in (self._view_row, self._tool_row, self._rows, self):
             layout = widget.layout()
             if layout is not None:
                 layout.activate()
 
-    def _pill_width(self) -> int:
-        """Measured pill width after the current visibility set (sizeHint can stay stale)."""
+    def _bar_width(self) -> int:
+        """Measured width of what the bar shows now (sizeHint can stay stale)."""
         self._activate_layout()
-        self.adjustSize()
         return self.minimumSizeHint().width()
-
-    def pill_size_hint(self) -> QSize:
-        """Preferred floating size for the canvas layout pass."""
-        self._activate_layout()
-        self.adjustSize()
-        base = self.sizeHint()
-        return QSize(self._pill_width(), base.height())
 
     def _action_button(self, icon, text: str, action_id: str | None, slot) -> QToolButton:
         btn = QToolButton()
@@ -1466,7 +1505,7 @@ class ActionToolbar(QWidget):
             action.setText(label_with_shortcut(text, action_id))
 
     def _rebuild_row(self) -> None:
-        """Lay the row out as left anchor, the chosen items, then overflow and right anchor.
+        """Lay the chosen items out in order.
 
         Widgets left out stay parented but hidden: they are still state holders the overflow
         menu and the controller sync against."""
@@ -1482,7 +1521,6 @@ class ActionToolbar(QWidget):
         for widget in self._row_widgets.values():
             widget.setVisible(False)
 
-        layout.addWidget(self.btn_toggle_strip)
         previous_category = None
         for item_id in self._item_ids:
             item = TOOLBAR_ITEM_BY_ID[item_id]
@@ -1495,8 +1533,6 @@ class ActionToolbar(QWidget):
             layout.addWidget(widget)
             widget.setVisible(True)
             self._row_sequence.append((widget, False))
-        layout.addWidget(self.btn_overflow)
-        layout.addWidget(self.btn_toggle_right)
         self._sync_separators()
 
     def _sync_separators(self) -> None:
@@ -1526,7 +1562,7 @@ class ActionToolbar(QWidget):
             title=tr("Edit Toolbar"),
             chosen_header=tr("TOOLBAR"),
             hint=tr(
-                "Drag to reorder. What does not fit the canvas width hides, geometry first and navigation last; the ⋯ menu holds every action."
+                "Drag to reorder. What does not fit the toolbar hides, geometry first and navigation last; the ⋯ menu holds every action."
             ),
             defaults=list(DEFAULT_TOOLBAR_IDS),
             repo=self.session.repo,
@@ -1537,17 +1573,22 @@ class ActionToolbar(QWidget):
         self.session.repo.save_global_setting(_TOOLBAR_SETTING_KEY, self._item_ids)
         self._rebuild_row()
         self._update_ui_state()
-        canvas = self.parentWidget()
-        if canvas is not None and hasattr(canvas, "relayout_floating_widgets"):
-            canvas.relayout_floating_widgets()
-        else:
-            self.set_available_width(self._available_width or self.width())
+        self._relayout()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        # A bar on its own (a test) is sized by set_available_width alone.
+        if not self.isWindow() and event.size().width() != event.oldSize().width():
+            self.set_available_width(self.width())
+
+    def _relayout(self) -> None:
+        self.set_available_width(self._available_width or self.width())
 
     def set_available_width(self, w: int) -> None:
-        """Show as many of the chosen controls as fit the canvas width. The overflow menu always
+        """Show as many of the chosen controls as fit the bar width. The overflow menu always
         carries the full action set (see _init_ui), so the menu does not follow the row."""
         self._available_width = w
-        budget = self._toolbar_width_budget(w)
+        budget = w
 
         if not self._tool_row.isHidden():
             # The hint goes first, then the slider: the name, undo and Done always stay.
@@ -1555,11 +1596,12 @@ class ActionToolbar(QWidget):
             for widget in optional:
                 widget.setVisible(True)
             for widget in optional:
-                if self._pill_width() <= budget:
+                if self._bar_width() <= budget:
                     break
                 widget.setVisible(False)
             self._activate_layout()
-            self.adjustSize()
+            return
+        if self._view_row.isHidden():
             return
 
         widgets = [self._row_widgets[item_id] for item_id in self._item_ids]
@@ -1569,10 +1611,9 @@ class ActionToolbar(QWidget):
 
         extras = [item_id for item_id in reversed(self._item_ids) if item_id not in _COLLAPSE_ORDER]
         for item_id in extras + [item_id for item_id in _COLLAPSE_ORDER if item_id in self._item_ids]:
-            if self._pill_width() <= budget:
+            if self._bar_width() <= budget:
                 break
             self._row_widgets[item_id].setVisible(False)
             self._sync_separators()
 
         self._activate_layout()
-        self.adjustSize()

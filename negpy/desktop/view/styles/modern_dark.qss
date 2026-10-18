@@ -456,11 +456,9 @@ QPushButton#icon_menu_btn::menu-indicator {
     width: 0px;
 }
 
-QFrame#toolbar_container {
+QWidget#action_bar {
     background-color: @bg_dark;
-    border: 1px solid @border_color;
-    border-radius: 6px;
-    padding: 4px;
+    border-top: 1px solid @border_color;
 }
 
 QFrame#toolbar_separator {

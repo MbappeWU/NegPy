@@ -211,10 +211,6 @@ class AppState:
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
     color_vision: str = "standard"
 
-    # When False, fit-to-window reserves space for the floating toolbar so the image never
-    # sits behind it. When True (default), the image fills the canvas and the toolbar overlaps.
-    immersive_canvas: bool = True
-
     # When True, switching to a different image keeps the current zoom level
     # instead of resetting to fit-to-window.
     sticky_zoom: bool = False
@@ -908,10 +904,6 @@ class DesktopSessionManager(QObject):
         self.state.zones_style = style if style in ZONE_STYLES else "false_color"
         self.state.canvas_info_level = int(self.repo.get_global_setting("canvas_info_level", 1) or 0) % 3
 
-        saved_immersive = self.repo.get_global_setting("immersive_canvas")
-        if saved_immersive is not None:
-            self.state.immersive_canvas = bool(saved_immersive)
-
         saved_sticky_zoom = self.repo.get_global_setting("sticky_zoom")
         if saved_sticky_zoom is not None:
             self.state.sticky_zoom = bool(saved_sticky_zoom)
@@ -1065,13 +1057,6 @@ class DesktopSessionManager(QObject):
         if self.state.autodetect_enabled != enabled:
             self.state.autodetect_enabled = enabled
             self.repo.save_global_setting("autodetect_enabled", enabled)
-            self.state_changed.emit()
-
-    def set_immersive_canvas(self, enabled: bool) -> None:
-        """Updates and persists the immersive canvas preference."""
-        if self.state.immersive_canvas != enabled:
-            self.state.immersive_canvas = enabled
-            self.repo.save_global_setting("immersive_canvas", enabled)
             self.state_changed.emit()
 
     def set_sticky_zoom(self, enabled: bool) -> None:

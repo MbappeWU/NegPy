@@ -263,12 +263,6 @@ class PreferencesDialog(QDialog):
         grid.addLayout(pills, row, 1)
         row += 1
 
-        self.immersive_box = self._add_checkbox(
-            grid, row, tr("Immersive canvas"), state.immersive_canvas, tr("Toolbar overlaps the image, instead of sitting below it")
-        )
-        self.immersive_box.toggled.connect(self.session.set_immersive_canvas)
-        row += 1
-
         self.sticky_zoom_box = self._add_checkbox(
             grid, row, tr("Sticky zoom"), state.sticky_zoom, tr("Keep the zoom level when switching images, instead of resetting to fit")
         )

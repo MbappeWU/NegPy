@@ -319,6 +319,8 @@ def test_shift_click_with_no_prior_selection_selects_just_the_clicked_item(qapp)
     """The first click of a session — or any Shift-click with no valid current index to
     extend from — falls back to a plain click instead of selecting nothing."""
     browser = _browser(qapp)
+    # A focused view takes the first row as its current index.
+    browser.list_view.selectionModel().clearCurrentIndex()
 
     _click(browser, 4, Qt.KeyboardModifier.ShiftModifier)
 

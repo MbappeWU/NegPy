@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 from PyQt6.QtCore import QRect, Qt
 from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QStandardItem, QStandardItemModel
-from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QToolButton, QWidget
+from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QWidget
 
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
@@ -43,16 +43,11 @@ def _window():
     stack.addWidget(QWidget())
     grid = QListView()
     stack.addWidget(grid)
-    button = QToolButton()
-    button.setCheckable(True)
-    strip = _Dock()
-    strip.light_table_btn = button
-    strip.light_table_view = grid
     win = SimpleNamespace(
         central_stack=stack,
         drawer=_Dock(),
-        _panels_before_light_table=[],
-        file_browser=strip,
+        strip_pane=_Dock(),
+        file_browser=SimpleNamespace(light_table_view=grid),
         controller=MagicMock(),
         state=SimpleNamespace(selected_file_idx=0),
     )
@@ -61,18 +56,17 @@ def _window():
     return win
 
 
-def test_the_light_table_takes_the_canvas_place_and_gives_it_back(qapp):
+def test_the_light_table_takes_the_canvas_and_strip_place_and_gives_it_back(qapp):
     win = _window()
 
     MainWindow.set_light_table(win, True)
     assert win.central_stack.currentIndex() == 1
-    assert win.file_browser.light_table_btn.isChecked()
-    assert not win.drawer.visible and not win.file_browser.visible, "the grid gets the whole window"
+    assert not win.strip_pane.visible, "the strip and its toolbar hide"
+    assert win.drawer.visible, "an open controls panel stays open"
 
     MainWindow.set_light_table(win, False)
     assert win.central_stack.currentIndex() == 0
-    assert not win.file_browser.light_table_btn.isChecked()
-    assert win.drawer.visible and win.file_browser.visible
+    assert win.strip_pane.visible and win.drawer.visible
 
 
 def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
@@ -83,8 +77,7 @@ def test_the_light_table_will_not_open_on_an_empty_grid(qapp):
     MainWindow.set_light_table(win, True)
 
     assert win.central_stack.currentIndex() == 0
-    assert not win.file_browser.light_table_btn.isChecked()
-    assert win.drawer.visible and win.file_browser.visible
+    assert win.strip_pane.visible
     win.controller.set_status.assert_called_once_with("No frames match the filter", 3000)
 
 
@@ -98,10 +91,10 @@ def test_the_light_table_closes_when_its_grid_empties(qapp):
     MainWindow._leave_empty_light_table(win)
 
     assert win.central_stack.currentIndex() == 0
-    assert win.drawer.visible and win.file_browser.visible
+    assert win.strip_pane.visible
 
 
-def test_leaving_the_light_table_keeps_a_hidden_controls_panel_hidden(qapp):
+def test_the_light_table_leaves_a_hidden_controls_panel_hidden(qapp):
     win = _window()
     win.drawer.visible = False
 
@@ -109,7 +102,7 @@ def test_leaving_the_light_table_keeps_a_hidden_controls_panel_hidden(qapp):
     MainWindow.set_light_table(win, False)
 
     assert not win.drawer.visible
-    assert win.file_browser.visible
+    assert win.strip_pane.visible
 
 
 def test_escape_closes_the_light_table_before_anything_else(qapp):
@@ -124,15 +117,17 @@ def test_escape_closes_the_light_table_before_anything_else(qapp):
     controller.cancel_active_tool.assert_not_called()
 
 
-def test_one_key_hides_both_panels_then_brings_both_back(qapp):
+def test_one_key_hides_the_panel_and_collapses_the_strip_then_brings_both_back(qapp):
     win = _window()
+    expanded = [True]
+    win.film_strip_expanded = lambda: expanded[0]
+    win.set_film_strip_expanded = lambda on: expanded.__setitem__(0, on)
 
     MainWindow.toggle_side_panels(win)
-    assert not win.drawer.visible and not win.file_browser.visible
+    assert not win.drawer.visible and not expanded[0]
     MainWindow.toggle_side_panels(win)
-    assert win.drawer.visible and win.file_browser.visible
-    saved = win.controller.session.repo.save_global_setting.call_args_list
-    assert saved[-2:] == [(("panel_right_visible", True),), (("film_strip_visible", True),)]
+    assert win.drawer.visible and expanded[0]
+    win.controller.session.repo.save_global_setting.assert_called_with("panel_right_visible", True)
 
 
 @pytest.fixture

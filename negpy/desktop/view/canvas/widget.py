@@ -26,9 +26,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Inset for the floating bottom toolbar, so the pill is not flush against the canvas edge
-# or clipped by it on tight laptop layouts.
-_TOOLBAR_INSET = THEME.space_xl
+# Inset of the navigator from the canvas corner.
+_NAVIGATOR_INSET = THEME.space_xl
 # Clear space kept around the frame at fit.
 FIT_MARGIN = THEME.space_xl
 
@@ -214,19 +213,8 @@ class ImageCanvas(QWidget):
         self.hud = CanvasHud(self)
         self.navigator = CanvasNavigator(self)
         self.navigator.center_requested.connect(self.center_on)
-        self._floating_toolbar: Optional[QWidget] = None
 
         self.grabGesture(Qt.GestureType.PinchGesture)
-
-    def set_floating_toolbar(self, toolbar: QWidget) -> None:
-        """Adopts the action toolbar as a floating pill anchored to the canvas bottom."""
-        toolbar.setParent(self)
-        # The canvas carries tool cursors (blank heal brush, pen nib, WB picker) and the toolbar
-        # must not inherit them, because buttons want the normal arrow.
-        toolbar.setCursor(Qt.CursorShape.ArrowCursor)
-        toolbar.show()
-        self._floating_toolbar = toolbar
-        self._layout_floating_widgets()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -235,34 +223,17 @@ class ImageCanvas(QWidget):
         # The fit scale moves with the viewport, so the true-zoom % readout must refresh.
         self.zoom_changed.emit(self.zoom_level)
 
-    def relayout_floating_widgets(self) -> None:
-        """Re-place the floating pill after it changes size outside a resize."""
-        self._layout_floating_widgets()
-
     def _layout_floating_widgets(self) -> None:
         self.hud.setGeometry(self.rect())
-        tb = self._floating_toolbar
         nav = self.navigator.sizeHint()
-        nav_bottom = self.height() - (self._toolbar_reserved_height() if tb is not None else 0) - _TOOLBAR_INSET
-        self.navigator.setGeometry(self.width() - nav.width() - _TOOLBAR_INSET, nav_bottom - nav.height(), nav.width(), nav.height())
-        if tb is not None:
-            if hasattr(tb, "set_available_width"):
-                tb.set_available_width(self.width())
-            size = tb.pill_size_hint() if hasattr(tb, "pill_size_hint") else tb.sizeHint()
-            tw, th = size.width(), size.height()
-            inset = _TOOLBAR_INSET
-            x = (self.width() - tw) // 2
-            x = max(inset, min(x, self.width() - tw - inset))
-            y = max(inset, self.height() - th - inset)
-            tb.setGeometry(x, y, tw, th)
-            self.hud.set_bottom_clearance(th + inset)
+        self.navigator.setGeometry(
+            self.width() - nav.width() - _NAVIGATOR_INSET, self.height() - nav.height() - _NAVIGATOR_INSET, nav.width(), nav.height()
+        )
         self._raise_floating_widgets()
 
     def _raise_floating_widgets(self) -> None:
         self.hud.raise_()
         self.navigator.raise_()
-        if self._floating_toolbar is not None:
-            self._floating_toolbar.raise_()
 
     def set_tool_mode(self, mode: ToolMode) -> None:
         self.setCursor(_cursor_for_tool(mode))
@@ -297,15 +268,6 @@ class ImageCanvas(QWidget):
             return int(buf.width), int(buf.height)
         return None
 
-    def _toolbar_reserved_height(self) -> int:
-        """Logical pixels reserved at the canvas bottom for the floating toolbar
-        when immersive mode is off."""
-        tb = self._floating_toolbar
-        if tb is None:
-            return 0
-        size = tb.pill_size_hint() if hasattr(tb, "pill_size_hint") else tb.sizeHint()
-        return size.height() + _TOOLBAR_INSET
-
     def _fit_scale(self) -> Optional[float]:
         """Device-pixel scale the shader applies at zoom_level 1.0 — its fit ratio
         min(viewport / image). True pixel zoom = zoom_level * _fit_scale()."""
@@ -316,8 +278,6 @@ class ImageCanvas(QWidget):
         dpr = self.devicePixelRatioF()
         vw = max(1.0, self.width() * dpr)
         vh = max(1.0, self.height() * dpr)
-        if not self.state.immersive_canvas:
-            vh = max(1.0, vh - self._toolbar_reserved_height() * dpr)
         margin = 2.0 * FIT_MARGIN * dpr
         return min(max(1.0, vw - margin) / max(1, img_w), max(1.0, vh - margin) / max(1, img_h))
 
@@ -381,8 +341,7 @@ class ImageCanvas(QWidget):
         view = self.overlay._view_rect
         if view.isEmpty():
             return
-        reserve = self._toolbar_reserved_height() if not self.state.immersive_canvas else 0
-        cx, cy = self.width() / 2.0, (self.height() - reserve) / 2.0
+        cx, cy = self.width() / 2.0, self.height() / 2.0
         self.pan_by_viewport_delta(cx - (view.x() + nx * view.width()), cy - (view.y() + ny * view.height()))
 
     def _navigator_image(self) -> Optional[QImage]:
@@ -736,10 +695,7 @@ class ImageCanvas(QWidget):
 
     def _sync_transform(self) -> None:
         """Propagates zoom/pan to sub-widgets."""
-        reserve = self._toolbar_reserved_height() if not self.state.immersive_canvas else 0
-        self.gpu_widget.fit_height_reserve = reserve
         self.gpu_widget.set_transform(self.zoom_level, self.pan_offset.x(), self.pan_offset.y())
-        self.overlay.fit_height_reserve = reserve
         self.overlay.set_transform(self.zoom_level, self.pan_offset.x(), self.pan_offset.y())
         self._sync_navigator()
         self.zoom_changed.emit(self.zoom_level)

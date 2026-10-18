@@ -60,14 +60,11 @@ def test_film_strip_toolbar_holds_roll_scoped_actions(panel):
     assert browser.film_strip_toolbar.buttons == expected
 
 
-def test_new_roll_lives_on_the_film_strip_section_header(panel):
-    """Not a toolbar button (it wrapped the row to a second line): the section header's
-    actions menu instead, next to the info and chevron icons."""
+def test_new_roll_lives_in_the_roll_row_menu(panel):
+    """Not a toolbar button: the ⋮ menu at the end of the toolbar's Roll row."""
     browser = panel.file_browser
     assert not hasattr(browser, "new_roll_btn")
-    actions_btn = browser.frames_section.actions_btn
-    assert actions_btn is not None
-    labels = [action.text() for action in actions_btn.menu().actions()]
+    labels = [action.text() for action in browser.roll_menu_btn.menu().actions()]
     assert labels == ["New Roll…", "Close Roll…", "Reset Roll to Defaults…"]
 
 
@@ -102,11 +99,13 @@ def test_narrowing_the_panel_raises_a_populated_overflow_menu(panel, qapp):
     """QToolBar's native extension menu was tried first and came up empty: widgets added with
     addWidget() become QWidgetActions its popup cannot host."""
     toolbar = panel.file_browser.film_strip_toolbar
-    panel.file_browser.resize(1400, 700)
+    row = panel.file_browser.roll_row
+    row.resize(1400, 40)
+    row.show()
     qapp.processEvents()
     assert not toolbar.overflow_btn.isVisible()
 
-    panel.file_browser.resize(320, 700)
+    row.resize(320, 40)
     qapp.processEvents()
     assert toolbar.overflow_btn.isVisible()
 
@@ -120,9 +119,9 @@ def test_film_strip_toolbar_minimum_is_not_the_sum_of_its_buttons(panel):
     assert toolbar.minimumSizeHint().width() < toolbar.sizeHint().width()
 
 
-def test_the_film_strip_row_shrinks_below_its_natural_width(panel):
-    browser = panel.file_browser
-    assert browser.minimumSizeHint().width() < browser.sizeHint().width()
+def test_the_roll_row_shrinks_below_its_natural_width(panel):
+    row = panel.file_browser.roll_row
+    assert row.minimumSizeHint().width() < row.sizeHint().width()
 
 
 def test_a_switched_off_toolbar_button_stays_off_across_a_resize(panel):

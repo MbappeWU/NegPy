@@ -14,14 +14,15 @@ If Windows blocks the default data folder, NegPy suggests `%LOCALAPPDATA%\NegPy\
 
 ### Screen layout
 
-*   **Below the canvas, the film strip**: your frames as strips of film, with import, sorting and triage tools.
-*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. The bottom toolbar holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
+*   **Below the canvas, the film strip**: your frames as strips of film, under the toolbar.
+*   **The toolbar**: its **Photo / Roll** switch picks the row it shows. **Roll** holds the film strip's import, sorting and triage tools and its filter (§2). **Photo** holds navigation, zoom (**Fit to Window**, 25–400%, **HQ Preview**), rotate/flip (on every selected frame), **Tools** (arms any canvas tool: crop, straighten, the pickers, masks, retouching), undo/redo, the **Print** menu (Before / After and the peeks below) and **Overlays** (Zone Overlay, Clipping Overlay, Printing Notes, Grain Focuser, Probe at Cursor, Frame Info). An armed canvas tool shows its use, its slider and **Done** on the toolbar; its name opens the same menu to switch tools. The **⋯** menu holds every action, including **Preferences…** (§14). Right-click the toolbar for **Edit Toolbar…**.
+*   **Center, the canvas**: the live preview. Scroll or pinch to zoom, drag to pan, double-click to switch between fit and 100% at that spot. Zoomed in, a navigator in the lower right shows the visible part and the zoom; click or drag it to move the view. Right-click the image for **Reset View**, **Sticky Zoom**, the pickers, copy/paste settings, **Reset Settings**, **Reset to Roll Settings** and **Unload** (drop the frame from the session; its edit stays).
 *   **Frame Info**: `I` cycles the corner pills. **Off**; **Basic**: file name, scan size, film mode; **Full**: adds the frame's place in the strip, film, camera and lens, the soft-proof profile, the export size and the zoom.
 *   **Right, the controls**: tabs **Library** / **Roll** / **Frame** / **Metadata** / **Export** / **Scan**. **Roll** and **Frame** have a pinned **Analysis** readout; **Frame** has its own row of tabs. Only Roll and Frame change the render.
 
 With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
-Drag the film strip's top edge to change its height, which sets the size of its frames; its header folds it to one line (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides and shows the controls panel and the film strip. **Reset Panel Layout** (**⋯** menu) restores the default layout.
+Drag the line above the toolbar to change the film strip's height, which sets the size of its frames; the chevron at the toolbar's right end folds the strip away and leaves the toolbar (`Ctrl+[`). Drag the controls panel by its top edge to float it; its pin button docks it. **Shift+H** hides the controls panel and folds the film strip, or brings both back. **Reset Panel Layout** (**⋯** menu) restores the default layout.
 
 ### The tour
 
@@ -117,7 +118,7 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Library and film strip
 
-The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The strip scrolls sideways, and its height sets the size of the frames. Your imported rolls are on the right panel's **Library** tab.
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The strip scrolls sideways, and its height sets the size of the frames. The toolbar's **Roll** mode shows the strip's buttons, filter and tally, and its **ⓘ** opens this guide. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
@@ -161,15 +162,15 @@ A frame has one edit in every roll that holds it. On a frame in more than one ro
 
 **Nikon High Efficiency raw**: Z 8 and Z 9 NEFs in **HE** or **HE\*** use a licensed codec that NegPy cannot decode. Shoot **Lossless Compressed**, or convert with Adobe DNG Converter.
 
-The **⋮** menu on the Film Strip header:
+The **⋮** menu at the end of the toolbar's Roll row:
 
 *   **New Roll…**: clears the film strip, to drag in frames and keep them with **Save as Roll…**.
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
 
-The grid button on the same header opens the **Light Table** (`Shift+G`): the roll as strips of film on a white light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. The Film Strip and the controls panel hide while it is open. **Esc** or `Shift+G` goes back.
+The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a white light table for culling, with the same selection, marks and menus. Each strip carries the edge print and perforations of the film stock and format set in the Metadata card, and each frame lies as it does on the film. It takes the place of the canvas and the Film Strip with its toolbar; the controls panel stays. **Esc** or `Shift+G` goes back.
 
-The Film Strip button row:
+The toolbar's Roll row:
 
 *   **Add**: **Add Files…** or **Add Folder…** (or drop a folder on the window). A folder with no images of its own imports its subfolders as rolls.
 *   **Hot Folder**: loads new files as they appear in the current folder, for a scanner or tethering app.
@@ -341,7 +342,7 @@ A 21-step wedge printed through the current curve, alternative process and tonin
 
 Eleven cells on the Adams scale (**0** paper black, **V** 18% mid-gray, **X** paper white), each zone rounded to the nearest as the Zone Overlay counts it; opacity shows how much of the frame lands in each. The two cells at each end turn **red** when shadows block up or highlights blow. Click a cell to start a Zone placement. The strip is disabled on a slide or a Positive frame.
 
-Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the canvas toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
+Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
 
 #### Probe
 
@@ -1157,10 +1158,9 @@ Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Ch
 *   **Language** (default System Default): English, Simplified Chinese, Japanese or Korean; restart to apply. Other system languages use English. Panel guides use the selected language and fall back to English when a translation is missing.
 *   **UI scale** (80% to 120%): after a restart.
 *   **Canvas background**: black, dark gray, mid gray (neutral for judging) or white (a print on a light table).
-*   **Immersive canvas**: the toolbar floats over the image.
 *   **Sticky zoom**: keeps the zoom when you switch frames.
 *   **Reverse scroll zoom**: scroll up zooms out.
-*   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, canvas toolbar picker, default panel layout.
+*   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, toolbar picker, default panel layout.
 
 ### Accessibility
 

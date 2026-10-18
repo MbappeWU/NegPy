@@ -75,8 +75,8 @@ Actions with no default key are not listed; every one of them can still be bound
 | `I` | Frame info on the canvas: off, basic or full |
 | `Ctrl + [` | Collapse or expand the Film Strip |
 | `Ctrl + ]` | Toggle controls panel (re-docks when floating) |
-| `Ctrl + Shift + L` | Dock the controls panel and show the Film Strip |
-| `Shift + H` | Hide or show the controls panel and the Film Strip |
+| `Ctrl + Shift + L` | Dock the controls panel and expand the Film Strip |
+| `Shift + H` | Hide the controls panel and collapse the Film Strip, or bring both back |
 | `Shift + G` | Light Table: the roll as a grid in place of the canvas |
 | `Shift + R` | Reference view: pin this frame beside the canvas to match others to it |
 | `0` | Fit to window |

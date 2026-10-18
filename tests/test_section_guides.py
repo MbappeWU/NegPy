@@ -8,7 +8,7 @@ from negpy.desktop.view.widgets.section_help_dialog import _guides
 ROOT = Path(__file__).resolve().parents[1]
 DESKTOP = ROOT / "negpy" / "desktop" / "view"
 
-# Keys built with an f-string (metadata and gear cards) and the strip-preview dialog's help button.
+# Keys built with an f-string (metadata and gear cards), and the help buttons of the strip-preview dialog and the Roll row.
 DYNAMIC_KEYS = {
     "metadata_presets",
     "metadata_gear",
@@ -20,6 +20,7 @@ DYNAMIC_KEYS = {
     "gear_items",
     "gear_presets",
     "scan_strip",
+    "frames",
 }
 
 

@@ -128,12 +128,6 @@ class CanvasHud(QWidget):
         # label grows to the canvas. Short toasts still size to content.
         self.toast.setMaximumWidth(max(_TOAST_MIN_WIDTH, int(self.width() * _TOAST_WIDTH_RATIO)))
 
-    def set_bottom_clearance(self, px: int) -> None:
-        """Keeps the bottom pills above the floating toolbar, whatever height it lays out at."""
-        m = self.layout().contentsMargins()
-        if m.bottom() != px:
-            self.layout().setContentsMargins(m.left(), m.top(), m.right(), px)
-
     @staticmethod
     def _set_pill(lbl: QLabel, text: str) -> None:
         lbl.setText(text)

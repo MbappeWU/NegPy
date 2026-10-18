@@ -58,9 +58,7 @@ class TestPreferencesDialog(unittest.TestCase):
 
     def test_view_toggles_go_through_the_session(self):
         dlg = _dlg()
-        dlg.immersive_box.setChecked(not dlg.immersive_box.isChecked())
         dlg.sticky_zoom_box.setChecked(not dlg.sticky_zoom_box.isChecked())
-        dlg.session.set_immersive_canvas.assert_called_once()
         dlg.session.set_sticky_zoom.assert_called_once()
 
     def test_sticky_settings_box_reflects_state_and_toggles_through_the_session(self):
@@ -125,7 +123,7 @@ class TestPreferencesDialog(unittest.TestCase):
     def test_the_restart_hint_waits_for_a_startup_change(self):
         dlg = _dlg()
         self.assertTrue(dlg._restart_hint.isHidden())
-        dlg.immersive_box.setChecked(not dlg.immersive_box.isChecked())
+        dlg.sticky_zoom_box.setChecked(not dlg.sticky_zoom_box.isChecked())
         self.assertTrue(dlg._restart_hint.isHidden())
         dlg._spins["preview_render_size"].setValue(2048)
         self.assertFalse(dlg._restart_hint.isHidden())

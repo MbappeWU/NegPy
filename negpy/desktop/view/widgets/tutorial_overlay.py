@@ -374,9 +374,12 @@ class TutorialOverlay(QWidget):
     # Layout helpers
 
     def _reveal(self, target: QWidget) -> None:
-        for panel in (getattr(self._win, "file_browser", None), getattr(self._win, "drawer", None)):
-            if panel is not None and panel.isAncestorOf(target) and not panel.isVisible():
-                panel.show()
+        reveal_in_strip = getattr(self._win, "reveal_strip_widget", None)
+        if reveal_in_strip is not None:
+            reveal_in_strip(target)
+        drawer = getattr(self._win, "drawer", None)
+        if drawer is not None and drawer.isAncestorOf(target) and not drawer.isVisible():
+            drawer.show()
         parent: Optional[QWidget] = target
         while parent is not None:
             if (
