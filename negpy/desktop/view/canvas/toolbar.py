@@ -43,7 +43,7 @@ CANVAS_COLORS = [
     (THEME.canvas_bg_black, (0.02, 0.02, 0.02), tr("Black")),
     (THEME.canvas_bg_dark_grey, (0.11, 0.11, 0.11), tr("Dark Gray")),
     (THEME.canvas_bg_mid_grey, (0.25, 0.25, 0.25), tr("Mid Gray")),
-    (THEME.canvas_bg_white, (1.0, 1.0, 1.0), tr("White")),
+    (THEME.canvas_bg_white, (0.902, 0.902, 0.902), tr("White")),
 ]
 
 
