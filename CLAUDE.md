@@ -48,7 +48,7 @@ Edits persist in SQLite (`edits.db`, keyed by content hash), optionally mirrored
 
 **Roll-scoped edit fork**: a photo in more than one Roll has one edit, unless a per-frame fork gives it its own edit for one Roll. A fork is the content hash suffixed `#roll:<id>` (`roll_edit_hash`), like a half-frame's `#N`. Triage marks and legacy-hash migration strip the suffix (`unforked_hash`), because they belong to the physical scan.
 
-**Film edge print** (`services/film_edge/`): the film strip's rebate, edge print and perforations, painted by `paint_strip` for the contact sheet, and one frame pitch per cell for the Film Strip and the Light Table (`_FilmDelegate`/`_FilmGridView` in `sidebar/files.py`, the look from the active frame, the rebate the roll's mean thumbnail D-max). Maker layouts are the `LAYOUTS` table in `layouts.py`, the DX and KEYKODE (Code 128) encoders `barcodes.py`; a stock's own marks, DX number and respool source (`prints_as`) are the `edge` object in `gear/film_stocks.json`, each entry naming its `source`. The `edge-print-from-photo` skill adds a stock from a photo of the film.
+**Film edge print** (`services/film_edge/`): a stock's own marks, DX number and respool source (`prints_as`) are the `edge` object in `gear/film_stocks.json`, and each entry names its `source`. The `edge-print-from-photo` skill adds a stock from a photo of the film.
 
 ### Pipeline
 
