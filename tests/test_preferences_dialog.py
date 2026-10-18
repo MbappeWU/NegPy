@@ -57,6 +57,12 @@ class TestPreferencesDialog(unittest.TestCase):
         self.assertTrue(dlg.canvas_pills[1].isChecked())
         self.assertFalse(dlg.canvas_pills[2].isChecked())
 
+    def test_film_edges_default_on_and_go_through_the_session(self):
+        dlg = _dlg()
+        self.assertTrue(dlg.film_edges_box.isChecked())
+        dlg.film_edges_box.setChecked(False)
+        dlg.session.set_film_edges.assert_called_once_with(False)
+
     def test_color_vision_offers_every_palette_and_sets_it(self):
         from negpy.desktop.view.styles.color_vision import PALETTES
 

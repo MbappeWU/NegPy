@@ -264,6 +264,16 @@ class PreferencesDialog(QDialog):
         grid.addLayout(pills, row, 1)
         row += 1
 
+        self.film_edges_box = self._add_checkbox(
+            grid,
+            row,
+            "Film edges",
+            state.film_edges,
+            "Draw the rebate, perforations and edge print around the frames of the Film Strip and the Light Table",
+        )
+        self.film_edges_box.toggled.connect(self.session.set_film_edges)
+        row += 1
+
         self.sticky_zoom_box = self._add_checkbox(
             grid, row, tr("Sticky zoom"), state.sticky_zoom, tr("Keep the zoom level when switching images, instead of resetting to fit")
         )

@@ -843,11 +843,13 @@ class _FilmDelegate(_ThumbnailDelegate):
         super().__init__(parent, state)
         self._frame_geometry = frame_geometry
         self._film: Optional[tuple[FilmGeometry, EdgeStyle, Palette]] = None
+        self._edges = True
         self._rebates: dict[tuple[int, int, int], QImage] = {}
         self._pictures: dict[int, QPixmap] = {}
 
-    def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette) -> None:
+    def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette, edges: bool = True) -> None:
         self._film = (geometry, style, palette)
+        self._edges = edges
         self._rebates.clear()
         self._pictures.clear()
 
@@ -909,7 +911,8 @@ class _FilmDelegate(_ThumbnailDelegate):
             return
         cell = option.rect
         top, window = self._layout(film[0], cell)
-        painter.drawImage(cell.left(), top, self._rebate(film, index.row(), cell.width(), index.model().rowCount()))
+        if self._edges:
+            painter.drawImage(cell.left(), top, self._rebate(film, index.row(), cell.width(), index.model().rowCount()))
         framed = QStyleOptionViewItem(option)
         m = self._MARGIN
         framed.rect = window.adjusted(-m, -m, m, m)
@@ -928,6 +931,7 @@ class _FilmGridView(ThumbnailGridView):
     SPACING = 0
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
+    _edges = True
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -941,9 +945,10 @@ class _FilmGridView(ThumbnailGridView):
     def _table_qss(self, color: str) -> str:
         return f"QListView {{ background-color: {color}; border: none; }}"
 
-    def set_film_aspect(self, aspect: float) -> None:
-        if aspect != self._aspect:
-            self._aspect = aspect
+    def set_film_aspect(self, aspect: float, edges: bool = True) -> None:
+        """Without edges the rows are pictures, not strips, so no gap parts them."""
+        if (aspect, edges) != (self._aspect, self._edges):
+            self._aspect, self._edges = aspect, edges
             self._last_cell = -1
             self._relayout()
 
@@ -955,7 +960,7 @@ class _FilmGridView(ThumbnailGridView):
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        size = QSize(cell, int(round(cell * self._aspect)) + self.STRIP_GAP)
+        size = QSize(cell, int(round(cell * self._aspect)) + (self.STRIP_GAP if self._edges else 0))
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
@@ -1319,6 +1324,7 @@ class FileBrowser(QWidget):
         self.hot_folder_btn.toggled.connect(self._on_hot_folder_toggled)
         self.controller.thumbnail_refresh_state_changed.connect(self._on_thumbnail_refresh_state_changed)
         self.session.canvas_bg_changed.connect(self._sync_film)
+        self.session.film_edges_changed.connect(self._sync_film)
         model = self.session.asset_model
         for signal in (model.dataChanged, model.layoutChanged, model.modelReset, model.rowsInserted, model.rowsRemoved):
             signal.connect(lambda *_args: self._rebate_timer.start())
@@ -1388,6 +1394,7 @@ class FileBrowser(QWidget):
             (half_frame, asset.get("half")),
             table,
             self._rebate_tone,
+            state.film_edges,
         )
         if key == self._film_key:
             return
@@ -1397,9 +1404,12 @@ class FileBrowser(QWidget):
         except Exception:
             library = None
         film = roll_film(asset, config, library, half_frame, table, self._rebate_tone)
+        geometry = film[0]
+        # Without edges a cell is the picture with the frame gap on every side.
+        across = geometry.width if state.film_edges else geometry.frame_across + geometry.pitch - geometry.frame_along
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
-            delegate.set_film(*film)
-            view.set_film_aspect(film[0].width / film[0].pitch)
+            delegate.set_film(*film, edges=state.film_edges)
+            view.set_film_aspect(across / geometry.pitch, state.film_edges)
             view.set_table_color(table)
 
     def _open_from_light_table(self, index) -> None:

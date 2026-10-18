@@ -299,6 +299,30 @@ def test_a_light_table_cell_is_one_frame_of_film(browser):
     assert max(rebate.red(), rebate.green(), rebate.blue()) < 40
 
 
+def test_without_film_edges_a_cell_is_the_picture_and_its_frame_gap(browser):
+    view, delegate = browser.light_table_view, browser._light_table_delegate
+    browser.session.set_canvas_bg(3)  # White
+    browser.session.set_film_edges(False)
+    browser.session.repo.save_global_setting.assert_any_call("film_edges", False)
+    view.resize(900, 600)
+    view._relayout()
+    cell = view.gridSize()
+    s = cell.width() / 38.0
+    assert cell.height() == round((24.0 + 2.0) * s)
+    assert browser.list_view._aspect == pytest.approx(26.0 / 38.0)
+
+    canvas = QImage(cell.width(), cell.height(), QImage.Format.Format_RGB888)
+    canvas.fill(QColor(WHITE))
+    option = QStyleOptionViewItem()
+    option.rect = QRect(0, 0, cell.width(), cell.height())
+    painter = QPainter(canvas)
+    delegate.paint(painter, option, view.model().index(0, 0))
+    painter.end()
+
+    window = delegate._layout(delegate._film[0], option.rect)[1]
+    assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == QColor(WHITE)
+
+
 @pytest.mark.parametrize(("rotation", "top_lies_left"), [(0, False), (3, True)])
 def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_lies_left):
     upright = Image.new("RGB", (200, 300), (0, 0, 200))
