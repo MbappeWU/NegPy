@@ -804,23 +804,59 @@ def table_color(index: int) -> str:
     return CANVAS_COLORS[index][0] if 0 <= index < len(CANVAS_COLORS) else LIGHT_TABLE_WHITE
 
 
+# The perforation rim sits this far above the rebate, as in the contact sheet's palettes.
+_RIM_LIFT = 5
+# Share of a print's darkest pixels whose mean color is its D-max.
+_DMAX_SHARE = 0.01
+
+
 def roll_film(
-    asset: dict, config: WorkspaceConfig, library: Any, half_frame: bool, table: str = LIGHT_TABLE_WHITE
+    asset: dict,
+    config: WorkspaceConfig,
+    library: Any,
+    half_frame: bool,
+    table: str = LIGHT_TABLE_WHITE,
+    rebate: Optional[tuple[int, int, int]] = None,
 ) -> tuple[FilmGeometry, EdgeStyle, Palette]:
-    """The roll as film: the active frame's format and edge print, in the contact sheet's palette."""
+    """The roll as film: the active frame's format and edge print, in the contact sheet's palette, or
+    with the rebate in the color the roll's prints reach at D-max."""
     frames = [SheetFrame(asset, config)]
     fmt, frame_size = infer_format(frames, half_frame)
     look = sheet_look(frames, fmt, library=library)
     surface = QColor(table)
-    return film_geometry(fmt, frame_size), look.edge, replace(palette_for(look), no_film=(surface.red(), surface.green(), surface.blue()))
+    palette = replace(palette_for(look), no_film=(surface.red(), surface.green(), surface.blue()))
+    if rebate is not None and not palette.paper:
+        rim = (
+            None
+            if palette.rim is None
+            else (min(255, rebate[0] + _RIM_LIFT), min(255, rebate[1] + _RIM_LIFT), min(255, rebate[2] + _RIM_LIFT))
+        )
+        palette = replace(palette, rebate=rebate, rim=rim)
+    return film_geometry(fmt, frame_size), look.edge, palette
+
+
+def _rgb_pixels(image: QImage) -> np.ndarray:
+    rgb = image.convertToFormat(QImage.Format.Format_RGB888)
+    width, height = rgb.width(), rgb.height()
+    rows = np.frombuffer(rgb.constBits().asstring(rgb.sizeInBytes()), np.uint8).reshape(height, rgb.bytesPerLine())
+    return rows[:, : width * 3].reshape(height, width, 3)
+
+
+def print_dmax(image: QImage) -> Optional[tuple[int, int, int]]:
+    """A print's D-max tone: the mean color of the darkest pixels of a thumbnail, its padding left out."""
+    pixels = _rgb_pixels(image.copy(picture_in_thumbnail(image))).reshape(-1, 3).astype(np.float32)
+    if not len(pixels):
+        return None
+    luma = pixels @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    darkest = pixels[luma <= np.quantile(luma, _DMAX_SHARE)]
+    red, green, blue = (int(round(v)) for v in darkest.mean(axis=0))
+    return red, green, blue
 
 
 def picture_in_thumbnail(image: QImage) -> QRect:
     """The picture inside a thumbnail that prepare_thumbnail padded to a square, centered on one axis."""
-    rgb = image.convertToFormat(QImage.Format.Format_RGB888)
-    width, height = rgb.width(), rgb.height()
-    rows = np.frombuffer(rgb.constBits().asstring(rgb.sizeInBytes()), np.uint8).reshape(height, rgb.bytesPerLine())
-    pixels = rows[:, : width * 3].reshape(height, width, 3).astype(np.int16)
+    pixels = _rgb_pixels(image).astype(np.int16)
+    height, width = pixels.shape[:2]
     live = np.abs(pixels - np.array(THUMBNAIL_PAD, np.int16)).max(axis=2) > 10
 
     def pad(lines: np.ndarray) -> int:
@@ -1244,6 +1280,13 @@ class FileBrowser(QWidget):
         self._make_grid(self.light_table_view, self._light_table_delegate)
         self.light_table_view.setSelectionModel(self.list_view.selectionModel())
         self._film_key: Optional[tuple] = None
+        # The rebate prints as the roll's mean print D-max, measured once per thumbnail pixmap.
+        self._rebate_tone: Optional[tuple[int, int, int]] = None
+        self._dmax_by_pixmap: dict[int, Optional[tuple[int, int, int]]] = {}
+        self._rebate_timer = QTimer(self)
+        self._rebate_timer.setSingleShot(True)
+        self._rebate_timer.setInterval(300)
+        self._rebate_timer.timeout.connect(self._measure_rebate)
         self._apply_sort_order(str(saved_sort), save=False)
         self._apply_sort_direction(bool(saved_desc), save=False)
 
@@ -1320,6 +1363,9 @@ class FileBrowser(QWidget):
         self.hot_folder_btn.toggled.connect(self._on_hot_folder_toggled)
         self.controller.thumbnail_refresh_state_changed.connect(self._on_thumbnail_refresh_state_changed)
         self.session.light_table_bg_changed.connect(self._sync_film)
+        model = self.session.asset_model
+        for signal in (model.dataChanged, model.layoutChanged, model.modelReset, model.rowsInserted, model.rowsRemoved):
+            signal.connect(lambda *_args: self._rebate_timer.start())
         self.controller.thumbnail_refresh_progress.connect(self._on_thumbnail_refresh_progress)
         self.session.state_changed.connect(self.sync_ui)
         self.session.files_changed.connect(self._on_files_changed)
@@ -1349,6 +1395,27 @@ class FileBrowser(QWidget):
         saved = self.session.repo.load_file_settings(asset["hash"]) if asset.get("hash") else None
         return saved.geometry if saved is not None else GeometryConfig()
 
+    def _measure_rebate(self) -> None:
+        model = self.session.asset_model
+        tones = []
+        for row in range(model.rowCount()):
+            icon = model.data(model.index(row, 0), Qt.ItemDataRole.DecorationRole)
+            pixmap = icon.pixmap(QSize(4096, 4096)) if isinstance(icon, QIcon) else None
+            if pixmap is None or pixmap.isNull():
+                continue
+            key = pixmap.cacheKey()
+            if key not in self._dmax_by_pixmap:
+                if len(self._dmax_by_pixmap) > _FilmDelegate._CACHE_LIMIT:
+                    self._dmax_by_pixmap.clear()
+                self._dmax_by_pixmap[key] = print_dmax(pixmap.toImage())
+            if (tone := self._dmax_by_pixmap[key]) is not None:
+                tones.append(tone)
+        mean = np.mean(tones, axis=0) if tones else None
+        rebate = None if mean is None else (int(round(mean[0])), int(round(mean[1])), int(round(mean[2])))
+        if rebate != self._rebate_tone:
+            self._rebate_tone = rebate
+            self._sync_film()
+
     def _sync_film(self) -> None:
         """The film of the strip and the Light Table, from the active frame; the gear library is read
         only when an input changes."""
@@ -1364,6 +1431,7 @@ class FileBrowser(QWidget):
             (config.process.process_mode, config.process.positive_source, config.exposure.paper_black),
             (half_frame, asset.get("half")),
             table,
+            self._rebate_tone,
         )
         if key == self._film_key:
             return
@@ -1372,7 +1440,7 @@ class FileBrowser(QWidget):
             library = self.controller.load_gear_library()
         except Exception:
             library = None
-        film = roll_film(asset, config, library, half_frame, table)
+        film = roll_film(asset, config, library, half_frame, table, self._rebate_tone)
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
             delegate.set_film(*film)
             view.set_film_aspect(film[0].width / film[0].pitch)

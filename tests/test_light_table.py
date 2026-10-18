@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewI
 from negpy.desktop.session import DesktopSessionManager
 from negpy.desktop.view.keyboard_shortcuts import _context_cancel
 from negpy.desktop.view.main_window import MainWindow
-from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE, FileBrowser, _FilmDelegate, roll_film, picture_in_thumbnail
+from negpy.desktop.view.sidebar.files import LIGHT_TABLE_WHITE, FileBrowser, _FilmDelegate, print_dmax, roll_film, picture_in_thumbnail
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.geometry.models import GeometryConfig
@@ -187,6 +187,35 @@ def test_a_padded_thumbnail_gives_back_its_picture(qapp, size):
     rect = picture_in_thumbnail(_qimage(thumb))
 
     assert (rect.width(), rect.height()) == ((120, 80) if size[0] > size[1] else (80, 120))
+
+
+def _print(black: tuple[int, int, int]) -> Image.Image:
+    """A pale print with one patch at its D-max."""
+    img = Image.new("RGB", (300, 200), (230, 225, 215))
+    img.paste(black, (0, 0, 60, 40))
+    return img
+
+
+def test_a_prints_dmax_is_its_darkest_tone_not_the_thumbnail_padding(qapp):
+    tone = print_dmax(_qimage(prepare_thumbnail(_print((30, 22, 12)), 120)))
+
+    assert tone == pytest.approx((30, 22, 12), abs=3)
+
+
+def test_the_rebate_takes_the_rolls_mean_print_dmax(browser):
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    state = browser.session.state
+    for info, black in zip(state.uploaded_files, ((30, 20, 10), (50, 40, 30), (40, 30, 20)), strict=True):
+        state.thumbnails[asset_thumbnail_key(info)] = QIcon(QPixmap.fromImage(_qimage(prepare_thumbnail(_print(black), 120))))
+    browser.controller.load_gear_library.return_value = _hp5()[1]
+
+    browser._measure_rebate()
+
+    assert browser._rebate_tone == pytest.approx((40, 30, 20), abs=3)
+    palette = browser._light_table_delegate._film[2]
+    assert palette.rebate == browser._rebate_tone
+    assert palette.rim == tuple(c + 5 for c in browser._rebate_tone)
 
 
 def _hp5(**meta) -> tuple[WorkspaceConfig, GearLibrary]:
