@@ -1,37 +1,62 @@
 from typing import Optional
 
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QDialog,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QRadioButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from negpy.desktop.view.styles.templates import hint_label, pane_header_qss, pin_dialog_default
+from negpy.desktop.view.styles.templates import pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
+from negpy.features.exposure.papers import PAPER_PROFILES
 from negpy.features.process.models import scan_setup_values
 
 _CAPTURE = (
-    ("camera", "Digital camera", "A camera on a copy stand shooting the negative over a light source"),
-    ("scanner", "Film scanner", "A dedicated film scanner"),
+    ("camera", "fa5s.camera", "Camera", "A camera on a copy stand shooting the negative over a light source"),
+    ("scanner", "fa5s.camera-retro", "Film Scanner", "A dedicated film scanner"),
 )
 
-# Only a camera is asked: a scanner decodes Linear RAW under any light.
 _LIGHT = (
-    ("white", "White light", "A lightbox or high-CRI LED panel — one broadband exposure"),
-    ("narrowband", "Narrowband RGB", "A Scanlight or RGB-LED source — pure red, green and blue bands"),
+    ("white", "mdi6.lightbulb-outline", "White Light"),
+    ("narrowband", "mdi6.led-on", "Narrowband RGB"),
 )
+
+_LIGHT_HINT = {
+    "camera": {
+        "white": "A lightbox or high-CRI LED panel — one broadband exposure",
+        "narrowband": "A Scanlight or RGB-LED source — pure red, green and blue bands",
+    },
+    "scanner": {
+        "white": "A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds",
+        "narrowband": "RGB-LED illumination — Nikon Coolscan, Kodak Pakon",
+    },
+}
+
+_TRY_STOCKS = "Try them under Print stock in Paper Response and keep the one you like."
+_STOCK_HINT = {
+    "white": f"{PAPER_PROFILES['neutral'].label} is a neutral print. Each paper and print film has its own colors and contrast. "
+    + _TRY_STOCKS,
+    "narrowband": f"{PAPER_PROFILES['pakon'].label} gives a minilab's colors. {PAPER_PROFILES['kodak_supra_endura'].label} and "
+    f"{PAPER_PROFILES['fuji_crystal'].label} are near it, and each paper and print film has its own colors. " + _TRY_STOCKS,
+}
+
+
+def _text(color: str) -> QLabel:
+    label = QLabel()
+    label.setWordWrap(True)
+    label.setStyleSheet(f"color: {color}; font-size: {THEME.font_size_base}px;")
+    return label
 
 
 class ScanSetupDialog(QDialog):
-    """Wizard asking what rig the negatives were scanned on, so Camera WB or Linear RAW can be
-    set from the answer instead of by trial and error."""
+    """Two-page wizard asking what rig the negatives were scanned on, so the decode and the
+    print stock are set from the answer instead of by trial and error."""
 
     def __init__(self, parent, saved: Optional[dict] = None, *, repo=None):
         super().__init__(parent)
@@ -46,58 +71,47 @@ class ScanSetupDialog(QDialog):
         root.setSpacing(THEME.space_xl)
 
         self.pages = QStackedWidget()
-        self.capture_group = QButtonGroup(self)
-        self.light_group = QButtonGroup(self)
-        self.pages.addWidget(self._build_capture_page())
-        self.pages.addWidget(self._build_light_page())
+        self.capture_btn = SegmentedChoice(
+            tuple((icon, label) for _key, icon, label, _hint in _CAPTURE),
+            "What the negatives were scanned with",
+            data=tuple(key for key, *_ in _CAPTURE),
+        )
+        self.capture_hint = _text(THEME.text_secondary)
+        self.light_btn = SegmentedChoice(
+            tuple((icon, label) for _key, icon, label in _LIGHT),
+            "The light behind the negative",
+            data=tuple(key for key, *_ in _LIGHT),
+        )
+        self.light_hint = _text(THEME.text_secondary)
+        self.stock_hint = _text(THEME.text_secondary)
+        self.pages.addWidget(self._page("How Do You Scan?", self.capture_btn, self.capture_hint))
+        self.pages.addWidget(self._page("What Light Source?", self.light_btn, self.light_hint, self.stock_hint))
         root.addWidget(self.pages)
 
-        self.summary = hint_label()
+        self.capture_btn.setCurrentIndex(max(self.capture_btn.findData(self._capture), 0))
+        self.light_btn.setCurrentIndex(max(self.light_btn.findData(self._light), 0))
+        self.capture_btn.currentChanged.connect(lambda i: self._set_capture(_CAPTURE[i][0]))
+        self.light_btn.currentChanged.connect(lambda i: self._set_light(_LIGHT[i][0]))
+
+        self.summary = _text(THEME.text_primary)
         root.addWidget(self.summary)
         root.addLayout(self._build_footer())
 
         self._sync()
         remember_dialog_geometry(self, repo, "scan_setup")
 
-    def _build_capture_page(self) -> QWidget:
+    def _page(self, title: str, choice: SegmentedChoice, *hints: QLabel) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(THEME.space_md)
 
-        title = QLabel("HOW DO YOU SCAN?")
-        title.setStyleSheet(pane_header_qss())
-        layout.addWidget(title)
-
-        for i, (key, label, blurb) in enumerate(_CAPTURE):
-            btn = QRadioButton(label)
-            btn.setChecked(key == self._capture)
-            self.capture_group.addButton(btn, i)
-            layout.addWidget(btn)
-            layout.addWidget(hint_label(blurb))
-        self.capture_group.idToggled.connect(lambda i, on: self._set_capture(_CAPTURE[i][0]) if on else None)
-        layout.addStretch()
-        return page
-
-    def _build_light_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(THEME.space_md)
-
-        title = QLabel("WHAT LIGHT SOURCE?")
-        title.setStyleSheet(pane_header_qss())
-        layout.addWidget(title)
-
-        self.light_buttons: list[QRadioButton] = []
-        for i, (key, label, blurb) in enumerate(_LIGHT):
-            btn = QRadioButton(label)
-            btn.setChecked(key == self._light)
-            self.light_group.addButton(btn, i)
-            self.light_buttons.append(btn)
-            layout.addWidget(btn)
-            layout.addWidget(hint_label(blurb))
-        self.light_group.idToggled.connect(lambda i, on: self._set_light(_LIGHT[i][0]) if on else None)
+        header = QLabel(title)
+        header.setStyleSheet(f"color: {THEME.text_primary}; font-size: {THEME.font_size_title}px; font-weight: bold;")
+        layout.addWidget(header)
+        layout.addWidget(choice)
+        for hint in hints:
+            layout.addWidget(hint)
         layout.addStretch()
         return page
 
@@ -125,7 +139,7 @@ class ScanSetupDialog(QDialog):
         self._sync()
 
     def _advance(self) -> None:
-        if self.pages.currentIndex() == 0 and self._capture == "camera":
+        if self.pages.currentIndex() == 0:
             self.pages.setCurrentIndex(1)
             self._sync()
         else:
@@ -136,15 +150,20 @@ class ScanSetupDialog(QDialog):
         self._sync()
 
     def _sync(self) -> None:
-        """Refresh the footer and the summary for the current page and answers."""
+        """Refresh the hints, footer and summary for the current page and answers."""
+        self.capture_hint.setText(_CAPTURE[self.capture_btn.currentIndex()][3])
+        self.light_hint.setText(_LIGHT_HINT[self._capture][self._light])
+
         on_light_page = self.pages.currentIndex() == 1
-        last_page = on_light_page or self._capture != "camera"
         self.back_btn.setVisible(on_light_page)
-        self.next_btn.setText("Apply" if last_page else "Next →")
-        linear_raw = scan_setup_values(self._capture, self._light)
+        self.next_btn.setText("Apply" if on_light_page else "Next →")
+        linear_raw, paper = scan_setup_values(self._capture, self._light)
         self.summary.setText(
-            f"Sets {'Linear RAW' if linear_raw else 'Camera WB'}" if last_page else "The light source decides Camera WB or Linear RAW."
+            f"Sets {'Linear RAW' if linear_raw else 'Camera WB'} · Print stock {PAPER_PROFILES[paper].label}"
+            if on_light_page
+            else "Two questions — they set the decode and the print stock for your rig."
         )
+        self.stock_hint.setText(_STOCK_HINT[self._light])
 
     def choice(self) -> dict:
         return {"capture": self._capture, "light": self._light}

@@ -19,6 +19,7 @@ from negpy.desktop.auto_sliders import record_meters, shown_values
 from negpy.desktop.converters import ImageConverter
 from negpy.desktop.file_manager import move_to_trash
 from negpy.desktop.render_memo import RenderMemo
+from negpy.desktop.sticky import STICKY_CONFIG_KEY
 from negpy.desktop.session import (
     AppState,
     DesktopSessionManager,
@@ -187,6 +188,7 @@ from negpy.features.lab.models import LabConfig
 from negpy.features.local.models import LocalAdjustmentsConfig
 from negpy.features.process.path import RenderPath, render_path
 from negpy.features.process.models import (
+    SCAN_SETUP_PAPERS,
     ProcessMode,
     cast_removal_for_mode,
     invalidate_local_bounds,
@@ -1915,9 +1917,9 @@ class AppController(QObject):
         )
 
     def apply_scan_setup(self, capture: str, light: str) -> None:
-        """Apply the scanning-setup wizard's answer: Linear RAW is a rig property, so it
-        lands on the new-file defaults, the open frame and every already-edited frame at once."""
-        linear_raw = scan_setup_values(capture, light)
+        """Apply the scanning-setup wizard's answer: Linear RAW and the print stock follow the
+        rig, so they land on the new-file defaults, the open frame and every already-edited frame at once."""
+        linear_raw, paper = scan_setup_values(capture, light)
         self.session.repo.save_global_settings(
             {
                 "scan_setup": {"capture": capture, "light": light},
@@ -1925,19 +1927,24 @@ class AppController(QObject):
             }
         )
 
+        def with_rig(config: WorkspaceConfig) -> WorkspaceConfig:
+            exposure = config.exposure
+            if config.process.process_mode == ProcessMode.C41 and exposure.paper_profile in SCAN_SETUP_PAPERS:
+                exposure = replace(exposure, paper_profile=paper)
+            process = replace(config.process, linear_raw=linear_raw, **invalidate_local_bounds(config.process))
+            return replace(config, process=process, exposure=exposure)
+
         reload_needed = False
         if self.state.current_file_hash:
             reload_needed = self.state.config.process.linear_raw != linear_raw
-            new_config = replace(
-                self.state.config,
-                process=replace(
-                    self.state.config.process,
-                    linear_raw=linear_raw,
-                    **invalidate_local_bounds(self.state.config.process),
-                ),
-            )
             # render=False when reloading: bounds must not be analysed on the stale decode.
-            self.session.update_config(new_config, persist=True, render=not reload_needed)
+            self.session.update_config(with_rig(self.state.config), persist=True, render=not reload_needed)
+
+        # After the open frame's persist, which rewrites the new-file snapshot from that frame.
+        sticky = self.session.repo.get_global_setting(STICKY_CONFIG_KEY)
+        sticky = dict(sticky) if isinstance(sticky, dict) else {}
+        if sticky.get("paper_profile", "neutral") in SCAN_SETUP_PAPERS:
+            self.session.repo.save_global_setting(STICKY_CONFIG_KEY, {**sticky, "paper_profile": paper})
 
         count = 0
         changed_hashes: list[str] = []
@@ -1950,14 +1957,7 @@ class AppController(QObject):
             saved = self.session.repo.load_file_settings(file_hash)
             if saved is None:
                 continue
-            updated = replace(
-                saved,
-                process=replace(
-                    saved.process,
-                    linear_raw=linear_raw,
-                    **invalidate_local_bounds(saved.process),
-                ),
-            )
+            updated = with_rig(saved)
             self.session.push_external_history(file_hash, saved, updated)
             self.session.repo.save_file_settings(file_hash, updated, file_path=asset["path"])
             changed_hashes.append(file_hash)

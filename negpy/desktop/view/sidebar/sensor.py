@@ -58,7 +58,7 @@ class SensorSidebar(BaseSidebar):
         self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
         self.scan_setup_btn = self._icon_action(
             "mdi6.lightbulb-on-outline",
-            "Scanning setup — set Camera WB or Linear RAW from your camera/scanner and its light source",
+            "Scanning setup — set Camera WB or Linear RAW and the print stock from your camera/scanner and its light source",
         )
         self.layout.addLayout(header_row(self.capture_header, self.scan_setup_btn))
         self.layout.addWidget(self.linear_raw_btn)
