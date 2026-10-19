@@ -1157,6 +1157,7 @@ class _FilmStripView(_FilmGridView):
     STRIP_GAP = 0
     # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
     MARGIN_SHARE = 0.06
+    SLIM_MARGIN = THEME.space_lg
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -1178,7 +1179,7 @@ class _FilmStripView(_FilmGridView):
 
     def _fit_margins(self, height: int) -> None:
         # The film runs off the left and right edges.
-        margin = _FilmDelegate._BORDER if self._slim() else round(height * self.MARGIN_SHARE)
+        margin = self.SLIM_MARGIN if self._slim() else round(height * self.MARGIN_SHARE)
         self.setViewportMargins(0, margin, 0, margin)
 
     def set_film_aspect(self, aspect: float) -> None:

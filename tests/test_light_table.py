@@ -344,7 +344,7 @@ def test_without_film_edges_each_strip_frame_is_as_wide_as_its_upright_picture(b
     assert landscape.width() == round(picture * 1.5) + _FilmDelegate._BORDER
     assert portrait.width() == round(picture / 1.5) + _FilmDelegate._BORDER
     assert portrait.left() == landscape.right() + 1
-    assert strip.viewport().geometry().top() == _FilmDelegate._BORDER
+    assert strip.viewport().geometry().top() == strip.SLIM_MARGIN
     browser.hide()
 
 
