@@ -270,7 +270,7 @@ class _PendingCaptureImport:
     sensor_profile: str = ""
     sensor_matrix: Optional[tuple] = None
     linear_raw: Optional[bool] = None  # the rig's decode for this frame; None leaves the sticky default
-    paper_profile: Optional[str] = None  # the light's print stock, applied under the wizard's guard
+    paper_profile: Optional[str] = None  # the light's print stock, applied under the Setup card's guard
 
 
 def _rig_fields(light: str) -> dict:
@@ -2849,9 +2849,9 @@ class AppController(QObject):
             # The rig's decode for this capture, over the sticky default.
             self.state.config = replace(self.state.config, process=replace(self.state.config.process, linear_raw=pending_import.linear_raw))
             self.state.is_dirty = True
-            self.session.relock_diverged_cards()  # a roll's Calibration default must not take it back on the next open
+            self.session.relock_diverged_cards()  # a roll's Raw Decode default must not take it back on the next open
         if pending_import is not None and pending_import.paper_profile is not None:
-            # The light's print stock, by the wizard's rule: only over a stock the wizard itself picks.
+            # The light's print stock, by the Setup card's rule: only over a stock that rule itself picks.
             exposure = self.state.config.exposure
             if self.state.config.process.process_mode == ProcessMode.C41 and exposure.paper_profile in SCAN_SETUP_PAPERS:
                 self.state.config = replace(self.state.config, exposure=replace(exposure, paper_profile=pending_import.paper_profile))

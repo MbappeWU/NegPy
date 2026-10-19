@@ -119,39 +119,39 @@ def test_explicit_bw_applies_to_import_after_hydration_without_detection():
 def test_a_capture_sets_the_frames_decode_for_its_light():
     # A camera under white light wants the as-shot white balance; narrowband light decodes Linear RAW.
     c = _run(["slide.ARW"], rgb_mode=True, white_mode=True, white_process_mode=ProcessMode.E6)
-    _hydrate_and_load(c, "slide.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "slide.ARW", ProcessMode.C41)
     assert c.state.config.process.linear_raw is False
 
     c = _run(["r.ARW", "g.ARW", "b.ARW"], rgb_mode=True, white_mode=False)
-    _hydrate_and_load(c, "r.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "r.ARW", ProcessMode.C41)
     assert c.state.config.process.linear_raw is True
 
 
-def test_a_capture_sets_the_frames_print_stock_by_the_wizards_rule():
-    # Narrowband light prints on Pakon, white light on neutral, only over a stock the wizard itself picks.
+def test_a_capture_sets_the_frames_print_stock_by_the_setup_rule():
+    # Narrowband light prints on Pakon, white light on neutral, only over a stock the Setup rule itself picks.
     c = _run(["r.ARW", "g.ARW", "b.ARW"], rgb_mode=True, white_mode=False)
-    _hydrate_and_load(c, "r.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "r.ARW", ProcessMode.C41)
     assert c.state.config.exposure.paper_profile == "pakon"
 
     c = _run(["neg.ARW"], rgb_mode=True, white_mode=True, white_process_mode=ProcessMode.C41)
     c.state.config = replace(c.state.config, exposure=replace(c.state.config.exposure, paper_profile="pakon"))
-    _hydrate_and_load(c, "neg.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "neg.ARW", ProcessMode.C41)
     assert c.state.config.exposure.paper_profile == "neutral"
 
     c = _run(["r.ARW", "g.ARW", "b.ARW"], rgb_mode=True, white_mode=False)
     c.state.config = replace(c.state.config, exposure=replace(c.state.config.exposure, paper_profile="ilford_mg"))
-    _hydrate_and_load(c, "r.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "r.ARW", ProcessMode.C41)
     assert c.state.config.exposure.paper_profile == "ilford_mg"  # a hand-picked stock stays
 
     c = _run(["slide.ARW"], rgb_mode=True, white_mode=True, white_process_mode=ProcessMode.E6)
     c.state.config = replace(c.state.config, exposure=replace(c.state.config.exposure, paper_profile="pakon"))
-    _hydrate_and_load(c, "slide.ARW", ProcessMode.C41, autodetect=True)
+    _hydrate_and_load(c, "slide.ARW", ProcessMode.C41)
     assert c.state.config.exposure.paper_profile == "pakon"  # the rule covers color negatives only
 
 
 def test_a_white_light_color_negative_imports_as_c41():
     c = _run(["neg.ARW"], rgb_mode=True, white_mode=True, white_process_mode=ProcessMode.C41)
-    task = _hydrate_and_load(c, "neg.ARW", ProcessMode.E6, autodetect=True)
+    task = _hydrate_and_load(c, "neg.ARW", ProcessMode.E6)
     assert c.state.config.process.process_mode == ProcessMode.C41
     assert task.detect_mode is False
 

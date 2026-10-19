@@ -464,6 +464,7 @@ class ScanlightSidebar(QWidget):
         self.capture_btn = ChoiceButton(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
         self.capture_btn.setEnabled(False)  # the preset's mode, editable only while building a manual preset
         self.capture_mode_row = QWidget()  # a white-light preset has one exposure, so the row hides there
+        self.capture_mode_row.setObjectName("collapsible_content_body")
         self.capture_mode_row.setLayout(field_row(tr("Capture mode"), self.capture_btn))
         _exp.addWidget(self.capture_mode_row)
         self.iso_stepper = SettingStepper()
