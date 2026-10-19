@@ -846,7 +846,7 @@ def _selection_glow(width: int, height: int) -> QImage:
 class _FilmDelegate(_ThumbnailDelegate):
     """Cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film.
     Without film edges, each frame stands upright in a cell as wide as its picture, a thin rebate border
-    around it, and a scene colors the border of its frames."""
+    around it, and a scene colors the top border of its frames."""
 
     _CACHE_LIMIT = 512
     _IDLE_OPACITY = 1.0
@@ -965,25 +965,11 @@ class _FilmDelegate(_ThumbnailDelegate):
         m = self._MARGIN
         return super().picture_rect(self._window(cell).adjusted(-m, -m, m, m), index)
 
-    def _run_ends(self, index: QModelIndex, step: int, scene: tuple, top: int) -> bool:
-        """The scene's run of frames ends on this side of `index`: the next frame is another scene or on another row."""
-        other = index.siblingAtRow(index.row() + step)
-        if not other.isValid() or (other.data(Qt.ItemDataRole.UserRole) or {}).get("scene") != scene:
-            return True
-        view = self.parent()
-        return isinstance(view, QListView) and view.visualRect(other).top() != top
-
-    def _paint_scene_border(self, painter: QPainter, cell: QRect, index: QModelIndex) -> None:
+    def _paint_scene_line(self, painter: QPainter, cell: QRect, index: QModelIndex) -> None:
         scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
-        if not scene:
-            return
-        color, b, band = QColor(scene_color(scene[0])), self._BORDER, self.band(cell)
-        painter.fillRect(band.left(), band.top(), band.width(), b, color)
-        painter.fillRect(band.left(), band.bottom() - b + 1, band.width(), b, color)
-        if self._run_ends(index, -1, scene, cell.top()):
-            painter.fillRect(band.left(), band.top(), b // 2, band.height(), color)
-        if self._run_ends(index, 1, scene, cell.top()):
-            painter.fillRect(band.right() - (b - b // 2) + 1, band.top(), b - b // 2, band.height(), color)
+        if scene:
+            band = self.band(cell)
+            painter.fillRect(band.left(), band.top(), band.width(), self._BORDER, QColor(scene_color(scene[0])))
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         film = self._film
@@ -997,7 +983,7 @@ class _FilmDelegate(_ThumbnailDelegate):
         else:
             window = self._window(cell)
             painter.fillRect(self.band(cell), QColor(*film[2].rebate))
-            self._paint_scene_border(painter, cell, index)
+            self._paint_scene_line(painter, cell, index)
         framed = QStyleOptionViewItem(option)
         m = self._MARGIN
         framed.rect = window.adjusted(-m, -m, m, m)
@@ -1012,7 +998,8 @@ class _FilmStripDelegate(_FilmDelegate):
 
 class _FilmGridView(ThumbnailGridView):
     """Cells one frame pitch wide and one film width tall; the cells of a row join into one strip. An
-    outline in the scene's color runs along the film's edge around each run of a scene's frames on one row."""
+    outline in the scene's color runs along the film's edge around each run of a scene's frames on one row;
+    without film edges, the run's line starts with the scene's name."""
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
@@ -1186,8 +1173,9 @@ class _FilmGridView(ThumbnailGridView):
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        # Slim frames color their own border.
-        if not delegate.slim:
+        if delegate.slim:
+            self._paint_scene_names(painter, delegate)
+        else:
             self._paint_scene_outlines(painter, delegate, delegate._film[0])
         self._paint_marks(painter, delegate)
         painter.end()
@@ -1203,18 +1191,50 @@ class _FilmGridView(ThumbnailGridView):
                 level = "hover"
             else:
                 level = "active" if delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}) else "selected"
-            marks.append((delegate.band(self.visualRect(index)), *self._MARKS[level]))
+            cell = self.visualRect(index)
+            marks.append((delegate.band(cell), delegate._window(cell), *self._MARKS[level]))
         reach = 2 + _GLOW_REACH
-        for band, _ring, glow in marks:
+        for band, _window, _ring, glow in marks:
             if glow:
                 painter.setOpacity(glow)
                 painter.drawImage(band.left() - reach, band.top() - reach, _selection_glow(band.width(), band.height()))
         painter.setOpacity(1.0)
-        for band, ring, _glow in marks:
+        for band, window, ring, _glow in marks:
             color = QColor(THEME.accent_primary)
             color.setAlphaF(ring)
-            painter.setPen(QPen(color, 2))
-            painter.drawRoundedRect(QRectF(band.x() - 1, band.y() - 1, band.width() + 2, band.height() + 2), _RING_RADIUS, _RING_RADIUS)
+            if not delegate.slim:
+                painter.setPen(QPen(color, 2))
+                painter.drawRoundedRect(QRectF(band.x() - 1, band.y() - 1, band.width() + 2, band.height() + 2), _RING_RADIUS, _RING_RADIUS)
+                continue
+            # Slim, the ring fills the frame's border up to the picture, over the scene's line.
+            ring_path = QPainterPath()
+            ring_path.addRoundedRect(
+                QRectF(band.x() - 2, band.y() - 2, band.width() + 4, band.height() + 4), _RING_RADIUS + 1, _RING_RADIUS + 1
+            )
+            picture = QPainterPath()
+            picture.addRect(QRectF(window))
+            painter.fillPath(ring_path.subtracted(picture), color)
+
+    def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate) -> None:
+        """A chip with the scene's name on its line, at the start of each run of its frames on one row."""
+        font = painter.font()
+        font.setPixelSize(THEME.font_size_small)
+        font.setBold(True)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+        height, pad = metrics.height(), THEME.space_sm
+        for scene, _index, first, last in self.scene_runs_on_rows():
+            band = delegate.band(first)
+            name = metrics.elidedText(scene[2], Qt.TextElideMode.ElideRight, last.right() - first.left() - 2 * pad)
+            chip = QRectF(band.left(), band.top() - height / 2, metrics.horizontalAdvance(name) + 2 * pad, height)
+            color = QColor(scene_color(scene[0]))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawRoundedRect(chip, _RING_RADIUS, _RING_RADIUS)
+            luma = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
+            painter.setPen(QColor(THEME.bg_dark if luma > 140 else THEME.text_primary))
+            painter.drawText(chip, Qt.AlignmentFlag.AlignCenter, name)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
 
     def _paint_scene_outlines(self, painter: QPainter, delegate: _FilmDelegate, geometry: FilmGeometry) -> None:
         for scene, _index, first, last in self.scene_runs_on_rows():

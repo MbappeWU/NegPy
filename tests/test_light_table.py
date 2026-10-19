@@ -380,7 +380,9 @@ def _near(c: QColor, color: QColor) -> bool:
     return abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 60
 
 
-def test_without_film_edges_a_scene_colors_the_border_of_its_frames(browser, qapp):
+def test_without_film_edges_a_scene_draws_a_line_over_its_frames_that_starts_with_its_name(browser, qapp):
+    from PyQt6.QtCore import QItemSelectionModel
+
     from negpy.desktop.view.styles.theme import scene_color
 
     _scene_roll(browser, [None, NIGHT, NIGHT, None])
@@ -389,35 +391,36 @@ def test_without_film_edges_a_scene_colors_the_border_of_its_frames(browser, qap
     browser.resize(1400, 200)
     browser.show()
     strip.selectionModel().clearSelection()
+    strip.selectionModel().select(strip.model().index(2, 0), QItemSelectionModel.SelectionFlag.Select)
     _no_pointer(strip, qapp)
     image = strip.viewport().grab().toImage()
     color = QColor(scene_color(2))
-    cells = [strip.visualRect(strip.model().index(row, 0)) for row in range(4)]
-    tops = [strip.itemDelegate().band(cell).top() + 1 for cell in cells]
+    bands = [strip.itemDelegate().band(strip.visualRect(strip.model().index(row, 0))) for row in range(4)]
 
-    assert [_near(image.pixelColor(cell.center().x(), top), color) for cell, top in zip(cells, tops)] == [False, True, True, False]
-    middle = cells[1].center().y()
-    assert _near(image.pixelColor(cells[1].left(), middle), color), "the run's first frame closes its left side"
-    assert not _near(image.pixelColor(cells[1].right(), middle), color), "frames of one run join"
-    assert _near(image.pixelColor(cells[2].right(), middle), color)
+    assert [_near(image.pixelColor(band.center().x(), band.top() + 1), color) for band in bands] == [False, True, False, False]
+    selected = image.pixelColor(bands[2].center().x(), bands[2].top() + 1)
+    assert selected.red() > selected.green(), "the selection ring covers the line"
+    assert not _near(image.pixelColor(bands[1].center().x(), bands[1].bottom() - 1), color), "only the top border"
+    assert _near(image.pixelColor(bands[1].left() + 3, bands[1].top() - 3), color), "the name sits on the line at the run's start"
+    assert not _near(image.pixelColor(bands[2].center().x(), bands[2].top() - 3), color)
     browser.hide()
 
 
-def test_without_film_edges_a_scene_border_closes_at_each_row_end(browser, qapp):
+def test_without_film_edges_each_row_of_a_scene_starts_with_its_name(browser, qapp):
     from negpy.desktop.view.styles.theme import scene_color
 
     _scene_roll(browser, [NIGHT] * 8)
     _thumbs(browser, [(300, 200)] * 8)
     view, vw = _shown_table(browser, qapp)
-    qapp.processEvents()
+    view.selectionModel().clearSelection()
+    _no_pointer(view, qapp)
     image = view.viewport().grab().toImage()
     color = QColor(scene_color(2))
-    cells = [view.visualRect(view.model().index(row, 0)) for row in range(8)]
-    end = max((cell for cell in cells if cell.top() == cells[0].top()), key=QRect.right)
-    after = next(cell for cell in cells if cell.top() > end.top())
+    bands = [view.itemDelegate().band(view.visualRect(view.model().index(row, 0))) for row in range(8)]
+    starts = [band for band in bands if band.left() == 0]
 
-    assert _near(image.pixelColor(end.right(), end.center().y()), color)
-    assert _near(image.pixelColor(after.left(), after.center().y()), color)
+    assert len(starts) > 1, "the scene wraps"
+    assert all(_near(image.pixelColor(band.left() + 3, band.top() - 3), color) for band in starts)
     view.hide()
 
 
@@ -613,7 +616,12 @@ def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser,
 
     table = light(0, 2)
     assert not light(0, 1) > table, "an unselected frame has no ring"
-    assert light(1, 2) > light(2, 2) > table + 40, "the ring lies outside the border, the active frame's the strongest"
+    assert light(1, 2) > light(2, 2) > table + 40, "the ring reaches past the border, the active frame's the strongest"
+    border = _FilmDelegate._BORDER
+    assert light(1, 1 - border) > table + 40, "the ring fills the border"
+    window = strip.itemDelegate()._window(strip.visualRect(model.index(1, 0)))
+    picture = image.pixelColor(window.center().x(), window.top())
+    assert picture.red() < picture.green(), "the picture stays clear"
     assert light(1, 6) > light(2, 6) > table, "the glow fades out past the ring"
     assert light(1, strip.SLIM_MARGIN) <= table + 2, "the glow is gone at the strip's edge"
     browser.hide()
