@@ -5,6 +5,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import field_label, header_row, hint_label, section_subheader, wrap_tooltip
 from negpy.desktop.view.widgets.choice_button import ChoiceButton, SegmentedChoice
 from negpy.desktop.view.widgets.file_dialogs import last_open_folder
+from negpy.desktop.view.widgets.fold import group_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.process.models import ProcessConfig, ProcessMode, SensorUnmix, invalidate_local_bounds
@@ -97,10 +98,8 @@ class SensorSidebar(BaseSidebar):
         self.calibrate_sensor_btn = self._icon_action(
             "fa5s.vials", tr("Calibrate the sensor from three bare-light R/G/B exposures: files, or the tethered camera")
         )
-        self.layout.addLayout(header_row(section_subheader(tr("SINGLE-SHOT NARROWBAND CALIBRATION")), self.calibrate_sensor_btn))
         row.addWidget(self.sensor_label)
         row.addWidget(self.sensor_combo, 1)
-        self.layout.addLayout(row)
 
         unmix_row = QHBoxLayout()
         self.unmix_label = field_label(tr("Method"))
@@ -118,15 +117,21 @@ class SensorSidebar(BaseSidebar):
         self.unmix_btn.setCurrentIndex(max(0, self.unmix_btn.findData(conf.sensor_unmix)))
         unmix_row.addWidget(self.unmix_label)
         unmix_row.addWidget(self.unmix_btn, 1)
-        self.layout.addLayout(unmix_row)
 
         # Muted, not warning: this is the normal state for anyone not using Linear RAW, so it
         # explains the greyed controls rather than flagging a problem. Text and tooltip are set
         # per reason in _apply_gate.
         self.sensor_hint = hint_label(tr("Requires Linear RAW."))
-        self.layout.addWidget(self.sensor_hint)
-
-        self.crosstalk_header = section_subheader(tr("CROSSTALK"))
+        narrowband_header, narrowband_fold = group_fold(
+            "sensor_narrowband",
+            tr("Single-Shot Narrowband Calibration"),
+            row,
+            unmix_row,
+            self.sensor_hint,
+            buttons=(self.calibrate_sensor_btn,),
+        )
+        self.layout.addLayout(narrowband_header)
+        self.layout.addWidget(narrowband_fold)
 
         matrix_row = QHBoxLayout()
         self.crosstalk_label = field_label(tr("Matrix"))
@@ -166,10 +171,8 @@ class SensorSidebar(BaseSidebar):
         self.measure_chart_btn = self._icon_action(
             "mdi6.palette-swatch-outline", tr("Measure a matrix from a color chart shot on this film and scanned on this rig…")
         )
-        self.layout.addLayout(header_row(self.crosstalk_header, self.measure_chart_btn, self.manage_crosstalk_btn))
         matrix_row.addWidget(self.crosstalk_label)
         matrix_row.addWidget(self.crosstalk_combo, 1)
-        self.layout.addLayout(matrix_row)
 
         # Shown when the film process has no matrices yet. Muted, not a warning: it is the normal
         # state for any process NegPy ships nothing for.
@@ -182,11 +185,19 @@ class SensorSidebar(BaseSidebar):
                 )
             )
         )
-        self.layout.addWidget(self.crosstalk_hint)
-
         self.crosstalk_strength_slider = CompactSlider(tr("Strength"), 0.0, 1.0, conf.crosstalk_strength, has_neutral=True)
         self.crosstalk_strength_rail = SliderGroup(self.crosstalk_strength_slider)
-        self.layout.addWidget(self.crosstalk_strength_rail)
+        crosstalk_header, crosstalk_fold = group_fold(
+            "sensor_crosstalk",
+            tr("Crosstalk"),
+            matrix_row,
+            self.crosstalk_hint,
+            self.crosstalk_strength_rail,
+            buttons=(self.measure_chart_btn, self.manage_crosstalk_btn),
+        )
+        self.crosstalk_header = crosstalk_fold.button
+        self.layout.addLayout(crosstalk_header)
+        self.layout.addWidget(crosstalk_fold)
 
         # Balances each dye layer against the frame's own grays: a fact of the stock, so it is a
         # roll default like the crosstalk above (the "cast_removal" card).
@@ -206,8 +217,6 @@ class SensorSidebar(BaseSidebar):
         )
         self.layout.addWidget(self.cast_removal_slider)
 
-        self.layout.addWidget(section_subheader(tr("LIGHT SOURCE")))
-
         self.hue_trim_slider = CompactSlider(tr("Hue Trim"), -30.0, 30.0, conf.hue_trim, step=0.5, precision=10, has_neutral=True, unit="°")
         self.hue_trim_slider.setToolTip(
             tr(
@@ -220,7 +229,9 @@ class SensorSidebar(BaseSidebar):
                 "</td></tr></table>"
             )
         )
-        self.layout.addWidget(self.hue_trim_slider)
+        light_header, light_fold = group_fold("sensor_light", tr("Light Source"), self.hue_trim_slider)
+        self.layout.addLayout(light_header)
+        self.layout.addWidget(light_fold)
 
         self._apply_gate(conf)
 

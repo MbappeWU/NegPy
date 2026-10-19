@@ -130,7 +130,7 @@ class ThemeConfig:
         default_factory=lambda: {
             "analysis": True,
             "baseline": True,
-            "process": True,
+            "process": False,
             "color": True,
             "tone": True,
             "paper": True,

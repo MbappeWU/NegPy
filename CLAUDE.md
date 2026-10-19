@@ -103,6 +103,7 @@ Every feature lives in `negpy/features/<name>/`:
   - `CollapsibleSection`: a panel section, and the only reset affordance.
   - `CompactSlider`: one slider per row, never two side by side.
   - `SliderGroup`: a rail under the control its members depend on (Toe Width under Toe, or the settings a toggle above turns on). The main control stays outside the rail; peers of equal rank get no rail.
+  - Folds (`widgets/fold.py`) keep fine-tune controls out of the first view: `rail_fold` puts a rail behind a chevron on its parent's row, `group_fold` a group behind its sub-header. A fold starts closed and remembers the user's state per key. Gate the fold's `content`, never the fold. A rail whose members do nothing while the parent is off (Vignette Size at Burn 0) shows only while the parent acts (`show_while`).
   - `SegmentedChoice` (two to four short, fixed choices in view) and `ChoiceButton` (a longer list, a device-decided list, or a setting that need not stay in view) for every mutually exclusive choice, never a row of exclusive toggles and never radio buttons (`tests/test_no_radio_buttons.py`).
   - `StepCombo` for every dropdown, never a bare `QComboBox`; an editable combo stays a `QComboBox`.
   - Booleans in a panel are toggle buttons; `QCheckBox` is for a list of options in a form.
@@ -114,7 +115,7 @@ Every feature lives in `negpy/features/<name>/`:
 - **Labels**: control names in Title Case ("Toe Width"); a label beside a combo/entry in sentence case ("Film stock"). The same concept takes the same words in every panel, so grep for the words before you write a new label.
 - **Copy**: every user-visible string goes through `tr`. American spelling in strings and `docs/`. Buttons, menu items and dialog titles are Title Case; a message-box title is the feature name. An item that opens a dialog, picker or confirmation ends in `…` (the character; `tests/test_ui_copy.py`). The feature is "Flat Field". No emoji.
 - **Tooltips**: every control gets one. A shortcut-bearing widget is tooltipped in `controls_panel.apply_shortcut_tooltips()` only; a local `setToolTip` there is overwritten.
-- **Hide or gray out**: hide a single control the frame's film or mode can never use. Gray out a group or a whole panel the mode cannot use, under one `hint_label` that says why. Gray out a control that waits on a toggle or resource on the same frame.
+- **Hide or gray out**: hide a single control the frame's film or mode can never use. Gray out a group or a whole panel the mode cannot use, under one `hint_label` that says why. Gray out a control that waits on a toggle or resource on the same frame; a rail that waits on its parent hides instead (`show_while`).
 
 If no existing control fits, say so and propose the addition. Do not ship a one-off.
 

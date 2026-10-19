@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QColorDialog
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import field_row, section_subheader, wrap_tooltip
 from negpy.desktop.view.widgets.choice_button import ChoiceButton
+from negpy.desktop.view.widgets.fold import show_while
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 
 
@@ -24,7 +25,8 @@ class FinishSidebar(BaseSidebar):
 
         self.vignette_size_slider = CompactSlider(tr("Size"), 0.0, 1.0, conf.vignette_size)
         self.vignette_roundness_slider = CompactSlider(tr("Roundness"), 0.0, 1.0, conf.vignette_roundness)
-        self.layout.addWidget(SliderGroup(self.vignette_size_slider, self.vignette_roundness_slider))
+        vignette_rail = SliderGroup(self.vignette_size_slider, self.vignette_roundness_slider)
+        self.layout.addWidget(vignette_rail)
 
         self.layout.addWidget(section_subheader(tr("FILED CARRIER")))
         self.carrier_width_slider = CompactSlider(tr("Width"), 0.0, 5.0, conf.carrier_width)
@@ -49,7 +51,8 @@ class FinishSidebar(BaseSidebar):
         )
         self.carrier_corner_slider = CompactSlider(tr("Corners"), 0.0, 1.0, conf.carrier_corner)
         self.carrier_corner_slider.setToolTip(tr("How far the filed aperture's corners round off — no file cuts a sharp inside corner"))
-        self.layout.addWidget(SliderGroup(self.carrier_rough_slider, self.carrier_flare_slider, self.carrier_corner_slider))
+        carrier_rail = SliderGroup(self.carrier_rough_slider, self.carrier_flare_slider, self.carrier_corner_slider)
+        self.layout.addWidget(carrier_rail)
 
         self.layout.addWidget(section_subheader(tr("BORDER")))
 
@@ -67,7 +70,14 @@ class FinishSidebar(BaseSidebar):
         self.border_color_btn.setCurrentIndex(0 if conf.border_match_paper else 1)
         self.color_btn = self._icon_action("fa5s.square", tr("Pick the custom border color…"))
         self._update_color_btn(conf.border_color)
-        self.layout.addWidget(SliderGroup(self.bottom_weight_slider, field_row(tr("Color"), self.border_color_btn, self.color_btn)))
+        border_rail = SliderGroup(self.bottom_weight_slider, field_row(tr("Color"), self.border_color_btn, self.color_btn))
+        self.layout.addWidget(border_rail)
+        # Each effect is off at 0, and its shape controls with it.
+        self._sync_rails = (
+            show_while(self.vignette_burn_slider, vignette_rail),
+            show_while(self.carrier_width_slider, carrier_rail),
+            show_while(self.border_slider, border_rail),
+        )
 
         self.layout.addStretch()
 
@@ -164,6 +174,8 @@ class FinishSidebar(BaseSidebar):
             self.border_color_btn.setCurrentIndex(0 if conf.border_match_paper else 1)
             self._update_color_btn(conf.border_color)
             self.color_btn.setEnabled(not conf.border_match_paper)
+            for refresh in self._sync_rails:
+                refresh()
         finally:
             self.block_signals(False)
 

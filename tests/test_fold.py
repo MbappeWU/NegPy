@@ -1,0 +1,136 @@
+from unittest.mock import MagicMock
+
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
+
+from negpy.desktop.view.styles.templates import FieldLabel, field_row
+from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.collapsible import hidden_by_gating, make_section
+from negpy.desktop.view.widgets.fold import Fold, FoldButton, group_fold, rail_fold
+from negpy.desktop.view.widgets.sliders import CompactSlider
+from negpy.desktop.view.widgets.step_combo import StepCombo
+
+
+def _repo(saved=None):
+    store = dict(saved or {})
+    repo = MagicMock()
+    repo.get_global_setting.side_effect = lambda key, default=None: store.get(key, default)
+    repo.save_global_setting.side_effect = store.__setitem__
+    return repo, store
+
+
+def _card(repo, *widgets):
+    body = QWidget()
+    layout = QVBoxLayout(body)
+    for w in widgets:
+        layout.addWidget(w)
+    return make_section(repo, "Tone", "tone", body, "fa5s.adjust", default_expanded=True)
+
+
+def _grade_card(repo):
+    grade = CompactSlider("ISO-R Grade", 50, 180, 115)
+    shadows, highlights = CompactSlider("Shadows Grade", -50, 50, 0), CompactSlider("Highlights Grade", -50, 50, 0)
+    fold = rail_fold("tone_grade", grade, shadows, highlights)
+    return _card(repo, grade, fold), grade, shadows, fold
+
+
+def test_a_rail_starts_folded_and_its_button_sits_in_the_parent_row():
+    repo, _ = _repo()
+    section, grade, shadows, fold = _grade_card(repo)
+    section.show()
+
+    assert not fold.is_open() and not shadows.isVisible()
+    assert QWidget.layout(grade).indexOf(fold.button) == 0
+
+
+def test_the_state_left_is_saved_and_comes_back():
+    repo, store = _repo()
+    _section, _grade, _shadows, fold = _grade_card(repo)
+    fold.button.click()
+    assert store["fold_tone_grade"] is True
+
+    repo2, _ = _repo(store)
+    _section, _grade, shadows, fold = _grade_card(repo2)
+    assert fold.is_open() and shadows.isVisibleTo(fold.parentWidget())
+
+
+def test_a_closed_fold_marks_an_edited_control_behind_it():
+    repo, _ = _repo()
+    _section, _grade, shadows, fold = _grade_card(repo)
+    assert not fold.button.is_marked()
+
+    shadows.setValue(-15)
+    assert fold.button.is_marked()
+    fold.set_open(True)
+    assert not fold.button.is_marked()
+    shadows.setValue(0)
+    fold.set_open(False)
+    assert not fold.button.is_marked()
+
+
+def test_folded_is_not_gated_but_a_hidden_rail_is():
+    repo, _ = _repo()
+    section, _grade, shadows, fold = _grade_card(repo)
+    section.show()
+    assert not hidden_by_gating(shadows)
+
+    fold.content.setVisible(False)
+    assert hidden_by_gating(shadows)
+    assert fold.button.isHidden()
+    fold.content.setVisible(True)
+    assert not fold.button.isHidden()
+
+
+def test_the_parent_label_gives_the_gutter_up_so_the_tracks_line_up():
+    repo, _ = _repo()
+    section, grade, shadows, _fold = _grade_card(repo)
+    section.resize(480, 300)
+    section.show()
+
+    assert grade.label.minimumWidth() + FoldButton.GUTTER + THEME.space_md == shadows.label.minimumWidth() + 8
+
+
+def test_a_field_row_opens_with_the_chevron_and_stays_aligned():
+    repo, _ = _repo()
+    mode = StepCombo()
+    row = field_row("Mode", mode)
+    offset = CompactSlider("Crop Offset", -5, 100, 0)
+    fold = rail_fold("crop_offset", row, offset)
+    body = QWidget()
+    layout = QVBoxLayout(body)
+    layout.addLayout(row)
+    layout.addWidget(fold)
+    make_section(repo, "Crop", "autocrop", body, "fa5s.crop", default_expanded=True)
+
+    assert row.itemAt(0).widget() is fold.button
+    assert isinstance(row.itemAt(1).widget(), FieldLabel)
+    assert row.itemAt(1).widget().property("fold_gutter") == FoldButton.GUTTER + THEME.space_md
+
+
+def test_a_group_fold_header_folds_its_items():
+    repo, store = _repo()
+    glow, halation = CompactSlider("Glow", 0, 1, 0), CompactSlider("Halation", 0, 1, 0)
+    header, fold = group_fold("lab_effects", "Effects", glow, halation)
+    body = QWidget()
+    layout = QVBoxLayout(body)
+    layout.addLayout(header)
+    layout.addWidget(fold)
+    section = make_section(repo, "Lab", "lab", body, "fa5s.flask", default_expanded=True)
+    section.show()
+
+    assert fold.button.text() == "EFFECTS" and not glow.isVisible()
+    fold.button.click()
+    assert glow.isVisible() and store["fold_lab_effects"] is True
+    assert "Glow" in fold.button.toolTip()
+
+
+def test_reveal_opens_the_fold_that_holds_a_control():
+    from negpy.desktop.view.sidebar.right_panel import RightPanel
+
+    repo, _ = _repo()
+    _section, _grade, shadows, fold = _grade_card(repo)
+    panel = MagicMock()
+    panel._pages_holding.return_value = []
+    RightPanel.reveal_widget(panel, shadows)
+
+    assert fold.is_open()
+    assert isinstance(fold, Fold)

@@ -10,6 +10,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, TEST_STRIP_SWEEP, gradient_icon, hint_label, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice, ToggleMenuButton
+from negpy.desktop.view.widgets.fold import group_fold, rail_fold, show_while
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.features.hdr.models import hdr_active
 from negpy.features.exposure.auto_sliders import NEUTRAL
@@ -147,7 +148,7 @@ class ToneSidebar(BaseSidebar):
 
         self.shadow_density_slider = CompactSlider(tr("Shadows Density"), -1.0, 1.0, conf.shadow_density)
         self.highlight_density_slider = CompactSlider(tr("Highlights Density"), -1.0, 1.0, conf.highlight_density)
-        self.layout.addWidget(SliderGroup(self.shadow_density_slider, self.highlight_density_slider))
+        self.layout.addWidget(rail_fold("tone_density", self.density_slider, self.shadow_density_slider, self.highlight_density_slider))
 
         grade_row = QVBoxLayout()
         grade_row.addWidget(self.grade_slider)
@@ -158,8 +159,9 @@ class ToneSidebar(BaseSidebar):
         self.highlight_grade_slider = CompactSlider(
             tr("Highlights Grade"), -50.0, 50.0, conf.highlight_grade, step=1.0, inverted=True, unit=" R"
         )
-        self.split_grade_rail = SliderGroup(self.shadow_grade_slider, self.highlight_grade_slider)
-        self.layout.addWidget(self.split_grade_rail)
+        self.split_grade_fold = rail_fold("tone_split_grade", self.grade_slider, self.shadow_grade_slider, self.highlight_grade_slider)
+        self.split_grade_fold.attach(self.grade_trim_slider)
+        self.layout.addWidget(self.split_grade_fold)
 
         # Inverted like ISO-R Grade, so dragging right hardens on both controls.
         self.contrast_mask_slider = CompactSlider(tr("Contrast Mask"), -0.5, 0.5, conf.contrast_mask, has_neutral=True, inverted=True)
@@ -194,11 +196,13 @@ class ToneSidebar(BaseSidebar):
                 "0 is off."
             )
         )
-        self.layout.addWidget(self.preflash_slider)
-        self.layout.addWidget(self.diffusion_slider)
-        self.layout.addWidget(self.contrast_mask_slider)
         self.mask_spacer_rail = SliderGroup(self.mask_spacer_slider)
-        self.layout.addWidget(self.mask_spacer_rail)
+        self._sync_spacer_rail = show_while(self.contrast_mask_slider, self.mask_spacer_rail)
+        aids_header, self.aids_fold = group_fold(
+            "tone_aids", tr("Printing Aids"), self.preflash_slider, self.diffusion_slider, self.contrast_mask_slider, self.mask_spacer_rail
+        )
+        self.layout.addLayout(aids_header)
+        self.layout.addWidget(self.aids_fold)
 
         self.layout.addStretch()
 
@@ -408,20 +412,9 @@ class ToneSidebar(BaseSidebar):
             # Zone Density with the print's own weights, and they are the only controls there that
             # open shadows without moving the whole scale. Split Grade does not, because it rotates
             # contrast about the same centres and the transfer curve has no per-zone slope to rotate.
-            for w in (
-                self.shadow_grade_slider,
-                self.highlight_grade_slider,
-                self.split_grade_rail,
-                # The transfer curve takes no dodge/burn map, and the mask rides it; it takes
-                # no diffusion plane either.
-                self.contrast_mask_slider,
-                self.mask_spacer_slider,
-                self.mask_spacer_rail,
-                self.diffusion_slider,
-                self.preflash_slider,
-                # The transfer curve always fades a lift at the bottom of its window.
-                self.hold_black_action,
-            ):
+            # The transfer curve takes no dodge/burn map, and the mask rides it; it takes no
+            # diffusion plane or flash either, and always fades a lift at the bottom of its window.
+            for w in (self.split_grade_fold.content, self.aids_fold.content, self.hold_black_action):
                 w.setVisible(not transfer)
             # Per-layer trims are meaningless on a single-emulsion B&W paper.
             is_bw = mode == ProcessMode.BW
@@ -464,7 +457,8 @@ class ToneSidebar(BaseSidebar):
             self.preflash_slider.setValue(conf.preflash)
             self.hold_black_action.setChecked(conf.hold_black)
             # Out of _global_only: that tuple means enabled exactly when global.
-            self.mask_spacer_slider.setEnabled(global_mode and conf.contrast_mask != 0.0)
+            self.mask_spacer_slider.setEnabled(global_mode)
+            self._sync_spacer_rail()
             self.auto_density_action.setChecked(conf.auto_exposure)
             self.auto_grade_action.setChecked(conf.auto_normalize_contrast)
             self.auto_both_action.setChecked(conf.auto_exposure and conf.auto_normalize_contrast)

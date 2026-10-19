@@ -1,6 +1,7 @@
 from negpy.kernel.system.i18n import tr
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label, section_subheader
+from negpy.desktop.view.widgets.fold import show_while
 from negpy.desktop.view.widgets.sliders import CompactSlider, HueSlider, SliderGroup
 from negpy.features.altprocess.models import AltProcess
 from negpy.features.process.models import ProcessMode
@@ -65,12 +66,19 @@ class ToningSidebar(BaseSidebar):
         self.shadow_hue_slider = HueSlider("Shadow Hue", conf.shadow_tint_hue)
         self.shadow_str_slider = CompactSlider(tr("Shadow Strength"), 0.0, 1.0, conf.shadow_tint_strength)
         self.layout.addWidget(self.shadow_str_slider)
-        self.layout.addWidget(SliderGroup(self.shadow_hue_slider))
+        shadow_hue_rail = SliderGroup(self.shadow_hue_slider)
+        self.layout.addWidget(shadow_hue_rail)
 
         self.highlight_hue_slider = HueSlider("Highlight Hue", conf.highlight_tint_hue)
         self.highlight_str_slider = CompactSlider(tr("Highlight Strength"), 0.0, 1.0, conf.highlight_tint_strength)
         self.layout.addWidget(self.highlight_str_slider)
-        self.layout.addWidget(SliderGroup(self.highlight_hue_slider))
+        highlight_hue_rail = SliderGroup(self.highlight_hue_slider)
+        self.layout.addWidget(highlight_hue_rail)
+        # A hue tints nothing at strength 0.
+        self._sync_hue_rails = (
+            show_while(self.shadow_str_slider, shadow_hue_rail),
+            show_while(self.highlight_str_slider, highlight_hue_rail),
+        )
 
         self.layout.addStretch()
 
@@ -152,6 +160,8 @@ class ToningSidebar(BaseSidebar):
             self.shadow_str_slider.setValue(conf.shadow_tint_strength)
             self.highlight_hue_slider.setValue(conf.highlight_tint_hue)
             self.highlight_str_slider.setValue(conf.highlight_tint_strength)
+            for refresh in self._sync_hue_rails:
+                refresh()
 
             self.chemical_header.setVisible(is_bw)
             self.selenium_slider.setVisible(is_bw)

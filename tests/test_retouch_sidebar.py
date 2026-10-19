@@ -72,11 +72,12 @@ def test_ir_buttons_unchecked_without_ir(qapp):
     controller.state.has_ir = False
     sb.sync_ui()
     assert not sb.ir_dust_btn.isChecked()
-    assert not sb.ir_dust_btn.isEnabled()
+    assert sb.ir_dust_btn.isHidden() and sb.ir_rail.isHidden()
 
     controller.state.has_ir = True
     sb.sync_ui()
     assert sb.ir_dust_btn.isChecked()
+    assert not sb.ir_dust_btn.isHidden() and not sb.ir_rail.isHidden()
 
 
 def test_manual_heal_count_label(qapp):
@@ -89,20 +90,30 @@ def test_manual_heal_count_label(qapp):
     assert sb.heals_subheader.text() == "MANUAL HEAL · 1"
 
 
-def test_brush_size_is_live_while_optical_removal_is_on(qapp):
-    """The exclusion band is painted with no tool active, so the slider it reads has to be
-    live there. Its keyboard steps are gated on the same enabled state."""
+def test_brush_size_shows_while_optical_removal_is_on(qapp):
+    """The exclusion band is painted with no tool active, so the slider it reads has to show
+    there. Line Sensitivity waits for the Line tool."""
     controller, sb = _sidebar()
     cfg = controller.state.config
 
     controller.state.config = replace(cfg, retouch=replace(cfg.retouch, dust_remove=False))
     sb.sync_ui()
-    assert not sb.manual_size_slider.isEnabled(), "no tool and no detector, so nothing sizes a brush"
+    assert sb.manual_size_slider.isHidden(), "no tool and no detector, so nothing sizes a brush"
+    assert sb.optical_rail.isHidden()
 
     controller.state.config = replace(cfg, retouch=replace(cfg.retouch, dust_remove=True))
     sb.sync_ui()
-    assert sb.manual_size_slider.isEnabled()
-    assert sb.manual_size_slider.isVisibleTo(sb) and sb.line_threshold_slider.isVisibleTo(sb), "disabled, never hidden"
+    assert not sb.manual_size_slider.isHidden() and not sb.optical_rail.isHidden()
+    assert sb.line_threshold_slider.isHidden()
+
+
+def test_a_tool_shows_its_rail_while_armed(qapp):
+    _controller, sb = _sidebar()
+    sb.pick_line_btn.setChecked(True)
+    assert not sb.line_threshold_slider.isHidden()
+    sb.pick_line_btn.setChecked(False)
+    sb.clone_btn.setChecked(True)
+    assert not sb.clone_rail.isHidden() and not sb.manual_size_slider.isHidden()
 
 
 def test_brush_size_spans_the_shared_range(qapp):

@@ -76,7 +76,8 @@ class RetouchSidebar(BaseSidebar):
         self.threshold_slider = CompactSlider(tr("Spot Threshold"), 0.01, 1.0, conf.dust_threshold)
         self.hair_threshold_slider = CompactSlider(tr("Hair Threshold"), 0.01, 1.0, conf.dust_hair_threshold)
         self.auto_size_slider = CompactSlider(tr("Size"), 2.0, 8.0, float(conf.dust_size), step=1.0, precision=1, unit=" px")
-        self.layout.addWidget(SliderGroup(self.threshold_slider, self.hair_threshold_slider, self.auto_size_slider))
+        self.optical_rail = SliderGroup(self.threshold_slider, self.hair_threshold_slider, self.auto_size_slider)
+        self.layout.addWidget(self.optical_rail)
 
         self.ir_dust_btn = self._small_toggle("fa5s.broom", tr("IR Removal"), conf.ir_dust_remove, _IR_REMOVAL_TIP, align_left=True)
         self.ir_method_btn = ChoiceButton(tuple(("", label) for label in _IR_METHOD_LABELS), "")
@@ -85,7 +86,8 @@ class RetouchSidebar(BaseSidebar):
         ir_row.addWidget(self.ir_method_btn)
         self.layout.addLayout(ir_row)
         self.ir_threshold_slider = CompactSlider(tr("IR Threshold"), 0.05, 0.95, float(conf.ir_threshold))
-        self.layout.addWidget(SliderGroup(self.ir_threshold_slider))
+        self.ir_rail = SliderGroup(self.ir_threshold_slider)
+        self.layout.addWidget(self.ir_rail)
 
         # Restored whenever the scan has IR (never let a stale "No IR channel" tip linger).
         self._ir_tooltips = {
@@ -175,11 +177,13 @@ class RetouchSidebar(BaseSidebar):
         )
         self.clone_feather_slider = CompactSlider(tr("Feather"), 0.0, 100.0, conf.clone_feather * 100.0, step=1.0, precision=0, unit="%")
         self.clone_feather_slider.setToolTip(wrap_tooltip(tr("Fade width at the brush edge, as a share of the radius. 0 is a hard edge")))
-        self.layout.addWidget(SliderGroup(self.clone_strength_slider, self.clone_feather_slider))
+        self.clone_rail = SliderGroup(self.clone_strength_slider, self.clone_feather_slider)
+        self.layout.addWidget(self.clone_rail)
 
         self.layout.addStretch()
 
         self._set_ir_controls_enabled(self.state.has_ir)
+        self._sync_rails()
 
     def _connect_signals(self) -> None:
         # The toggle is the way back: excluded patches are dropped with it, so the removal
@@ -187,6 +191,7 @@ class RetouchSidebar(BaseSidebar):
         self.auto_dust_btn.toggled.connect(
             lambda c: self.update_config_section("retouch", persist=True, render=True, dust_remove=c, dust_exclusion_strokes=[])
         )
+        self.auto_dust_btn.toggled.connect(lambda _c: self._sync_rails())
         self.right_click_btn.toggled.connect(self.controller.session.set_right_click_excludes)
         for slider, field, cast in (
             (self.threshold_slider, "dust_threshold", float),
@@ -232,6 +237,7 @@ class RetouchSidebar(BaseSidebar):
         self.ir_dust_btn.toggled.connect(
             lambda c: self.update_config_section("retouch", persist=True, render=True, ir_dust_remove=c, ir_attenuation=c)
         )
+        self.ir_dust_btn.toggled.connect(lambda _c: self._sync_rails())
         self.ir_method_btn.currentChanged.connect(
             lambda i: self.update_config_section("retouch", persist=True, render=True, ir_method=_IR_METHOD_KEYS[i])
         )
@@ -244,28 +250,36 @@ class RetouchSidebar(BaseSidebar):
         self.overlay_btn.setCurrentIndex(_OVERLAY_MODES.index(mode))
         self.overlay_btn.choice_menu.actions()[2].setEnabled(self.state.has_ir)
 
-    def _brush_size_enabled(self, heal: bool, scratch: bool) -> bool:
-        """The brush is sized from the canvas while an exclusion is painted, which happens
-        with no tool active, so Optical Removal enables the value too."""
-        return heal or scratch or self.state.active_tool == ToolMode.CLONE or self.state.config.retouch.dust_remove
+    def _sync_rails(self) -> None:
+        """Each rail shows while what it tunes acts: a removal on, or a tool armed."""
+        self.optical_rail.setVisible(self.auto_dust_btn.isChecked())
+        has_ir = self.state.has_ir
+        self.ir_dust_btn.setVisible(has_ir)
+        self.ir_method_btn.setVisible(has_ir)
+        self.ir_rail.setVisible(has_ir and self.ir_dust_btn.isChecked())
+        # The brush is sized from the canvas while an exclusion is painted, which happens with
+        # no tool active, so Optical Removal shows the value too. Sensitivity stands in for brush
+        # size on a line: the band grows from the scratch, so what is tuned is how readily it is followed.
+        brush = any(b.isChecked() for b in (self.pick_dust_btn, self.pick_scratch_btn, self.clone_btn, self.auto_dust_btn))
+        self.manual_size_slider.setVisible(brush)
+        self.line_threshold_slider.setVisible(self.pick_line_btn.isChecked())
+        self.clone_rail.setVisible(self.clone_btn.isChecked())
 
     def _on_pick_toggled(self, checked: bool) -> None:
         self.controller.set_active_tool(ToolMode.DUST_PICK if checked else ToolMode.NONE)
-        self.manual_size_slider.setEnabled(self._brush_size_enabled(checked, self.pick_scratch_btn.isChecked()))
+        self._sync_rails()
 
     def _on_scratch_toggled(self, checked: bool) -> None:
         self.controller.set_active_tool(ToolMode.SCRATCH_PICK if checked else ToolMode.NONE)
-        self.manual_size_slider.setEnabled(self._brush_size_enabled(self.pick_dust_btn.isChecked(), checked))
+        self._sync_rails()
 
     def _on_clone_toggled(self, checked: bool) -> None:
         self.controller.set_active_tool(ToolMode.CLONE if checked else ToolMode.NONE)
-        self.manual_size_slider.setEnabled(self._brush_size_enabled(self.pick_dust_btn.isChecked(), self.pick_scratch_btn.isChecked()))
+        self._sync_rails()
 
     def _on_line_toggled(self, checked: bool) -> None:
-        # Sensitivity stands in for brush size here: the band is grown from the scratch, so what
-        # the user tunes is how readily it is followed, not how wide to paint.
         self.controller.set_active_tool(ToolMode.SCRATCH_LINE if checked else ToolMode.NONE)
-        self.line_threshold_slider.setEnabled(checked)
+        self._sync_rails()
 
     def _set_ir_controls_enabled(self, enabled: bool) -> None:
         for w, tip in self._ir_tooltips.items():
@@ -297,11 +311,7 @@ class RetouchSidebar(BaseSidebar):
             self.clone_subheader.setText(tr("CLONE · {num_clones}", num_clones=num_clones))
             self.clone_undo_btn.setEnabled(num_clones > 0)
             self.clone_clear_btn.setEnabled(num_clones > 0)
-            self.manual_size_slider.setEnabled(
-                self._brush_size_enabled(self.state.active_tool == ToolMode.DUST_PICK, self.state.active_tool == ToolMode.SCRATCH_PICK)
-            )
             self.line_threshold_slider.setValue(float(conf.scratch_threshold))
-            self.line_threshold_slider.setEnabled(self.state.active_tool == ToolMode.SCRATCH_LINE)
 
             num_heals = len(conf.manual_dust_spots) + len(conf.manual_heal_strokes) + len(conf.scratch_lines)
             self.heals_subheader.setText(tr("MANUAL HEAL · {num_heals}", num_heals=num_heals))
@@ -323,6 +333,7 @@ class RetouchSidebar(BaseSidebar):
                 )
 
             self._sync_overlay()
+            self._sync_rails()
         finally:
             self.block_signals(False)
 

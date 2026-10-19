@@ -6,7 +6,8 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_label, header_row, section_subheader, wrap_tooltip
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import CROP_RATIO_CHOICES, canonical_crop_ratio
-from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.fold import rail_fold
+from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.features.geometry.models import AutocropMode
 
 
@@ -100,7 +101,7 @@ class AutocropSidebar(BaseSidebar):
         )
         self.rebate_trim_slider.setEnabled(conf.autocrop_mode == AutocropMode.IMAGE)
 
-        self.layout.addWidget(SliderGroup(self.offset_slider, self.rebate_trim_slider))
+        self.layout.addWidget(rail_fold("autocrop_offset", mode_row, self.offset_slider, self.rebate_trim_slider))
 
     def _connect_signals(self) -> None:
         self.ratio_combo.currentIndexChanged.connect(lambda _: self.controller.set_crop_ratio(self.ratio_combo.currentData()))

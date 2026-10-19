@@ -172,7 +172,8 @@ class LocalSidebar(BaseSidebar):
         self.layout.addWidget(self.feather_slider)
         self.layout.addWidget(section_subheader(tr("Tone Limit")))
         self.layout.addWidget(self.tone_btn)
-        self.layout.addWidget(SliderGroup(self.key_zone_slider, self.key_softness_slider))
+        self.tone_limit_rail = SliderGroup(self.key_zone_slider, self.key_softness_slider)
+        self.layout.addWidget(self.tone_limit_rail)
 
         self.layout.addStretch()
 
@@ -339,6 +340,7 @@ class LocalSidebar(BaseSidebar):
             self.flash_slider.setEnabled(editable and not keyed)
             self.key_zone_slider.setEnabled(keyed)
             self.key_softness_slider.setEnabled(keyed)
+            self.tone_limit_rail.setVisible(keyed)
             if mask is not None:
                 self.burn_slider.setValue(mask.stops)
                 self.feather_slider.setValue(mask.feather)

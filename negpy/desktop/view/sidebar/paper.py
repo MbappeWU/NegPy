@@ -7,6 +7,7 @@ from negpy.desktop.view.sidebar.tone import _CH_LABEL, _CH_SUFFIX, channel_selec
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, PAPER_STRIP_SWEEP, field_row, gradient_icon, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.fold import group_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.exposure.logic import per_channel_dye_separation
@@ -107,7 +108,7 @@ class PaperSidebar(BaseSidebar):
         )
         self.dye_separation_trim_slider.setVisible(False)
         # Redistributes the slider above by each pixel's own chroma. Inert at 1.0 separation, so
-        # it is disabled there rather than reading as broken.
+        # it shows only once separation moves.
         self.separation_damping_slider = CompactSlider(tr("Separation Damping"), 0.0, 1.0, conf.separation_damping)
         self.layout.addWidget(self.dye_separation_slider)
         self.layout.addWidget(self.dye_separation_trim_slider)
@@ -115,7 +116,6 @@ class PaperSidebar(BaseSidebar):
         self.layout.addWidget(self.separation_damping_rail)
 
         self.midtone_gamma_slider = CompactSlider(tr("Snap"), -0.5, 0.5, conf.midtone_gamma)
-        self.layout.addWidget(self.midtone_gamma_slider)
 
         self.toe_w_slider = CompactSlider(tr("Toe Width"), 0.1, 5.0, conf.toe_width)
         self.toe_w_trim_slider = CompactSlider(tr("Toe Width"), -2.0, 2.0, 0.0)
@@ -127,8 +127,6 @@ class PaperSidebar(BaseSidebar):
         )
         self.toe_w_trim_slider.setVisible(False)
         self.toe_slider = CompactSlider(tr("Toe"), -1.0, 1.0, conf.toe)
-        self.layout.addWidget(self.toe_slider)
-        self.layout.addWidget(SliderGroup(self.toe_w_slider, self.toe_w_trim_slider))
 
         self.sh_slider = CompactSlider(tr("Shoulder"), -1.0, 1.0, conf.shoulder)
         self.sh_w_slider = CompactSlider(tr("Shoulder Width"), 0.1, 5.0, conf.shoulder_width)
@@ -140,8 +138,17 @@ class PaperSidebar(BaseSidebar):
             )
         )
         self.sh_w_trim_slider.setVisible(False)
-        self.layout.addWidget(self.sh_slider)
-        self.layout.addWidget(SliderGroup(self.sh_w_slider, self.sh_w_trim_slider))
+        curve_header, self.curve_fold = group_fold(
+            "paper_curve",
+            tr("Curve Shape"),
+            self.midtone_gamma_slider,
+            self.toe_slider,
+            SliderGroup(self.toe_w_slider, self.toe_w_trim_slider),
+            self.sh_slider,
+            SliderGroup(self.sh_w_slider, self.sh_w_trim_slider),
+        )
+        self.layout.addLayout(curve_header)
+        self.layout.addWidget(self.curve_fold)
 
         self.layout.addStretch()
 
@@ -207,6 +214,7 @@ class PaperSidebar(BaseSidebar):
         self.controller.test_strip_changed.connect(self._sync_paper_strip_btn)
         self.paper_combo.currentIndexChanged.connect(self._on_paper_changed)
         self.ch_btn.currentChanged.connect(lambda _i: self.sync_ui())
+        self.dye_separation_slider.valueChanged.connect(lambda _v: self._sync_damping_rail())
 
         for slider, field in (
             (self.toe_w_slider, "toe_width"),
@@ -303,8 +311,6 @@ class PaperSidebar(BaseSidebar):
             # Separation Damping has no per-channel trim, so it stays global-view-only.
             self.dye_separation_slider.setVisible(global_mode and not is_bw)
             self.dye_separation_trim_slider.setVisible(not global_mode and not is_bw)
-            self.separation_damping_slider.setVisible(global_mode and not is_bw)
-            self.separation_damping_rail.setVisible(global_mode and not is_bw)
             self.toe_slider.label.setText(tr("Toe") + suffix)
             self.sh_slider.label.setText(tr("Shoulder") + suffix)
             self.midtone_gamma_slider.label.setText(tr("Snap") + suffix)
@@ -333,18 +339,25 @@ class PaperSidebar(BaseSidebar):
             self.sh_w_slider.setValue(conf.shoulder_width)
             self.dye_separation_slider.setValue(conf.dye_separation)
             self.separation_damping_slider.setValue(conf.separation_damping)
-            # It redistributes Dye Separation's push and does nothing on its own, so it is dead at 1.0
-            # separation on every channel. A per-channel trim also arms it.
-            sep_k3 = per_channel_dye_separation(
-                conf.dye_separation,
-                (conf.dye_separation_trim_red, conf.dye_separation_trim_green, conf.dye_separation_trim_blue),
-            )
-            self.separation_damping_slider.setEnabled(sep_k3 != (1.0, 1.0, 1.0))
+            self._sync_damping_rail()
 
             self.paper_dmin_btn.setChecked(conf.paper_dmin)
             self.paper_black_btn.setChecked(conf.paper_black)
         finally:
             self.block_signals(False)
+
+    def _sync_damping_rail(self) -> None:
+        # It redistributes Dye Separation's push and does nothing on its own, so it is dead at 1.0
+        # separation on every channel. A per-channel trim also arms it. No trim form, so global view only.
+        from negpy.features.process.models import ProcessMode
+
+        conf = self.state.config.exposure
+        sep_k3 = per_channel_dye_separation(
+            self.dye_separation_slider.value(),
+            (conf.dye_separation_trim_red, conf.dye_separation_trim_green, conf.dye_separation_trim_blue),
+        )
+        is_bw = self.state.config.process.process_mode == ProcessMode.BW
+        self.separation_damping_rail.setVisible(self._channel_index() == 0 and not is_bw and sep_k3 != (1.0, 1.0, 1.0))
 
     def block_signals(self, blocked: bool) -> None:
         for w in (

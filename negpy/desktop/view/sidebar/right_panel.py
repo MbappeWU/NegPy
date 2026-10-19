@@ -30,6 +30,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
+from negpy.desktop.view.widgets.fold import Fold
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
 from negpy.desktop.view.widgets.tab_header import TabHeader
@@ -872,6 +873,8 @@ class RightPanel(QWidget):
         while parent is not None:
             if isinstance(parent, CollapsibleSection):
                 parent.expand()
+            elif isinstance(parent, Fold):
+                parent.set_open(True)
             parent = parent.parentWidget()
         # A card just opened has no geometry until the next layout pass.
         QTimer.singleShot(0, lambda: self.scroll_to(widget, centered=True))

@@ -13,6 +13,7 @@ from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_label, header_row, section_subheader, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.fold import rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import CROP_RATIO_CHOICES, canonical_crop_ratio
@@ -147,8 +148,7 @@ class GeometrySidebar(BaseSidebar):
                 "the left edge."
             )
         )
-        self.layout.addWidget(self.converge_v_slider)
-        self.layout.addWidget(self.converge_h_slider)
+        self.layout.addWidget(rail_fold("geometry_easel", self.fine_rot_slider, self.converge_v_slider, self.converge_h_slider))
 
     def cycle_guide(self) -> None:
         self.guide_combo.setCurrentIndex((self.guide_combo.currentIndex() + 1) % self.guide_combo.count())

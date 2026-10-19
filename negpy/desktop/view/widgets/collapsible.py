@@ -16,6 +16,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
 from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, HEADER_HEIGHT, header_button
 from negpy.desktop.view.styles.theme import THEME
+from negpy.desktop.view.widgets.fold import Fold
 from negpy.desktop.view.widgets.sliders import align_slider_columns
 import qtawesome as qta
 
@@ -366,6 +367,9 @@ def make_section(
         collapsible=collapsible,
     )
     section.set_content(content)
+    if repo is not None:
+        for fold in content.findChildren(Fold):
+            fold.bind(repo)
     if persist:
         section.expanded_changed.connect(lambda checked: repo.save_global_setting(setting, checked))
     if section.info_btn:
@@ -385,4 +389,11 @@ def hidden_by_gating(widget: QWidget) -> bool:
         section = section.parentWidget()
     if section is None:
         return False
-    return section.isHidden() or not widget.isVisibleTo(section.content_area)
+    # A closed fold hides its controls the way a collapsed card does: the user's choice, not gating.
+    node = widget
+    while node is not None and node is not section.content_area:
+        # Explicitly: a child that was never shown also reads as hidden.
+        if node.isHidden() and node.testAttribute(Qt.WidgetAttribute.WA_WState_ExplicitShowHide) and not isinstance(node, Fold):
+            return True
+        node = node.parentWidget()
+    return section.isHidden()

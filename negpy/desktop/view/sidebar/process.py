@@ -26,6 +26,7 @@ from negpy.features.exposure.stats import clipping_row
 from negpy.services.assets import rolls
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.fold import group_fold, rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 from negpy.features.hdr.logic import output_scale
@@ -188,7 +189,6 @@ class ProcessSidebar(BaseSidebar):
         tools_row.addWidget(self.analysis_region_btn, 1)
         tools_row.addWidget(self.film_base_btn, 1)
         analysis_col.addLayout(tools_row)
-        analysis_col.addWidget(self.analysis_buffer_slider)
 
         initial_luma_slider_val = _luma_range_value_to_slider(conf.luma_range_clip)
         self.luma_range_clip_slider = CompactSlider(
@@ -198,8 +198,9 @@ class ProcessSidebar(BaseSidebar):
         self.color_range_clip_slider = CompactSlider(
             tr("Color Clip"), -100, 100, initial_color_slider_val, precision=1, step=1, has_neutral=True
         )
-        analysis_col.addWidget(self.luma_range_clip_slider)
-        analysis_col.addWidget(self.color_range_clip_slider)
+        self.clip_fold = rail_fold("metering_clip", self.analysis_buffer_slider, self.luma_range_clip_slider, self.color_range_clip_slider)
+        analysis_col.addWidget(self.analysis_buffer_slider)
+        analysis_col.addWidget(self.clip_fold)
 
         self.ch_btn = channel_selector(
             tr(
@@ -207,14 +208,14 @@ class ProcessSidebar(BaseSidebar):
                 "trim the cyan-, magenta- and yellow-dye emulsions"
             ),
         )
-        self.point_header = section_subheader(tr("WHITE / BLACK POINT"))
-        analysis_col.addWidget(self.point_header)
-        analysis_col.addWidget(self.ch_btn)
-
         self.white_point_slider = CompactSlider(tr("White Point"), -0.25, 0.25, conf.white_point_offset, has_neutral=True)
         self.black_point_slider = CompactSlider(tr("Black Point"), -0.25, 0.25, conf.black_point_offset, has_neutral=True)
-        analysis_col.addWidget(self.white_point_slider)
-        analysis_col.addWidget(self.black_point_slider)
+        point_row, point_fold = group_fold(
+            "metering_points", tr("White / Black Point"), self.ch_btn, self.white_point_slider, self.black_point_slider
+        )
+        self.point_header = point_fold.button
+        analysis_col.addLayout(point_row)
+        analysis_col.addWidget(point_fold)
 
         # Which baseline each axis' bounds come from: the roll's shared meter or the frame's
         # own analysis. ControlsPanel places it at the top of the Roll Analysis card.
@@ -475,8 +476,7 @@ class ProcessSidebar(BaseSidebar):
                 self.avg_header,
                 self.use_luma_avg_btn,
                 self.use_color_avg_btn,
-                self.luma_range_clip_slider,
-                self.color_range_clip_slider,
+                self.clip_fold.content,
                 self.lock_bounds_btn,
                 self.reanalyze_frame_btn,
             ):

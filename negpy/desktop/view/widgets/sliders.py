@@ -819,7 +819,7 @@ class SliderGroup(QWidget):
 
 
 def _group_indent(widget: QWidget) -> int:
-    indent = 0
+    indent = widget.property("fold_gutter") or 0
     parent = widget.parentWidget()
     while parent is not None:
         if isinstance(parent, SliderGroup):
@@ -837,7 +837,9 @@ def _row_layout(widget: QWidget) -> QHBoxLayout | None:
     while pending:
         layout = pending.pop()
         if layout.indexOf(widget) >= 0:
-            return layout if isinstance(layout, QHBoxLayout) and layout.indexOf(widget) == 0 else None
+            # A fold's chevron may open the row, ahead of the widget.
+            opens = layout.indexOf(widget) == (1 if widget.property("fold_gutter") else 0)
+            return layout if isinstance(layout, QHBoxLayout) and opens else None
         for k in range(layout.count()):
             item = layout.itemAt(k)
             child = item.layout() if item is not None else None

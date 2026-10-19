@@ -77,7 +77,7 @@ Tabs that do not change the render:
 | **Metadata** | Archival metadata · My Gear · Presets | Camera, lens, film; your gear library and metadata presets |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
-On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
+On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. A chevron beside a control or a sub-header folds the fine-tune controls under it; each fold stays as you leave it, and a dot on a closed one marks an edited control inside. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
 
 ### What carries to the next frame
 
@@ -441,10 +441,13 @@ Color timing, like enlarger dichroic filters. The **Global / Shadows / Highlight
 *   **ISO-R Grade** (50 to 180): contrast as paper ISO-R. R110 is about grade 2; lower R is harder. In R/G/B mode a **Grade** trim rotates one layer's slope about the midtone.
 *   **Shadows Density** / **Highlights Density** (±1.0 ΔD): brighten or darken only the shadows or highlights, within paper black and white. With Auto Grade on, each shows its automatic share. They also work on slides.
 *   **Shadows Grade** / **Highlights Grade** (split grade, ±50 ISO-R): local contrast in the deep shadows or highlights.
+
+**Printing Aids:**
+
 *   **Preflash** (0 to 1): an even flash over the sheet, as a fraction of the paper's threshold exposure. It pulls highlight detail off paper white and softens the print slightly. Hidden on slides.
 *   **Diffusion** (0 to 1, hidden in Transparency): a diffuser under the enlarger lens (a Softar, a stocking). Shadows bleed into highlights and edges soften; flat areas print as before. Grays out in R/G/B mode.
 *   **Contrast Mask** (±0.5, hidden in Transparency): a blurred mask sandwiched with the negative. Positive compresses the range so a harder grade fits and fine detail stays; negative expands a negative too flat for Grade (past about −0.4, highlights clip). Past about ±0.2, strong edges get a halo.
-*   **Mask Spacer** (2 to 6%, default 4%): the gap between mask and negative. Thicker masks only broad masses; thinner reaches into detail and hazes shadows next to bright areas. Both mask controls gray out in R/G/B mode.
+*   **Mask Spacer** (2 to 6%, default 4%, shown once Contrast Mask is not 0): the gap between mask and negative. Thicker masks only broad masses; thinner reaches into detail and hazes shadows next to bright areas. Both mask controls gray out in R/G/B mode.
 
 <!-- panel:paper -->
 ### 5.3 Paper Response: the print curve
@@ -453,10 +456,13 @@ The paper's characteristic curve. Its own **Global / R / G / B** selector applie
 
 *   **Print stock**: a bundled paper or print film (RA4 papers and the Kodak 2383 and 2393 print films in Color Negative, B&W papers in B&W Negative) that sets the curve and, on color stock, the colors its dyes make, from the datasheet or, for the two Fujicolor Crystal Archive stocks (standard and HD), from Fujifilm's measured Frontier profiles: less saturated than *Digital*, with reds leaning orange and cyans leaning blue, and grays that drift slightly as the real dyes do. The other controls trim on top. *Digital (Adobe RGB)*, the default, is an idealized print: NegPy's own curve and perfect dyes. *Digital (Pakon Minilab)* is that curve with a Pakon minilab's colors. Each B&W paper has its own lith color (§6.2).
 *   **Dye Separation** (0.5 to 1.5, hidden in B&W Negative): saturation through the paper's dyes, easing off at toe and shoulder. 1.0 is off; lower values pull toward neutral. **Chroma** (Look tab) scales color evenly instead.
-    *   **Separation Damping** (0 to 1): higher keeps the push on muted color and eases it on saturated color. Grayed out at Dye Separation 1.0.
+    *   **Separation Damping** (0 to 1, shown once Dye Separation is not 1.0): higher keeps the push on muted color and eases it on saturated color.
 *   **Paper White**: simulates paper base density, so whites print at about 0.93.
 *   **Paper Black**: shows the paper's slightly milky Dmax. Off (default) applies black-point compensation.
 *   **Paper Test Strip** (the striped button beside Print stock): prints the frame on every print stock, in the list's order: as one band per stock (**Strip**) or as a grid of small whole frames (**Grid**), chosen in the toolbar. Click a paper to see it on the whole frame; **‹** and **›** in the toolbar, or the arrow keys, step to the neighbor paper. **Keep** (or Enter) makes the paper shown the Print stock; the back button (or Esc) returns to every paper.
+
+**Curve Shape:**
+
 *   **Snap** (-0.5 to 0.5): midtone gamma; paper white and black stay put.
 *   **Toe** (-1 to 1) + **Toe Width** (0.1 to 5): shadow roll-off. Positive lifts shadows; negative deepens them and, with Paper Black off, reaches exact black. Width sets how far the knee reaches.
 *   **Shoulder** (-1 to 1) + **Shoulder Width** (0.1 to 5): highlight roll-off. Positive compresses highlights; negative extends them and can clip.
@@ -478,7 +484,7 @@ Draw masks to lighten or darken only those areas. On a **Slide** the panel grays
 *   **Feather** (0.0 to 0.15): edge softness, as a fraction of the frame's short side.
 *   **Grade** (-40 to 40 R): the mask's own contrast, in ISO-R points off the frame's Grade, negative harder (burn a sky at −20 R). Overlapping grades add, within R50…R180.
 *   **Flash** (0 to 1, default 0): pre-exposes the paper under the mask, like the Tone card's Preflash: the region's highlights compress without the density a burn adds. Overlapping flashes add. Off on a tone-limited mask.
-*   **Tone Limit** (*All*, *Highlights*, *Shadows*) with **Tone Zone** (0 to 10, in thirds, default 6) and **Tone Softness** (⅓ to 3 zones): limits the mask to tones lighter or darker than a print zone, so a sky burn on *Highlights* at VI stops at the skyline. Up to four tone-limited masks per frame.
+*   **Tone Limit** (*All*, *Highlights*, *Shadows*) with **Tone Zone** (0 to 10, in thirds, default 6) and **Tone Softness** (⅓ to 3 zones), shown once the limit is not *All*: limits the mask to tones lighter or darker than a print zone, so a sky burn on *Highlights* at VI stops at the skyline. Up to four tone-limited masks per frame.
 
 **Printing Notes** (Export tab, or **Shift+N**) makes a marked-up work print: each mask outlined with its number and value in stops, and a card with the paper, exposure, grade, filtration, curve and dodge/burn list. Burns are hatched. Numbers are exposure, not brightness: +1.00 st is `Burn +1`, and values snap to ⅓, ½ and ¼ when close. A local **Grade** shows as `Burn +1 @ R95`, a tone limit as `Burn +1 on ≥VI`. Hidden outlines still show; disabled masks do not.
 
@@ -559,8 +565,8 @@ Chemical toners (B&W Negative only) and a split tint (any mode). On a lith print
 
 **Split Toning** (all modes): an additive Lab tint that keeps grain and detail.
 
-*   **Shadow Strength** (0.0 to 1.0), with **Shadow Hue** (0 to 360°) under it.
-*   **Highlight Strength** (0.0 to 1.0), with **Highlight Hue** (0 to 360°) under it.
+*   **Shadow Strength** (0.0 to 1.0), with **Shadow Hue** (0 to 360°) under it once the strength is above 0.
+*   **Highlight Strength** (0.0 to 1.0), with **Highlight Hue** (0 to 360°) under it once the strength is above 0.
 
 ---
 
@@ -573,7 +579,7 @@ Spotting, as with a brush on a finished print. Marks are found by local contrast
 
 **Overlay** (Off / Marked / IR): shows detections. IR needs an IR plane.
 
-**Optical Removal** finds specks and hairs on the visible scan, without IR:
+**Optical Removal** finds specks and hairs on the visible scan, without IR. Its settings show while it is on:
 
 *   **Spot Threshold** (0.01 to 1.0): the bar for specks, against the film's grain. Lower catches more, with more false positives; 1.0 turns speck detection off.
 *   **Hair Threshold** (0.01 to 1.0): the same for hairs and long thin marks. Lower it if a hair across busy detail is missed; 1.0 turns hair detection off.
@@ -581,7 +587,7 @@ Spotting, as with a brush on a finished print. Marks are found by local contrast
 *   To protect detail, right-drag on the canvas to paint an exclusion band, or right-click → **Exclude from Optical Removal** for one spot. Toggling **Optical Removal** clears every band.
 *   The cursor button beside **Optical Removal** makes a plain right-click exclude the spot; the canvas menu is then out of reach while removal is on.
 
-**IR Removal** uses the scanner's infrared channel, and is enabled only when the scan has one.
+**IR Removal** uses the scanner's infrared channel, and shows only when the scan has one. Its settings show while it is on.
 
 *   **IR Threshold** (0.05 to 0.95): lower catches more.
 *   **Method**: how the film under a defect is rebuilt.
@@ -594,8 +600,8 @@ Spotting, as with a brush on a finished print. Marks are found by local contrast
 *   **Heal**: click dust spots to paint them out, or drag over a run of them.
 *   **Scratch**: click points along a scratch or hair, then double-click or press Enter. Esc cancels, Backspace removes the last point.
 *   **Line** (Transport Line): for long straight transport scratches. Click once on the scratch to trace and repair the whole line.
-*   **Line Sensitivity** (0.05 to 0.95): lower catches fainter lines with a wider band; raise it if a line picks up film on either side. Applies to placed lines too.
-*   **Brush Size** (2 to 64 px): diameter of the heal, scratch and exclusion brushes, for new strokes. `Alt`+scroll on the canvas or pinch sets it.
+*   **Line Sensitivity** (0.05 to 0.95, shown with the Line tool): lower catches fainter lines with a wider band; raise it if a line picks up film on either side. Applies to placed lines too.
+*   **Brush Size** (2 to 64 px, shown while a brush tool is armed or Optical Removal is on): diameter of the heal, scratch and exclusion brushes, for new strokes. `Alt`+scroll on the canvas or pinch sets it.
 *   **Undo Last** / **Clear All**: remove the last or all manual heals and traced lines; auto-detected dust stays.
 
 Right-click a stroke, scratch or line on the canvas to delete it.
@@ -605,14 +611,14 @@ Right-click a stroke, scratch or line on the canvas to delete it.
 *   **Clone**: the first click picks the area to copy from; then click or paint over the defect. The source follows the brush at a fixed offset. Uses **Brush Size**.
 *   **Set Source**: the next click picks a new area to copy from (or `Alt`-click with the Clone tool).
 *   **Match Tone** (default on): keeps the source's grain but takes the destination's brightness and color.
-*   **Strength** (0 to 100%, default 100%): how much of the source covers the destination.
+*   **Strength** (0 to 100%, default 100%, shown while Clone is armed, as is Feather): how much of the source covers the destination.
 *   **Feather** (0 to 100%, default 50%): the soft edge, as a share of the brush radius; 0 is hard.
 *   **Undo Last** / **Clear All** on the CLONE header remove the last or all strokes. Each stroke keeps the settings it was painted with.
 
 <!-- panel:finish -->
 ### 7.2 Finishing: vignette, carrier, border
 
-How the print is presented, at the end of the pipeline.
+How the print is presented, at the end of the pipeline. Each effect's shape controls show once its first slider is not 0.
 
 **Vignette** (printer's edge burn):
 
