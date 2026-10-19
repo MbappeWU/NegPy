@@ -335,11 +335,7 @@ class ScanlightSidebar(QWidget):
         # python-gphoto2 is optional, so show a setup note while it is missing. It hides once
         # installed and never nags an equipped user.
         self._setup_hint = hint_label(
-            tr(
-                "Camera scanning needs python-gphoto2, an optional dependency: "
-                "`pip install gphoto2` (macOS and Linux — libgphoto2 has no Windows build). "
-                "See docs/CAMERA_SCANNING.md."
-            ),
+            tr("Camera scanning needs python-gphoto2 (`pip install gphoto2`), which has no Windows build. See docs/CAMERA_SCANNING.md."),
             "warning",
         )
         cam.addWidget(self._setup_hint)
@@ -366,11 +362,7 @@ class ScanlightSidebar(QWidget):
         cam.addWidget(self._rgb_hint)
         self.capture_delay_slider = LogSlider(tr("Capture Delay"), 0, 10, 0, log_floor=0.1, unit=" s")
         self.capture_delay_slider.setValue(self._settings.capture_delay_s)
-        self.capture_delay_slider.setToolTip(
-            tr(
-                "Wait this long after Scan or Retake before the shot, so a table that shakes when you let go can settle. Stop ends the wait."
-            )
-        )
+        self.capture_delay_slider.setToolTip(tr("Wait this long after Scan or Retake before the shot, so a shaky table can settle."))
         cam.addWidget(self.capture_delay_slider)
         layout.addWidget(self.camera_body)
 
@@ -381,11 +373,7 @@ class ScanlightSidebar(QWidget):
         rgb.setSpacing(THEME.space_md)
 
         self.preset_combo = StepCombo()
-        self.preset_combo.setToolTip(
-            wrap_tooltip(
-                tr("Pick a preset: one of your own, or a built-in added under + (RGB levels, ISO, shutter and aperture shown read-only)")
-            )
-        )
+        self.preset_combo.setToolTip(wrap_tooltip(tr("Pick a preset: one of your own, or a built-in one added under +.")))
         self.preset_combo.setPlaceholderText(tr("Hand-set recipe (unsaved)"))
         # One "+" with a menu, like the Library's import: the two ways to add a preset.
         self.preset_new_btn = QToolButton()
@@ -401,7 +389,7 @@ class ScanlightSidebar(QWidget):
         self.preset_manual_action = add_menu.addAction(tr("Set by Hand"))
         self.preset_manual_action.setToolTip(
             wrap_tooltip(
-                tr("Unlock the sliders and the exposure steppers. Scan uses them as they stand; the save button keeps them under a name")
+                tr("Unlock the sliders and the exposure settings. Scan uses them as they are; the save button keeps them as a preset.")
             )
         )
         self.preset_manual_action.triggered.connect(lambda _checked=False: self._on_preset_manual())
@@ -437,7 +425,7 @@ class ScanlightSidebar(QWidget):
         self.r_slider.setToolTip(tr("Red LED level"))
         self.g_slider.setToolTip(tr("Green LED level"))
         self.b_slider.setToolTip(tr("Blue LED level"))
-        self.w_slider.setToolTip(tr("White LED — used only by the white-light preset; the Scanlight can't light it together with RGB"))
+        self.w_slider.setToolTip(tr("White LED: used only by white-light presets. It cannot light together with red, green and blue."))
         for slider in (self.r_slider, self.g_slider, self.b_slider, self.w_slider):
             recipe.addWidget(slider)
         self.off_btn = labeled_action("fa5s.power-off", tr(" Light Off"), tr("Turn all Scanlight channels off"))
@@ -455,10 +443,7 @@ class ScanlightSidebar(QWidget):
         _exp.setSpacing(THEME.space_md)
         self.meter_btn = icon_button(
             "fa5s.tachometer-alt",
-            tr(
-                "Aperture Priority Meter: one RAW probe at this ISO and aperture sets the shutter so the film base "
-                "lands just under clipping. Opens Live View when it is closed."
-            ),
+            tr("Meter: set the shutter so the film base lands just under clipping, at this ISO and aperture. Opens Live View if needed."),
         )
         _exp.addLayout(header_row(section_subheader(tr("CAMERA EXPOSURE")), self.meter_btn))
         self.capture_btn = ChoiceButton(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
@@ -489,20 +474,14 @@ class ScanlightSidebar(QWidget):
         _ir.setContentsMargins(0, 0, 0, 0)
         self.ir_shutter_stepper = SettingStepper()
         self.ir_shutter_stepper.setToolTip(
-            tr(
-                "Shutter for the infrared exposure, stepped through the camera's own choices. Set it by hand: "
-                "an IR-cut filter leaves it far slower than the visible channels."
-            )
+            tr("Shutter for the infrared exposure. Set it by hand; it is usually much slower than the visible exposure.")
         )
         self.ir_shutter_stepper.activated.connect(lambda _i: self._on_ir_shutter_changed())
         self.ir_toggle = tool_toggle(
             "mdi.led-on",
             "",
             tr(
-                "Infrared: end every Scan with an infrared exposure at the IR Shutter, for dust removal. "
-                "Color film passes infrared; silver grain does not. Needs a light with infrared LEDs and a camera that "
-                "passes 850 nm, a full-spectrum or IR-converted body: a stock camera's IR-cut filter leaves the frame at noise. "
-                "Set the lens to manual focus: autofocus hunts on the dark infrared frame and times out."
+                "Infrared: end every scan with an infrared exposure, for dust removal. Needs infrared LEDs, an infrared-capable camera and manual focus."
             ),
         )
         self.ir_toggle.setChecked(self._settings.infrared)
@@ -534,10 +513,7 @@ class ScanlightSidebar(QWidget):
         self.keep_light_btn = tool_toggle(
             "fa5s.lightbulb",
             "",
-            tr(
-                "Keep Light On: keep the Scanlight lit after each scan, to frame the next one on the camera's screen. "
-                "Live View re-lights it without this."
-            ),
+            tr("Keep Light On: keep the Scanlight lit after each scan, to frame the next shot on the camera's screen."),
         )
         self.keep_light_btn.setChecked(self._settings.keep_light_on)
         self.keep_light_btn.setFixedWidth(ICON_BUTTON_WIDTH)

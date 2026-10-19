@@ -93,7 +93,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         16,
         1,
         tr(" photos"),
-        tr("Full-resolution HQ buffers kept in memory. Each is hundreds of MB, and keeping the previous frame makes going back instant."),
+        tr("Full-size previews kept in memory. Each uses hundreds of MB; keeping the last one makes going back instant."),
     ),
     NumberRow(
         "render_memo_max_entries",
@@ -111,10 +111,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         16384,
         1024,
         " px",
-        tr(
-            "Largest GPU texture dimension, including HQ preview loads. 0 lets the hardware "
-            "decide (a lower default applies automatically on integrated GPUs)."
-        ),
+        tr("Largest image size the GPU loads at once. 0 lets the hardware decide."),
     ),
 )
 
@@ -316,8 +313,7 @@ class PreferencesDialog(QDialog):
         grid.addWidget(
             hint_label(
                 tr(
-                    "Sets the colors of the Retouch dust overlay, the Dodge & Burn masks and Printing Notes. "
-                    "The color-blind choices use the Okabe–Ito palette."
+                    "Colors for the dust overlay, the Dodge & Burn masks and Printing Notes. The color-blind choices use the Okabe–Ito palette."
                 )
             ),
             1,
@@ -399,11 +395,7 @@ class PreferencesDialog(QDialog):
             row,
             tr("Reduce export memory use"),
             APP_CONFIG.low_vram_export_tiling,
-            tr(
-                "Use smaller tiles and less pipelining during export, at some cost to export speed. "
-                "Turn this on if exporting crashes on your GPU (typically an older or "
-                "memory-constrained integrated one)."
-            ),
+            tr("Export in smaller pieces, a little slower. Turn this on if exporting crashes on your GPU."),
         )
         if "low_vram_export_tiling" in self._pinned:
             self.low_vram_tiling_box.setEnabled(False)
@@ -441,10 +433,7 @@ class PreferencesDialog(QDialog):
             row,
             tr("Show GPU memory warning"),
             bool(self.repo.get_global_setting("show_vram_capped_warning", default=True)),
-            tr(
-                "Status message when a scan is downsampled because it is larger than the GPU texture "
-                "cap above. Turning this off does not change the downsampling itself."
-            ),
+            tr("Show a message when a scan is reduced to fit the GPU limit above."),
         )
         self.vram_warning_box.toggled.connect(self._on_vram_warning_changed)
         row += 1

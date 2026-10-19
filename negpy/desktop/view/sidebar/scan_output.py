@@ -15,7 +15,7 @@ from negpy.services.assets.rolls import next_roll_name, roll_folder_name
 
 SETTINGS_KEY = "scan_output_settings"
 
-_AS_ROLL_TIP = tr("Open the folder the frames go to as a Library roll, so Half Frame, roll defaults and Roll Analysis apply as you scan.")
+_AS_ROLL_TIP = tr("Open the output folder as a roll in the Library, so the Roll tab and Roll Analysis work as you scan.")
 _NEW_ROLL_TIP = tr("Start the next roll: step the Roll name to the next one with no subfolder yet")
 _FOLDER_ROLL_TIP = tr("Scan into the output folder itself and name the roll after it. Off scans into a Roll subfolder.")
 

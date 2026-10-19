@@ -42,10 +42,7 @@ _GUIDE = tr(
 )
 _SENSOR_PROFILE_OFF_TOOLTIP = tr("Single Capture only: a triplet reads each LED alone and has no sensor mixing to unmix.")
 
-SENSOR_PROFILE_TOOLTIP = tr(
-    "Also save a sensor profile under the preset's name, measured from the same exposures. "
-    "A roll scanned with the preset takes the profile. Single Capture only."
-)
+SENSOR_PROFILE_TOOLTIP = tr("Also save a sensor profile for this preset, from the same exposures. Single Capture only.")
 
 
 def _reserve_checked_width(btn: QPushButton) -> None:

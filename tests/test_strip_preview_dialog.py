@@ -274,7 +274,7 @@ def test_the_help_is_one_line_and_the_detail_lives_where_the_hand_is() -> None:
     dialog = StripPreviewDialog(_FakeController(), _device(3))
 
     assert len(dialog.help_lbl.text().split()) < 20
-    assert "gap" in dialog.offset_slider.toolTip()
+    assert "line it up" in dialog.offset_slider.toolTip()
     assert "per frame position" in dialog.drift_slider.toolTip()
     assert has_guide("scan_strip") and dialog.help_btn.isVisibleTo(dialog) is True
 

@@ -168,10 +168,7 @@ class LiveViewWindow(QDialog):
         self.delay_stepper = SettingStepper()
         self.set_capture_delay(0.0)
         self.delay_stepper.setToolTip(
-            tr(
-                "Capture Delay: wait this long after Scan or Retake before the shot, so a table that shakes when you let go can settle. "
-                "Stop ends the wait."
-            )
+            tr("Capture Delay: wait this long after Scan or Retake before the shot, so a shaky table can settle.")
         )
         self.delay_stepper.activated.connect(lambda _i: self.captureDelayChanged.emit(float(self.delay_stepper.currentData())))
         bar.addWidget(self.delay_stepper)
@@ -238,10 +235,7 @@ class LiveViewWindow(QDialog):
         self.focus_label = hint_label("")
         self.focus_label.setToolTip(
             wrap_tooltip(
-                tr(
-                    "Sharpness as a share of the best seen. Turn the focus ring past the peak and back to it; "
-                    "click the image to reset the peak."
-                )
+                tr("Sharpness compared with the best seen. Turn the focus ring past the peak and back. Click the image to reset it.")
             )
         )
         self._focus_kind = "muted"

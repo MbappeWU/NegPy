@@ -278,10 +278,7 @@ class ScanSidebar(QWidget):
 
         self.debug_log_btn = ChoiceButton(
             tuple(("", level.title()) for level in nkscan_log.LEVELS),
-            tr(
-                "Write nkscan's diagnostics to nkscan.log in the NegPy folder. "
-                "Use Trace for a bug report: it adds every command sent to the scanner."
-            ),
+            tr("Write a diagnostics log (nkscan.log) in the NegPy folder. Use Trace for a bug report."),
         )
         level = self._settings.nkscan_log_level
         self.debug_log_btn.setCurrentIndex(nkscan_log.LEVELS.index(level) if level in nkscan_log.LEVELS else 0)
@@ -322,10 +319,7 @@ class ScanSidebar(QWidget):
 
         self.mode_btn = ChoiceButton(
             tuple(("", label) for _mode, label, _tip in _CAPTURE_MODE_LABELS),
-            tr(
-                "How this scan captures exposure: a single pass, repeated passes stacked for lower "
-                "noise, an adaptive short+long fusion, or both combined."
-            ),
+            tr("How the scan is exposed: one pass, several passes for less noise, a short and a long exposure for more range, or both."),
             data=tuple(mode.value for mode, _label, _tip in _CAPTURE_MODE_LABELS),
         )
         for i, (_mode, _label, tip) in enumerate(_CAPTURE_MODE_LABELS):
@@ -404,10 +398,7 @@ class ScanSidebar(QWidget):
         self.exposure_meter_btn = labeled_action(
             "fa5s.lock",
             tr(" Meter Frame…"),
-            tr(
-                "Meter one frame and reuse its exposure for every scan until unlocked. Pick a frame "
-                "inside the strip: a strip end meters on the bare light past the cut."
-            ),
+            tr("Measure one frame and use its exposure for every scan until you unlock it. Pick a frame inside the strip, not at its end."),
         )
         self.exposure_unlock_btn = labeled_action("fa5s.lock-open", tr(" Unlock"), tr("Meter every frame on its own again"))
         self.exposure_lock_widget = self._row_widget(field_row(tr("Exposure lock"), self.exposure_meter_btn, self.exposure_unlock_btn))

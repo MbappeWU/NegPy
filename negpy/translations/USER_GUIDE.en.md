@@ -728,187 +728,163 @@ The **Proof** tab shows on screen how the picture will look when printed on a gi
 
 ## 13. Scan tab
 
-Capture film directly into NegPy. The **Scanner** card picks the scanner; the tab shows its cards, the shared **Output** card and the **Scan** button.
+Scan film straight into NegPy. The **Scanner** card picks the scanner; the tab then shows that scanner's cards, the shared **Output** card and the **Scan** button.
 
 <!-- panel:scan_source -->
 ### Scanner
 
-*   **Scanner** (Camera by default): **Film Scanner** drives a dedicated film scanner (Device, Film & Quality, Framing); **Camera** drives a camera on a copy stand (Camera, Preset).
+*   **Scanner**: **Film Scanner** for a dedicated film scanner (the Device, Film & Quality and Framing cards), or **Camera** for a camera on a copy stand (the Camera and Preset cards).
 
 <!-- panel:scan_device -->
 ### Device
 
-**Backend**: **SANE** (Linux/macOS), **Nikon Coolscan (nkscan)** (Linux, Windows, macOS) or **pyOpticfilm (Plustek)** (all three OSes). Controls follow what the device reports.
+*   **Backend**: **SANE** (Linux and macOS), **Nikon Coolscan (nkscan)** or **pyOpticfilm (Plustek)**. The controls follow what the scanner reports.
+*   **Device**: the scanner; the arrows refresh the list. The eject menu has **Eject Now** and, on a strip feeder, **Eject When Done**, which returns the strip after a batch.
+*   **Debug log** (Coolscan): writes `nkscan.log` in the NegPy folder. For a bug report, set **Trace**, repeat the problem and attach the file.
 
-*   **Device**: the scanner; the arrows refresh the list. The eject menu holds **Eject Now** and, on a strip feeder, **Eject When Done** (on by default), which returns the strip after a batch. Off keeps it loaded with its picks and previews. A strip the scanner returns by itself counts as an eject: insert it again, then **Detect frames**. After 9 minutes with no scanner activity NegPy measures the strip again.
-*   **Debug log** (nkscan; Off, Debug, Trace): writes `nkscan.log` in the NegPy folder. For a bug report, set Trace, reproduce the problem and attach the file.
-*   **Sleep**: while a scan runs, NegPy keeps macOS and Windows from going to sleep. On Linux, turn off automatic suspend before a long roll.
+NegPy keeps macOS and Windows awake while it scans. On Linux, turn off automatic suspend before a long roll.
 
-**pyOpticfilm (Plustek)**: the **OpticFilm 8200i SE** (`07b3:1825`), **8100 V2** (`07b3:1824`), **8300i SE** (`07b3:181f`) and **7600i v1** (`07b3:0c3b`) scan; for other models try **SANE** on Linux and macOS. Needs pyopticfilm **1.3.6** or later. **IR** comes in the same pass (on the 7600i v1, at 3600 and 7200 dpi only). Multi-Pass and Prescan are on the GL128 models. On Windows, bind the device to **WinUSB** with Zadig first ([PLUSTEK_WINDOWS.md](PLUSTEK_WINDOWS.md)). From source, install with `uv sync --group plustek` or `pip install negpy[plustek]`.
-
-**Nikon Coolscan (nkscan)**: needs no SANE and ships in the release builds; from source, see [CONTRIBUTING.md](../CONTRIBUTING.md). On Linux, USB needs a udev rule for vendor `04b0`; FireWire/SCSI needs the `sg` module.
+**Plustek**: the OpticFilm 8200i SE, 8100 V2, 8300i SE and 7600i v1 work; for other models, try SANE. On Windows, set up the USB driver first ([PLUSTEK_WINDOWS.md](PLUSTEK_WINDOWS.md)). **Coolscan**: needs no SANE. On Linux, USB needs a udev rule for vendor `04b0`.
 
 <!-- panel:scan_quality -->
 ### Film & Quality
 
-*   **Film**: Color negative, B&W negative, Slide or Kodachrome. Sets frame detection, metering and whether IR and ICE are offered (not for B&W or Kodachrome).
-*   **Film format**: frame length (135, 66, 645 and so on). **Auto** where the holder narrows it; set it for loose film in a masked carrier.
-*   **Resolution**, **Bit depth**: the scan's dpi and bits per channel; type a resolution between the listed stops.
-*   **Scan mode** (Plustek; Single-Pass by default): **Single-Pass**, **Multi-Pass** (stacks repeated exposures to cut noise; **Passes** 2 to 9), **Adaptive Multi-Exposure** (fuses a short and a long exposure for more range) or **Adaptive Multi-Pass** (both). Multi-Pass excludes IR.
-*   **Samples** (nkscan): reads per line averaged (1 to 16). Less shadow noise, proportionally slower.
-*   **IR**: a separate infrared plane for Retouch's dust removal. **ICE** (nkscan): infrared dust and scratch removal baked into the file, color film only. **ICE** and **IR** exclude each other.
-*   **Superfine** (nkscan): one line per pass. Slower, with no host-side line registration.
-*   **Autofocus**, **Auto-exposure**: run on the scanner before the scan.
-*   **Exposure** (µs): shown when the scanner has `scan-exposure-time`; off while Auto-exposure is on.
+*   **Film**: Color negative, B&W negative, Slide or Kodachrome. It sets frame detection, metering, and whether infrared is offered.
+*   **Film format**: the frame length (135, 66, 645 and others). **Auto** works where the holder sets it.
+*   **Resolution** and **Bit depth**: the scan's dpi and bits per channel.
+*   **Scan mode** (Plustek): **Multi-Pass** averages several scans for less noise; **Adaptive Multi-Exposure** combines a short and a long exposure for more range.
+*   **Samples** (Coolscan): reads each line several times, for less noise in the shadows. Slower.
+*   **IR**: an infrared scan, for dust removal on the Retouch card. **ICE** (Coolscan) removes the dust in the scanner instead. Not for B&W or Kodachrome.
+*   **Superfine** (Coolscan): scans one line per pass. Slower.
+*   **Autofocus**, **Auto-exposure** and **Exposure**: focus and exposure on the scanner, before the scan.
 
 <!-- panel:scan_framing -->
 ### Framing
 
-*   **Frames**: `1-6`, `1,2,5`, or empty for all. The strip preview writes its picks here.
-*   **Batch** / **Window**: on a feeder, **Preview strip…** previews every frame, to set windows and pick frames; with a manual holder, **Preview…** sets one crop window. **Clear** resets it. **Detect frames** reads the strip again after the film moves.
-*   **Exposure lock** (**Meter Frame…** / **Unlock**, nkscan): nkscan meters each frame alone, so an end frame can scan in a different color. **Meter Frame…** meters one frame inside the strip (such as frame 2), and every later scan reuses that exposure, across strips and restarts, until **Unlock**. Meter again for each roll.
-*   **Crop** (**Prescan…**, Plustek): a 1200 dpi full-window preview; drag a crop, and the next scan reads only that area. **Clear** scans the full window.
+*   **Frames**: `1-6`, `1,2,5`, or empty for all. The strip preview fills it in.
+*   **Preview strip…** (strip feeder): previews every frame, to place the frames and pick them. **Preview…** (manual holder): sets one crop window. **Clear** resets it. **Detect frames** finds the frames again after the film moves.
+*   **Meter Frame…** (Coolscan): measures the exposure on one frame and uses it for every later scan, so all frames of a roll match. **Unlock** ends it. Meter again for each roll.
+*   **Prescan…** (Plustek): a quick full preview. Drag a crop, and the next scan reads only that area.
 
 <!-- panel:scan_camera -->
 ### Camera
 
-Copy-stand capture with a camera in **PC Remote** mode over USB (macOS/Linux): with a NegPy **Scanlight**, R/G/B triplets or one exposure with the three LEDs lit together, else one white-light exposure. Needs `python-gphoto2` (`pip install gphoto2`; no Windows build). Setup and troubleshooting: CAMERA_SCANNING.md.
+Scans with a camera on a copy stand, connected over USB in **PC Remote** mode (macOS and Linux; it needs `python-gphoto2`). With a NegPy **Scanlight**, NegPy also controls the light. CAMERA_SCANNING.md explains the setup.
 
-*   **Camera** / **Light**: connection status, found automatically; the light turns amber once it runs warm. On Linux, the Scanlight's serial port needs your user in the `dialout` group (`sudo usermod -aG dialout $USER`, then log out and back in).
-*   **Live View**: click the image to aim the focus magnifier. Turn the focus ring past best focus, then back until the **Focus meter** reads **at peak**. ISO, shutter and aperture are set from its toolbar or from the card; both follow the camera. With a Scanlight, Scan shoots the whole triplet into the next frame and never touches an existing file. **R**, **G** and **B** pick which exposures Retake shoots again over the current frame's, replacing those files; **IR**, on a light with infrared LEDs, is the Infrared setting for both. A frame whose three visible exposures exist stays one triplet. An `_IR` file stays its own frame in the Film Strip.
-*   **Histogram** and **Zebras**: the frame's RGB histogram, and hatching on pixels at the top (red) and bottom (blue) of the preview range. The preview clips before the RAW does, so a zebra is an early warning.
-*   **Meter**: one RAW probe sets the shutter so the region that must not clip (a negative's clear base, a slide's brightest highlights) lands just under clipping. The white-light preset's film type decides which. An RGB preset meters its base under the scan light, and the metered shutter replaces the preset's until you pick the preset again. A negative with no clear base in frame, or a base the probe cannot read unclipped, meters its thinnest picture instead and says so. A white-light frame imports with the camera's white balance, so its target allows for that gain. A clipped picture steps down two stops; meter again.
-*   **Scan** and **Retake**: **Scan** shoots the next frame, auto-numbered, and imports it; **Retake** (the redo arrow beside **Live View**) shoots the last frame again. In the Live View window, `Space` or `S` scans and `R` retakes.
-*   **Capture Delay** (off, or 0.1 to 10 s on a log scale, default off): **Scan** and **Retake** wait this long before the first exposure, so a table that shakes when you let go can settle. The box takes two decimals. The panel counts down; **Stop** ends the wait. The same delay is a stepper beside **Scan** in the Live View window, in rungs of 0.1, 0.25, 0.5, 1, 2.5, 5 and 10 s.
-*   **Keep Light On** (the bulb beside **Retake**, off by default): the Scanlight goes dark after each scan; this lights it again with the framing light, so you can frame the next shot on the camera's screen. Live View lights it again without this toggle.
-*   **Narrowband**: RGB-lit scans render more saturated than white light; a **Print stock** other than *Digital* prints them through real dyes.
+*   **Camera** / **Light**: the connection status. The light turns amber when it runs warm. On Linux, the Scanlight needs your user in the `dialout` group.
+*   **Live View**: a live picture from the camera. Click to place the focus magnifier, and focus until the **Focus meter** reads **at peak**. Set ISO, shutter and aperture here or on the camera.
+*   **Histogram** and **Zebras**: the frame's histogram, and stripes on parts that are about to clip (red at the top, blue at the bottom).
+*   **Meter**: sets the shutter so the brightest part that must not clip (a negative's clear film, a slide's highlights) lands just under clipping.
+*   **Scan** shoots the next frame and imports it; **Retake** (the redo arrow) shoots the last frame again. In the Live View window, `Space` or `S` scans and `R` retakes. With a Scanlight, **R**, **G**, **B** and **IR** pick which exposures Retake repeats.
+*   **Capture Delay**: waits before the first exposure, so a shaky table can settle.
+*   **Keep Light On** (the bulb): keeps the Scanlight lit after each scan, so you can frame the next shot.
 
 <!-- panel:scan_light -->
 ### Preset
 
-Shown while a Scanlight is connected. The LED levels, the camera exposure and the infrared row sit on a rail under the preset dropdown: they are the preset's values. Channel Delay, below the rail, is a setting of the rig.
+Shown while a Scanlight is connected. A preset holds the light levels and the camera exposure for one kind of film.
 
-*   **Preset**: forces its RGB levels, ISO, shutter and aperture each frame. The list holds your own presets and the built-ins you have added; empty, it reads "Click + to add a preset". **+** offers three ways to add one. **Built-in Presets**, which need no calibration: **White Light** (B&W, Color Negative or Slide, autodetected or named), **White Light + IR, Color Negative**, **White Light + IR, Slide**, **Trichrome, Color Negative** and **Trichrome + IR, Color Negative**; picking one adds it to the list and selects it, and the trash removes it from the list again. Every built-in shoots at the camera's exposure: ISO, Shutter and Aperture are live steppers and the meter sets the shutter; the Trichrome ones light the LEDs at full power. **Calibrate on the Film Base…**: place the rectangle on clear film base, name it, run it; it solves a shutter and LED levels just under clipping. **Set by Hand**: unlocks the sliders and steppers; Scan uses them as they stand, and the save button keeps them as a preset. The White Light presets show only on a Scanlight with a white LED (v4 and Big Scanlight); on a v1 to v3, a Single Capture preset lights R, G and B together instead.
-*   **Red**, **Green**, **Blue**, **White** (0 to 255): LED levels, editable while you build a manual preset. **Light Off** turns every channel off.
-*   **Capture mode**: **Triplet** shoots one exposure per LED and merges them; **Single Capture** shoots one exposure with all three lit and imports it as an ordinary RAW. A selected Triplet preset lights a dimmed framing mix, raised per channel on an RGB-only Scanlight (v1 to v3) so it stays visible; the scan uses the preset's own levels. Hidden under a white-light preset, which shoots one exposure.
-*   **Create Sensor Profile** (Single Capture only, default on): also saves a sensor profile under the preset's name; a roll scanned with the preset takes it and turns Linear RAW on. Other rolls do not get it.
-*   **ISO**, **Shutter**, **Aperture**: the preset's exposure, live under any preset; a step overrides the recipe until you pick the preset again.
-*   **Aperture Priority Meter** (the gauge beside CAMERA EXPOSURE): the Live View **Meter**, from the card. Opens Live View when it is closed.
-*   **IR Shutter** (with infrared LEDs): the infrared exposure's own shutter, stepped through the camera's choices while Live View runs. Set it by hand; calibration does not solve it. A preset saves it.
-*   **Infrared** (the LED beside IR Shutter): ends every Scan with an infrared exposure at the IR Shutter, saved as `_IR` beside the frame; the camera returns to its own shutter afterwards. A preset recalls it. Color film passes infrared; silver grain does not, so there is no B&W + IR. Needs a light with infrared LEDs and a camera that passes 850 nm, a full-spectrum or IR-converted body: a stock camera's IR-cut filter leaves the infrared frame at noise. Set the lens to manual focus: autofocus hunts on the dark infrared frame and times out.
-*   **Channel Delay** (0 to 5000 ms): pauses between R, G and B for bodies that lock up. Triplet presets only.
+*   **Preset**: the light and exposure for each scan. **+** adds one in three ways:
+    *   **Built-in Presets**: ready to use, with no calibration: **White Light**, **White Light + IR**, **Trichrome** and **Trichrome + IR**. They use the camera's exposure, which the meter sets. White Light needs a Scanlight with a white LED (v4, Big Scanlight).
+    *   **Calibrate on the Film Base…**: place the rectangle on clear film and run it. NegPy finds the light levels and the shutter.
+    *   **Set by Hand**: set the sliders yourself, then save them as a preset.
+*   **Red**, **Green**, **Blue**, **White**: the light levels (0 to 255). **Light Off** turns the light off.
+*   **Capture mode**: **Triplet** takes one exposure per color and joins them; **Single Capture** takes one exposure with all three colors on.
+*   **Create Sensor Profile** (Single Capture): also saves a sensor profile for this preset (see Calibration, §10.3).
+*   **ISO**, **Shutter**, **Aperture**: the preset's exposure. A change holds until you pick the preset again. The gauge button meters.
+*   **IR Shutter** and **Infrared** (lights with infrared LEDs): adds an infrared exposure to each scan for dust removal, saved as an `_IR` file. It needs a camera that sees infrared (full-spectrum or converted) and manual focus. Color film only.
+*   **Channel Delay**: a pause between the red, green and blue exposures, for cameras that need it.
 
 <!-- panel:scan_output -->
 ### Output
 
 Shared by both scanners.
 
-*   **Folder**: where frames are written.
-*   **Scan as Roll** (on by default): the output folder opens as a roll in the Library, so Half Frame, the Roll tab and Roll Analysis apply. Frames load as they are written.
-*   **Folder as Roll** (on by default): frames go into the output folder itself, which is the roll. Off writes into a **Roll** subfolder, and a new Roll name starts a new roll. A camera frame's file name starts with the roll name.
-*   **New Roll** (**+** beside Roll): steps the Roll name to the next one that has no subfolder yet. A trailing number that is zero-padded or follows `_`, `-`, a space or `.` counts up (`Roll001` to `Roll002`, `portra400_1` to `portra400_2`); any other name gets `_2`.
-*   **Format**, **Filename** (Film Scanner): `TIFF` or `TIFF (mono)` (one 16-bit gray plane, for B&W negatives), and the file name as a Jinja2 template of `{{ date }}` and `{{ seq }}`.
+*   **Folder**: where scans are saved.
+*   **Scan as Roll**: the folder opens as a roll, and frames load as they are saved.
+*   **Folder as Roll**: scans go into the folder itself. Off writes into a **Roll** subfolder, and a new Roll name starts a new roll. **+** beside Roll steps to the next name (`Roll001` to `Roll002`).
+*   **Format** and **Filename** (film scanner): TIFF, or TIFF (mono) for B&W, and the file name pattern (`{{ date }}`, `{{ seq }}`).
 
 <!-- panel:scan_strip -->
 ### Strip preview
 
-Dialogs end with **Cancel**, **Apply** (keep the framing) and **Scan**. During a preview **Cancel** reads **Stop Preview** and keeps the tiles read so far. Negatives preview inverted. On nkscan, **Offset** (±10 mm) and **Drift** cut the tiles again with no new scan.
+Shows the whole strip, to place and pick the frames before the scan. **Apply** keeps the framing and **Scan** scans. **Stop Preview** ends a preview early.
 
-*   **Cropping**: drag on a frame. **Clear Crops** removes all.
-*   **Frame outline**: red box on the detected frame; offsets are measured from it.
-*   **Offset**: moves every frame along the film to clear the gap. The shaded band is film the transport cannot deliver; a feeder goes one way only.
-*   **Drift**: offset that grows (or shrinks) per frame position.
-*   **Per-frame offset**: the slider under a tile, on top of Offset and Drift.
-*   **Size**: tile size.
-*   **Which frames**: tick tiles, or **All** / **None**. Eject or a restart clears ticks, crops and per-frame offsets.
-*   **Preview frame**: scans that frame again.
+*   **Crop**: drag on a frame. **Clear Crops** removes all crops.
+*   **Offset**: moves every frame along the film to line it up with the pictures. The red box shows the frame NegPy found.
+*   **Drift**: an offset that grows from frame to frame.
+*   The slider under each tile moves that frame alone.
+*   **Size** sets the tile size. **All**, **None** and the tick boxes pick frames. **Preview frame** scans one frame again.
 
 ---
 
 ## 14. Preferences
 
-Application-wide settings: **⋯** menu → **Preferences…** or `Ctrl + ,`. Changes apply at once; startup rows show a restart notice.
+**⋯** menu → **Preferences…** (`Ctrl+,`). Changes apply at once; a row says when it needs a restart.
 
 ### Interface
 
-*   **Language** (default System Default): English, Simplified Chinese, Japanese or Korean; restart to apply. Other system languages use English. Panel guides use the selected language and fall back to English when a translation is missing.
-*   **UI scale** (80% to 120%): after a restart.
-*   **Canvas background**: black, dark gray, mid gray (neutral for judging, the default), light gray or white (a print on a light table). The Film Strip and the Light Table lie on it too.
-*   **Film edges** (on by default): draws the perforations and edge print on the film of the Film Strip and the Light Table. Off leaves the film blank, in the rebate tone.
-*   **Sticky zoom**: keeps the zoom when you switch frames.
-*   **Reverse scroll zoom**: scroll up zooms out.
-*   **Customize Shortcuts…**, **Edit Toolbar…**, **Reset Panel Layout**: shortcut editor, toolbar picker, default panel layout.
+*   **Language**: English, Simplified Chinese, Japanese or Korean, after a restart.
+*   **UI scale**: 80% to 120%, after a restart.
+*   **Canvas background**: from black to white. Mid gray is best for judging a print.
+*   **Film edges**: draws the perforations and edge print on the Film Strip and the Light Table.
+*   **Sticky zoom**: keeps the zoom when you change frames. **Reverse scroll zoom**: scroll up zooms out.
+*   **Customize Shortcuts…**, **Edit Toolbar…** and **Reset Panel Layout**.
 
 ### Accessibility
 
-*   **Color vision** (default **Standard**): colors for marks told apart by color alone (dust overlay, dodge and burn masks, Zone Overlay, clipping overlay). *Protanopia / deuteranopia*, *Tritanopia* and *Achromatopsia* use colors from the Okabe–Ito palette.
+*   **Color vision**: colors for marks that differ by color alone (dust overlay, masks, Zone Overlay, clipping). Pick the setting for protanopia or deuteranopia, tritanopia, or achromatopsia.
 
 ### Performance
 
-*   **GPU acceleration**: renders on the GPU. Off uses the slower CPU pipeline, same image. If the GPU fails at launch, an amber line here says so.
-*   **Multi-core CPU rendering**: runs CPU rendering on all cores; it helps exports and machines without a usable GPU. On by default except on macOS, where it can end the app; after such a crash NegPy offers to turn it off. `cpu_parallel` in `override.toml` overrides it.
+*   **GPU acceleration**: renders on the graphics card. Off uses the slower CPU, with the same result. If the GPU fails at launch, an amber line here says so.
+*   **Multi-core CPU rendering**: uses all CPU cores. It is off at first on macOS, where it can crash.
 *   **Search by meaning**: find frames by description (§2).
-*   **Preview size** (512 to 8192 px): canvas long edge; higher is sharper and uses more memory.
-*   **Preview cache** and **Preview cache limit**: photos kept decoded, and their memory limit. Lower both on low RAM.
-*   **HQ buffers**: full-resolution preview buffers kept in memory.
-*   **Rendered frames**: frames kept for going back without a new render.
-*   **GPU texture cap**: largest texture dimension; 0 lets the hardware decide. Lower it if exports run out of GPU memory.
-*   **Show GPU memory warning**: a message when an HQ preview is downsampled to fit the texture cap.
-
-Rows from **Preview size** down need a restart. A value in `override.toml` wins and grays out its row.
+*   **Preview size**: the canvas resolution. Higher is sharper and uses more memory.
+*   **Preview cache**, **HQ buffers**, **Rendered frames** and **GPU texture cap**: how much memory NegPy uses. Lower them on a computer with little memory, or if exports run out of GPU memory.
+*   **Show GPU memory warning**: tells you when an HQ preview is reduced to fit.
 
 ### Session & Storage
 
-*   **Carry settings between frames**: applies your Persistent Settings to each newly opened file.
-*   **Persistent Settings…**: which edits carry over (§1).
-*   **Manage Database…**: row counts and sizes, clear saved edits, library roots.
+*   **Carry settings between frames** and **Persistent Settings…**: what a new frame takes from the last one (§1).
+*   **Manage Database…**: sizes, clearing saved edits, and library folders.
 
 ### Startup override (`override.toml`)
 
-For crashes on launch or rendering glitches: edit `Documents/NegPy/override.toml` (created on first run) and restart. Its values win over Preferences.
+If NegPy crashes at launch or draws wrongly, edit `Documents/NegPy/override.toml` (made on first run) and restart. Its values win over Preferences.
 
 | Setting | Values | Effect |
 |---------|--------|--------|
-| `rendering.backend` | `"auto"`, `"vulkan"`, `"dx12"`, `"metal"`, `"cpu"` | GPU backend for image processing. `"cpu"` disables the GPU. |
-| `display.qt_rhi_backend` | `"auto"`, `"vulkan"`, `"d3d12"`, `"metal"`, `"opengl"`, `"software"` | Qt UI rendering backend. |
-| `display.qt_platform` | `"auto"`, `"xcb"`, `"wayland"` | Window system plugin (Linux only). |
-| `performance.force_hq_preview` | `true` / `false` (or absent) | Overrides the saved HQ preview toggle. |
-| `performance.cpu_parallel` | `true` / `false` (or absent) | Multi-core CPU rendering. On by default, except on macOS. |
-| `logging.level` | `"debug"`, `"info"`, `"warning"`, `"error"` | Log verbosity. Use `"debug"` when you report issues. |
+| `rendering.backend` | `"auto"`, `"vulkan"`, `"dx12"`, `"metal"`, `"cpu"` | How images are processed. `"cpu"` turns the GPU off. |
+| `display.qt_rhi_backend` | `"auto"`, `"vulkan"`, `"d3d12"`, `"metal"`, `"opengl"`, `"software"` | How the window is drawn. |
+| `display.qt_platform` | `"auto"`, `"xcb"`, `"wayland"` | Window system (Linux only). |
+| `performance.force_hq_preview` | `true` / `false` | Turns HQ Preview on or off. |
+| `performance.cpu_parallel` | `true` / `false` | Multi-core CPU rendering. |
+| `logging.level` | `"debug"`, `"info"`, `"warning"`, `"error"` | How much NegPy logs. Use `"debug"` for a bug report. |
 
-`max_texture_size`, `preview_render_size`, `preview_cache_max_bytes`, `preview_cache_max_entries`, `preview_cache_max_full_res_entries` and `render_memo_max_entries` take the same values as their Preferences rows.
+The memory rows of Preferences can be set here too (`max_texture_size`, `preview_render_size`, `preview_cache_max_bytes`, `preview_cache_max_entries`, `preview_cache_max_full_res_entries`, `render_memo_max_entries`).
 
 **Common fixes:**
 
-*   **Crashes immediately on Linux** → `backend = "cpu"` or `qt_rhi_backend = "opengl"`.
-*   **Black or blank preview on Windows** → `backend = "dx12"` or `qt_rhi_backend = "software"`.
-*   **Wayland rendering issues** → `qt_platform = "xcb"` to force X11.
-*   **GPU out-of-memory during export** → `max_texture_size = 4096`.
+*   **Crashes at once on Linux**: `backend = "cpu"` or `qt_rhi_backend = "opengl"`.
+*   **Black or empty preview on Windows**: `backend = "dx12"` or `qt_rhi_backend = "software"`.
+*   **Wayland drawing problems**: `qt_platform = "xcb"`.
+*   **GPU out of memory during export**: `max_texture_size = 4096`.
 
 ---
 
 ## 15. Updating NegPy
 
-NegPy checks GitHub once at startup. A new release adds **Update to vX.Y.Z…** to the **⋯** menu, marked with a green dot; it opens the release notes and the install button. **Check for Updates…** checks by hand.
+NegPy checks for a new version at startup. A new release adds **Update to vX.Y.Z…** to the **⋯** menu, with a green dot. **Check for Updates…** checks by hand.
 
-**Install Update** downloads the build for this install type, closes NegPy, installs and reopens. Nothing is replaced until NegPy exits, so a failure leaves your install as it was.
+**Install Update** downloads the new version, closes NegPy, installs it and opens it again. On Windows, approve the administrator prompt *before* NegPy closes. If the update fails, your install stays as it was. Your edits, presets and settings are not touched.
 
-| Install | What NegPy fetches | How it installs |
-|---------|--------------------|-----------------|
-| **Windows** | the `-Setup.exe` installer | Runs it silently. Approve the administrator prompt *before* NegPy closes. |
-| **macOS** | the `.dmg` for your chip (Apple silicon or Intel) | Replaces the `NegPy.app` bundle where it is, then reopens it. |
-| **Linux** | the `.AppImage` | Replaces the AppImage file you launched and relaunches it. |
-
-Edits, presets, settings and library live in `Documents/NegPy` and the database, so updates do not touch them.
-
-The button reads **"Open Releases Page"** when NegPy cannot update itself: a source checkout, no build for your platform, an app moved out of its installer layout, or an app folder you cannot write to.
+When NegPy cannot update itself, for example when it runs from source, the button reads **Open Releases Page**.
 
 ---
 
 ## Additional Info
 
-*   **Database**: edits live in a local SQLite database keyed by file hash, so files can move or be renamed. Optional `.negpy` sidecars mirror them.
-*   **Saving edits**: written on export, on frame switch, or on save; closing mid-edit before any of these loses unsaved changes.
-*   **Keyboard shortcuts**: [KEYBOARD.md](KEYBOARD.md)
-*   **Filename templating**: [TEMPLATING.md](TEMPLATING.md)
-*   **The pipeline in depth**: [PIPELINE.md](PIPELINE.md)
+*   **Edits** are saved in a local database by file content, so files can move or be renamed. **Edit Sidecars** (Export tab) can also write them as `.negpy` files.
+*   NegPy saves an edit when you change frames or export. Closing NegPy before that can lose the last changes.
+*   [KEYBOARD.md](KEYBOARD.md) lists every shortcut, [TEMPLATING.md](TEMPLATING.md) explains file name patterns, and [PIPELINE.md](PIPELINE.md) explains the processing in depth.

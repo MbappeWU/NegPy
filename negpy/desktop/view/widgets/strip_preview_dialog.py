@@ -101,11 +101,7 @@ def _display_to_scan_rect(rect):
 _FEEDER_HELP = tr("Preview a frame, drag on it to crop, and tick the frames to scan.")
 _DISCOVERY_HELP = tr("Untick what you do not want, drag on a tile to crop it, slide under a tile to shift it.")
 
-_OFFSET_TIP = tr(
-    "Slides every frame along the film to clear the inter-frame gap. Frames shift left as it "
-    "grows; the shaded band is film past the frame boundary the transport cannot deliver, so "
-    "offset past the gap costs frame tail."
-)
+_OFFSET_TIP = tr("Moves every frame along the film to line it up with the pictures. The shaded band is film the scanner cannot reach.")
 _DRIFT_TIP = tr("Adds progressively more (or less) offset per frame position, for a strip whose gaps creep.")
 _TILE_OFFSET_TIP = tr("Corrects this frame alone, on top of Offset and Drift. Double-click to reset.")
 _SIZE_TIP = tr("Tile size. The grid reflows to whatever fits the dialog. Double-click to reset.")
