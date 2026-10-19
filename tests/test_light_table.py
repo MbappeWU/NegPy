@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 from PyQt6.QtCore import QPoint, QPointF, QRect, Qt
 from PyQt6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap, QStandardItem, QStandardItemModel, QWheelEvent
+from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QListView, QStackedWidget, QStyle, QStyleOptionViewItem, QToolButton, QWidget
 
 from negpy.desktop.session import DesktopSessionManager
@@ -19,6 +20,7 @@ from negpy.desktop.view.sidebar.files import (
     _FilmStripDelegate,
     justified_rows,
     print_dmax,
+    _RESHAPE_MS,
     picture_in_thumbnail,
     roll_film,
     table_color,
@@ -443,7 +445,8 @@ def test_without_film_edges_each_row_of_a_scene_starts_with_its_name(browser, qa
 
 def _shown_table(browser, qapp):
     view = browser.light_table_view
-    view.resize(1200, 700)
+    # A fixed size, because the offscreen platform can give a shown window another size.
+    view.setFixedSize(1200, 700)
     view.show()
     qapp.processEvents()
     return view, view.viewport().width()
@@ -748,9 +751,13 @@ def test_a_thumbnail_lays_the_frames_out_again_only_when_it_changes_a_frame_shap
         browser.session.asset_model.refresh_thumbnails({key})
 
     arrive((300, 200))
+    QTest.qWait(3 * _RESHAPE_MS)
     assert view._slim_cells is cells, "the same shape keeps the layout"
     arrive((200, 300))
-    assert view._slim_cells is None, "a new shape lays the rows out again"
+    arrive((300, 300))
+    assert view._slim_cells is cells and view._reshape_timer.isActive(), "a burst of new shapes waits for one layout"
+    QTest.qWait(3 * _RESHAPE_MS)
+    assert view._slim_layout()[1].width() < cells[1].width(), "a new shape lays the rows out again"
     view.hide()
 
 
@@ -768,7 +775,7 @@ def test_a_portrait_thumbnail_moves_the_strip_frames_after_it(browser, qapp):
     picture = prepare_thumbnail(Image.new("RGB", (200, 300), (40, 160, 220)), 120)
     state.thumbnails[key] = QIcon(QPixmap.fromImage(_qimage(picture)))
     browser.session.asset_model.refresh_thumbnails({key})
-    qapp.processEvents()
+    QTest.qWait(3 * _RESHAPE_MS)
     portrait, after = (strip.visualRect(strip.model().index(row, 0)) for row in (1, 2))
 
     assert portrait.width() < landscape / 2

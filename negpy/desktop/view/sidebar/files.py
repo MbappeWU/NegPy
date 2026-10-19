@@ -735,6 +735,7 @@ _DMAX_SHARE = 0.01
 _DMAX_SAMPLES = 5
 # A new thumbnail this close to the shape a frame shows keeps the layout: about 2 px on a strip frame.
 _SHAPE_TOLERANCE = 0.02
+_RESHAPE_MS = 50
 
 
 def roll_film(
@@ -1028,6 +1029,11 @@ class _FilmGridView(ThumbnailGridView):
         # Each row's picture shape as its last thumbnail gave it.
         self._shown_aspects: dict[int, float] = {}
         super().__init__(parent, target_cell)
+        # Thumbnails arrive faster than a layout of every frame; new shapes in one burst share one layout.
+        self._reshape_timer = QTimer(self)
+        self._reshape_timer.setSingleShot(True)
+        self._reshape_timer.setInterval(_RESHAPE_MS)
+        self._reshape_timer.timeout.connect(self._invalidate_slim)
         self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
         self.setViewportMargins(THEME.space_2xl, 0, THEME.space_2xl, 0)
@@ -1075,8 +1081,8 @@ class _FilmGridView(ThumbnailGridView):
             before = self._shown_aspects.get(row, delegate.placeholder_aspect)
             self._shown_aspects[row] = aspect
             changed = changed or abs(aspect / before - 1) > _SHAPE_TOLERANCE
-        if changed:
-            self._invalidate_slim()
+        if changed and not self._reshape_timer.isActive():
+            self._reshape_timer.start()
 
     def _slim(self) -> bool:
         delegate = self.itemDelegate()
