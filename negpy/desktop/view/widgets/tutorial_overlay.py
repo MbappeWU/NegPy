@@ -219,7 +219,7 @@ class TutorialOverlay(QWidget):
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
         self._poll_timer.start()
-        self.goto(max(0, min(at, len(steps) - 1)))
+        self.goto(at)
 
     def dismiss(self) -> None:
         self._close(False)
@@ -268,6 +268,8 @@ class TutorialOverlay(QWidget):
 
     def goto(self, idx: int) -> None:
         self._leave()
+        # A saved resume step can point past a tour that has since lost steps.
+        idx = max(0, min(idx, len(self._steps) - 1))
         self._idx = idx
         self._shown = idx
         step = self._steps[idx]
