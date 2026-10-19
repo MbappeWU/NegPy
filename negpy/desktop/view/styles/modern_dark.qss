@@ -717,7 +717,7 @@ QSlider::handle:horizontal:focus {
     border: 2px solid @text_on_accent;
     width: 8px;
     height: 8px;
-    margin: -3px 0;
+    margin: -4px 0;
     border-radius: 6px;
 }
 
