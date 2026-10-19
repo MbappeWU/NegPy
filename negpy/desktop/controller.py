@@ -1923,8 +1923,10 @@ class AppController(QObject):
         )
 
     def _on_library_walk_progress(self, walked: int) -> None:
-        verb = tr("Scanning") if self._active_batch == "library_index" else tr("Searching")
-        self.set_status(tr("{verb} library… {walked} files", verb=verb, walked=walked))
+        if self._active_batch == "library_index":
+            self.set_status(tr("Scanning library… {walked} files", walked=walked))
+        else:
+            self.set_status(tr("Searching library… {walked} files", walked=walked))
 
     def _on_library_search_finished(self, paths: List[str]) -> None:
         self.library_search_finished.emit(len(paths))
