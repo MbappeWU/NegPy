@@ -1,6 +1,7 @@
 from negpy.kernel.system.i18n import tr
 from PyQt6.QtWidgets import QHBoxLayout
-from negpy.desktop.view.widgets.choice_button import ChoiceButton, SegmentedChoice
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.session import ToolMode
@@ -80,7 +81,9 @@ class RetouchSidebar(BaseSidebar):
         self.layout.addWidget(self.optical_rail)
 
         self.ir_dust_btn = self._small_toggle("fa5s.broom", tr("IR Removal"), conf.ir_dust_remove, _IR_REMOVAL_TIP, align_left=True)
-        self.ir_method_btn = ChoiceButton(tuple(("", label) for label in _IR_METHOD_LABELS), "")
+        self.ir_method_btn = StepCombo()
+        for label, key in zip(_IR_METHOD_LABELS, _IR_METHOD_KEYS):
+            self.ir_method_btn.addItem(label, key)
         ir_row = QHBoxLayout()
         ir_row.addWidget(self.ir_dust_btn, 1)
         ir_row.addWidget(self.ir_method_btn)
@@ -238,8 +241,8 @@ class RetouchSidebar(BaseSidebar):
             lambda c: self.update_config_section("retouch", persist=True, render=True, ir_dust_remove=c, ir_attenuation=c)
         )
         self.ir_dust_btn.toggled.connect(lambda _c: self._sync_rails())
-        self.ir_method_btn.currentChanged.connect(
-            lambda i: self.update_config_section("retouch", persist=True, render=True, ir_method=_IR_METHOD_KEYS[i])
+        self.ir_method_btn.currentIndexChanged.connect(
+            lambda _i: self.update_config_section("retouch", persist=True, render=True, ir_method=self.ir_method_btn.currentData())
         )
 
     def _sync_overlay(self) -> None:
@@ -325,7 +328,7 @@ class RetouchSidebar(BaseSidebar):
             self.ir_dust_btn.setChecked(conf.ir_dust_remove and self.state.has_ir)
             self.ir_threshold_slider.setValue(float(conf.ir_threshold))
             method = conf.ir_method if conf.ir_method in _IR_METHOD_KEYS else IR_METHOD_NEGPY
-            self.ir_method_btn.setCurrentIndex(_IR_METHOD_KEYS.index(method))
+            self.ir_method_btn.setCurrentIndex(self.ir_method_btn.findData(method))
             self._set_ir_controls_enabled(self.state.has_ir)
             if self.state.has_ir and self.state.ir_degenerate:
                 self.ir_dust_btn.setToolTip(
