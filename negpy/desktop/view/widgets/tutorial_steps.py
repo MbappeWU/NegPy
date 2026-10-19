@@ -242,18 +242,6 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         ),
         step(
             ROLL,
-            tr("Cast Removal"),
-            tr(
-                "A negative's cast changes with density, so one white balance cannot fix it. "
-                "<b>Cast Removal</b> gives each channel its own slope, set from the frame's neutrals, so "
-                "grays stay neutral from shadow to highlight."
-            ),
-            lambda w: cp(w).sensor_section,
-            focus=lambda w: cp(w).sensor_sidebar.cast_removal_slider,
-            guide=("sensor", "Calibration"),
-        ),
-        step(
-            ROLL,
             tr("Metering"),
             tr(
                 "NegPy meters the black point, white point and orange mask. Keep rebate and holder out: crop tight, set an <b>Analysis Buffer</b> or draw a region ({value}). <b>Lock Bounds</b> keeps the result; White and Black Point trim it. <b>Film Base</b>, one click on the clear rebate, lets Analysis read Dmax and Dmin above the base.",
@@ -465,6 +453,18 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             lambda w: cp(w).paper_section,
             focus=lambda w: cp(w).paper_sidebar.ch_btn,
             guide=("paper", "Paper Response"),
+        ),
+        step(
+            PRINTING,
+            tr("Cast Removal"),
+            tr(
+                "A negative's cast changes with density, so one white balance cannot fix it. "
+                "<b>Cast Removal</b> gives each channel its own slope, set from the frame's neutrals, so "
+                "grays stay neutral from shadow to highlight."
+            ),
+            lambda w: cp(w).color_section,
+            focus=lambda w: cp(w).color_sidebar.cast_removal_slider,
+            guide=("color", "Filtration"),
         ),
         step(
             PRINTING,

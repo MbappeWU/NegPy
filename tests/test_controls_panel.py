@@ -186,8 +186,8 @@ def test_a_roll_card_routes_both_halves_to_the_controller():
     panel.controller.set_card_scope.assert_called_once_with("demosaic", "roll")
 
     panel.controller.set_card_scope.reset_mock()
-    ControlsPanel._on_scope_selected(panel, "sensor", "roll")
-    panel.controller.set_card_scope.assert_called_once_with(("sensor", "cast_removal"), "roll")
+    ControlsPanel._on_scope_selected(panel, "optics", "roll")
+    panel.controller.set_card_scope.assert_called_once_with(("lens", "flatfield"), "roll")
 
     panel.controller.set_card_scope.reset_mock()
     ControlsPanel._on_scope_selected(panel, "process", "frame")

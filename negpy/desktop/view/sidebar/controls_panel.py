@@ -123,7 +123,6 @@ _AUTO_METER_FIELDS = ("auto_exposure", "auto_normalize_contrast")
 # Roll-tab sections that drive more than one roll card, keyed by section key.
 _SECTION_CARDS: dict[str, tuple[str, ...]] = {
     "optics": ("lens", "flatfield"),
-    "sensor": ("sensor", "cast_removal"),
     "autocrop": ("autocrop", "auto_crop"),
 }
 
@@ -1202,8 +1201,6 @@ class ControlsPanel(QWidget):
 
     def _reset_sensor_fields(self) -> None:
         self._reset_process_fields(_SENSOR_FIELDS)
-        mode = self.controller.state.config.process.process_mode
-        self.controller.set_roll_default("cast_removal", cast_removal_strength=_default_exposure_field("cast_removal_strength", mode))
 
     def _reset_film_fields(self) -> None:
         """Film Mode and Positive both carry side effects their plain fields do not
@@ -1376,9 +1373,7 @@ class ControlsPanel(QWidget):
         film_count = sum(getattr(proc, f) != getattr(_proc, f) for f in _FILM_FIELDS)
         process_count = sum(getattr(proc, f) != getattr(_proc, f) for f in _METERING_FIELDS)
         demosaic_count = sum(getattr(proc, f) != getattr(_proc, f) for f in _DEMOSAIC_FIELDS)
-        sensor_count = sum(getattr(proc, f) != getattr(_proc, f) for f in _SENSOR_FIELDS) + (
-            exp.cast_removal_strength != _default_exposure_field("cast_removal_strength", mode)
-        )
+        sensor_count = sum(getattr(proc, f) != getattr(_proc, f) for f in _SENSOR_FIELDS)
 
         ff = cfg.flatfield
         _ff = _DEFAULT_FLATFIELD

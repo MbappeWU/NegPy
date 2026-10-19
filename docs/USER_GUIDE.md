@@ -413,8 +413,7 @@ Color timing, like enlarger dichroic filters. The **Global / Shadows / Highlight
 *   **Temperature**: warm-to-cool control on the magenta/yellow pair; cyan does not change.
 *   **Cyan / Magenta / Yellow** (-1 to 1): Cyan↔Red, Magenta↔Green, Yellow↔Blue.
 *   **Ring-around** (`Shift+F`): a 5×5 mosaic in 2cc steps to ±4cc on magenta and yellow, centered on neutral. Click a patch to keep its filtration; `Escape` clears it.
-
-**Cast Removal** is on the Roll tab's Calibration card ([§10.3](#103-calibration-what-your-rig-does-to-the-colors)).
+*   **Cast Removal** (0.0 to 1.0, on the whole frame): removes an overall color cast by balancing each layer against the frame's own grays, so neutrals stay neutral from shadows to highlights. On a negative, leaves, sky and water never count as gray, so a forest keeps its greens and a clear sky stays blue. It starts at 1.0 on Color Negative and at 0 on Transparency, for a faded slide's crossover.
 
 <!-- panel:tone -->
 ### 5.2 Tone: density and contrast
@@ -761,8 +760,6 @@ CAMERA_SCANNING.md has a workflow for each way to build and assign a profile.
 > No Transparency matrix ships. On slides, Matrix and Strength stay disabled until you make one with **+** or add a `.toml` with `process = "Transparency"`. Treat unmixing on a slide as a color-separation control.
 
 To tune a matrix, adjust its six off-diagonal terms in the editor and save it as your own, named after the *combination* ("Gold 200 + Spectracolor"). Working profiles are welcome [upstream](CROSSTALK.md#contributing-a-matrix).
-
-**Dye balance: Cast Removal** (0.0 to 1.0, color only): removes an overall color cast by balancing each layer against the frame's own grays, so neutrals stay neutral from shadows to highlights. On a negative, leaves, sky and water never count as gray, so a forest keeps its greens and a clear sky stays blue. It starts at 1.0 on Color Negative and at 0 on Transparency, for a faded slide's crossover.
 
 **Light source:**
 

@@ -50,7 +50,6 @@ _SCAN_BASE_TIP = tr(
 _ROLL_TAB_CARDS = (
     "film",
     "sensor",
-    "cast_removal",
     "autocrop",
     "auto_crop",
     "baseline",

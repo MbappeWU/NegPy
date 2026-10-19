@@ -24,7 +24,7 @@ from negpy.services.assets.migrations.positive_auto import migrate_auto_meter_fo
 from negpy.services.assets.migrations.roll_fields import (
     migrate_auto_crop_roll_locks,
     migrate_baseline_card_split,
-    migrate_cast_removal_roll_locks,
+    migrate_cast_removal_to_frames,
     migrate_new_roll_field_locks,
     migrate_paper_card_split,
 )
@@ -313,7 +313,7 @@ def main() -> None:
         migrate_baseline_card_split(repo)
         migrate_paper_card_split(repo)
         migrate_new_roll_field_locks(repo)
-        migrate_cast_removal_roll_locks(repo)
+        migrate_cast_removal_to_frames(repo)
         migrate_auto_crop_roll_locks(repo)
         migrate_stale_frame_bounds(repo)
 

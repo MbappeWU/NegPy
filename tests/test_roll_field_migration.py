@@ -79,56 +79,24 @@ def test_a_normalization_lock_becomes_both_halves_of_the_split(repo):
     assert rolls.frame_override_cards(repo, roll, "b") == {"lens"}
 
 
-def test_cast_removal_locks_only_a_strength_off_its_modes_default(repo):
-    from negpy.features.process.models import ProcessMode
-    from negpy.services.assets.migrations.roll_fields import migrate_cast_removal_roll_locks
+def test_a_frame_that_followed_its_roll_keeps_the_rolls_cast_removal(repo):
+    from negpy.services.assets.migrations.roll_fields import migrate_cast_removal_to_frames
 
     roll = rolls.create_virtual_roll(repo, "Roll", ["/r/a.tif", "/r/b.tif", "/r/c.tif"])
+    for name in ("a", "b"):
+        repo.save_file_settings(name, WorkspaceConfig(), file_path=f"/r/{name}.tif")
+    rolls.set_roll_defaults(repo, roll, cast_removal_strength=0.4)
+    rolls.set_frame_override(repo, roll, "b", "cast_removal", True)
+    rolls.set_frame_override(repo, roll, "b", "sensor", True)
 
-    def cfg(mode, strength):
-        base = WorkspaceConfig()
-        return replace(
-            base,
-            process=replace(base.process, process_mode=mode),
-            exposure=replace(base.exposure, cast_removal_strength=strength),
-        )
+    migrate_cast_removal_to_frames(repo)
+    rolls.set_roll_defaults(repo, roll, cast_removal_strength=0.7)
+    migrate_cast_removal_to_frames(repo)
 
-    repo.save_file_settings("a", cfg(ProcessMode.C41, 0.4), file_path="/r/a.tif")
-    repo.save_file_settings("b", cfg(ProcessMode.C41, 1.0), file_path="/r/b.tif")
-    repo.save_file_settings("c", cfg(ProcessMode.E6, 0.0), file_path="/r/c.tif")
-
-    migrate_cast_removal_roll_locks(repo)
-    repo.save_file_settings("b", cfg(ProcessMode.C41, 0.2), file_path="/r/b.tif")
-    migrate_cast_removal_roll_locks(repo)
-
-    assert rolls.frame_override_cards(repo, roll, "a") == {"cast_removal"}
-    assert rolls.frame_override_cards(repo, roll, "b") == set(), "runs once"
-    assert rolls.frame_override_cards(repo, roll, "c") == set()
-
-
-def test_cast_removal_reads_a_legacy_slide_mode_as_a_slide(repo):
-    import json
-    import sqlite3
-    from contextlib import closing
-
-    from negpy.features.process.models import ProcessMode
-    from negpy.services.assets.migrations.roll_fields import migrate_cast_removal_roll_locks
-
-    roll = rolls.create_virtual_roll(repo, "Roll", ["/r/a.tif"])
-    base = WorkspaceConfig()
-    slide = replace(
-        base, process=replace(base.process, process_mode=ProcessMode.E6), exposure=replace(base.exposure, cast_removal_strength=0.0)
-    )
-    repo.save_file_settings("a", slide, file_path="/r/a.tif")
-    with closing(sqlite3.connect(repo.edits_db_path)) as conn, conn:
-        (raw,) = conn.execute("SELECT settings_json FROM file_settings WHERE file_hash = 'a'").fetchone()
-        conn.execute(
-            "UPDATE file_settings SET settings_json = ? WHERE file_hash = 'a'", (json.dumps({**json.loads(raw), "process_mode": "E-6"}),)
-        )
-
-    migrate_cast_removal_roll_locks(repo)
-
-    assert rolls.frame_override_cards(repo, roll, "a") == set()
+    assert repo.load_file_settings("a").exposure.cast_removal_strength == 0.4
+    assert repo.load_file_settings("b").exposure.cast_removal_strength == WorkspaceConfig().exposure.cast_removal_strength
+    assert rolls.frame_override_cards(repo, roll, "b") == {"sensor"}
+    assert rolls.roll_defaults(repo, roll) == {"cast_removal_strength": 0.7}, "runs once"
 
 
 def test_a_tone_push_hands_its_paper_fields_to_the_paper_card(repo):

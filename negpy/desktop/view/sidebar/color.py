@@ -11,7 +11,7 @@ from negpy.features.exposure.logic import kelvin_to_wb, wb_to_kelvin
 
 
 class ColorSidebar(BaseSidebar):
-    """White balance: region CMY, Temperature and Pick WB."""
+    """White balance: region CMY, Temperature and Pick WB, and Cast Removal over the whole frame."""
 
     def _init_ui(self) -> None:
         conf = self.state.config.exposure
@@ -57,6 +57,21 @@ class ColorSidebar(BaseSidebar):
         for slider in (self.cyan_slider, self.magenta_slider, self.yellow_slider):
             self.layout.addWidget(slider)
 
+        # Balances each dye layer against the frame's own grays; no region scopes it.
+        self.cast_removal_slider = CompactSlider(tr("Cast Removal"), 0.0, 1.0, conf.cast_removal_strength)
+        self.cast_removal_slider.setToolTip(
+            tr(
+                "Cast Removal: removes an overall color cast by balancing each color layer against the "
+                "frame's own grays, so neutrals stay neutral from deep shadows through highlights. "
+                "0 = off, 1 = full."
+                "<br><br>On a color negative it starts at 1, and leaves, sky and water never count as "
+                "gray. On a slide it starts at 0 and corrects a faded original's crossover — a slide's cast can be the "
+                "photograph, so ask for it rather than getting it. Hidden for B&W Negative, which "
+                "collapses to one density and has no layers to balance."
+            )
+        )
+        self.layout.addWidget(self.cast_removal_slider)
+
         self.layout.addStretch()
 
     _REGION_FIELDS = (
@@ -89,6 +104,12 @@ class ColorSidebar(BaseSidebar):
         self.magenta_slider.valueChanged.connect(self._on_magenta_changed)
         self.yellow_slider.valueChanged.connect(self._on_yellow_changed)
         self.cyan_slider.valueCommitted.connect(lambda v: self._on_cyan_changed(v, persist=True))
+        self.cast_removal_slider.valueChanged.connect(
+            lambda v: self.update_config_section("exposure", persist=False, readback_metrics=False, cast_removal_strength=v)
+        )
+        self.cast_removal_slider.valueCommitted.connect(
+            lambda v: self.update_config_section("exposure", persist=True, readback_metrics=True, cast_removal_strength=v)
+        )
         self.magenta_slider.valueCommitted.connect(lambda v: self._on_magenta_changed(v, persist=True))
         self.yellow_slider.valueCommitted.connect(lambda v: self._on_yellow_changed(v, persist=True))
 
@@ -160,6 +181,7 @@ class ColorSidebar(BaseSidebar):
             self.magenta_slider.setValue(getattr(conf, channels[1]))
             self.yellow_slider.setValue(getattr(conf, channels[2]))
             self.temp_slider.setValue(wb_to_kelvin(*self._region_my(conf)))
+            self.cast_removal_slider.setValue(conf.cast_removal_strength)
 
             for i, fields in enumerate(self._REGION_FIELDS):
                 self.region_btn.set_edited(i, any(getattr(conf, f) != 0.0 for f in fields))
@@ -175,6 +197,7 @@ class ColorSidebar(BaseSidebar):
             self.cyan_slider,
             self.magenta_slider,
             self.yellow_slider,
+            self.cast_removal_slider,
             self.pick_wb_btn,
             self.ring_btn,
         ):

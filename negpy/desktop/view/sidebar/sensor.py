@@ -199,24 +199,6 @@ class SensorSidebar(BaseSidebar):
         self.layout.addLayout(crosstalk_header)
         self.layout.addWidget(crosstalk_fold)
 
-        # Balances each dye layer against the frame's own grays: a fact of the stock, so it is a
-        # roll default like the crosstalk above (the "cast_removal" card).
-        self.cast_removal_header = section_subheader(tr("DYE BALANCE"))
-        self.layout.addWidget(self.cast_removal_header)
-        self.cast_removal_slider = CompactSlider(tr("Cast Removal"), 0.0, 1.0, self.state.config.exposure.cast_removal_strength)
-        self.cast_removal_slider.setToolTip(
-            tr(
-                "Cast Removal: removes an overall color cast by balancing each color layer against the "
-                "frame's own grays, so neutrals stay neutral from deep shadows through highlights. "
-                "0 = off, 1 = full."
-                "<br><br>On a color negative it starts at 1, and leaves, sky and water never count as "
-                "gray. On a slide it starts at 0 and corrects a faded original's crossover — a slide's cast can be the "
-                "photograph, so ask for it rather than getting it. Hidden for B&W Negative, which "
-                "collapses to one density and has no layers to balance."
-            )
-        )
-        self.layout.addWidget(self.cast_removal_slider)
-
         self.hue_trim_slider = CompactSlider(tr("Hue Trim"), -30.0, 30.0, conf.hue_trim, step=0.5, precision=10, has_neutral=True, unit="°")
         self.hue_trim_slider.setToolTip(
             tr(
@@ -336,9 +318,6 @@ class SensorSidebar(BaseSidebar):
         self.measure_chart_btn.clicked.connect(self._open_chart_calibration)
         self.crosstalk_strength_slider.valueChanged.connect(lambda v: self._on_crosstalk_strength_changed(v, persist=False))
         self.crosstalk_strength_slider.valueCommitted.connect(lambda v: self._on_crosstalk_strength_changed(v, persist=True))
-
-        self.cast_removal_slider.valueChanged.connect(lambda v: self._on_cast_removal_changed(v, persist=False))
-        self.cast_removal_slider.valueCommitted.connect(lambda v: self._on_cast_removal_changed(v, persist=True))
 
         self.hue_trim_slider.valueChanged.connect(lambda v: self._on_hue_trim_changed(v, persist=False))
         self.hue_trim_slider.valueCommitted.connect(lambda v: self._on_hue_trim_changed(v, persist=True))
@@ -487,9 +466,6 @@ class SensorSidebar(BaseSidebar):
             )
         self.sync_ui()
 
-    def _on_cast_removal_changed(self, val: float, persist: bool = True) -> None:
-        self.controller.set_roll_default("cast_removal", cast_removal_strength=val, persist=persist, readback_metrics=persist)
-
     def _on_hue_trim_changed(self, val: float, persist: bool = True) -> None:
         # Sticky on commit only, so a drag doesn't write every intermediate value.
         self.controller.set_roll_default("sensor", hue_trim=val, persist=persist, readback_metrics=persist)
@@ -574,11 +550,6 @@ class SensorSidebar(BaseSidebar):
             self.crosstalk_strength_rail.setVisible(not is_bw)
             # The charts' published colors are for a print of the scene, which only a negative makes.
             self.measure_chart_btn.setVisible(conf.process_mode == ProcessMode.C41)
-            # Colour only, in the render as well as here: B&W collapses to a single density
-            # before the curve, so the solve has nothing to balance. Safe to hide rather than disable.
-            self.cast_removal_slider.setValue(self.state.config.exposure.cast_removal_strength)
-            for w in (self.cast_removal_header, self.cast_removal_slider):
-                w.setVisible(not is_bw)
             self.crosstalk_hint.setVisible(not is_bw and not has_profiles)
             self.crosstalk_combo.setEnabled(has_profiles)
             self.crosstalk_strength_slider.setEnabled(has_profiles)
@@ -594,7 +565,6 @@ class SensorSidebar(BaseSidebar):
             self.unmix_btn,
             self.crosstalk_combo,
             self.crosstalk_strength_slider,
-            self.cast_removal_slider,
             self.hue_trim_slider,
         ):
             w.blockSignals(blocked)

@@ -191,7 +191,6 @@ from negpy.features.process.path import RenderPath, render_path
 from negpy.features.process.models import (
     SCAN_SETUP_PAPERS,
     ProcessMode,
-    cast_removal_for_mode,
     invalidate_local_bounds,
     mode_aware_exposure_reset,
     scan_setup_values,
@@ -5574,7 +5573,6 @@ class AppController(QObject):
     _ROLL_CARDS = (
         "film",
         "sensor",
-        "cast_removal",
         "process",
         "autocrop",
         "auto_crop",
@@ -5591,7 +5589,6 @@ class AppController(QObject):
     _ROLL_CARD_LABELS = {
         "film": "Film Mode",
         "sensor": "Calibration",
-        "cast_removal": "Calibration",
         "demosaic": "Raw Decode",
         "baseline": tr("Roll Analysis"),
         "process": "Metering",
@@ -5723,10 +5720,6 @@ class AppController(QObject):
         Roll-tab card (set_roll_default). Apply to Whole Roll pushes it out."""
         self.apply_config(with_process_mode(self.state.config, mode), persist=True)
         self._lock_roll_card("film")
-        # The switch moved Cast Removal to the new mode's default. Settle its lock only against
-        # a roll value: with none yet there is nothing to diverge from.
-        if self.state.active_roll_id and "cast_removal_strength" in rolls.roll_defaults(self.session.repo, self.state.active_roll_id):
-            self._lock_roll_card("cast_removal")
 
     def set_positive_source(self, checked: bool) -> None:
         """Toggles Positive for the active frame, locking the "film" card away from
@@ -5781,11 +5774,7 @@ class AppController(QObject):
         frame_hash = rolls.unforked_hash(self.state.current_file_hash)
         # Only the fields this push writes, so an undo leaves every later roll default alone.
         names = {name for card in pushed for name in rolls.card_fields(card)}
-        if "film" in pushed:
-            names.add("cast_removal_strength")
         self._roll_push_undo = (roll_id, frame_hash, tuple(pushed), rolls.roll_fields_snapshot(repo, roll_id, names))
-        if "film" in pushed and "cast_removal" not in pushed:
-            self._carry_roll_cast_removal(roll_id, self.state.config.process.process_mode)
         for card_key in pushed:
             rolls.set_roll_defaults(repo, roll_id, **self._card_values(self.state.config, card_key))
             rolls.set_frame_override(repo, roll_id, frame_hash, card_key, False)
@@ -5837,15 +5826,6 @@ class AppController(QObject):
         self.config_updated.emit()
         if changed_hashes:
             self.session.frames_edited_offscreen.emit(changed_hashes)
-
-    def _carry_roll_cast_removal(self, roll_id: str, mode: str) -> None:
-        """A Film Mode pushed to the roll moves the roll's Cast Removal the way
-        with_process_mode moves a frame's. The roll value overlays after the mode, so a
-        negative's strength left in place would reach every frame of a slide roll."""
-        defaults = rolls.roll_defaults(self.session.repo, roll_id)
-        if "cast_removal_strength" in defaults:
-            carried = cast_removal_for_mode(mode, float(defaults["cast_removal_strength"]))
-            rolls.set_roll_defaults(self.session.repo, roll_id, cast_removal_strength=carried)
 
     def set_card_scope(self, card_key: Union[str, tuple], scope: str) -> None:
         """A Roll-tab card's scope pair: Roll gives the roll this frame's value for that

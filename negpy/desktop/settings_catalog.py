@@ -127,7 +127,6 @@ CATALOG: list[tuple[str, tuple[SettingRow, ...]]] = [
         _row(mark("Single-Shot Narrowband Calibration"), "process", "sensor_profile", "sensor_matrix", "sensor_unmix", fmt=lambda v: _fmt_scalar(v[0]), sticky=True),
         # Absent from BOUNDS_INPUT_FIELDS: it acts after inversion, so it never feeds the meters.
         _row(mark("Hue Trim"), "process", "hue_trim", sticky=True),
-        _row(mark("Cast Removal"), "exposure", "cast_removal_strength", sticky=True),
     )),
     (mark("Crop"), (
         _row(mark("Auto Crop"), "geometry", "crop_from_auto", sticky=True),
@@ -194,6 +193,7 @@ CATALOG: list[tuple[str, tuple[SettingRow, ...]]] = [
         _row(mark("Yellow"), "exposure", "wb_yellow"),
         _row(mark("Shadows CMY"), "exposure", "shadow_cyan", "shadow_magenta", "shadow_yellow", channels="CMY"),
         _row(mark("Highlights CMY"), "exposure", "highlight_cyan", "highlight_magenta", "highlight_yellow", channels="CMY"),
+        _row(mark("Cast Removal"), "exposure", "cast_removal_strength", sticky=True),
     )),
     (mark("Lab"), (
         _row(mark("Chroma"), "lab", "saturation", sticky=True),
@@ -369,7 +369,7 @@ def rows_for_section(section: str) -> list[SettingRow]:
 
 
 # Filtration, Tone and Paper Response split ExposureConfig for modified counts and scoped resets.
-# render_intent (flat-master output) and cast_removal_strength (the Calibration card's) are in none.
+# render_intent (flat-master output) is in none.
 COLOR_FIELDS = (
     "wb_cyan",
     "wb_magenta",
@@ -380,6 +380,7 @@ COLOR_FIELDS = (
     "highlight_cyan",
     "highlight_magenta",
     "highlight_yellow",
+    "cast_removal_strength",
 )
 
 GEOMETRY_FIELDS = (
