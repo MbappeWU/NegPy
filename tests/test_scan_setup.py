@@ -74,6 +74,20 @@ class TestScanSetupCard(unittest.TestCase):
         card.capture_btn.setCurrentIndex(card.capture_btn.findData("camera"))
         controller.apply_scan_setup.assert_called_with("camera", "narrowband")
 
+    def test_bw_hides_the_light_and_keeps_it(self):
+        controller = _setup_controller({"capture": "scanner", "light": "narrowband"})
+        config = controller.state.config
+        controller.state.config = replace(config, process=replace(config.process, process_mode=ProcessMode.BW))
+        card = ScanSetupSidebar(controller)
+        card.sync_ui()
+        self.assertTrue(card.light_btn.isHidden())
+        self.assertEqual(card.light_btn.currentData(), "narrowband")
+        self.assertTrue(card.hint.isHidden())
+
+        controller.state.config = config
+        card.sync_ui()
+        self.assertFalse(card.light_btn.isHidden())
+
     def test_auto_reads_the_open_frame(self):
         camera = _setup_controller(None, current_file_hash="h", preview_cam_xyz=((1, 0, 0), (0, 1, 0), (0, 0, 1)))
         scanner = _setup_controller(None, current_file_hash="h", preview_cam_xyz=None)

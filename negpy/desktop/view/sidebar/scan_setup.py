@@ -5,7 +5,7 @@ from PyQt6.QtCore import pyqtSignal
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
-from negpy.features.process.models import scan_setup_rig
+from negpy.features.process.models import ProcessMode, scan_setup_rig
 
 _LIGHT_HINT = {
     "camera": {
@@ -79,9 +79,14 @@ class ScanSetupSidebar(BaseSidebar):
             btn.blockSignals(True)
             btn.setCurrentIndex(btn.findData(value))
             btn.blockSignals(False)
+        # A B&W negative prints the same under either light, so the choice hides and keeps its value.
+        bw = self.state.config.process.process_mode == ProcessMode.BW
+        self.light_btn.setVisible(not bw)
         detected = (
             (tr("A camera RAW, so a camera.") if resolved == "camera" else tr("Not a camera RAW, so a film scanner."))
             if capture == "auto" and self.state.current_file_hash
             else ""
         )
-        self.hint.setText(" ".join(t for t in (detected, _LIGHT_HINT[resolved][light]) if t))
+        text = " ".join(t for t in (detected, "" if bw else _LIGHT_HINT[resolved][light]) if t)
+        self.hint.setText(text)
+        self.hint.setVisible(bool(text))
