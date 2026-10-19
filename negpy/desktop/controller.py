@@ -3167,7 +3167,7 @@ class AppController(QObject):
             # Recompute bounds once now the final crop is committed.
             before = self.state.config
             new_proc = replace(self.state.config.process, **invalidate_local_bounds(self.state.config.process))
-            self.session.update_config(replace(self.state.config, process=new_proc), render=False)
+            self.session.update_config(replace(self.state.config, process=new_proc), render=False, record_history=False)
             self._crop_bounds_dirty = False
             self._carry_peek(before)
         if preview_mode_changed:
@@ -6025,7 +6025,7 @@ class AppController(QObject):
             self.state.config.process,
             **invalidate_local_bounds(self.state.config.process),
         )
-        self.session.update_config(replace(self.state.config, process=new_process))
+        self.session.update_config(replace(self.state.config, process=new_process), record_history=False)
         self.request_render()
 
     def set_active_flatfield_profile(self, profile_id: str) -> None:
