@@ -189,8 +189,9 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         return bool(file_info.get("hash") and asset_thumbnail_key(file_info) == self._activity_key)
 
     def _repaint_index(self, index: QPersistentModelIndex) -> None:
+        # A hidden view needs no repaint, and visualRect would run its pending layout of every frame.
         view = self.parent()
-        if isinstance(view, QListView) and index.isValid():
+        if isinstance(view, QListView) and view.isVisible() and index.isValid():
             view.viewport().update(view.visualRect(QModelIndex(index)))
 
     def _is_dirty(self, file_info: dict) -> bool:

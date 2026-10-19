@@ -1118,6 +1118,18 @@ def test_active_placeholder_curtain_advances_across_the_glyph(qapp):
     assert early != late
 
 
+def test_a_hidden_view_skips_the_progress_repaint(session, qapp):
+    view = ThumbnailGridView(target_cell=100)
+    view.setModel(session.asset_model)
+    delegate = _ThumbnailDelegate(view, state=session.state)
+    view.setItemDelegate(delegate)
+    delegate.set_activity(asset_thumbnail_key(session.state.uploaded_files[1]))
+    delegate._activity_timer.stop()
+
+    with patch.object(view, "visualRect", side_effect=AssertionError("a hidden view laid its frames out")):
+        delegate._advance_activity()
+
+
 def test_placeholder_animation_repaints_only_the_active_cell(session, qapp):
     view = ThumbnailGridView(target_cell=100)
     view.resize(320, 240)
