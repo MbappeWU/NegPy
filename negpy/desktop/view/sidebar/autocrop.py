@@ -88,7 +88,7 @@ class AutocropSidebar(BaseSidebar):
 
         square_tip = tr("Square First: straighten the frame to its film edges before Auto Crop crops it.")
         self.square_btn = self._small_toggle("fa5s.ruler-combined", tr("Square First"), conf.autocrop_square, square_tip)
-        all_tip = tr("Crop all frames together. Clear frames help unclear ones, and crops you drew stay. Run it before Roll Analysis.")
+        all_tip = tr("Crop all frames together. Clear frames help unclear ones, and crops you drew stay.")
         self.auto_crop_all_btn = self._labeled_action("fa5s.layer-group", tr("Crop All Frames"), all_tip)
         self.auto_crop_all_btn.setEnabled(conf.autocrop_mode == AutocropMode.IMAGE)
         run_row = QHBoxLayout()

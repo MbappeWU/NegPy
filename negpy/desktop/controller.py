@@ -687,6 +687,8 @@ class AppController(QObject):
         # Per frame hash: its resolved Auto Crop when the run started.
         self._autocrop_started_auto: Dict[str, bool] = {}
         self._autocrop_cancel_requested = False
+        # The analysis a run of Auto-crop all frames was started for: (scene id or None,), run when it finishes.
+        self._analysis_after_crop: Optional[Tuple[Optional[str]]] = None
         # Background thumbnail refresh runs off the shared batch lane entirely — it must
         # never block Export or another user-triggered batch — so it tracks its own
         # generation instead of `_batch_serial`/`_active_batch_token`.
@@ -4291,18 +4293,18 @@ class AppController(QObject):
             return resolve_asset_hdr(resolve_asset_stitch(resolve_asset_rgbscan(self.state.config, asset), asset), asset)
         return self.session.config_for_asset(asset)
 
-    def request_batch_auto_crop(self) -> None:
-        """Analyze the Film Strip's frames together, filtered out or not, and persist the
-        crops. A hand-drawn crop stays."""
+    def request_batch_auto_crop(self, *, assets: Optional[List[dict]] = None) -> bool:
+        """Analyze the Film Strip's frames together, filtered out or not, or only *assets*, and
+        persist the crops. A hand-drawn crop stays. True when the run started."""
         if self._batch_busy(tr("Auto-crop all frames")):
-            return
+            return False
         if not self.state.uploaded_files:
             self.set_status(tr("No frames to auto-crop"), 3000)
-            return
+            return False
 
         frames: list[BatchAutoCropInput] = []
         preflight_skipped = 0
-        for asset in self.state.uploaded_files:
+        for asset in self.state.uploaded_files if assets is None else assets:
             config = self._config_for_batch_asset(asset)
             if has_manual_crop(config.geometry) or config.geometry.autocrop_mode != AutocropMode.IMAGE:
                 preflight_skipped += 1
@@ -4317,11 +4319,11 @@ class AppController(QObject):
 
         if not frames:
             self.set_status(tr("Auto-crop all frames kept {value}; nothing to analyze", value=count_of(preflight_skipped, "frame")), 4000)
-            return
+            return False
 
         token = self._begin_batch("autocrop", tr("Auto-cropping all frames"), abortable=True)
         if token is None:
-            return
+            return False
         self._autocrop_batch_token = token
         if self.state.active_tool == ToolMode.CROP_MANUAL:
             self.set_active_tool(ToolMode.NONE)
@@ -4337,6 +4339,13 @@ class AppController(QObject):
                 generation=token,
             )
         )
+        return True
+
+    def _waits_for_auto_crop(self, asset: dict) -> bool:
+        """Auto Crop is on, and no crop was found under the current settings (_resolve_armed_autocrop)."""
+        geometry = self._config_for_batch_asset(asset).geometry
+        found = geometry.crop_rect is not None and geometry.crop_detect_key == autocrop_detection_key(geometry)
+        return geometry.crop_from_auto and geometry.autocrop_mode == AutocropMode.IMAGE and not found
 
     def _on_batch_autocrop_progress(self, current: int, total: int, name: str) -> None:
         self.set_status(tr("Auto-crop all frames {current}/{total}: {name}", current=current, total=total, name=name))
@@ -4437,11 +4446,15 @@ class AppController(QObject):
         if active_changed:
             self.config_updated.emit()
             self.request_render()
+        then, self._analysis_after_crop = self._analysis_after_crop, None
+        if then is not None:
+            self._request_normalization(then[0], cropped=True)
 
     def _on_batch_autocrop_cancelled(self) -> None:
         token = self._autocrop_batch_token
         if token is None:
             return
+        self._analysis_after_crop = None
         self._end_batch("autocrop", token)
         self._autocrop_batch_token = None
         self._autocrop_cancel_requested = False
@@ -4452,6 +4465,7 @@ class AppController(QObject):
         token = self._autocrop_batch_token
         if token is None:
             return
+        self._analysis_after_crop = None
         self._end_batch("autocrop", token)
         self._autocrop_batch_token = None
         self._autocrop_cancel_requested = False
@@ -5292,7 +5306,9 @@ class AppController(QObject):
         """Scene Analysis: one scene's loaded members, whatever the sheet filter shows."""
         self._request_normalization(scene_id)
 
-    def _request_normalization(self, scene_id: Optional[str]) -> None:
+    def _request_normalization(self, scene_id: Optional[str], *, cropped: bool = False) -> None:
+        """A frame still waiting for Auto Crop would meter its film border, so those are cropped
+        first and the analysis follows the crop run (cropped=True), without asking again."""
         title = tr("Roll Analysis") if scene_id is None else tr("Scene Analysis")
         if self._batch_busy(title):
             return
@@ -5304,7 +5320,11 @@ class AppController(QObject):
             frames = self._normalization_targets(scene_id)
         if not frames:
             return
-        if not self._confirm_normalization(frames, title, filtered=scene_id is None):
+        if not cropped and not self._confirm_normalization(frames, title, filtered=scene_id is None):
+            return
+        waiting = [] if cropped else [f for f in frames if self._waits_for_auto_crop(f)]
+        if waiting and self.request_batch_auto_crop(assets=waiting):
+            self._analysis_after_crop = (scene_id,)
             return
         batch_title = "Analyzing roll" if scene_id is None else f"Analyzing scene “{self._scene_name(scene_id)}”"
         if self._begin_batch("normalization", batch_title, abortable=True) is None:

@@ -4609,7 +4609,9 @@ class TestBatchAnalysisFiltering(unittest.TestCase):
         self.mock_session_manager.state = AppState()
         self.mock_session_manager.repo = MagicMock()
         self.mock_session_manager.repo.load_file_settings.return_value = None
-        self.mock_session_manager.config_for_asset.side_effect = lambda f: self.mock_session_manager.repo.load_file_settings(f["hash"])
+        self.mock_session_manager.config_for_asset.side_effect = lambda f: (
+            self.mock_session_manager.repo.load_file_settings(f["hash"]) or WorkspaceConfig()
+        )
 
         self.mock_session_manager.state.uploaded_files = [
             {"name": "IMG_0001.cr2", "path": "/tmp/IMG_0001.cr2", "hash": "h1"},

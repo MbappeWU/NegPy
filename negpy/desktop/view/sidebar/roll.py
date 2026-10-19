@@ -45,6 +45,7 @@ class RollAnalysisSidebar(BaseSidebar):
         self.reanalyze_btn = self._icon_action("fa5s.tachometer-alt", BATCH_ANALYSIS_TOOLTIP)
         self.from_frame_btn = self._icon_action("fa5s.crosshairs", FROM_FRAME_TOOLTIP)
         self.layout.addLayout(header_row(section_subheader(tr("ROLLS")), self.reanalyze_btn, self.from_frame_btn))
+        self.layout.addWidget(hint_label(tr("Roll Analysis first crops the frames that wait for Auto Crop."), "muted"))
         self.layout.addWidget(self.roll_combo)
 
         self.roll_status_hint = hint_label("", "muted")
