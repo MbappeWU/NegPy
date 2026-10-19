@@ -132,9 +132,9 @@ def test_overlay_choice_sets_the_mode_and_ir_needs_an_ir_plane(qapp):
     controller, sb = _sidebar()
     controller.state.has_ir = False
     sb.sync_ui()
-    assert not sb.overlay_btn.choice_menu.actions()[2].isEnabled()
+    assert not sb.overlay_btn.is_choice_enabled(2)
 
-    sb.overlay_btn.choice_menu.actions()[1].trigger()
+    sb.overlay_btn.setCurrentIndex(1)
     controller.set_dust_overlay.assert_called_once_with("marked")
 
     controller.state.dust_overlay_mode = "ir"

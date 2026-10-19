@@ -1,10 +1,10 @@
 from negpy.kernel.system.i18n import tr
 from PyQt6.QtWidgets import QHBoxLayout
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
+from negpy.desktop.view.widgets.choice_button import ChoiceButton, SegmentedChoice
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.session import ToolMode
-from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, header_row, hint_label, section_subheader, wrap_tooltip
+from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, field_row, header_row, hint_label, section_subheader, wrap_tooltip
 from negpy.features.retouch.models import HEAL_SIZE_MAX, HEAL_SIZE_MIN, IR_METHOD_NEGPY, IR_METHOD_OPENICE
 
 _IR_REMOVAL_TIP = tr(
@@ -17,7 +17,7 @@ _IR_THRESH_TIP = tr("Lower catches more dust, higher is conservative. Smooth res
 _IR_METHOD_LABELS = ("NegPy", tr("OpenICE"))
 _IR_METHOD_KEYS = (IR_METHOD_NEGPY, IR_METHOD_OPENICE)
 # Order matches _OVERLAY_MODES.
-_OVERLAY_LABELS = ("Off", "Marked", "IR")
+_OVERLAY_LABELS = (tr("Off"), tr("Marked"), tr("IR"))
 _OVERLAY_MODES = ("off", "marked", "ir")
 _IR_METHOD_TIP = wrap_tooltip(
     tr(
@@ -56,14 +56,14 @@ class RetouchSidebar(BaseSidebar):
         conf = self.state.config.retouch
 
         # Applies to every detection source.
-        self.overlay_btn = ChoiceButton(
-            tuple(("fa5s.eye", f"Overlay: {label}") for label in _OVERLAY_LABELS),
+        self.overlay_btn = SegmentedChoice(
+            tuple(("", label) for label in _OVERLAY_LABELS),
             tr(
                 "Show the dust-detection overlay: Marked shows what Optical and IR Removal found, "
                 "IR shows the scan's infrared channel. Turn a removal on so there is something to show."
             ),
         )
-        self.layout.addWidget(self.overlay_btn)
+        self.layout.addLayout(field_row(tr("Overlay"), self.overlay_btn))
 
         self.auto_dust_btn = self._small_toggle("fa5s.magic", tr("Optical Removal"), conf.dust_remove, _OPTICAL_TIP, align_left=True)
         self.right_click_btn = self._tool_toggle("mdi.cursor-default-click", "", _RIGHT_CLICK_TIP)
@@ -248,7 +248,7 @@ class RetouchSidebar(BaseSidebar):
         if mode not in _OVERLAY_MODES or (mode == "ir" and not self.state.has_ir):
             mode = "off"
         self.overlay_btn.setCurrentIndex(_OVERLAY_MODES.index(mode))
-        self.overlay_btn.choice_menu.actions()[2].setEnabled(self.state.has_ir)
+        self.overlay_btn.set_choice_enabled(2, self.state.has_ir)
 
     def _sync_rails(self) -> None:
         """Each rail shows while what it tunes acts: a removal on, or a tool armed."""
