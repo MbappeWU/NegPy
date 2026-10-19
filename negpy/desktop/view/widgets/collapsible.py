@@ -264,6 +264,12 @@ class CollapsibleSection(QWidget):
         self._header_row.insertWidget(self._header_row.count() - 1, btn)
         return btn
 
+    def add_header_button(self, icon_name: str, tooltip: str) -> QPushButton:
+        """A one-shot action in the header, the twin of add_header_toggle."""
+        btn = header_button(qta.icon(icon_name, color=THEME.text_muted, color_disabled=THEME.border_hover), tooltip)
+        self._header_row.insertWidget(self._header_row.count() - 1, btn)
+        return btn
+
     def set_actions_menu(self, menu: QMenu, tooltip: str) -> None:
         """An always-visible header menu button, for section-level actions that reach
         past the section's own settings -- Film Strip's New Roll and its roll-wide

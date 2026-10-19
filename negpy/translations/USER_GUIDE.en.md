@@ -670,25 +670,28 @@ Saves and recalls edit settings by name.
 
 ## 9. History tab
 
-Two lists: the versions you chose to keep, above the record of every change.
+Two cards: the versions you chose to keep, above the record of every change.
 
+<!-- panel:work_prints -->
 ### Work prints
 
 A **work print** is a named version of this frame, like the test prints kept on the way to the final one.
 
-*   **Save Work Print** (**Ctrl+Shift+S**) keeps the current edit under a name.
+*   **Save Work Print…** (**Ctrl+Shift+S**) keeps the current edit under a name.
 *   **Click** one to make it live. That is an edit, so **Ctrl+Z** restores the previous state.
-*   **Right-click** for **Export This Version…**, **Rename…** or **Delete**.
-*   **Load Metadata** (off by default; a global setting, the same for every frame and roll) restores a work print's saved metadata when you load it; off keeps the metadata on screen now and ignores the print's.
+*   **⋮** on a row, or a right-click, for **Export This Version…**, **Rename…** or **Delete…**.
+*   **Load Metadata** (off by default; a global setting, the same for every frame and roll) restores a work print's saved metadata when you load it; off keeps the metadata on screen now and ignores the print's. It shows once the frame has a work print.
 
 Work prints are never pruned. They live in the database, not in `.negpy` sidecars.
 
+<!-- panel:edit_history -->
 ### Edit history
 
-Every edit step, newest on top; NegPy keeps the last 100.
+Every edit step, newest on top; NegPy keeps the last 100. Each step names the card it changed and, within one card, the controls ("Filtration · Magenta, Yellow"); the first is **As opened**.
 
-*   **Click** a step to jump to that state.
-*   **Right-click** → **Export This Version…** to export a past state.
+*   **Now** marks the current step. After an undo, the steps above it are struck through and marked **Undone** until the next edit replaces them.
+*   **Click** a step to jump to that state; the undo and redo arrows in the card's header step one at a time.
+*   **⋮** on a row, or a right-click → **Export This Version…** to export a past state.
 
 ---
 

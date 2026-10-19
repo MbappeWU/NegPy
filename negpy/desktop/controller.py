@@ -198,7 +198,14 @@ from negpy.features.process.models import (
     with_positive_source,
     with_process_mode,
 )
-from negpy.desktop.settings_catalog import BOUNDS_INPUT_FIELDS, FRAME_CARD_FIELDS, frame_card_rows, section_of_field, selected_flat_dict
+from negpy.desktop.settings_catalog import (
+    BOUNDS_INPUT_FIELDS,
+    FRAME_CARD_FIELDS,
+    changed_settings,
+    frame_card_rows,
+    section_of_field,
+    selected_flat_dict,
+)
 from negpy.services.assets.thumbnails import asset_thumbnail_key
 from negpy.services.assets.thumbnail_fingerprint import (
     NON_PIXEL_SECTIONS,
@@ -445,12 +452,23 @@ def thumbnail_refresh_progress_text(
     return text
 
 
-def history_step_label(prev: Optional[WorkspaceConfig], config: WorkspaceConfig, index: int) -> str:
-    """List label for a history step: index + which config sections changed vs. the previous step."""
+def history_step_label(prev: Optional[WorkspaceConfig], config: WorkspaceConfig) -> tuple[str, str]:
+    """A History row's (name, detail): the cards a step changed, or one card and its controls."""
     if prev is None:
-        return f"{index} · base"
-    changed = [f.name for f in fields(config) if getattr(prev, f.name) != getattr(config, f.name)]
-    return f"{index} · {', '.join(changed)}" if changed else f"{index} · —"
+        return tr("As opened"), ""
+    changed = changed_settings(prev, config)
+    cards = list(dict.fromkeys(card for card, _control in changed))
+    if not cards:
+        return "—", ""
+    if len(cards) > 1:
+        return _first_two(cards), ""
+    controls = list(dict.fromkeys(control for _card, control in changed if control and control != cards[0]))
+    return tr(cards[0]), _first_two(controls)
+
+
+def _first_two(names: List[str]) -> str:
+    shown = ", ".join(tr(name) for name in names[:2])
+    return shown if len(names) <= 2 else tr("{names} +{count}", names=shown, count=len(names) - 2)
 
 
 _NOTHING_TO_APPLY = "Nothing to apply — every card already follows the roll"
@@ -7820,7 +7838,7 @@ class AppController(QObject):
         return root
 
     def history_steps(self) -> List[Dict[str, Any]]:
-        """Rows for the History panel: one dict {index, label, is_current} per edit step."""
+        """Rows for the History panel: one dict {index, name, detail, is_current, undone} per edit step."""
         file_hash = self.state.current_file_hash
         if not file_hash:
             return []
@@ -7833,11 +7851,14 @@ class AppController(QObject):
             config = configs.get(i)
             if config is None:
                 continue
+            name, detail = history_step_label(configs.get(i - 1), config)
             rows.append(
                 {
                     "index": i,
-                    "label": history_step_label(configs.get(i - 1), config, i),
+                    "name": name,
+                    "detail": detail,
                     "is_current": i == self.state.undo_index,
+                    "undone": i > self.state.undo_index,
                 }
             )
         return rows

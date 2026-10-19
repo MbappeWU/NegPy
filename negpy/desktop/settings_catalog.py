@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from negpy.kernel.system.i18n import mark
 
-from dataclasses import replace
+from dataclasses import fields as dataclass_fields, replace
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 from negpy.domain.models import WorkspaceConfig
@@ -366,6 +366,53 @@ def section_of_field() -> dict[str, str]:
 def rows_for_section(section: str) -> list[SettingRow]:
     """Every row on one WorkspaceConfig section, for a card that owns the whole of it."""
     return [r for r in all_rows() if r.section == section]
+
+
+_LISTED = frozenset((r.section, f) for r in all_rows() for f in r.fields)
+# Written by a render, not by the user, so never a change of its own.
+_MEASURED = frozenset({("process", "local_floors"), ("process", "local_ceils"), ("process", "meter_key")})
+
+# The card a change lives on when no catalog row lists its field (a crop rectangle, a heal, a mask).
+_UNLISTED_CARD = {
+    "process": mark("Metering"),
+    "exposure": mark("Export"),
+    "flatfield": mark("Optics"),
+    "rgbscan": mark("Frame Assembly"),
+    "stitch": mark("Stitch"),
+    "hdr": mark("HDR"),
+    "geometry": mark("Crop"),
+    "local": mark("Dodge & Burn"),
+    "retouch": mark("Retouch"),
+    "metadata": mark("Metadata"),
+    "export": mark("Export"),
+}
+_UNLISTED_FIELD_CARD = {
+    "linear_raw": mark("Raw Decode"),
+    "demosaic_preview": mark("Raw Decode"),
+    "demosaic_export": mark("Raw Decode"),
+    "highlight_reconstruction": mark("Raw Decode"),
+    "crosstalk_process": mark("Calibration"),
+}
+
+
+def changed_settings(prev: WorkspaceConfig, config: WorkspaceConfig) -> list[tuple[str, str]]:
+    """(card, control) for each setting that differs between two configs, in catalog order. A
+    change no row lists names its card alone, with an empty control."""
+    changed = [
+        (title, row.label)
+        for title, rows in CATALOG
+        for row in rows
+        if any(getattr(getattr(prev, row.section), f) != getattr(getattr(config, row.section), f) for f in row.fields)
+    ]
+    for section in (f.name for f in dataclass_fields(config)):
+        before, after = getattr(prev, section), getattr(config, section)
+        if before == after:
+            continue
+        for f in dataclass_fields(after):
+            key = (section, f.name)
+            if key not in _LISTED and key not in _MEASURED and getattr(before, f.name) != getattr(after, f.name):
+                changed.append((_UNLISTED_FIELD_CARD.get(f.name) or _UNLISTED_CARD.get(section, section), ""))
+    return changed
 
 
 # Filtration, Tone and Paper Response split ExposureConfig for modified counts and scoped resets.

@@ -567,6 +567,13 @@ QPushButton#collapsible_header[overlay="true"]:checked {
 }
 
 /* Preset lists: Export Presets dialog and the Presets sidebar. */
+/* History's flat rows (see sidebar/history.py): the delegate paints them. */
+QListWidget#history_rows {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
 QListWidget#preset_list {
     background: @bg_dark;
     border: 1px solid @border_primary;
