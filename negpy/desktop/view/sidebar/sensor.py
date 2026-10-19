@@ -9,7 +9,7 @@ from negpy.desktop.view.sidebar.scan_setup import resolved_rig
 from negpy.desktop.view.widgets.fold import group_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
-from negpy.features.process.models import ProcessConfig, ProcessMode, SensorUnmix, invalidate_local_bounds
+from negpy.features.process.models import ProcessMode, SensorUnmix, invalidate_local_bounds
 from negpy.features.process.sensor import unmix_block_reason
 from negpy.features.rgbscan.models import is_rgb_triplet
 from negpy.features.stitch.models import stitch_has_triplets
@@ -20,29 +20,17 @@ from negpy.services.assets.sensor import SensorProfiles
 _UNMIX_CHOICES = (
     (
         SensorUnmix.LINEAR,
-        tr(
-            "Subtracts the measured leak from the linear capture. Exact while the calibration holds. "
-            "Where the film passes almost none of a band's light, the result reaches zero and prints "
-            "as speckled, fully saturated color."
-        ),
+        tr("Removes the leak exactly. Colors the film barely passes can print speckled."),
     ),
     (
         SensorUnmix.TWO_SCALE,
-        tr(
-            "Linear wherever the calibration holds. Where a color is mostly leak, as in neon, it takes "
-            "the color from a slightly blurred copy. It adds the fine detail back without extra gain, "
-            "so the color never reaches zero and the grain stays at the film's own level."
-        ),
+        tr("Like Linear, but very strong colors come from a slightly blurred copy, so they do not speckle."),
     ),
     (
         SensorUnmix.DENSITY,
-        tr(
-            "Applies the calibration to densities, linearized at the clear film base, the unexposed rebate between frames, read from the frame. "
-            "Never reaches zero and gives less grain in saturated colors, which come out slightly less vivid."
-        ),
+        tr("Works on film density. No speckle, but strong colors are slightly less vivid."),
     ),
 )
-_DEFAULT_UNMIX = ProcessConfig().sensor_unmix
 
 
 class SensorSidebar(BaseSidebar):
@@ -61,18 +49,11 @@ class SensorSidebar(BaseSidebar):
         self.sensor_combo.addItems(SensorProfiles.list_profiles())
         self.sensor_combo.setToolTip(
             tr(
-                "<table width='280'><tr><td>"
-                "Sensor crosstalk correction for single-shot narrowband scans: un-mixes the camera's "
-                "cross-channel response in the LINEAR capture, before inversion — a fixed property of "
-                "your sensor + light, independent of film. Calibrate it from three bare-light R/G/B "
-                "exposures; custom .toml matrices live in the NegPy/sensor folder. Skipped automatically "
-                "for RGB-triplet assets, when Linear RAW is off, and on transparencies — which are not "
-                "scanned with narrowband light. Re-run Roll Analysis after changing this."
-                "</td></tr></table>"
+                "Sensor profile: removes the color leak between channels in single-shot narrowband scans. Run Roll Analysis again after a change."
             )
         )
         self.calibrate_sensor_btn = self._icon_action(
-            "fa5s.vials", tr("Calibrate the sensor from three bare-light R/G/B exposures: files, or the tethered camera")
+            "fa5s.vials", tr("Make a profile from three shots of the bare light: red, green and blue.")
         )
         row.addWidget(self.sensor_label)
         row.addWidget(self.sensor_combo, 1)
@@ -81,11 +62,7 @@ class SensorSidebar(BaseSidebar):
         self.unmix_label = field_label(tr("Method"))
         self.unmix_btn = ChoiceButton(
             tuple(("", mode.label) for mode, _tip in _UNMIX_CHOICES),
-            tr("How the calibration is applied.<br><br>")
-            + "".join(
-                f"<b>{mode.label}</b>{tr(' (default)') if mode == _DEFAULT_UNMIX else ''}: {tip}<br><br>" for mode, tip in _UNMIX_CHOICES
-            )
-            + tr("Re-run Roll Analysis after changing this."),
+            tr("How the calibration is applied. Run Roll Analysis again after a change."),
             data=tuple(mode for mode, _tip in _UNMIX_CHOICES),
         )
         for i, (_mode, tip) in enumerate(_UNMIX_CHOICES):
@@ -118,32 +95,10 @@ class SensorSidebar(BaseSidebar):
         # instead of rendering one line that runs off the screen. Qt auto-wraps rich text only.
         self.crosstalk_combo.setToolTip(
             tr(
-                "<table width='280'><tr><td>"
-                "Channel unmix on the raw NEGATIVE densities, before analysis and inversion — the domain "
-                "where every cause of channel mixing is linear. The film's dyes absorb outside their own "
-                "band, but so do your light's spectrum and your sensor's color filters, and here they all "
-                "arrive as the same kind of error. So read a profile as <b>your whole scanning setup</b>, "
-                "not just the stock.<br><br>"
-                "<b>The bundled film matrices are read off published spec sheets, not measured</b> — they "
-                "are marked (approx) for that reason. They describe the film's dyes alone, so they are only "
-                "the whole story where the capture reads each dye cleanly: a Narrowband Scanner (a Coolscan's mono "
-                "sensor reads one LED at a time, fully clean; a Pakon's trilinear array comes close, with slight "
-                "residual bleed) or a Trichrome capture, or a Single-Shot Narrowband rig with Single-Shot Narrowband "
-                "Calibration applied. Under a broadband light "
-                "and a Bayer sensor your capture adds its own mixing on top, and a dyes-only matrix will not "
-                "describe it.<br><br>"
-                "So treat them as starting points and expect to tune: raise Strength until colors separate "
-                "without going garish, and if a stock or a light gives you trouble, open the editor, nudge "
-                "the six off-diagonal terms and save your own profile — name it after the combination "
-                "('Gold 200 + Spectracolor'). A profile measured on your own rig beats any datasheet. "
-                "Custom .toml matrices live in the NegPy/crosstalk folder (see docs/CROSSTALK.md).<br><br>"
-                "Re-run Roll Analysis after changing this."
-                "</td></tr></table>"
+                "Crosstalk matrix: separates colors that the film's dyes, your light and your sensor mix together. Run Roll Analysis after a change."
             )
         )
-        self.manage_crosstalk_btn = self._icon_action(
-            "fa5s.sliders-h", tr("Open the crosstalk matrix editor — view, copy and edit density-unmix profiles")
-        )
+        self.manage_crosstalk_btn = self._icon_action("fa5s.sliders-h", tr("Open the crosstalk matrix editor."))
         self.measure_chart_btn = self._icon_action(
             "mdi6.palette-swatch-outline", tr("Measure a matrix from a color chart shot on this film and scanned on this rig…")
         )
@@ -152,14 +107,9 @@ class SensorSidebar(BaseSidebar):
 
         # Shown when the film process has no matrices yet. Muted, not a warning: it is the normal
         # state for any process NegPy ships nothing for.
-        self.crosstalk_hint = hint_label(tr("No matrices for this film process — build one in the editor."))
+        self.crosstalk_hint = hint_label(tr("No matrices for this film type yet. Make one in the editor."))
         self.crosstalk_hint.setToolTip(
-            wrap_tooltip(
-                tr(
-                    "A matrix describes one film's dye set, so it only appears here in the process it was "
-                    "saved for. Open the editor to start one from identity, set its Process, and save it."
-                )
-            )
+            wrap_tooltip(tr("A matrix shows only for the film type it was saved for. Open the editor to make one."))
         )
         self.crosstalk_strength_slider = CompactSlider(tr("Strength"), 0.0, 1.0, conf.crosstalk_strength, has_neutral=True)
         self.crosstalk_strength_rail = SliderGroup(self.crosstalk_strength_slider)
@@ -177,15 +127,7 @@ class SensorSidebar(BaseSidebar):
 
         self.hue_trim_slider = CompactSlider(tr("Hue Trim"), -30.0, 30.0, conf.hue_trim, step=0.5, precision=10, has_neutral=True, unit="°")
         self.hue_trim_slider.setToolTip(
-            tr(
-                "<table width='280'><tr><td>"
-                "Hue Trim — rotates every hue by a fixed angle (degrees) to undo the rotation an unusual "
-                "scanning light imposes. Narrowband LED and odd-phosphor sources shift hues by a near-constant "
-                "angle (yellows reading orange, greens olive) that white balance cannot fix, because it is a "
-                "rotation rather than a cast. Neutrals are unaffected, so it does not disturb cast removal. "
-                "Leave at 0 for a standard broadband light."
-                "</td></tr></table>"
-            )
+            tr("Rotates all hues, for a light that turns yellows orange or greens olive. Keep 0 for white light.")
         )
         light_header, self.light_fold = group_fold("sensor_light", tr("Light Source"), self.hue_trim_slider)
         self.layout.addLayout(light_header)
@@ -235,28 +177,15 @@ class SensorSidebar(BaseSidebar):
     _SENSOR_BLOCKED = {
         "linear_raw": (
             tr("Requires Linear RAW."),
-            tr(
-                "Sensor profiles are calibrated against neutral white balance. With Linear RAW "
-                "off, RAW decodes carry the camera's as-shot gains instead, which would misapply "
-                "the matrix — so it is skipped. Your selection is remembered."
-            ),
+            tr("Sensor profiles need Linear RAW, so the profile is skipped while it is off. Your choice is kept."),
         ),
         "triplet": (
             tr("Not used for a Trichrome triplet."),
-            tr(
-                "A triplet takes each channel from its own single-light exposure, so it holds no "
-                "sensor crosstalk to remove and the profile is skipped. Your selection is remembered."
-            ),
+            tr("A Trichrome triplet has no sensor leak to remove, so the profile is skipped. Your choice is kept."),
         ),
         "transparency": (
             tr("Not applied to a transparency."),
-            tr(
-                "The unmix corrects a narrowband light and your sensor's filters against each other, "
-                "so it only means anything for a capture made under narrowband light — and narrowband "
-                "is not used for slides. A profile carried over from your negative rig would correct "
-                "for a light this frame was not shot under. Your selection is remembered, and applies "
-                "again on a negative."
-            ),
+            tr("Slides are not scanned with narrowband light, so the profile is skipped. Your choice is kept for negatives."),
         ),
     }
 

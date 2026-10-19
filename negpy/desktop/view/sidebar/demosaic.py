@@ -11,22 +11,7 @@ from negpy.features.process.models import DemosaicMode, ProcessMode, invalidate_
 from negpy.features.rgbscan.models import is_rgb_triplet
 from negpy.infrastructure.loaders.helpers import supported_demosaic_modes
 
-_TIP = (
-    "<table width='280'><tr><td>"
-    "How the sensor's color-filter mosaic is interpolated into RGB. <b>Auto</b> keeps NegPy's own "
-    "choice: a fast half-size decode on screen, AHD for export.<br><br>"
-    "<b>Linear</b> bilinear, fastest and softest, with color fringes on hard edges. "
-    "<b>VNG</b> smooth, low zipper artifacts, slightly soft. "
-    "<b>PPG</b> fast, with clean edges. "
-    "<b>AHD</b> LibRaw's own default, the balanced choice. "
-    "<b>DCB</b> more fine detail than AHD, can ring on texture. "
-    "<b>DHT</b> the most detail, and the most willing to turn grain into a maze pattern. "
-    "<b>AAHD</b> anti-aliased AHD, softer edges and fewer artifacts.<br><br>"
-    "Judge these on grain: the detail-seeking algorithms read film grain as structure. "
-    "Auto and Linear are the fastest for the preview.<br><br>"
-    "Bayer and X-Trans RAW only: a scanner TIFF or a linear DNG arrives already de-mosaiced."
-    "</td></tr></table>"
-)
+_TIP = tr("How the camera's raw data becomes pixels. Auto is fast on screen and uses AHD for export.")
 
 # Highlight Reconstruction dropdown: rawpy's HighlightMode, collapsed to the three settings
 # worth choosing between (see effective_highlight_reconstruction) — Reconstruct pinned to
@@ -38,14 +23,7 @@ _HIGHLIGHT_LEVELS = (
 )
 
 _HIGHLIGHT_TIP = tr(
-    "Camera RAW only, and only useful when a highlight actually clipped.<br><br>"
-    "<b>Off</b> (default) — a blown highlight stays flat white, or magenta if one channel "
-    "clipped first.<br><br>"
-    "<b>Blend</b> — a plausible neutral color from the unclipped channels. Best for a "
-    "near-neutral highlight: sun, sky, chrome, glass.<br><br>"
-    "<b>Reconstruct</b> — libraw's more aggressive default. Can miscolor a highlight that "
-    "was actually a saturated light source, since a clipped channel alone can't tell the "
-    "two apart."
+    "Rebuilds blown highlights in a camera RAW. Blend suits sun and sky; Reconstruct is stronger but can get the color wrong."
 )
 
 
@@ -83,11 +61,7 @@ class DemosaicSidebar(BaseSidebar):
 
         self.linear_raw_btn = SegmentedChoice(
             (("fa5s.palette", tr("Camera WB")), ("fa5s.sliders-h", tr("Linear RAW"))),
-            tr(
-                "How a RAW file decodes. Camera WB applies the camera's as-shot white balance. Linear RAW "
-                "decodes with neutral multipliers (1,1,1,1), a clean starting point for narrowband light, "
-                "and the one Single-Shot Narrowband Calibration needs"
-            ),
+            tr("Camera WB uses the camera's white balance. Linear RAW decodes neutral, for narrowband light."),
             data=(False, True),
         )
         self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
@@ -130,15 +104,7 @@ class DemosaicSidebar(BaseSidebar):
 
         self.highlight_merged_hint = hint_label(tr("Not applied to a merged bracket."))
         self.highlight_merged_hint.setToolTip(
-            wrap_tooltip(
-                tr(
-                    "A reconstructed pixel no longer reads near the sensor ceiling, so the merge's "
-                    "own highlight recovery would trust a per-frame guess as real signal and blend "
-                    "inconsistent guesses across frames. A bracket already recovers a genuine "
-                    "highlight from a shorter, unclipped exposure, which reconstruction's guess "
-                    "cannot improve on. Unmerge the frame if you need it."
-                )
-            )
+            wrap_tooltip(tr("A merged bracket already recovers highlights from its shorter exposures. Unmerge the frame to use this."))
         )
         self.highlight_merged_hint.setVisible(False)
         self.layout.addWidget(self.highlight_merged_hint)
@@ -193,20 +159,14 @@ class DemosaicSidebar(BaseSidebar):
                 )
                 self.capture_hint.setToolTip(
                     wrap_tooltip(
-                        tr("Scanning setup describes a negative rig.")
+                        tr("The scanning setup is for negatives.")
                         + (
-                            tr(
-                                " Linear RAW is live here: with Positive on, it decides the decode once more, so "
-                                "Linear RAW reads the file as literal linear data and defeats Positive's own read of it."
-                            )
+                            tr(" With Positive on, Linear RAW would undo Positive, so leave it off.")
                             if conf.positive_source
-                            else tr(
-                                " Linear RAW is inert here: the camera matrix folds the as-shot multipliers back in, "
-                                "so the render is the same either way."
-                            )
+                            else tr(" Linear RAW has no effect on a slide.")
                         )
-                        + (tr(" A triplet locks Linear RAW as well, for the same reason as on a plain frame.") if triplet else "")
-                        + tr(" The setting is remembered, and applies again on a negative.")
+                        + (tr(" A Trichrome triplet also locks Linear RAW.") if triplet else "")
+                        + tr(" The setting is kept for negatives.")
                     )
                 )
             elif triplet:
@@ -214,11 +174,7 @@ class DemosaicSidebar(BaseSidebar):
                 self.capture_hint.setToolTip(
                     wrap_tooltip(
                         tr(
-                            "A triplet exposure is a single narrowband channel: only one raw channel carries "
-                            "real signal, so a white-balance gain corrects nothing — there is no full-spectrum "
-                            "scene for it to describe. Every exposure decodes neutral regardless of this "
-                            "toggle, so it is locked rather than left live with no effect. Remembered, and "
-                            "applies again once the frame is no longer a triplet."
+                            "Each Trichrome exposure holds one color only, so camera white balance has nothing to correct. The setting is kept for other frames."
                         )
                     )
                 )

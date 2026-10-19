@@ -597,13 +597,13 @@ class ControlsPanel(QWidget):
         fin = self.finish_sidebar
         lens.metadata_distortion_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Apply embedded scanning-lens distortion correction. Replaces manual distortion."),
+                tr("Use the file's own lens distortion correction, in place of the slider."),
                 "lens_distortion_from_metadata",
             )
         )
         lens.metadata_ca_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Apply embedded lateral chromatic aberration correction. Can be used with manual distortion."),
+                tr("Use the file's own correction for color fringes."),
                 "lens_ca_from_metadata",
             )
         )
@@ -731,7 +731,7 @@ class ControlsPanel(QWidget):
         )
         crop.offset_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Insets the auto-crop border from the detected film edge. Positive = trim more; negative = bleed outside"),
+                tr("Moves the crop inside (positive) or outside (negative) the found edge."),
                 ["offset_inc", "offset_dec"],
             )
         )
@@ -744,73 +744,50 @@ class ControlsPanel(QWidget):
 
         proc.lock_bounds_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Lock Bounds — freeze normalization bounds so crop and analysis sliders no longer re-analyze the frame"),
+                tr("Lock Bounds: keep this frame's measured black and white points, even when the crop or Roll Analysis changes."),
                 "lock_bounds_toggle",
             )
         )
         proc.use_cast_avg_btn.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Take Cast Removal's neutral axis from the picked roll or scene, so every frame gets the same "
-                    "gray balance; off measures this frame's own grays. Color Negative only"
-                ),
+                tr("Use the roll's gray balance for Cast Removal, so frames under one light match. Color negatives only."),
                 "cast_average_toggle",
             )
         )
         proc.analysis_buffer_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Insets the analysis window from the frame edge so rebate, sprocket holes, and scanner borders don't skew black/white-point detection"
-                ),
+                tr("Ignores a border around the frame when measuring, so film edges and holders do not count."),
                 ["analysis_buffer_inc", "analysis_buffer_dec"],
             )
         )
         proc.luma_range_clip_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Tonal-range normalization (black/white-point span). Neutral already applies a small robust clip. "
-                    "Positive: clips the top/bottom for more aggressive highlight/shadow recovery. "
-                    "Negative: outward headroom — lifted blacks / unclipped highlights for a gentler stretch"
-                ),
+                tr("How tightly black and white are set. Positive gives more contrast; negative keeps more shadow and highlight detail."),
                 ["luma_range_clip_inc", "luma_range_clip_dec"],
             )
         )
         proc.color_range_clip_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Per-channel color-balance clip percentile (orange-mask cast removal), independent of tonal range. "
-                    "Neutral: P1 clip. Negative: gentler, samples nearer the extremes. Positive: tighter channel balance"
-                ),
+                tr("How tightly the color balance is set. Positive balances more strongly; negative is gentler."),
                 ["color_range_clip_inc", "color_range_clip_dec"],
             )
         )
         proc.white_point_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Shifts the normalization floor (scan white point). Positive = brighter; negative = pull highlights "
-                    "back. In R/G/B mode: this layer's trim — per-layer film-base correction"
-                ),
+                tr("Moves the white point. Positive brightens the print; negative brings back highlights."),
                 ["white_point_inc", "white_point_dec"],
             )
         )
         proc.black_point_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Shifts the normalization ceiling (scan black point). Positive = lifted blacks; negative = deeper "
-                    "blacks. In R/G/B mode: this layer's trim — per-layer Dmax correction"
-                ),
+                tr("Moves the black point. Positive lifts the blacks; negative makes them deeper."),
                 ["black_point_inc", "black_point_dec"],
             )
         )
 
         sen.crosstalk_strength_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Channel unmix on the raw negative densities — how much of the matrix to apply. 1.0 = each "
-                    "channel's leak fully subtracted from the others; 0 = scanned densities untouched. The leak "
-                    "comes from the film's dyes, your light's spectrum and your sensor's filters together, so "
-                    "tune this per scanning setup rather than per stock. Re-run Roll Analysis after changing it"
-                ),
+                tr("How much crosstalk correction to apply. Run Roll Analysis again after a change."),
                 ["separation_inc", "separation_dec"],
             )
         )

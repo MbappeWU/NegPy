@@ -9,11 +9,11 @@ from negpy.features.process.models import ProcessMode, scan_setup_rig
 
 _LIGHT_HINT = {
     "camera": {
-        "white": tr("A lightbox or high-CRI LED panel — one broadband exposure"),
-        "narrowband": tr("A Scanlight or RGB-LED source — pure red, green and blue bands"),
+        "white": tr("A lightbox or LED panel with white light."),
+        "narrowband": tr("A Scanlight or RGB LED light with pure red, green and blue."),
     },
     "scanner": {
-        "white": tr("A cold-cathode or white-LED lamp — Plustek, Epson, most flatbeds"),
+        "white": tr("A white lamp, as in Plustek, Epson and most flatbed scanners."),
         "narrowband": tr("RGB-LED illumination — Nikon Coolscan, Kodak Pakon"),
     },
 }
@@ -42,10 +42,7 @@ class ScanSetupSidebar(BaseSidebar):
     def _init_ui(self) -> None:
         self.capture_btn = SegmentedChoice(
             (("fa5s.camera", tr("Camera")), ("fa5s.camera-retro", tr("Film Scanner"))),
-            tr(
-                "What the negatives were scanned with. NegPy reads it from the file until you pick one: "
-                "a camera RAW is a camera, anything else a film scanner."
-            ),
+            tr("What you scanned with. NegPy reads it from the file until you pick one."),
             data=("camera", "scanner"),
         )
         self.light_btn = SegmentedChoice(

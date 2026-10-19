@@ -120,16 +120,7 @@ class ProcessSidebar(BaseSidebar):
             "fa5s.image",
             tr(" Positive"),
             conf.positive_source,
-            (
-                tr(
-                    "This source is already a finished positive, not a raw scanner or camera "
-                    "capture — a print, a scan already inverted by other software, or a "
-                    "negative the scanner positivized itself. Decodes its embedded profile "
-                    "(sRGB if it has none) instead of reading it as literal linear data, and "
-                    "skips the exposure lift and filmic roll-off a raw capture needs, so the "
-                    "Print/tone controls shape the image directly. Slide only."
-                )
-            ),
+            (tr("Positive: the file is already a positive, such as a scanned print or another app's export. Slide only.")),
         )
         mode_col.addWidget(self.positive_source_btn)
 
@@ -137,7 +128,7 @@ class ProcessSidebar(BaseSidebar):
             "fa5s.lock",
             "",
             False,
-            tr("Lock Bounds — freeze normalization bounds so crop and analysis sliders no longer re-analyze"),
+            tr("Lock Bounds: keep this frame's measured black and white points, even when the crop or Roll Analysis changes."),
         )
 
         # Everything that measures this frame, or nudges what the measurement produced.
@@ -150,9 +141,7 @@ class ProcessSidebar(BaseSidebar):
         analysis_col.setContentsMargins(0, 0, 0, 0)
         analysis_col.setSpacing(THEME.space_sm)
         self.analysis_buffer_slider = CompactSlider(tr("Analysis Buffer"), 0.0, 0.25, conf.analysis_buffer)
-        self.reanalyze_frame_btn = self._icon_action(
-            "fa5s.redo", tr("Reanalyze Frame — measure this frame's bounds again from its current crop and analysis settings")
-        )
+        self.reanalyze_frame_btn = self._icon_action("fa5s.redo", tr("Reanalyze Frame: measure this frame again from its current crop."))
         self.lock_bounds_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.analysis_header = section_subheader(tr("ANALYSIS"))
         analysis_col.addLayout(header_row(self.analysis_header, self.reanalyze_frame_btn, self.lock_bounds_btn))
@@ -164,21 +153,15 @@ class ProcessSidebar(BaseSidebar):
         self.analysis_region_btn = clearable_tool_toggle(
             "fa5s.vector-square",
             tr("Draw Region"),
-            tr(
-                "Draw a freehand analysis region on the image — the meters read exactly that area "
-                "(overrides the Analysis Buffer). Double-click inside it to confirm."
-            ),
-            tr("Clear Region: clear the freehand analysis region (fall back to the Analysis Buffer)"),
+            tr("Draw a region on the picture, and NegPy measures only that area. Double-click inside it to confirm."),
+            tr("Clear Region: measure with the Analysis Buffer again."),
         )
         self.clear_analysis_region_btn = self.analysis_region_btn.clear_btn
         self.film_base_btn = clearable_tool_toggle(
             "fa5s.crosshairs",
             tr("Film Base"),
-            tr(
-                "Film Base: click the clear rebate to set the roll's film base. The Negative row's hover then reads "
-                "Dmax, Dmed and Dmin above it. Without one, the base is read from the rebate."
-            ),
-            tr("Clear Film Base: forget the roll's base; the rebate is read instead"),
+            tr("Film Base: click the clear film between frames to set the roll's film base."),
+            tr("Clear Film Base: forget the roll's film base."),
         )
         self.clear_film_base_btn = self.film_base_btn.clear_btn
         tools_row = QHBoxLayout()
@@ -199,10 +182,7 @@ class ProcessSidebar(BaseSidebar):
         analysis_col.addWidget(self.clip_fold)
 
         self.ch_btn = channel_selector(
-            tr(
-                "Global sets the shared white/black point offsets (all layers). Red, Green and Blue "
-                "trim the cyan-, magenta- and yellow-dye emulsions"
-            ),
+            tr("Global changes all colors. R, G or B changes one color layer."),
         )
         self.white_point_slider = CompactSlider(tr("White Point"), -0.25, 0.25, conf.white_point_offset, has_neutral=True)
         self.black_point_slider = CompactSlider(tr("Black Point"), -0.25, 0.25, conf.black_point_offset, has_neutral=True)
@@ -230,22 +210,19 @@ class ProcessSidebar(BaseSidebar):
             "mdi6.brightness-6",
             tr("Luma"),
             conf.use_luma_average,
-            tr("Take the tonal-range (black/white-point) baseline from the picked roll; color still re-derives per frame"),
+            tr("Use the roll's average black and white points. Color stays per frame."),
         )
         self.use_color_avg_btn = self._small_toggle(
             "mdi6.palette-outline",
             tr("Color"),
             conf.use_color_average,
-            tr("Take the per-channel color-balance baseline from the picked roll; luma range still re-derives per frame"),
+            tr("Use the roll's average color balance. Black and white points stay per frame."),
         )
         self.use_cast_avg_btn = self._small_toggle(
             "mdi6.scale-balance",
             tr("Cast"),
             conf.use_cast_average,
-            tr(
-                "Take Cast Removal's neutral axis from the picked roll or scene, so every frame gets the same "
-                "gray balance; off measures this frame's own grays. Color Negative only"
-            ),
+            tr("Use the roll's gray balance for Cast Removal, so frames under one light match. Color negatives only."),
         )
         avg_row.addWidget(self.use_luma_avg_btn)
         avg_row.addWidget(self.use_color_avg_btn)
@@ -260,12 +237,7 @@ class ProcessSidebar(BaseSidebar):
         self.render_ev_slider.setToolTip(
             wrap_tooltip(
                 tr(
-                    "Which exposure a merged bracket renders at, in stops below the reference frame. "
-                    "The reference is the longest capture that does not clip, so it is the brightest "
-                    "the merge can open at — a slide's own highlights are denser than clear film, so "
-                    "that is usually brighter than the shot you metered for.<br><br>"
-                    "Right-click the frame for <b>Render exposure</b> to snap to an exposure you "
-                    "actually shot; this slider goes anywhere between them."
+                    "Which exposure of a merged bracket to show, in stops below the brightest usable shot. Right-click the frame to pick a shot you took."
                 )
             )
         )

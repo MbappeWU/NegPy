@@ -34,7 +34,7 @@ class AutocropSidebar(BaseSidebar):
         add_choice_items(self.ratio_combo, [r.value for r in CROP_RATIO_CHOICES])
         select_choice(self.ratio_combo, canonical_crop_ratio(conf.autocrop_ratio))
         self.ratio_combo.setPlaceholderText(tr("Select Ratio…"))
-        self.ratio_combo.setToolTip(wrap_tooltip(tr("Aspect ratio the auto crop and the crop tool snap to")))
+        self.ratio_combo.setToolTip(wrap_tooltip(tr("Shape of the crop, for Auto Crop and the crop tool.")))
         ratio_row.addWidget(self.ratio_combo, 1)
 
         self.detect_ratio_btn = self._icon_action("fa5s.crosshairs", tr("Detect closest aspect ratio from the film frame"))
@@ -42,21 +42,15 @@ class AutocropSidebar(BaseSidebar):
 
         self.layout.addLayout(ratio_row)
 
-        auto_tip = tr("Auto Crop: find the frame edges and crop to them; off clears the crop. New frames start with it")
+        auto_tip = tr("Auto Crop: find the edges of the picture and crop to them. New frames start with this setting.")
         self.auto_frame_btn = self._small_toggle("fa5s.magic", "", conf.crop_from_auto, auto_tip)
         self.auto_frame_btn.plain_tooltip = auto_tip
         self.auto_frame_btn.setFixedWidth(ICON_BUTTON_WIDTH)
-        all_tip = tr(
-            "Auto-crop all frames together: confident frames calibrate weak ones; hand-drawn and ambiguous "
-            "crops are kept. Runs before Roll Analysis"
-        )
+        all_tip = tr("Crop all frames together. Clear frames help unclear ones, and crops you drew stay. Run it before Roll Analysis.")
         self.auto_crop_all_btn = self._icon_action("fa5s.layer-group", all_tip)
         self.auto_crop_all_btn.plain_tooltip = all_tip
         self.auto_crop_all_btn.setEnabled(conf.autocrop_mode == AutocropMode.IMAGE)
-        square_tip = tr(
-            "Square Before Crop: Auto Crop sets Fine Rotation, Tilt and Swing from the frame's own edges, "
-            "then crops the squared frame. A frame with its own rotation, Tilt or Swing keeps them"
-        )
+        square_tip = tr("Square Before Crop: straighten the frame to its film edges before Auto Crop crops it.")
         self.square_btn = self._small_toggle("fa5s.ruler-combined", "", conf.autocrop_square, square_tip)
         self.square_btn.plain_tooltip = square_tip
         self.square_btn.setFixedWidth(ICON_BUTTON_WIDTH)
@@ -68,7 +62,7 @@ class AutocropSidebar(BaseSidebar):
         self.mode_combo.addItem(tr("Image only"), AutocropMode.IMAGE.value)
         self.mode_combo.addItem(tr("Film edge"), AutocropMode.FILM.value)
         self._select_mode(conf.autocrop_mode)
-        self.mode_combo.setToolTip(wrap_tooltip(tr("Auto crop target: exposed image only, or full film including rebate/sprockets")))
+        self.mode_combo.setToolTip(wrap_tooltip(tr("Crop to the picture only, or keep the whole film with its edges and holes.")))
         mode_row.addWidget(self.mode_combo, 1)
         self.layout.addLayout(mode_row)
 
@@ -92,12 +86,7 @@ class AutocropSidebar(BaseSidebar):
             unit="%",
         )
         self.rebate_trim_slider.setToolTip(
-            wrap_tooltip(
-                tr(
-                    "How far into the detected rebate auto crop cuts: 0% stops at the film edge, "
-                    "100% lands on the image edge, above 100% bites in to clear a white border"
-                )
-            )
+            wrap_tooltip(tr("How far the crop cuts into the film border: 0% at the film edge, 100% at the picture edge."))
         )
         self.rebate_trim_slider.setEnabled(conf.autocrop_mode == AutocropMode.IMAGE)
 

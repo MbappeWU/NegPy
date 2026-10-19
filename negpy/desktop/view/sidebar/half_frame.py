@@ -29,12 +29,12 @@ class HalfFrameSidebar(BaseSidebar):
         self.adjust_btn = self._labeled_action(
             "mdi.tune-variant",
             tr(" Adjust…"),
-            wrap_tooltip(tr("Set this scan's crop and the gutter it splits at; its Apply picks what the result saves to")),
+            wrap_tooltip(tr("Set this scan's crop and where it splits.")),
         )
         self.auto_btn = self._labeled_action(
             "fa5s.layer-group",
             tr(" Detect All"),
-            wrap_tooltip(tr("Re-find the crop and the gutter on every loaded scan")),
+            wrap_tooltip(tr("Find the crop and the split again on every loaded scan.")),
         )
         self.unsplit_btn = self._labeled_action(
             "fa5s.object-ungroup",
@@ -103,9 +103,7 @@ class HalfFrameSidebar(BaseSidebar):
             self.enable_btn.setChecked(self.controller.half_frame_mode_for_roll(self.state.active_roll_id))
             self.enable_btn.setEnabled(has_roll)
             self.enable_btn.setToolTip(
-                wrap_tooltip(tr("Split each scan into two frames, edited and measured separately"))
-                if has_roll
-                else wrap_tooltip(_NO_ROLL_HINT)
+                wrap_tooltip(tr("Split each scan into two frames, for half-frame cameras.")) if has_roll else wrap_tooltip(_NO_ROLL_HINT)
             )
             self.adjust_btn.setEnabled(has_roll and has_files)
             self.auto_btn.setEnabled(has_roll and has_files)

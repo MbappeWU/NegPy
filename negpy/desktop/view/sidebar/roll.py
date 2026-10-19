@@ -17,14 +17,9 @@ _TICK = "✓ "
 
 # Roll Analysis is the action, Roll Baseline the field it fills; the Library's own
 # menu item runs the same action, so it reads these rather than restating them.
-BATCH_ANALYSIS_TOOLTIP = tr(
-    "Roll Analysis — measures the exposure of every loaded frame outside a scene and saves the average as this roll's baseline"
-)
+BATCH_ANALYSIS_TOOLTIP = tr("Roll Analysis: measure every loaded frame and save the average as the roll's baseline.")
 BATCH_ANALYSIS_DISABLED_TOOLTIP = tr("Open this roll first — Roll Analysis measures the files currently loaded.")
-FROM_FRAME_TOOLTIP = tr(
-    "Use This Frame — save the current frame's bounds as this roll's baseline, in place of a measured "
-    "average. Every frame outside a scene on Use Luma/Color Average follows it, including one loaded later."
-)
+FROM_FRAME_TOOLTIP = tr("Use This Frame: make this frame's measurement the roll's baseline.")
 FROM_FRAME_DISABLED_TOOLTIP = tr("Open this roll first — the baseline is written onto the files currently loaded.")
 STALE_ROLL_HINT = tr("Baseline from an older analysis: run Reanalyze")
 STALE_SCENE_TOOLTIP = tr("Baseline from an older analysis: run Scene Analysis")

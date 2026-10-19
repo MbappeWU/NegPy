@@ -9,7 +9,7 @@ from negpy.desktop.view.styles.templates import header_button, labeled_action
 from negpy.desktop.view.styles.theme import THEME
 from negpy.features.exposure.stats import StatRow
 
-CLIPPING_TOOLTIP = tr("Share of pixels crushed to black (shadows) or blown to white (highlights), worst channel. Turns amber above 1%.")
+CLIPPING_TOOLTIP = tr("Share of the picture that prints pure black (shadows) or pure white (highlights). Amber above 1%.")
 
 _TOOLTIPS = {
     "Negative": (

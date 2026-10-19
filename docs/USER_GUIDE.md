@@ -626,186 +626,143 @@ Every edit step, newest on top; NegPy keeps the last 100. Each step names the ca
 
 ## 10. Roll tab
 
-Setup leads the tab. Its film mode, like every card below it, is shared by the roll, with the scope pair of [§1](#frame-or-roll-the-scope-pair): an edit makes the card **Frame** until it matches the roll again, and a push to the roll skips frames that locked the card. The line above the cards names every card this frame overrides.
+These cards hold what the frames of a roll share: the film, how it was scanned, the crop shape and the roll's measurements. Each card has the Frame / Roll pair ([§1](#frame-or-roll-the-scope-pair)). The line above the cards lists the cards this frame changes for itself.
 
 <!-- panel:film -->
 ### 10.1 Setup
 
-What the film is and how you scan it. The film mode decides which cards apply. The scanning choices are one setting for the whole app: they set the RAW decode and the print stock, and the Roll tab shows only the controls they use.
+What the film is and how you scanned it. These choices decide which cards and controls show.
 
-*   **Color / B&W / Slide**: **Color** (C-41 negative), **B&W** (negative) or **Slide** (transparency, E-6 and similar).
-*   **Positive** (default off, **Slide** only): for a source that is already a positive (a scanned print, another app's export). NegPy reads its embedded profile (sRGB if none) and skips metering and inversion, so the tone controls shape the image directly.
-*   **Camera / Film Scanner**: read from each frame until you pick one (a camera RAW is a camera, a TIFF or JPEG a film scanner); your pick holds for every frame and picks the Scan tab's scanner.
-*   **White Light / Narrowband RGB** (default White Light; not shown for **B&W**): the light behind the negative.
+*   **Color / B&W / Slide**: color negative (C-41), black-and-white negative, or slide (E-6 and similar).
+*   **Positive** (Slide only): for a file that is already a positive, such as a scanned print or another app's export. NegPy then skips inversion and metering.
+*   **Camera / Film Scanner**: what you scanned with. NegPy reads it from each file (a camera RAW is a camera) until you pick one. Your pick holds for every frame and sets the Scan tab's scanner.
+*   **White Light / Narrowband RGB** (not for B&W): the light behind the negative. White light is a lightbox or LED panel. Narrowband is a light with pure red, green and blue, such as a Scanlight.
 
-| Capture | Light | Decode | Print stock | Rig cards |
-| --- | --- | --- | --- | --- |
-| Camera | White light (lightbox, CRI LED panel) | Camera WB | Digital (Adobe RGB) | Raw Decode, Optics |
-| Camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW | Digital (Pakon Minilab) | Also Trichrome, Single-Shot Narrowband Calibration, Hue Trim |
-| Film scanner | White light (Plustek, Epson) | Linear RAW | Digital (Adobe RGB) | None |
-| Film scanner | Narrowband RGB (Coolscan, Pakon) | Linear RAW | Digital (Pakon Minilab) | None |
+The scanning choices are one setting for the whole app. They set how a RAW file is decoded and which digital print stock is used:
 
-A change of capture or light sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks. A hidden control keeps its value, and one that holds a setting stays in view.
+| Scanned with | Light | Decode | Print stock |
+| --- | --- | --- | --- |
+| Camera | White | Camera WB | Digital (Adobe RGB) |
+| Camera | Narrowband | Linear RAW | Digital (Pakon Minilab) |
+| Film scanner | White | Linear RAW | Digital (Adobe RGB) |
+| Film scanner | Narrowband | Linear RAW | Digital (Pakon Minilab) |
 
-A camera Scan sets the decode and the print stock per frame from its light instead: white light keeps Camera WB, Trichrome and Single Capture decode Linear RAW, and a Digital print stock follows the same table.
+A camera shows the Raw Decode and Optics cards. A camera with narrowband light also shows Trichrome and Calibration. A change updates every open frame (Ctrl+Z undoes it per frame), but a print stock you picked yourself stays. A camera Scan sets the decode and the print stock for each frame from its own light.
 
 <!-- panel:assembly -->
 ### 10.2 Frame Assembly
 
-How the files become frames. Neither toggle has a scope pair; each roll remembers its own state.
+How files become frames. Each roll keeps its own settings here.
 
 #### Trichrome
 
-*   **Trichrome Mode** (three-exposure narrowband capture; shown for a camera under Narrowband RGB light, or while on): assembles each frame from a red, green and blue exposure, grouped by capture time (else filename order), so shoot each frame's three back to back. Shots that do not group stay separate, for pairing by hand.
-*   **Edit Triplet…**: the **Edit RGB Triplet…** dialog for the current frame. **Align channels (sub-pixel)** registers green and blue to red, removing color fringes.
-*   **Merge Frame to TIFF Negative…** / **Merge Selected to TIFF Negative…** (right-click): replaces each triplet or stitch with one 16-bit linear TIFF negative beside its first source (`<red name>_RGB.tif`, `<first part name>_STITCH.tif`). It renders the same and keeps the edit, marks and scene. A merged stitch has flat field and sensor correction baked in and cannot be unstitched. **Move each merged frame's source files to the Trash** (on by default) trashes the sources once the file is verified. Brackets, slides and LinearRaw DNG sources are skipped.
+For a camera with narrowband light that takes three shots of each frame: red, green and blue.
 
-A new roll, or a batch that is not one roll, takes the Trichrome Mode last chosen.
+*   **Trichrome Mode**: joins the three shots into one color frame. Shots are grouped by capture time (or file name), so take each frame's three shots one after another. Shots that do not group stay separate.
+*   **Edit Triplet…**: pick the three shots of the current frame by hand. **Align channels** lines them up to remove color fringes.
+*   **Merge Frame to TIFF Negative…** (right-click): saves a triplet or a stitch as one TIFF beside its first source file, with its edit. An option moves the source files to the Trash.
 
 #### Half Frame
 
-**Half Frame Mode** splits each scan into two frames, for half-frame cameras; each half is edited and metered on its own. Turning it on detects the gutter, its direction and the film crop on every loaded scan. A batch that is not one roll cannot use it.
+**Half Frame Mode** splits each scan into two frames, for half-frame cameras. Each half has its own edit.
 
-*   **Adjust…**: drag the green box to crop and the orange line to set the split; pick **Split direction** (*Vertical* or *Horizontal*) and **Cut thickness** (the separator band to discard). **Auto-detect** finds all three again. **Apply** applies to the current, selected or all frames (all sets the roll default).
-*   **Detect All**: reruns the batch detection.
-*   **Unsplit** (on a split frame): makes it one plain frame and deletes both halves' edits.
+*   **Adjust…**: drag the green box to crop and the orange line to set the split. **Split direction** and **Cut thickness** set the gap, **Auto-detect** finds them again, and **Apply** saves to this frame, the selection or all frames.
+*   **Detect All**: finds the splits on every scan again.
+*   **Unsplit** (on a split frame): makes it one frame again and deletes both halves' edits.
 
-Right-click a half for **Adjust Split for This Frame…** and **Reset Split to Roll Default**. Heals and masks stay anchored to the film through a resplit.
-
-Turning Half Frame off keeps edited halves as a **diptych**: both halves side by side with their own edits. A diptych exports as `<name>-DIPTYCH`, a long-edge size applying to each half; turn Half Frame on to edit it.
-
-Half Frame never splits a frame assembled from several files.
+Right-click a half for **Adjust Split for This Frame…** and **Reset Split to Roll Default**. Turning Half Frame off keeps edited halves side by side as a **diptych**; turn it on again to edit them.
 
 <!-- panel:sensor -->
-### 10.3 Calibration: what your rig does to the colors
+### 10.3 Calibration: colors from your scanning setup
 
-These controls correct the capture, not the look.
+Corrects color errors that come from your light, camera and film.
 
-Single-Shot Narrowband Calibration and Hue Trim show for a camera under Narrowband RGB light (Setup), or while they hold a setting.
+**Single-Shot Narrowband Calibration** (camera with narrowband light, Linear RAW): removes the color that leaks between the sensor's channels. Run **Roll Analysis** again after a change.
 
-**Single-Shot Narrowband Calibration**: for single-shot camera scans under narrowband light, where each color leaks into the others through the sensor's filters. Needs **Linear RAW**; grayed out on a Trichrome triplet. **Re-run Roll Analysis** after changing it.
+*   **Profile**: the sensor profile. Your own `.toml` profiles go in `<Documents>/NegPy/sensor/`.
+*   **Method**: **Two-Scale** (default) removes the leak and keeps very strong colors from speckling. **Linear** is exact, but strong colors can speckle. **Density** has no speckle, but strong colors are a little duller.
+*   **Calibrate**: makes a profile from three shots of the bare light (red, green and blue), from files or a tethered camera (see CAMERA_SCANNING.md).
 
-*   **Profile**: the sensor matrix. Custom `.toml` matrices go in `<Documents>/NegPy/sensor/`.
-*   **Method**: *Two-Scale* (default) subtracts the leak like *Linear* where the calibration can be trusted, and stops the speckle where a color is mostly leak (neon, deep blue). *Linear* subtracts the leak exactly and prints those colors speckled and fully saturated. *Density* has no speckle, but strong colors are slightly less vivid. A scan with a clipped film base uses Linear.
-*   **Calibrate**: builds a profile from three bare-light R/G/B exposures. Pick them as files, or press **Capture from Camera…** to shoot them with a tethered camera and a Scanlight, no film in the holder. A Single Capture Scanlight preset can save a profile during its own calibration.
+**Crosstalk** (color film): film dyes, your light and your sensor mix the colors a little, and a matrix separates them again. Run **Roll Analysis** again after a change.
 
-CAMERA_SCANNING.md has a workflow for each way to build and assign a profile.
+*   **Matrix**: the matrices for this film type. Those marked *(approx)* come from film data sheets and are a starting point. Your own `.toml` files go in `<Documents>/NegPy/crosstalk/` (see CROSSTALK.md). The slider button opens the editor; **+** makes a new matrix. No slide matrix comes with NegPy.
+*   **Strength**: how much of the matrix to apply.
+*   **Measure from Chart…** (color negatives): measures a matrix from a ColorChecker 24 or SpyderCheckr 24 shot on the film. Drag the four dots onto the corner patches.
 
-**Crosstalk** (hidden in B&W Negative): a channel unmix on the densities before inversion. Dyes, light and sensor all mix the channels, so a matrix describes your whole scanning setup. **Re-run Roll Analysis** after changing it.
-
-*   **Matrix**: matrices for the current film process, grouped by source. *Generic C41* is built in; custom `.toml` matrices go in `<Documents>/NegPy/crosstalk/` (see [CROSSTALK.md](CROSSTALK.md)). The slider button opens the editor; **+** makes one for the current process.
-*   **Strength** (0.0 to 1.0): how much unmix to apply.
-*   **Measure from Chart…** (the swatch button, Color Negative only): measures a matrix from a frame of a SpyderCheckr 24 or ColorChecker 24 shot on the film. Drag the four dots onto the corner patches, in any order, with the chart any way up; NegPy fits the six mixing terms through the frame's own render on the Digital print stock, saves a *Measured* profile, applies it at full Strength and shows each patch's color difference to its target (ΔE00 without lightness) on the frame.
-
-> The bundled film matrices, marked *(approx)*, come from spec sheets and describe the dyes alone. They fully correct only a capture that reads each dye cleanly (a Narrowband Scanner, Trichrome, a calibrated single-shot narrowband rig); for broadband light and a Bayer sensor they are a starting point.
-
-> No Transparency matrix ships. On slides, Matrix and Strength stay disabled until you make one with **+** or add a `.toml` with `process = "Transparency"`. Treat unmixing on a slide as a color-separation control.
-
-To tune a matrix, adjust its six off-diagonal terms in the editor and save it as your own, named after the *combination* ("Gold 200 + Spectracolor"). Working profiles are welcome [upstream](CROSSTALK.md#contributing-a-matrix).
-
-**Light source:**
-
-*   **Hue Trim** (-30° to 30°, default 0): rotates every hue, for narrowband or odd-phosphor lights that turn yellows orange and greens olive. Judge it on a known color; leave it at 0 for broadband light. It carries to the next file.
-
-#### Narrowband and slides
-
-Single-Shot Narrowband Calibration does not apply to Transparency; it stays grayed out with its values for the next negative. For slides on a narrowband rig, use **Hue Trim**.
+**Hue Trim** (camera with narrowband light): turns all colors around the color wheel, for a light that makes yellows orange or greens olive. Keep 0 for white light. It also works on slides, where the sensor profile does not.
 
 <!-- panel:process -->
 ### 10.4 Metering: negative → positive
 
-How this frame is measured into a positive's tonal bounds.
+To turn a negative into a positive, NegPy measures its darkest and brightest parts (the black and white points) and the color of the film. These controls set what it measures.
 
-**Slides** (Transparency) render as captured, through the camera's color matrix and a fixed tonal window, as in Photoshop or Darktable.
+*   **Reanalyze Frame**: measures this frame again from its current crop.
+*   **Draw Region**: draw an area, and NegPy measures only that area. Double-click inside to confirm; **×** clears it.
+*   **Film Base**: click the clear film between frames to set the roll's film base, for the Analysis readout. **×** clears it.
+*   **Analysis Buffer**: ignores a border around the frame when measuring, so film edges and holders do not count.
+*   **Clipping**: how much of the print is pure black or pure white.
+*   **Lock Bounds**: keeps this frame's black and white points, even when the crop or Roll Analysis changes.
+*   **Luma Range Clip** (fold): how tightly black and white are set. Positive gives more contrast, for dense or foggy negatives. Negative keeps more shadow and highlight detail.
+*   **Color Clip** (fold): how tightly the color balance is set.
+*   **White Point** / **Black Point** (fold): move the measured white and black points. A positive white point brightens the print; a positive black point lifts the blacks. **R / G / B** moves one color only.
 
-*   The paper controls and the normalization tuning hide. The tone controls, R/G/B trims and white balance form a transfer curve, neutral at defaults.
-*   **Auto Density** and **Auto Grade** start off on a slide; turn them on to meter a faded or expired one. On a merged bracket **Render exposure** sets the exposure instead.
-*   Lightroom mapping: **Exposure** → Print Density (lower is brighter), **Contrast** → ISO-R Grade (180 is softest), **Shadows** → Shadows Density, **Highlights** → Highlights Density. Positive adds density, so negative Shadows Density opens shadows. **Whites** and **Blacks** have no equivalent.
-*   A source with no camera matrix (a scanner TIFF, a JPEG) passes straight through. An Input ICC in Export replaces the camera matrix.
-*   **Camera WB / Linear RAW** is grayed out except with **Positive** on. **Single-Shot Narrowband Calibration** is grayed out ([Narrowband and slides](#narrowband-and-slides)).
-
-**Analysis** sets where the black and white points are metered.
-
-*   **Reanalyze Frame**: measures this frame again from its current crop, buffer and region.
-*   **Draw Region**: draw a freehand region to meter *exactly* that area, in place of the buffer. Double-click inside to confirm. The **×** on the button clears it.
-*   **Film Base**: click the clear rebate once to set the roll's film base. The **Negative** row's hover then reads Dmax, Dmed and Dmin above it on every frame of the roll scanned at the same exposure and light as the one you clicked. A click on edge print, a perforation or bare light is refused. Without a base, the rebate is read when the scan shows a film edge, and the hover says so. The **×** on the button clears the base.
-*   **Analysis Buffer** (0.0 to 0.25): insets the measurement window so rebate, sprocket holes and scanner borders do not skew it. With no crop, the window is the picture Auto Crop would keep when the film sits in a holder or on bare light, so the holder never sets the exposure.
-*   **Clipping**: the print's shadow and highlight clipping shares, as in the Analysis panel's row.
-*   **Lock Bounds**: freezes this frame's bounds against crop and slider changes and against every Roll Analysis run.
-*   **Luma Range Clip** (-100 to 100): how tightly the black/white-point span is set. Positive tightens it, for dense or fogged negatives; negative pushes the bounds *outward*, for lifted blacks and unclipped highlights.
-*   **Color Clip** (-100 to 100): the per-channel color-balance clip (orange-mask removal). Positive tightens; negative samples nearer the extremes.
-
-**White / Black Point** (-0.25 to 0.25), with a **Global** / **R** / **G** / **B** selector: offsets on the detected bounds; a positive white point brightens, a positive black point lifts blacks. In R/G/B they trim each layer's Dmin and Dmax. On a slide they offset its fixed window; elsewhere **Lock Bounds** disables them.
+A **slide** needs no inversion: the tone controls shape the picture directly. Auto Density and Auto Grade start off; turn them on for a faded slide. In Lightroom terms, Exposure is Print Density (lower is brighter), Contrast is ISO-R Grade, and Shadows and Highlights are Shadows and Highlights Density.
 
 <!-- panel:autocrop -->
 ### 10.5 Crop
 
-The roll-wide crop shape, and what the frame detector looks for. Each frame's rectangle is its own, drawn or found in **Geometry** ([§4.1](#41-geometry-crop-and-straighten)).
+The crop shape for the whole roll, and how NegPy finds each frame. Each frame's own crop is in **Geometry** ([§4.1](#41-geometry-crop-and-straighten)).
 
-*   **Ratio** (default `Free`): `Free`, `1:1`, `3:2`, `4:3`, `5:4`, `6:7`, `7:5`, `65:24`, `16:9`, `16:10`, `11:8.5`, each auto-oriented. On `Free` auto-crop uses the detected format; a ratio forces every frame to it.
-*   **Detect**: snaps the ratio to the closest standard.
+*   **Ratio**: the crop shape, such as `3:2` or `1:1`, turned to fit each frame. **Free** uses the shape NegPy finds. **Detect** picks the nearest standard shape.
+*   **Mode**: **Image only** crops to the picture. **Film edge** keeps the whole film with its border and holes.
+*   **Crop Offset** (fold): moves the crop inside (positive) or outside (negative) the found edge.
+*   **Rebate Trim** (fold, Image only): how far the crop cuts into the film border. 0% stops at the film edge and 100% at the picture edge; above 100% cuts into the picture to remove a white border.
+*   **Auto Crop** (the wand): finds the edges and crops each frame. New frames start with this setting. A crop you draw turns it off for that frame.
+*   **Square Before Crop**: straightens each frame to its film edges before Auto Crop crops it.
+*   **Auto-crop all frames** (Image only): crops every frame together. Clear frames help unclear ones, and crops you drew stay.
 
-**Auto Crop**:
-
-*   **Mode**: *Image only* (exposed area) or *Film edge* (full film, with rebate and sprockets).
-*   **Crop Offset** (-5 to 100 px): insets the detected edge; negative bleeds slightly outside.
-*   **Rebate Trim** (0 to 150%, *Image only*): 0% stops at the film edge, 100% at the detected image edge, above 100% cuts into the picture to clear a white border.
-*   **Auto Crop** (magic wand): detects the frame edge and crops to it; off clears the crop. New frames start with the last value set. A hand-drawn crop turns it off for that frame alone. **Roll** asks before it changes the roll's Auto Crop for frames that follow the roll.
-*   **Square Before Crop** (default off): Auto Crop first squares the frame (Fine Rotation, Tilt and Swing, as **Auto Skew**), then crops. It squares once when Auto Crop is set or Square Before Crop is turned on; a frame with its own Fine Rotation, Tilt or Swing keeps them. **Auto-crop all frames** straightens rotation either way; this adds Tilt and Swing.
-*   **Auto-crop all frames** (*Image only*): crops every frame in the Film Strip together, calibrating weak detections from confident ones, and straightens each as **Auto Skew** does. Hand-drawn, Film-edge and ambiguous frames, and frames with their own Auto Crop off, are left alone.
-*   **Mixing scans**: allowed. A frame that reads its own edge keeps its crop; a frame with no edge takes the roll's width and tilt. Frames from one camera, holder and format pool best.
-*   **When auto-crop leaves a frame alone**: the scanner bed must be the brightest thing in the scan. A slide with highlights as bright as the bed, sprocket-exposed film, or a neighbor frame filling more than a tenth of one side stays uncropped. Crop by hand, or use *Film edge* and trim in.
-
-A change re-detects every following frame cropped by **Auto**. Hand-drawn crops stay, but **Ratio** reshapes them around their center.
+Auto Crop needs the scanner light or holder to be the brightest part of the scan. It leaves a frame alone when the picture is as bright as the light, or when the next frame fills a large part of one side. Crop such a frame by hand, or use **Film edge** and trim in.
 
 <!-- panel:baseline -->
 ### 10.6 Roll Analysis
 
-Meters the roll once and shares the result, so frames of one film match.
+Measures the whole roll once and shares the result, so the frames of one film print alike.
 
-*   **Use average: Luma**: takes the picked roll's tonal range; color stays per frame. Disables Luma Range Clip.
-*   **Use average: Color**: takes the picked roll's color balance; tonal range stays per frame. Disables Color Clip. Luma and Color on gives a consistent roll; both off gives per-image auto-exposure.
-*   **Use average: Cast** (Color Negative only): takes Cast Removal's gray balance from the roll or scene analysis, so frames under one light render alike. An analysis turns it on, except on frames far from the rest.
-*   **Baseline**: names the roll, scene or frame the baseline came from, and warns when there is none or when an older version of the analysis measured it.
-*   **Rolls** (picker): every roll in your library; a ticked roll has a saved baseline. Defaults to the loaded roll. A baseline from an older analysis shows an amber hint until you run **Reanalyze**.
-*   **Reanalyze** (also in the Library, [§2](#2-library-and-film-strip)): averages density and color balance over the loaded roll, without scene and locked frames, and saves the roll's baseline. Frames far from the rest keep their own. Run **Auto-crop all frames** ([§10.5](#105-crop)) first for consistent crops.
-*   **Use This Frame**: saves this frame's bounds as the roll's baseline.
-*   **Scenes**: the loaded roll's [scenes](#scenes). **Analyze** runs Scene Analysis (Reanalyze over the scene only), **Select** selects its frames, and **Delete** forgets it. An amber ✓ marks a scene baseline from an older analysis.
+*   **Reanalyze**: measures every loaded frame (except scene and locked frames) and saves the average as the roll's baseline. Frames very different from the rest keep their own. Run **Auto-crop all frames** first.
+*   **Use This Frame**: makes this frame's measurement the roll's baseline.
+*   **Use average**: **Luma** uses the roll's black and white points, **Color** the roll's color balance, and **Cast** (color negatives) the roll's gray balance for Cast Removal. With Luma and Color on, the roll prints evenly; with both off, each frame is measured on its own.
+*   **Baseline**: says where the baseline came from (roll, scene or frame). It warns when there is none or when it is out of date.
+*   **Rolls**: pick another roll's saved baseline. A ticked roll has one.
+*   **Scenes**: groups of frames with their own baseline, such as one subject under one light ([Scenes](#scenes)). **Analyze** measures the scene, **Select** selects its frames and **Delete** removes the group.
 
 <!-- panel:demosaic -->
-### 10.7 Raw Decode: turning the sensor mosaic into pixels
+### 10.7 Raw Decode
 
-How a camera RAW decodes; shown for a camera (Setup). The demosaic fills in the two colors each photosite misses, which affects sharpness and grain. Bayer and X-Trans RAW only; only algorithms in your LibRaw build are listed.
+How a camera RAW file is turned into pixels. Shown for a camera.
 
-*   **White Balance: Camera WB / Linear RAW** (set by Setup): *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
-
-**Demosaic**:
-
-*   **Preview** / **Export** (default **Auto**): *Auto* is a fast half-size decode on screen and AHD for export. **AHD** is balanced, **VNG** smooth, **PPG** fast with clean edges, **DCB** and **DHT** favor fine detail, **AAHD** softens edges to suppress artifacts.
-
-**Highlights: Recovery** (Transparency only, default **Off**): rebuilds a clipped highlight on a camera RAW. **Off** leaves it flat (magenta if one channel clipped first); **Blend** makes a plausible neutral, right for sun, sky, chrome or glass; **Reconstruct** is stronger and can misjudge a saturated highlight. Grayed out on rendered files and merged brackets.
+*   **Camera WB / Linear RAW**: Camera WB uses the camera's white balance. Linear RAW decodes neutral, for narrowband light. Setup sets it for you.
+*   **Preview** / **Export**: the demosaic method, which fills in the colors each sensor pixel cannot see. **Auto** is fast on screen and uses **AHD** for export. **VNG** is smooth and **PPG** fast. **DCB** and **DHT** keep more fine detail but can turn grain into patterns. **AAHD** softens edges. Only the methods in your LibRaw build are listed.
+*   **Recovery** (slides): rebuilds blown highlights in a camera RAW. **Blend** suits sun and sky. **Reconstruct** is stronger but can get the color wrong.
 
 <!-- panel:optics -->
 ### 10.8 Optics
 
-The scanning optics: one lens correction and one light correction for every frame of the rig. Shown for a camera (Setup), or while it holds a correction.
+Corrections for the lens and the light, the same for every frame you scan with this setup. Shown for a camera.
 
 #### Lens Correction
 
-*   **Embedded** (the file's own lens profile for DNG, Sony ARW and Panasonic RW2; RW2 carries distortion only):
-    *   **Distortion**: straightens curved lines in place of the manual correction. Set it before cropping or retouching.
-    *   **CA**: reduces color fringes.
-*   **Distortion Correction** (-0.100 to 0.100, in steps of 0.001): positive corrects barrel, negative pincushion. Use the film rebate as a straight edge.
+*   **Embedded**: uses the file's own lens correction (DNG, Sony ARW, Panasonic RW2). **Distortion** straightens curved lines and **CA** removes color fringes. Set it before you crop or retouch.
+*   **Distortion Correction**: straightens lines that bow out (positive) or in (negative). Use the film edge as a straight guide.
 
 #### Flat Field Correction: even out the light
 
-Corrects uneven light (vignetting, falloff) from a copy-stand or scanner light, using a shot of the bare light source.
+Removes uneven light, such as darker corners, with a shot of the bare light source.
 
-*   **Profile**: **+** bakes a reference image into a named profile in NegPy's `flatfield` folder; the image can then be deleted. **Trash** asks first; every frame using the profile loses its correction.
+*   **Profile**: **+** saves a shot of the bare light as a named profile. The trash button deletes it, and every frame that uses it loses its correction.
 *   **Apply Flat Field**: applies the selected profile to this roll.
-*   **Check Flat Field**: shows how well the selected profile corrects its own reference. A good profile shows an even gray; a band or patch shows where it is off (full white or black is 10% or more). It turns and flips with the open frame, without fine rotation, keystone or crop. An older profile without check data shows the light it corrects instead; save it again to check it. Saving warns when the reference is clipped or does not correct itself evenly.
+*   **Check Flat Field**: shows how well the profile evens out its own shot. Even gray is good; a band or patch shows where it is off.
 
-A newly chosen profile becomes the rig's default for the next roll.
+A new profile becomes the default for the next roll.
 
 ---
 
