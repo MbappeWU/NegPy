@@ -314,9 +314,8 @@ def scan_setup_values(capture: str, light: str) -> tuple[bool, str]:
 def scan_setup_rig(saved) -> tuple[str, str]:
     """(capture, light) from the saved scanning setup; Auto under white light when none is saved."""
     saved = saved if isinstance(saved, dict) else {}
-    capture = saved.get("capture") if saved.get("capture") in ("auto", "camera", "scanner") else "auto"
-    light = saved.get("light") if saved.get("light") in ("white", "narrowband") else "white"
-    return capture, light
+    capture, light = str(saved.get("capture")), str(saved.get("light"))
+    return (capture if capture in ("auto", "camera", "scanner") else "auto"), (light if light in ("white", "narrowband") else "white")
 
 
 def per_channel_point_offsets(process: ProcessConfig) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
