@@ -729,7 +729,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             frames = ", ".join(str(f) for f in clamped)
             self.status_strip.set_message(
                 tr(
-                    "{_CLAMP_NOTICE} on {value} {frames} — reduce Offset, Drift or that frame's own slider.",
+                    "{_CLAMP_NOTICE} on {value} {frames}. Reduce Offset, Drift or that frame's own slider.",
                     _CLAMP_NOTICE=_CLAMP_NOTICE,
                     value=plural(len(clamped), "frame"),
                     frames=frames,
@@ -740,7 +740,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             worst = max(loss for _, loss in cut)
             self.status_strip.set_message(
                 tr(
-                    "{_CUT_NOTICE} on {value} {frames} — up to {worst:.1f} mm of picture lost off the frame tail; reduce Offset or that frame's own slider, or re-feed the strip for a better registration.",
+                    "{_CUT_NOTICE} on {value} {frames}: up to {worst:.1f} mm of picture lost off the frame tail. Reduce Offset or that frame's own slider, or feed the strip again.",
                     _CUT_NOTICE=_CUT_NOTICE,
                     value=plural(len(cut), "frame"),
                     frames=frames,
@@ -793,7 +793,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             self._recut.stop()  # the reset sliders armed it
         if loaded:
             self._on_preview_all()
-            self.status_strip.set_message(tr("The scanner sat idle long enough to return the strip — measuring it again…"))
+            self.status_strip.set_message(tr("The scanner sat idle long enough to return the strip. Measuring it again…"))
         else:
             self.status_strip.set_message(tr("The scanner returned the strip while idle. Insert it again, then press Detect frames."))
 
@@ -854,7 +854,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
         try:
             self._controller.start_roll_preview(req)
         except Exception as e:
-            self.status_strip.set_message(tr("Scanner busy — {e}", e=e))
+            self.status_strip.set_message(tr("Scanner busy: {e}", e=e))
             return
         self._requested = dict(req.offsets)
         self._previewing = True
@@ -881,7 +881,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
             # One frame glitched, and the backend already retried it. The rest of the strip is still
             # coming.
             self._failed_frames.append(preview.slot)
-            self.status_strip.set_message(tr("Frame {slot} failed — continuing…", slot=preview.slot))
+            self.status_strip.set_message(tr("Frame {slot} failed. Continuing…", slot=preview.slot))
             return
         try:
             positive = preview_positive(preview.rgb, self._film_type)
@@ -913,7 +913,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
         if self._discovers and not self._failed_frames and not recut:
             found = len(self._tiles)
             self.status_strip.set_message(
-                tr("{value} detected — check the framing before scanning.", value=count_of(found, "frame"))
+                tr("{value} detected. Check the framing before scanning.", value=count_of(found, "frame"))
                 if found
                 else tr("No frames were detected on the loaded film.")
             )

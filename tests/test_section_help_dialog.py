@@ -1,5 +1,6 @@
 """The ⓘ in a section header and the guide it renders out of docs/USER_GUIDE.md."""
 
+import re
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -149,3 +150,10 @@ def test_clicking_info_asks_for_help_without_collapsing_the_section() -> None:
 
     assert requests == [1]
     assert section.toggle_button.isChecked()
+
+
+@pytest.mark.parametrize("key", GUIDED_KEYS)
+def test_a_panel_guide_stays_short(key: str) -> None:
+    """The ⓘ opens over the work: a panel that grows past one screen of reading is skipped."""
+    words = re.findall(r"[^\W\d_][\w'’-]*", guide_markdown(key))
+    assert len(words) <= 350, f"panel:{key} has {len(words)} words; cut it, the full detail belongs in docs/PIPELINE.md"

@@ -432,7 +432,7 @@ class ActionToolbar(QWidget):
             self.source_choice.set_choice_tooltip(i, tip)
 
         self.overlays_menu = ToggleMenuButton(
-            "fa5s.layer-group", "", tr("Overlays — marks drawn over the frame; none of them changes the edit")
+            "fa5s.layer-group", "", tr("Overlays: marks drawn over the frame. None of them changes the edit.")
         )
         self._overlay_actions = {}
         for flag, icon, label, key, tip, toggle in (
@@ -498,7 +498,7 @@ class ActionToolbar(QWidget):
         self._info_actions[1].setToolTip(tr("File name, scan size and film mode"))
         self._info_actions[2].setToolTip(tr("Adds the frame's place in the strip, film, camera and lens, the proof and the export size"))
 
-        self.btn_tools = MenuButton(tr("Tools — crop, straighten, the pickers, masks and retouching; each opens its own row here"))
+        self.btn_tools = MenuButton(tr("Tools: crop, straighten, the pickers, masks and retouching. Each opens its own row here."))
         self.btn_tools.setIcon(qta.icon("fa5s.tools", color=icon_color, color_disabled=THEME.text_muted))
         self._show_tools_name(True)
         self._fill_tools_menu(self.btn_tools.choice_menu)
@@ -506,13 +506,13 @@ class ActionToolbar(QWidget):
         # One-shot actions that otherwise live only in the ⋯ menu.
         self.btn_reference = self._action_button(
             qta.icon("fa5s.thumbtack", color=icon_color),
-            tr("Reference view — pin this frame beside the canvas to match others to it"),
+            tr("Reference view: pin this frame beside the canvas, to match others to it"),
             "toggle_reference",
             self._toggle_reference,
         )
         self.btn_light_table = self._action_button(
             qta.icon("fa5s.th", color=icon_color),
-            tr("Light Table — the roll as a grid in place of the canvas"),
+            tr("Light Table: the roll as film in place of the canvas"),
             "toggle_light_table",
             self._toggle_light_table,
         )
@@ -534,13 +534,13 @@ class ActionToolbar(QWidget):
         )
         self.btn_sync_bounds = self._action_button(
             qta.icon("fa5s.crosshairs", color=icon_color),
-            tr("Sync Bounds — give other frames this image's metering bounds, and nothing else"),
+            tr("Sync Bounds: give other frames this frame's measured black and white points, and nothing else"),
             "sync_bounds",
             lambda: open_sync_bounds_dialog(self, self.session),
         )
         self.btn_reset = self._action_button(
             qta.icon("fa5s.history", color=icon_color),
-            tr("Reset Settings — discard all edits and return this image to its default look"),
+            tr("Reset Settings: discard all edits and return this picture to its default look"),
             None,
             self.session.reset_settings,
         )
@@ -552,7 +552,7 @@ class ActionToolbar(QWidget):
         )
         self.btn_unload = self._action_button(
             qta.icon("fa5s.times-circle", color=icon_color),
-            tr("Unload — remove this image from the session (its saved edit is kept)"),
+            tr("Unload: remove this picture from the session. Its saved edit stays."),
             None,
             self._on_overflow_unload,
         )
@@ -564,7 +564,7 @@ class ActionToolbar(QWidget):
         )
         self.btn_preferences = self._action_button(
             qta.icon("fa5s.cog", color=icon_color),
-            tr("Preferences — interface, performance and storage settings for the whole app"),
+            tr("Preferences: interface, performance and storage settings for the whole app"),
             "open_preferences",
             self._show_preferences,
         )
@@ -612,17 +612,17 @@ class ActionToolbar(QWidget):
             "zoom_100",
         )
         reference_action = overflow_menu.addAction(tr("Reference View"), self._toggle_reference)
-        self._menu_tip(reference_action, tr("Reference view — pin this frame beside the canvas to match others to it"), "toggle_reference")
+        self._menu_tip(reference_action, tr("Reference view: pin this frame beside the canvas, to match others to it"), "toggle_reference")
         light_table_action = overflow_menu.addAction(tr("Light Table"), self._toggle_light_table)
-        self._menu_tip(light_table_action, tr("Light Table — the roll as a grid in place of the canvas"), "toggle_light_table")
+        self._menu_tip(light_table_action, tr("Light Table: the roll as film in place of the canvas"), "toggle_light_table")
         self._ov_compare_action = overflow_menu.addAction(tr("Before / After"))
         self._ov_compare_action.setCheckable(True)
-        self._menu_tip(self._ov_compare_action, tr("Before / After — split against the auto baseline, drag the divider"), "toggle_compare")
+        self._menu_tip(self._ov_compare_action, tr("Before / After: split against the default, drag the divider"), "toggle_compare")
         self._ov_flat_peek_action = overflow_menu.addAction(tr("Peek Flat Scan"))
         self._ov_flat_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_flat_peek_action,
-            tr("Peek flat scan — temporarily show the flat master (does not change your edit)"),
+            tr("Peek flat scan: show the flat master for a moment. Your edit does not change."),
             "toggle_flat_peek",
         )
         self._ov_negative_peek_action = overflow_menu.addAction(tr("Peek Negative"))
@@ -641,7 +641,7 @@ class ActionToolbar(QWidget):
         )
         self._ov_zones_action = overflow_menu.addAction(tr("Zone Overlay"))
         self._ov_zones_action.setCheckable(True)
-        self._menu_tip(self._ov_zones_action, tr("Zone overlay — show which Adams zone each part of the print falls in"), "toggle_zones")
+        self._menu_tip(self._ov_zones_action, tr("Zone overlay: show which zone each part of the print falls in"), "toggle_zones")
         self._ov_loupe_action = overflow_menu.addAction(tr("Grain Focuser"))
         self._ov_loupe_action.setCheckable(True)
         self._menu_tip(

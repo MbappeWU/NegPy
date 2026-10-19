@@ -49,9 +49,9 @@ _COLOR_CLIP_MAX = 5.0
 # Mode bar: one film icon per mode, with the color carrying which one. Orange mask,
 # silver grey, slide blue.
 _MODES = (
-    (ProcessMode.C41, tr("Color"), THEME.mode_c41, tr("Color Negative (C-41) — orange-masked negative")),
-    (ProcessMode.BW, tr("B&W"), THEME.mode_bw, tr("B&W Negative — panchromatic silver negative")),
-    (ProcessMode.E6, tr("Slide"), THEME.mode_e6, tr("Transparency — slide / reversal film")),
+    (ProcessMode.C41, tr("Color"), THEME.mode_c41, tr("Color Negative (C-41): orange-masked negative")),
+    (ProcessMode.BW, tr("B&W"), THEME.mode_bw, tr("B&W Negative: panchromatic silver negative")),
+    (ProcessMode.E6, tr("Slide"), THEME.mode_e6, tr("Transparency: slide or reversal film")),
 )
 
 

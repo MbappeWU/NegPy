@@ -1029,7 +1029,7 @@ def test_ejecting_drops_the_frame_selection_of_the_film_that_left() -> None:
 
     assert sidebar.settings.selected_frames == ()
     assert sidebar.settings.frame_windows == {}
-    assert "frame selection cleared" in sidebar.status_strip.message()
+    assert "Frame selection cleared" in sidebar.status_strip.message()
 
 
 def test_ejecting_drops_the_per_frame_corrections_of_the_film_that_left() -> None:
@@ -1080,7 +1080,7 @@ def test_the_unit_returning_the_strip_clears_what_an_eject_clears() -> None:
 
     assert (sidebar.settings.selected_frames, sidebar.settings.frame_windows, sidebar.settings.frame_offsets) == ((), {}, {})
     assert (sidebar.settings.frame_offset_mm, sidebar.settings.frame_offset_modifier_mm) == (1.5, 0.2)
-    assert sidebar.status_strip.message() == "The scanner sat idle long enough to return the strip — frame selection cleared"
+    assert sidebar.status_strip.message() == "The scanner sat idle long enough to return the strip. Frame selection cleared."
 
 
 def test_a_returned_strip_not_back_in_asks_for_it_again() -> None:
@@ -1089,7 +1089,7 @@ def test_a_returned_strip_not_back_in_asks_for_it_again() -> None:
     controller.scan_strip_returned.emit(False)
 
     assert sidebar.settings.selected_frames == ()
-    assert sidebar.status_strip.message() == "The scanner returned the strip while idle — insert it again"
+    assert sidebar.status_strip.message() == "The scanner returned the strip while idle. Insert it again."
 
 
 def test_film_removed_outside_negpy_drops_the_frame_selection() -> None:

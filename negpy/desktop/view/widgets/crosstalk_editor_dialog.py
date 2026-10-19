@@ -165,35 +165,14 @@ class CrosstalkEditorDialog(QDialog):
         for value, label in _TYPE_CHOICES:
             self.type_combo.addItem(label, value)
         self.type_combo.setToolTip(
-            tr(
-                "<table width='300'><tr><td>"
-                "Where these numbers came from — it groups the profile in the Matrix dropdown and tells "
-                "the next person how far to trust it.<br><br>"
-                "<b>Measured</b>: fitted against real scans of a known reference.<br>"
-                "<b>Tuned on a rig</b>: dialed in by eye on real frames. The default for anything you "
-                "edit here, and an honest claim.<br>"
-                "<b>From spec sheets</b>: read off published dye-density curves — describes the film's "
-                "dyes only, not your light or sensor. Every bundled profile is this."
-                "</td></tr></table>"
-            )
+            tr("Where these numbers came from: measured on a reference, tuned by eye on a rig, or read from film data sheets.")
         )
         rl.addLayout(field_row(tr("Type"), self.type_combo))
 
         self.process_combo = StepCombo()
         for value, label in _PROCESS_CHOICES:
             self.process_combo.addItem(label, value)
-        self.process_combo.setToolTip(
-            tr(
-                "<table width='300'><tr><td>"
-                "The film process these numbers describe. A matrix only reaches the render — and only "
-                "appears in the sidebar's Matrix dropdown — while NegPy is in this mode.<br><br>"
-                "Dye sets do not carry across: a color negative matrix does not describe a slide's dyes, so applying "
-                "one to a slide corrects a leak that is not there. Note also that on a positive an unmix "
-                "moves the render <i>away</i> from the slide's own color — use it as a separation "
-                "control, not for fidelity."
-                "</td></tr></table>"
-            )
-        )
+        self.process_combo.setToolTip(tr("The film type these numbers describe. The matrix shows and works only for this film type."))
         self.process_combo.currentIndexChanged.connect(lambda _i: self._emit_preview())
         rl.addLayout(field_row(tr("Process"), self.process_combo))
 
@@ -207,14 +186,14 @@ class CrosstalkEditorDialog(QDialog):
         info.setWordWrap(True)
         rl.addWidget(info)
 
-        self.readonly_hint = hint_label(tr("Bundled matrix — read-only. Make an editable copy to change it."))
+        self.readonly_hint = hint_label(tr("Bundled matrix, read-only. Make an editable copy to change it."))
         rl.addWidget(self.readonly_hint)
 
         rl.addWidget(self._build_matrix_rows())
 
         self.preview_strength_slider = CompactSlider(tr("Preview Strength"), 0.0, 1.0, 1.0, has_neutral=False)
         self.preview_strength_slider.setToolTip(
-            tr("How strongly the matrix previews here (view-only — set Crosstalk Strength in the sidebar to apply)")
+            tr("How strongly the matrix previews here. Set Crosstalk Strength in the sidebar to apply it.")
         )
         self.preview_strength_slider.valueChanged.connect(lambda _v: self._emit_preview())
         rl.addWidget(self.preview_strength_slider)

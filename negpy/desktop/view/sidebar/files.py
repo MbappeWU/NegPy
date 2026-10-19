@@ -1133,7 +1133,7 @@ class FileBrowser(QWidget):
 
         # Sheet filter dropdown
         self.sheet_btn = QToolButton()
-        self.sheet_btn.setToolTip(tr("Sheet — filter the contact sheet by triage mark"))
+        self.sheet_btn.setToolTip(tr("Sheet filter: show frames by their keep and reject marks"))
         self.sheet_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         sheet_menu = QMenu(self.sheet_btn)
         self._sheet_group = QActionGroup(self)
@@ -1183,7 +1183,7 @@ class FileBrowser(QWidget):
         saved_desc = self.session.repo.get_global_setting("file_sort_descending") or False
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText(tr("Filter — name, film:portra, iso:>=400…"))
+        self.search_input.setPlaceholderText(tr("Filter: name, film:portra, iso:>=400…"))
         self.search_input.setToolTip(
             tr("Filter the frames. A word matches the file name; terms such as film:portra iso:>=400 -rejected: match frame data.")
         )
@@ -1205,7 +1205,7 @@ class FileBrowser(QWidget):
         # Opt-in (Preferences); hidden until then. Mutually exclusive with regex/the
         # structured query language -- ranks this session's frames by meaning instead.
         self.semantic_action = self._box_toggle(
-            "mdi.image-search-outline", tr("Search by meaning — describe what you're looking for instead of using field:value terms")
+            "mdi.image-search-outline", tr("Search by meaning: describe what you are looking for, in place of field:value terms")
         )
         self.semantic_action.setVisible(False)
 
@@ -1270,13 +1270,13 @@ class FileBrowser(QWidget):
 
         self.hot_folder_action = QAction(tr("Hot Folder"), self)
         self.hot_folder_action.setCheckable(True)
-        self.hot_folder_action.setToolTip(tr("Hot Folder — automatically load new images from the current folder"))
+        self.hot_folder_action.setToolTip(tr("Hot Folder: load new images from the current folder as they appear"))
         # The ⋮ menu holds the switch; the row shows this while it is on, since a watched
         # folder keeps loading files. A click turns it off.
         self.hot_folder_btn = QToolButton()
         self.hot_folder_btn.setCheckable(True)
         self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_primary, color_on=THEME.text_on_accent))
-        self.hot_folder_btn.setToolTip(tr("Hot Folder is on — click to stop loading new images from the current folder"))
+        self.hot_folder_btn.setToolTip(tr("Hot Folder is on. Click to stop loading new images from the current folder."))
         self.hot_folder_btn.clicked.connect(lambda: self.hot_folder_action.setChecked(False))
         self.hot_folder_btn.setVisible(False)
 
@@ -1614,7 +1614,7 @@ class FileBrowser(QWidget):
     def _on_semantic_toggled(self, checked: bool) -> None:
         self.regex_action.setEnabled(not checked)
         self.search_input.setPlaceholderText(
-            tr("Describe what you're looking for…") if checked else tr("Filter — name, film:portra, iso:>=400…")
+            tr("Describe what you're looking for…") if checked else tr("Filter: name, film:portra, iso:>=400…")
         )
         self.filter_timer.start()
 
@@ -2018,10 +2018,10 @@ class FileBrowser(QWidget):
         way out that isn't waiting for it to finish."""
         if running:
             self.update_thumbnails_action.setText(tr("Cancel Thumbnail Update"))
-            self.update_thumbnails_action.setToolTip(tr("Cancel Thumbnail Update — stop the background refresh in progress"))
+            self.update_thumbnails_action.setToolTip(tr("Cancel Thumbnail Update: stop the background refresh in progress"))
         else:
             self.update_thumbnails_action.setText(tr("Update Thumbnails"))
-            self.update_thumbnails_action.setToolTip(tr("Update Thumbnails — re-render every stale thumbnail in the roll"))
+            self.update_thumbnails_action.setToolTip(tr("Update Thumbnails: re-render every out-of-date thumbnail in the roll"))
 
     def _build_session_menu(self) -> QMenu:
         """Mirrors the panel toolbar's add/clear tools, for a right click on empty space."""

@@ -46,10 +46,7 @@ class QuickScanPreviewDialog(RollPreviewSignalsMixin, QDialog):
         layout = QVBoxLayout(self)
 
         help_lbl = QLabel(
-            tr(
-                "Preview the current holder position, then drag to crop — a corner to resize, "
-                "inside to move. Use Apply Window (apply and return) or Scan (start scanning now)."
-            )
+            tr("Preview the holder, then drag to crop: a corner resizes, the inside moves. Apply Window keeps it; Scan starts scanning.")
         )
         help_lbl.setWordWrap(True)
         help_lbl.setStyleSheet(
@@ -151,7 +148,7 @@ class QuickScanPreviewDialog(RollPreviewSignalsMixin, QDialog):
         try:
             self._controller.start_roll_preview(req)
         except Exception as e:
-            self.status_strip.set_message(tr("Scanner busy — {e}", e=e))
+            self.status_strip.set_message(tr("Scanner busy: {e}", e=e))
             return
         self._previewing = True
         self._set_previewing(True)

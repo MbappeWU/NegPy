@@ -436,7 +436,7 @@ def composite_summary(asset: Dict[str, Any]) -> str:
     if kind == "half":
         return f"Half-frame split ({int(asset['half'])} of 2)"
     if kind == "diptych":
-        return tr("Diptych — both halves, each with its own edit")
+        return tr("Diptych: both halves, each with its own edit")
     return ""
 
 

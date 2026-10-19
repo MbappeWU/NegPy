@@ -145,14 +145,14 @@ class ZonePlacementRows(QWidget):
             self._target_labels[index].setText(zone_roman(target))
             if achieved is not None:
                 self._lands[index].setText(tr("→ lands {achieved}", achieved=achieved))
-                self._lands[index].setToolTip(tr("Outside the paper's scale at this grade and exposure — closest print shown."))
+                self._lands[index].setToolTip(tr("Outside the paper's range at this grade and exposure. The closest print is shown."))
             else:
                 self._lands[index].setText("")
                 self._lands[index].setToolTip("")
             self._lands[index].setVisible(achieved is not None)
             solvable = row_solvable
         self.apply_btn.setEnabled(solvable)
-        self.apply_btn.setToolTip(tr("The outer pins read the same tone — grade needs two different tones.") if not solvable else "")
+        self.apply_btn.setToolTip(tr("The outer pins read the same tone. Grade needs two different tones.") if not solvable else "")
         self.solving.setText(solving)
         self.solving.setVisible(bool(solving))
 

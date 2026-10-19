@@ -485,14 +485,7 @@ class ExportSettingsForm(QWidget):
         self.filename_edit.setPlaceholderText(tr("Filename Pattern…"))
         self.filename_edit.setToolTip(
             tr(
-                "Jinja2 template. Variables:\n"
-                "{{ original_name }}, {{ colorspace }}, {{ format }},\n"
-                "{{ paper_ratio }}, {{ size }}, {{ dpi }}, {{ target_px }},\n"
-                "{{ border }}, {{ date }},\n"
-                "{{ roll }}, {{ frame }}, {{ frame|pad(3) }}, {{ frame_padded }},\n"
-                "{{ camera }}, {{ lens }}, {{ film }}, {{ film_iso }}, {{ film_format }},\n"
-                "{{ developer }}, {{ push_pull }}, {{ scanning }}, {{ exposure }}\n"
-                "(see docs/TEMPLATING.md for the full list)"
+                "File name pattern, such as {{ original_name }}_{{ frame_padded }}. Other fields: {{ roll }}, {{ film }}, {{ camera }}, {{ date }}. docs/TEMPLATING.md lists them all."
             )
         )
         self.filename_edit.textChanged.connect(self._on_changed)

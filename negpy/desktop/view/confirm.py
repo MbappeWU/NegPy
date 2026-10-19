@@ -91,7 +91,7 @@ def confirm_unload(parent, *, clear_all: bool = False, count: int = 1) -> bool:
     box.setIcon(QMessageBox.Icon.Question)
     box.setWindowTitle(title)
     box.setText(text)
-    box.setInformativeText(tr("Your saved edits stay in the database — this only removes the frames from the list."))
+    box.setInformativeText(tr("Your saved edits stay in the database. This only removes the frames from the list."))
     box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
     box.setDefaultButton(QMessageBox.StandardButton.Yes)
     return box.exec() == QMessageBox.StandardButton.Yes

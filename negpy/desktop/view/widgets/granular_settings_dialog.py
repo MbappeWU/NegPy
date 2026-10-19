@@ -145,7 +145,7 @@ class GranularSettingsDialog(QDialog):
         )
         self.mode_choice.set_choice_tooltip(0, tr("Only the ticked settings change; the rest of each frame's edit stays"))
         self.mode_choice.set_choice_tooltip(
-            1, tr("Reset look settings to defaults first — crop, rotation, metadata, export and retouch marks stay")
+            1, tr("Reset look settings to defaults first. Crop, rotation, metadata, export and retouch marks stay.")
         )
         row.addWidget(self.mode_choice)
         row.addStretch()
@@ -464,7 +464,7 @@ def _apply_targets(session) -> tuple[int, int, int] | None:
     sel_targets = len([i for i in set(state.selected_indices) if i != src and i in visible])
     roll_targets = len([i for i in visible if i != src])
     if not sel_targets and not roll_targets:
-        session.settings_synced.emit(tr("Only one frame here — nothing to apply to"))
+        session.settings_synced.emit(tr("Only one frame here, so there is nothing to apply to."))
         return None
     return src, sel_targets, roll_targets
 

@@ -133,11 +133,20 @@ _CATEGORY_PLURAL_NOUN = {
 }
 
 _ADD_TOOLTIPS = {
-    key: f"Add a {singular.lower()} you own — pick one from the built-in list, or enter your own"
-    for key, singular in _CATEGORY_SINGULAR.items()
+    "cameras": tr("Add a camera you own: pick one from the built-in list, or enter your own"),
+    "lenses": tr("Add a lens you own: pick one from the built-in list, or enter your own"),
+    "film_stocks": tr("Add a film stock you use: pick one from the built-in list, or enter your own"),
+    "processes": tr("Add a development process: pick one from the built-in list, or enter your own"),
+    "scan_setups": tr("Add a scan setup: pick one from the built-in list, or enter your own"),
 }
 
-_DELETE_TOOLTIPS = {key: f"Remove this {singular.lower()} from your gear" for key, singular in _CATEGORY_SINGULAR.items()}
+_DELETE_TOOLTIPS = {
+    "cameras": tr("Remove this camera from your gear"),
+    "lenses": tr("Remove this lens from your gear"),
+    "film_stocks": tr("Remove this film stock from your gear"),
+    "processes": tr("Remove this process from your gear"),
+    "scan_setups": tr("Remove this scan setup from your gear"),
+}
 _DELETE_BUNDLED_TOOLTIP = tr("Built-in gear cannot be removed. Duplicate it to make your own copy.")
 
 
@@ -404,7 +413,7 @@ class GearItemsPanel(QWidget):
         self._rebuild_item_list()
         self._show_form_for_category(self._category)
         self._update_del_tooltip()
-        self.add_btn.setToolTip(wrap_tooltip(_ADD_TOOLTIPS.get(self._category, "Add item")))
+        self.add_btn.setToolTip(wrap_tooltip(_ADD_TOOLTIPS.get(self._category, tr("Add item"))))
 
     def _on_show_catalog_toggled(self, checked: bool) -> None:
         self._show_bundled = checked
@@ -475,7 +484,7 @@ class GearItemsPanel(QWidget):
     def _update_del_tooltip(self) -> None:
         item = self._selected_item()
         bundled = item is not None and item.is_bundled
-        text = _DELETE_BUNDLED_TOOLTIP if bundled else _DELETE_TOOLTIPS.get(self._category, "Delete")
+        text = _DELETE_BUNDLED_TOOLTIP if bundled else _DELETE_TOOLTIPS.get(self._category, tr("Delete"))
         self.del_btn.setToolTip(wrap_tooltip(text))
 
     def _selected_item(self):

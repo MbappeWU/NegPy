@@ -387,21 +387,21 @@ class ControlsPanel(QWidget):
             ),
             (
                 "tone",
-                tr("Exposure — Filtration, Tone, Paper Response, Dodge & Burn"),
+                tr("Exposure: Filtration, Tone, Paper Response, Dodge & Burn"),
                 tr("Exposure"),
                 [self.color_section, self.tone_section, self.paper_section, self.local_section],
                 ["color_section", "tone_section", "paper_section", "local_section"],
             ),
             (
                 "color",
-                tr("Look — Lab, Alternative Processes, Toning"),
+                tr("Look: Lab, Alternative Processes, Toning"),
                 tr("Look"),
                 [self.lab_section, self.altproc_section, self.toning_section],
                 ["lab_section", "altproc_section", "toning_section"],
             ),
             (
                 "finish",
-                tr("Finish — Retouch, Finishing"),
+                tr("Finish: Retouch, Finishing"),
                 tr("Finish"),
                 [self.retouch_section, self.finish_section],
                 ["retouch_section", "finish_section"],
@@ -459,12 +459,7 @@ class ControlsPanel(QWidget):
         if printing:
             return "Printing Pick Better…"
         return tooltip_with_shortcut(
-            tr(
-                "Pick Better: a separate window shows the current edit on top and two candidates below — "
-                "the stronger on the left, the weaker on the right. Click a candidate to keep it; the next "
-                "pair fills the same window. A fixed 22-round sequence runs first, then finer pairs. OK ends "
-                "the mode; Undo re-shows the previous pair."
-            ),
+            tr("Pick Better: shows two versions beside your edit. Click the better one; each round tunes one control."),
             "toggle_pick_better",
         )
 
@@ -946,7 +941,7 @@ class ControlsPanel(QWidget):
             )
         )
 
-    _DIPTYCH_HINT = tr("Diptych — the edits live on the halves. Turn Half Frame Mode on to edit either one.")
+    _DIPTYCH_HINT = tr("Diptych: the edits belong to the halves. Turn Half Frame Mode on to edit either one.")
 
     def _set_read_only(self, read_only: bool) -> None:
         """A diptych renders from the two halves' own configs, so this panel drives nothing.

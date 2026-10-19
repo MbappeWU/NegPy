@@ -635,7 +635,7 @@ class ScanSidebar(QWidget):
             self.status_strip.set_message(tr("Film loaded"))
             return
         stale = self._drop_strip_state()
-        self.status_strip.set_message(tr("Film removed — frame selection cleared") if stale else tr("Film removed"))
+        self.status_strip.set_message(tr("Film removed. Frame selection cleared.") if stale else tr("Film removed"))
 
     def _current_device(self) -> ScannerDevice | None:
         device_id = self.device_combo.currentData()
@@ -1502,16 +1502,16 @@ class ScanSidebar(QWidget):
             return
         self._media_loaded = False
         stale = self._drop_strip_state()
-        self.status_strip.set_message(tr("Film ejected — frame selection cleared") if stale else tr("Film ejected"))
+        self.status_strip.set_message(tr("Film ejected. Frame selection cleared.") if stale else tr("Film ejected"))
 
     @pyqtSlot(bool)
     def _on_strip_returned(self, loaded: bool) -> None:
         self._media_loaded = loaded
         stale = self._drop_strip_state()
         if not loaded:
-            message = tr("The scanner returned the strip while idle — insert it again")
+            message = tr("The scanner returned the strip while idle. Insert it again.")
         elif stale:
-            message = tr("The scanner sat idle long enough to return the strip — frame selection cleared")
+            message = tr("The scanner sat idle long enough to return the strip. Frame selection cleared.")
         else:
             message = tr("The scanner sat idle long enough to return the strip")
         self.status_strip.set_message(message)

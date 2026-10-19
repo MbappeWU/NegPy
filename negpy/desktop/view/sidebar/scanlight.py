@@ -340,7 +340,7 @@ class ScanlightSidebar(QWidget):
         )
         cam.addWidget(self._setup_hint)
         self._setup_hint.setVisible(not self._gphoto_available())
-        self._conn_hint = hint_label(tr("Connect the camera by USB, in PC Remote mode — it's detected automatically."))
+        self._conn_hint = hint_label(tr("Connect the camera by USB, in PC Remote mode. NegPy finds it by itself."))
         cam.addWidget(self._conn_hint)
         status_row = QHBoxLayout()
         status_row.setSpacing(THEME.space_lg)
@@ -461,7 +461,7 @@ class ScanlightSidebar(QWidget):
             (tr("Aperture"), "aperture", self.aperture_stepper),
         ):
             _stepper.setEnabled(False)  # read-only until "create a manual preset" unlocks it
-            _stepper.setToolTip(tr("Locked to the preset — pick Set by Hand under + to set it by hand."))
+            _stepper.setToolTip(tr("Locked to the preset. Pick Set by Hand under + to set it by hand."))
             _stepper.activated.connect(lambda _i, w=_which, s=_stepper: self._on_sidebar_exposure_changed(w, s))
             _exp.addLayout(field_row(_tag_text, _stepper))
         recipe.addWidget(self._exposure_widget)
@@ -828,7 +828,7 @@ class ScanlightSidebar(QWidget):
         if not self._camera_verified:
             # Defensive: the menu entry is greyed without a camera, but refuse here too. A hand-set recipe
             # steps through the body's own ISO/shutter/aperture choices.
-            self._set_status(tr("Connect the camera first — a hand-set recipe steps through its ISO / shutter / aperture choices"))
+            self._set_status(tr("Connect the camera first. A hand-set preset steps through its ISO, shutter and aperture choices."))
             return
         self.preset_combo.blockSignals(True)
         self.preset_combo.setCurrentIndex(-1)
@@ -945,7 +945,7 @@ class ScanlightSidebar(QWidget):
         # an arbitrary grey. Pushed DIRECTLY, leaving the shared sliders on the selected preset,
         # so cancelling restores the preset's own light. Calibration overwrites R/G/B on success.
         self.controller.set_scanlight_color(*REFERENCE_LEVELS, 0, self._settings.port)
-        self._set_status(tr("Calibrating a new preset — see the pop-up"))
+        self._set_status(tr("Calibrating a new preset. See the pop-up."))
 
     def _settings_json(self) -> dict:
         """The live-view settings JSON the stream publishes (ISO/shutter/aperture options + current),
@@ -1034,7 +1034,7 @@ class ScanlightSidebar(QWidget):
 
     def _on_calibrate_new_preset(self, name: str) -> None:
         if self._scanning:
-            self.calib_window.set_status(tr("A scan is running — wait for it to finish"))
+            self.calib_window.set_status(tr("A scan is running. Wait for it to finish."))
             return
         name = name.strip()
         if not name:
@@ -1227,8 +1227,7 @@ class ScanlightSidebar(QWidget):
             if self._lv_polls == 50 and self._lv_frames_seen == 0:  # ~4s without a frame
                 self._set_status(
                     tr(
-                        "No live-view image — is the camera in PC Remote? "
-                        "On macOS a background app such as a cloud sync client can be holding it; unplugging frees it."
+                        "No live-view image. Is the camera in PC Remote mode? On macOS, a background app such as a cloud sync client can hold the camera; unplug it to free it."
                     )
                 )
                 self._lv_target.set_loading(False)  # stop the spinner; the hint explains why
@@ -1541,7 +1540,7 @@ class ScanlightSidebar(QWidget):
             return
         self._set_status(
             tr(
-                "⚠ Live view failed — the camera stopped answering ({reason}). Reconnect or power-cycle the camera, then start Live View again.",
+                "⚠ Live view failed: the camera stopped answering ({reason}). Reconnect or power-cycle the camera, then start Live View again.",
                 reason=reason,
             ),
             pinned=True,
@@ -1604,7 +1603,7 @@ class ScanlightSidebar(QWidget):
         if self._magnifier_on:
             self.controller.set_focus_magnifier(False)
             self._magnifier_on = self._magnifier_seen = False
-            self._set_status(tr("Full frame — click the image to magnify"))
+            self._set_status(tr("Full frame. Click the image to magnify."))
 
     # ── live camera settings (ISO / shutter / aperture) ──────────
 
@@ -1843,7 +1842,7 @@ class ScanlightSidebar(QWidget):
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle(tr("Calibration Stopped"))
-        box.setText(tr("“{name}” was not saved — the film base is {label}.", name=name, label=label))
+        box.setText(tr("“{name}” was not saved: the film base is {label}.", name=name, label=label))
         box.setInformativeText(f"{cause} {fix[0].upper()}{fix[1:]}.")
         box.show()
         self._exposure_popup = box
@@ -1887,7 +1886,7 @@ class ScanlightSidebar(QWidget):
         if self._calibrating_preset:
             # Both ride one worker thread, so this would only queue, then fire with the exposure
             # the calibration is replacing.
-            self._set_status(tr("A calibration is running — wait for it to finish"))
+            self._set_status(tr("A calibration is running. Wait for it to finish."))
             return
         if self._scanning:
             return  # already capturing; a second click must not queue another frame
@@ -2015,7 +2014,7 @@ class ScanlightSidebar(QWidget):
         self.lv_window.flash_captured(frame)
         whole = not shot or shot[:3] == ("R", "G", "B")
         self._set_status(
-            tr("Captured frame {frame} — inverting in NegPy…", frame=frame)
+            tr("Captured frame {frame}. Inverting in NegPy…", frame=frame)
             if whole
             else tr("Captured the {channels} exposure of frame {frame}", channels=" + ".join(shot), frame=frame)
         )
@@ -2164,13 +2163,13 @@ class ScanlightSidebar(QWidget):
             set_hint_kind(self._conn_hint, "warning")
             self._conn_hint.setVisible(True)
             return
-        self._conn_hint.setText(tr("Connect the camera by USB, in PC Remote mode — it's detected automatically."))
+        self._conn_hint.setText(tr("Connect the camera by USB, in PC Remote mode. NegPy finds it by itself."))
         set_hint_kind(self._conn_hint, "muted")
         short = tr("Camera (USB)") if ok else tr("Camera")
         if ok:
             detail = tr("Camera: {model} (USB)", model=model) if model else tr("Camera connected (USB)")
         else:
-            detail = tr("no camera — plug it in over USB, in PC Remote mode")
+            detail = tr("no camera: plug it in over USB, in PC Remote mode")
         self._set_conn_status(self.cam_status, ok, short, detail)
         self._conn_hint.setVisible(not ok)  # the "connect the camera" nudge is only useful until it is
 
@@ -2260,7 +2259,7 @@ class ScanlightSidebar(QWidget):
             self.meter_btn.setEnabled(can_meter)
             self._ir_exposure_widget.setVisible(self._rgb_mode and self._light_has_ir)
         if missing:
-            self.scan_btn.setToolTip(wrap_tooltip(tr("Can't scan yet — ") + "; ".join(missing)))
+            self.scan_btn.setToolTip(wrap_tooltip(tr("Can't scan yet: ") + "; ".join(missing)))
             self.gate_hint.setText(tr("⚠ To scan: ") + ", ".join(missing) + tr("."))
             self.gate_hint.setVisible(True)
         else:
@@ -2287,9 +2286,9 @@ class ScanlightSidebar(QWidget):
             slider.setEnabled(editable)
         self.w_slider.setEnabled(False)  # the Scanlight can't light white with RGB → a manual RGB preset keeps W off
         tip = (
-            tr("Set it for this preset — steps through the camera's own values.")
+            tr("Set it for this preset, in the camera's own steps.")
             if exposure_editable
-            else tr("Locked to the preset — pick Set by Hand under + to set it by hand.")
+            else tr("Locked to the preset. Pick Set by Hand under + to set it by hand.")
         )
         for stepper in (self.iso_stepper, self.shutter_stepper, self.aperture_stepper):
             stepper.setEnabled(exposure_editable)

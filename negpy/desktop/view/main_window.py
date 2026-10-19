@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
             return
         if data is None and not self.state.monitor_profile_override and not getattr(self, "_icc_miss_notified", False):
             self._icc_miss_notified = True
-            self.canvas.hud.showMessage(tr("No monitor ICC profile detected — preview assumes sRGB"), 6000, kind="warning")
+            self.canvas.hud.showMessage(tr("No monitor ICC profile found. The preview assumes sRGB."), 6000, kind="warning")
         self.controller.set_monitor_detected(data)
 
     def _init_ui(self) -> None:
@@ -297,7 +297,7 @@ class MainWindow(QMainWindow):
                 0,
                 lambda: self.canvas.hud.showMessage(
                     tr(
-                        "GPU viewport failed to start — display runs on the CPU ({gpu_viewport_failed})",
+                        "GPU viewport failed to start, so the display runs on the CPU ({gpu_viewport_failed})",
                         gpu_viewport_failed=self.state.gpu_viewport_failed,
                     ),
                     8000,

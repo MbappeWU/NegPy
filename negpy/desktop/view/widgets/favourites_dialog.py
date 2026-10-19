@@ -50,9 +50,7 @@ class FavouritesDialog(QDialog):
         *,
         title: str = tr("Edit Favorites"),
         chosen_header: str = tr("FAVORITES"),
-        hint: str = tr(
-            "Drag to reorder. Favorites mirror the real controls — editing one here is the same as editing it in its own panel."
-        ),
+        hint: str = tr("Drag to reorder. A favorite is the same control as in its own card."),
         defaults: list[str] | None = None,
         repo=None,
     ):

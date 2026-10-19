@@ -25,7 +25,7 @@ from negpy.desktop.view.widgets.slippy_map import SlippyMapWidget
 from negpy.features.metadata.capture import format_coords, parse_coords
 from negpy.services.maps import place_fields, result_coords, reverse_place, search_places
 
-_OFFLINE_HINT = tr("Map unavailable — enter coordinates manually.")
+_OFFLINE_HINT = tr("Map unavailable. Enter coordinates by hand.")
 _NO_MATCH_HINT = tr("No place matched, or the lookup is unreachable.")
 # Lookups run on daemon threads that nothing joins: one stalled in DNS can outlive the dialog.
 _LOOKUP_SLOTS = threading.Semaphore(2)

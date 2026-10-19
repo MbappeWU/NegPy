@@ -73,10 +73,7 @@ class SensorCalibrationDialog(QDialog):
         root.setSpacing(10)
         intro = QLabel(
             tr(
-                "Pick three <b>bare-light</b> exposures — red-only, green-only and blue-only, with no film in the "
-                "holder and the same light and camera settings you scan with. NegPy measures the sensor's response "
-                "to each band and builds the correction. Expose just below clipping. With a tethered camera and a "
-                "Scanlight, <b>Capture from Camera…</b> shoots and measures the three exposures for you."
+                "Pick three <b>bare-light</b> exposures, red only, green only and blue only, with no film in the holder and the light and camera settings you scan with. Expose just below clipping. With a tethered camera and a Scanlight, <b>Capture from Camera…</b> shoots them for you."
             )
         )
         intro.setWordWrap(True)

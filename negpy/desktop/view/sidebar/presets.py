@@ -44,7 +44,7 @@ class PresetsSidebar(BaseSidebar):
         )
         self.save_btn = self._labeled_action("fa5s.save", tr(" Save…"), tr("Pick which of the current settings to store as a new preset"))
 
-        self.edit_btn = self._icon_action("fa5s.pen", tr("Edit the selected preset — rename it or change which settings it stores"))
+        self.edit_btn = self._icon_action("fa5s.pen", tr("Edit the selected preset: rename it or change which settings it stores"))
         self.delete_btn = self._icon_action("fa5s.trash", tr("Delete the selected preset"))
 
         row.addWidget(self.apply_btn, stretch=1)

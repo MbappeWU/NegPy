@@ -14,7 +14,7 @@ _LIGHT_HINT = {
     },
     "scanner": {
         "white": tr("A white lamp, as in Plustek, Epson and most flatbed scanners."),
-        "narrowband": tr("RGB-LED illumination — Nikon Coolscan, Kodak Pakon"),
+        "narrowband": tr("RGB LED light, as in a Nikon Coolscan or Kodak Pakon"),
     },
 }
 

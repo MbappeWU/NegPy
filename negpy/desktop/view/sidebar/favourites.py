@@ -45,7 +45,7 @@ class FavouritesSidebar(BaseSidebar):
         row.addStretch()
         self.layout.addLayout(row)
 
-        self.empty_hint = hint_label(tr("No favorites yet — use Edit Favorites to pick the sliders you reach for most."))
+        self.empty_hint = hint_label(tr("No favorites yet. Use Edit Favorites to pick the sliders you use most."))
         self.empty_hint.setWordWrap(True)
         self.layout.addWidget(self.empty_hint)
 

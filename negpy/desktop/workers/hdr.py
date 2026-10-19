@@ -106,7 +106,7 @@ class HdrWorker(QObject):
 
             shapes = {f.shape for f in frames}
             if len(shapes) > 1:
-                self.error.emit(tr("Bracket frames differ in size — they must be the same capture setup"))
+                self.error.emit(tr("Bracket frames differ in size. They must come from the same capture setup."))
                 return
 
             self.progress.emit(len(task.files), total, "Solving exposures")

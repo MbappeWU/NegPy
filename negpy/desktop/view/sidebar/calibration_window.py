@@ -101,7 +101,7 @@ class CalibrationWindow(QDialog):
         self.iso_stepper = SettingStepper()
         self.aperture_stepper = SettingStepper()
         for tag_text, stepper, tip in (
-            ("ISO", self.iso_stepper, tr("ISO — use what you will scan with")),
+            ("ISO", self.iso_stepper, tr("ISO: use the one you will scan with")),
             (tr("Aperture"), self.aperture_stepper, tr("Aperture (needs an electronically controlled lens)")),
         ):
             tag = hint_label(tag_text)

@@ -1390,7 +1390,7 @@ def test_calibration_outcome_survives_the_light_echo(monkeypatch):
     assert "Saved preset" in w.status_strip.message(), "the light echo must not clobber the calibration outcome"
     # The pin is not forever: the next user-driven status (a new flow) replaces it, and the ambient
     # light echo works again afterwards.
-    w._set_status("Calibrating a new preset — see the pop-up")
+    w._set_status("Calibrating a new preset. See the pop-up.")
     w._on_light_set(10, 20, 30, 0)
     assert w.status_strip.message() == "Light: R10 G20 B30"
 

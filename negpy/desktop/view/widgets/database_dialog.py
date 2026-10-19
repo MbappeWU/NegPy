@@ -234,8 +234,7 @@ class DatabaseDialog(QDialog):
         if not self._confirm(
             tr("Clear Library"),
             tr(
-                "Forget every roll in your library?\n\n"
-                "Only the roll records are cleared — the folders, your images and their edits are untouched."
+                "Forget every roll in your library?\n\nOnly the roll records are cleared. The folders, your images and their edits stay as they are."
             ),
             tr("Clear Library"),
             tr("You can import a folder as a roll again at any time."),
@@ -255,9 +254,7 @@ class DatabaseDialog(QDialog):
         if not self._confirm(
             tr("Reset Everything"),
             tr(
-                "Wipe the entire database — every saved edit, undo history, keep/reject mark, "
-                "flat-field profile, export preset, and all app preferences?\n\n"
-                "The app returns to a first-run state."
+                "Wipe the entire database: every saved edit, undo history, keep/reject mark, flat-field profile, export preset, and all app preferences?\n\nThe app returns to its first-run state."
             ),
             tr("Reset Everything"),
         ):

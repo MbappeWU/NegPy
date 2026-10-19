@@ -351,7 +351,7 @@ class PreferencesDialog(QDialog):
                 )
         else:
             self.gpu_box.setEnabled(False)
-            grid.addWidget(hint_label(tr("No GPU available on this hardware — the CPU pipeline is in use.")), row, 0, 1, 2)
+            grid.addWidget(hint_label(tr("No GPU available on this hardware. NegPy uses the CPU.")), row, 0, 1, 2)
         row += 1
 
         self.semantic_box = self._add_checkbox(
@@ -529,7 +529,7 @@ class PreferencesDialog(QDialog):
         set_parallel_enabled(bool(checked))
         self.repo.save_global_settings({"cpu_parallel": bool(checked), "cpu_parallel_active": bool(checked)})
         self.controller.set_status(
-            tr("Multi-core CPU rendering on — turn it off if the app closes unexpectedly")
+            tr("Multi-core CPU rendering is on. Turn it off if the app closes unexpectedly.")
             if checked
             else tr("Multi-core CPU rendering off"),
             5000,

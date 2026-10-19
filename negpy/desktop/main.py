@@ -82,7 +82,7 @@ class AppEventFilter(QObject):
             elif tip and isinstance(obj, QAbstractButton) and not obj.text():
                 # The shortcut chips follow the text as a table; the name is the text before them.
                 plain = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", tip.split("<table", 1)[0])).split())
-                obj.setAccessibleName(plain.split(" — ", 1)[0])
+                obj.setAccessibleName(re.split(r": | — ", plain, maxsplit=1)[0])
         return False
 
 

@@ -2981,7 +2981,7 @@ class AppController(QObject):
             return
         self.set_status(
             tr(
-                "Scan too large for available GPU memory — showing a {capped_long_edge}px preview instead of full resolution.",
+                "Scan too large for the GPU memory. Showing a {capped_long_edge}px preview in place of full resolution.",
                 capped_long_edge=capped_long_edge,
             ),
             5000,
@@ -3742,10 +3742,10 @@ class AppController(QObject):
         self._fill_paper_grid()
         self.test_strip_changed.emit(True)
         if self.state.test_strip_kind == "paper":
-            self.set_status(tr("Paper test strip ready — click a paper to see it on the whole frame"), 4000)
+            self.set_status(tr("Paper test strip ready. Click a paper to see it on the whole frame."), 4000)
             return
         label = tr("Ring-around") if self.state.test_strip_kind == "color" else tr("Test strip")
-        self.set_status(tr("{label} ready — click a patch to keep it", label=label), 4000)
+        self.set_status(tr("{label} ready. Click a patch to keep it.", label=label), 4000)
 
     def rotate_test_strip(self, direction: int) -> bool:
         """Turn the ladder rather than the image while a proof is on the canvas; True = consumed.
@@ -3924,7 +3924,7 @@ class AppController(QObject):
         self.pick_better_ready.emit(current, left, right)
         if not already_up:
             self.pick_better_changed.emit(True)
-        self.set_status(tr("Pick Better ready — click the better candidate"), 4000)
+        self.set_status(tr("Pick Better ready. Click the better version."), 4000)
 
     def pick_better_select(self, side: int) -> None:
         """Commit the chosen candidate's field, then propose the next pair.
@@ -4873,7 +4873,7 @@ class AppController(QObject):
         rx, ry = CoordinateMapping.map_click_to_raw(nx, ny, uv_grid)
         line = trace_scratch(preview, rx, ry, self.state.config.retouch.scratch_threshold)
         if line is None:
-            self.set_status(tr("No scratch found there — click directly on the line"), 3000, kind="warning")
+            self.set_status(tr("No scratch found there. Click right on the line."), 3000, kind="warning")
             return
         self.session.update_config(
             replace(
@@ -5289,7 +5289,7 @@ class AppController(QObject):
             None,
             title,
             tr(
-                "{sheet_note}{crop_status}\n{crop_warning}\n\n{summary} A frame whose color is far from the rest keeps its own exposure and color.\n\nTwo settings from the image you have open right now are applied to every file before averaging:\n  • Analysis Buffer — shrinks the analyzed region inward, excluding a margin around the edges (film borders, light leaks, the scanner mask). A frame with its own drawn analysis region meters that region instead.\n  • Luma Range Clip — how aggressively the highlight/shadow tails are clipped when setting each file's bounds.\nSet both on the current frame before running.\n\nContinue?",
+                "{sheet_note}{crop_status}\n{crop_warning}\n\n{summary} A frame whose color is far from the rest keeps its own exposure and color.\n\nTwo settings from the image you have open right now are applied to every file before averaging:\n  • Analysis Buffer: shrinks the analyzed region inward, excluding a margin around the edges (film borders, light leaks, the scanner mask). A frame with its own drawn analysis region meters that region instead.\n  • Luma Range Clip: how aggressively the highlight/shadow tails are clipped when setting each file's bounds.\nSet both on the current frame before running.\n\nContinue?",
                 sheet_note=sheet_note,
                 crop_status=crop_status,
                 crop_warning=crop_warning,
@@ -5804,7 +5804,7 @@ class AppController(QObject):
 
     def undo_roll_push(self) -> None:
         if not self.can_undo_roll_push():
-            self.set_status(tr("Nothing to undo — no Apply to Roll from this frame"), 2500)
+            self.set_status(tr("Nothing to undo: this frame has no Apply to Roll."), 2500)
             return
         roll_id, frame_hash, pushed, snapshot = self._roll_push_undo
         self._roll_push_undo = None
@@ -6683,7 +6683,7 @@ class AppController(QObject):
         self.session.asset_model.refresh()
         if file_hash == self.state.current_file_hash and asset.get("path"):
             self.load_file(asset["path"])
-        self.set_status(tr("Diptych unsplit — the halves' edits are deleted"), 4000)
+        self.set_status(tr("Diptych unsplit. The halves' edits are deleted."), 4000)
 
     def request_fork_edit_for_roll(self) -> None:
         """Give the active frame its own edit under the active roll, seeded from the
@@ -7835,7 +7835,7 @@ class AppController(QObject):
         root = os.path.join(get_default_user_dir(), name)
         destination = os.path.join(root, subfolder) if subfolder else root
         self.set_status(
-            tr('"{name}" has no single folder — exporting to {destination}', name=name, destination=destination), 6000, kind="warning"
+            tr('"{name}" has no single folder, so it exports to {destination}', name=name, destination=destination), 6000, kind="warning"
         )
         return root
 
@@ -8770,7 +8770,7 @@ class AppController(QObject):
 
         if metrics.get("gpu_fallback") and not self._gpu_fallback_notified:
             self._gpu_fallback_notified = True
-            self.set_status(tr("GPU acceleration failed — using CPU"), 5000, kind="warning")
+            self.set_status(tr("GPU acceleration failed. Using the CPU."), 5000, kind="warning")
 
         # A render already in flight when the peek went on would otherwise repaint over it.
         if self.state.negative_peek:

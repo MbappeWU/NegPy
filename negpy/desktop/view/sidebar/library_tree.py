@@ -218,7 +218,7 @@ class LibraryTree(QWidget):
         self.import_btn = QToolButton()
         self.import_btn.setIcon(qta.icon("mdi6.folder-plus-outline", color=THEME.text_primary))
         self.import_btn.setText(tr("Import"))
-        self.import_btn.setToolTip(wrap_tooltip(tr("Import — a folder as a roll, or its subfolders as one roll each")))
+        self.import_btn.setToolTip(wrap_tooltip(tr("Import a folder as a roll, or its subfolders as one roll each")))
         self.import_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         import_menu = QMenu(self.import_btn)
         import_menu.addAction(tr("Import Folder as a Roll…")).triggered.connect(self.prompt_import_folder)
@@ -236,7 +236,7 @@ class LibraryTree(QWidget):
         self.refresh_action.setToolTip(tr("Find new rolls in imported folders, and recount the frames of each roll."))
         self.refresh_action.triggered.connect(self.refresh)
         self.filters_action = more_menu.addAction(tr("Discovery Filters…"))
-        self.filters_action.setToolTip(tr("Discovery Filters — folder names that importing subfolders and Refresh skip"))
+        self.filters_action.setToolTip(tr("Discovery Filters: folder names that importing subfolders and Refresh skip"))
         self.filters_action.triggered.connect(self.edit_discovery_filters)
         # Opt-in (Preferences); hidden until then. Decodes and embeds every photo
         # under library_roots once, so search by meaning can rank the whole library,
@@ -500,7 +500,7 @@ class LibraryTree(QWidget):
         item.setIcon(0, qta.icon("mdi6.folder-outline" if is_folder else "mdi6.text-search", color=THEME.text_secondary))
         if missing:
             item.setToolTip(0, tr("Folder not found on disk: {path}", path=folder_path))
-            item.setToolTip(1, tr("Folder not found on disk — move it back, or delete the roll"))
+            item.setToolTip(1, tr("Folder not found on disk. Move it back, or delete the roll."))
         else:
             item.setToolTip(0, folder_path if is_folder else tr("Built from a search or a hand-picked set of frames"))
         return item
@@ -665,20 +665,20 @@ class LibraryTree(QWidget):
         self.rolls_changed.emit()
 
     def _delete_roll(self, roll_id: str, name: str) -> None:
-        if confirm_delete_named(self, "Roll", name, informative=tr("This only forgets the roll — nothing on disk is touched.")):
+        if confirm_delete_named(self, "Roll", name, informative=tr("This only forgets the roll. Nothing on disk changes.")):
             rolls.delete_roll(self.repo, roll_id)
             self.reload()
             self.rolls_changed.emit()
 
     def _delete_folder(self, folder_path: str, name: str) -> None:
-        if confirm_delete_named(self, "Folder", name, informative=tr("This forgets every roll in it — nothing on disk is touched.")):
+        if confirm_delete_named(self, "Folder", name, informative=tr("This forgets every roll in it. Nothing on disk changes.")):
             rolls.delete_folder_rolls(self.repo, folder_path)
             self.reload()
             self.rolls_changed.emit()
 
     def _delete_rolls(self, selection: list[tuple]) -> None:
         names = [name for _roll_id, name in selection]
-        if confirm_delete_several(self, "Roll", names, informative=tr("This only forgets the roll records — nothing on disk is touched.")):
+        if confirm_delete_several(self, "Roll", names, informative=tr("This only forgets the roll records. Nothing on disk changes.")):
             for roll_id, _name in selection:
                 rolls.delete_roll(self.repo, roll_id)
             self.reload()
