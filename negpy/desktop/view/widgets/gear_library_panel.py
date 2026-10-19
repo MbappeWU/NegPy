@@ -138,7 +138,7 @@ _ADD_TOOLTIPS = {
 }
 
 _DELETE_TOOLTIPS = {key: f"Remove this {singular.lower()} from your gear" for key, singular in _CATEGORY_SINGULAR.items()}
-_DELETE_BUNDLED_TOOLTIP = tr("Built-in gear can't be removed — duplicate it to make your own copy")
+_DELETE_BUNDLED_TOOLTIP = tr("Built-in gear cannot be removed. Duplicate it to make your own copy.")
 
 
 _PRESET_ROW_WIDGETS: dict[str, tuple[str, ...]] = {

@@ -158,12 +158,7 @@ class MetadataSidebar(BaseSidebar):
         self.capture_date_edit = QLineEdit()
         self.capture_date_edit.setPlaceholderText(CAPTURE_DATE_HINT)
         self.capture_date_edit.setText(conf.capture_date)
-        self.capture_date_edit.setToolTip(
-            tr(
-                "When the frame was shot. Give only what you know: a year, a year and month, "
-                "a date, or a date and time. An offset like +02:00 may follow a time."
-            )
-        )
+        self.capture_date_edit.setToolTip(tr("When the picture was taken: a year, a month, a date, or a date and time."))
         cap.addWidget(self.capture_date_edit)
 
         cap.addWidget(field_label(tr("Place")))
@@ -171,7 +166,7 @@ class MetadataSidebar(BaseSidebar):
         place_row.setSpacing(THEME.space_sm)
         self.place_edit = QLineEdit()
         self.place_edit.setPlaceholderText(tr("Pick on a map, or paste coordinates"))
-        self.place_edit.setToolTip(tr("Capture place. Paste a coordinate pair or a map link here, or use Map… to pick one."))
+        self.place_edit.setToolTip(tr("Where the picture was taken. Paste coordinates or a map link, or use Map… to pick a place."))
         place_row.addWidget(self.place_edit, 1)
         self.place_map_btn = self._icon_action("fa5s.map-marked-alt", tr("Pick the capture place on a map (contacts OpenStreetMap)"))
         place_row.addWidget(self.place_map_btn)
@@ -300,7 +295,7 @@ class MetadataSidebar(BaseSidebar):
 
         # ── EXPOSURE ─────────────────────────────────────────────────────
         exp_body, exp = self._card_body()
-        exp.addWidget(hint_label(tr("Optional original capture exposure — click the lock to edit")))
+        exp.addWidget(hint_label(tr("The exposure of the original shot, if you know it. Click the lock to edit.")))
 
         self.exposure_label = field_label(tr("Exposure"))
         exp.addWidget(self.exposure_label)
@@ -353,10 +348,7 @@ class MetadataSidebar(BaseSidebar):
         self.protect_btn = self.preview_section.add_header_toggle("fa5s.shield-alt", tr("Protect Original Metadata"))
         self.protect_btn.setToolTip(
             wrap_tooltip(
-                tr(
-                    "Protect Original Metadata: copy EXIF and XMP from the source file onto exports without "
-                    "adding or changing metadata. The Shot and Process cards are ignored while this is on."
-                )
+                tr("Protect Original Metadata: export the source file's own metadata unchanged. The Shot and Process cards are not used.")
             )
         )
         self.protect_btn.setChecked(conf.protect_original_metadata)

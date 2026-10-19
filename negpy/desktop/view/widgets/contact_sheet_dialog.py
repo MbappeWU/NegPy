@@ -410,7 +410,7 @@ class ContactSheetDialog(QDialog):
 
         self.order_btn = ChoiceButton(
             tuple(("", order) for order in _ORDERS),
-            tr("Date: the order the frames were made. Scene: a new strip for each scene, metered on its own in a straight proof"),
+            tr("Date: in the order the frames were taken. Scene: a new strip for each scene."),
         )
         scene_action = self.order_btn.choice_menu.actions()[_BY_SCENE]
         scene_action.setEnabled(self._has_scenes)
@@ -465,11 +465,7 @@ class ContactSheetDialog(QDialog):
             "fa5s.film",
             tr(" Film Base"),
             settings.film_base,
-            tr(
-                "Print the film base black, as a darkroom contact print. Off prints it as paper, with the strip outlined, the "
-                "edge print and frame numbers in dark ink and the perforations as rings, so a home printer inks the frames, "
-                "the markings, the outline and the rings alone"
-            ),
+            tr("Print the film base black, as a darkroom contact print does. Off saves ink on a home printer."),
         )
         self.film_base_btn.setEnabled(self.white_btn.isChecked())
         self.white_btn.toggled.connect(self.film_base_btn.setEnabled)

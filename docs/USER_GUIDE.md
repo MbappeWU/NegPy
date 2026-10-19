@@ -582,175 +582,147 @@ A new profile becomes the default for the next roll.
 
 ## 11. Metadata tab
 
-Metadata for the original analog capture (camera, lens, film, process), written into every export as EXIF and XMP, so a DAM such as Lightroom shows your film gear, not the scanner.
+Details about how you took and developed the picture: camera, lens, film and process. NegPy writes them into every export, so photo apps such as Lightroom show your film gear, not your scanner.
 
-**Metadata Preview** is pinned on top: fold it to its header, or drag the grip under it to set its height. Under it, **Shot** holds Analog Gear, Capture and Exposure, and **Process** holds Process and Scanning; a dot marks a tab with an edited card. The two icon tabs after them are **Presets** and **My Gear**.
-
-**Analog Gear**, **Capture**, **Process**, **Scanning** and **Exposure** are roll-wide by default ([§1](#frame-or-roll)). The frame number is always per frame.
+**Metadata Preview** is at the top. Under it, **Shot** holds Analog Gear, Capture and Exposure, and **Process** holds Process and Scanning. The two icon tabs are **Presets** and **My Gear**. These cards apply to the whole roll at first ([§1](#frame-or-roll)); the frame number is always per frame.
 
 <!-- panel:metadata_gear -->
 ### Analog Gear
 
-Searches your own gear (the **My Gear** tab). **Other…** opens the full built-in catalog.
-
-*   **Camera / Lens / Film stock**: empty means not set.
+*   **Camera / Lens / Film stock**: pick from your own gear (the **My Gear** tab). **Other…** opens the full built-in catalog.
 *   **Clear**: empties all three.
-*   **Infer from folder name**: fills unset camera, film stock, ISO and capture date from the folder name; an ambiguous field stays empty.
+*   **Infer from folder name**: fills empty fields (camera, film, ISO, date) from the folder name.
 
 <!-- panel:metadata_capture -->
 ### Capture
 
-*   **Date**: `1998`, `1998-07`, `1998-07-14` or `1998-07-14 16:30`, with an optional offset such as `+02:00`. EXIF pads a partial date; XMP keeps the short form. The scan's own timestamp moves to `DateTimeDigitized`.
-*   **Place**: the map-pin button opens a map; the field also takes a coordinate pair or an OpenStreetMap/Google Maps link. A place replaces the source's GPS; with none set, a geotagged source keeps its own. The map contacts OpenStreetMap.
+*   **Date**: when you took the picture, as `1998`, `1998-07`, `1998-07-14` or `1998-07-14 16:30`.
+*   **Place**: the pin button opens a map. You can also paste coordinates or a map link. The map uses OpenStreetMap.
 
 <!-- panel:metadata_process -->
 ### Process
 
-*   **Saved process**: a library recipe that fills Developer, Dilution, Push / Pull, Time and Temperature. Typing over one unlinks it.
-*   **Format**: `—` (not set), `35mm`, `120`, `4×5`, `8×10`, `110`, or `Other` (free text).
+How the film was developed.
+
+*   **Saved process**: a recipe from My Gear that fills the fields below. Typing over a field unlinks it.
+*   **Format**: the film size, such as `35mm`, `120` or `4×5`.
 *   **Developer** and **Dilution**: for example `D-76` and `1+1`.
-*   **Push / Pull**: `Push +3` … `Normal` … `Pull -3`.
-*   **Time** and **Temperature (°C)**: time as `9:30` or minutes; searchable as `devtime:` and `temp:`.
-*   **Clear**: empties the saved process and its fields. Format stays.
+*   **Push / Pull**: from `Push +3` to `Pull -3`.
+*   **Time** and **Temperature (°C)**: time as `9:30` or in minutes.
+*   **Clear**: empties the process fields.
 
 <!-- panel:metadata_scanning -->
 ### Scanning
 
-*   **Saved setup**: a library digitizing setup that fills Scanning. Typing over it unlinks it.
-*   **Scanning**: scan method or notes. EXIF `Software` is always `NegPy`.
-*   **Clear**: empties the saved setup and the note.
-*   **Roll / Frame**: the capture roll name and frame number, stamped on capture; filename template fields `{{ roll }}` and `{{ frame }}`.
-*   **Sequence…**: assign a running capture frame number to the selected frames or the whole roll, in film order. Set a start number, a step and ascending or descending order, and each frame gets its own number. Tick **Skip Rejected Frames** to leave frames in the rejected state out of the run.
+*   **Saved setup**: a scanning setup from My Gear.
+*   **Scanning**: how you scanned, or notes.
+*   **Roll / Frame**: the roll name and frame number. File names can use them (`{{ roll }}`, `{{ frame }}`).
+*   **Sequence…**: numbers the selected frames, or the whole roll, in film order. Set the start, the step and the direction; **Skip Rejected Frames** leaves rejects out.
+*   **Clear**: empties the setup and the note.
 
 <!-- panel:metadata_exposure -->
 ### Exposure
 
-Optional original shutter, aperture and ISO. Click the lock to edit a free-text string such as `1/125s f/2.8 ISO 400`.
+The shutter speed, aperture and ISO of the original shot, if you know them. Click the lock to type free text such as `1/125s f/2.8 ISO 400`.
 
 <!-- panel:metadata_preview -->
 ### Metadata Preview
 
-A live view of what goes into the file. The shield in its header, **Protect Original Metadata**, copies the source's own EXIF/XMP and resolution unchanged instead, and grays out the Shot and Process cards. **Description…** picks the fields joined into EXIF `ImageDescription` (default: camera, lens, film stock, ISO); the choice becomes the default for frames without their own.
+Shows what goes into the exported file. The shield button, **Protect Original Metadata**, exports the source file's own metadata unchanged instead. **Description…** picks the fields that make up the image description (camera, lens, film and ISO at first).
 
-Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`. A star rating set in the camera carries over as `xmp:Rating`.
+Camera, lens and film go into the standard EXIF fields, and your scanner into NegPy's own XMP fields. A star rating set in the camera carries over.
 
 <!-- panel:gear_items -->
 ### My Gear
 
-Your gear library, for Metadata, Roll Settings and every gear picker. **Category**: **Cameras**, **Lenses**, **Film Stocks**, **Process** (a development recipe) or **Scanning** (a digitizing setup). Your gear is saved to `~/NegPy/gear/`.
+Your gear list, used by every gear picker. **Category** picks **Cameras**, **Lenses**, **Film Stocks**, **Process** (development recipes) or **Scanning** (scanning setups). It is saved in `~/NegPy/gear/`.
 
-*   **+**: copy an item from the built-in catalog into your list, or **Add Custom** to enter one by hand.
-*   **Catalog**: also shows the built-in reference models. Off by default.
-*   **copy / trash**: duplicate or delete the selected item. Built-in entries cannot be deleted.
+*   **+**: copy an item from the built-in catalog, or **Add Custom** to type one in.
+*   **Catalog**: also show the built-in models.
+*   **Copy / Trash**: duplicate or delete the selected item. Built-in items cannot be deleted.
 
 <!-- panel:gear_presets -->
 ### Presets
 
-Saved sets of metadata values in `~/NegPy/presets/metadata/`. Each row names the fields its preset stores.
+Saved sets of metadata, such as one camera, lens and film. They are saved in `~/NegPy/presets/metadata/`.
 
-*   **Apply to This Frame**: writes the selected preset's fields onto this frame; other fields stay. Off while Protect Original Metadata is on.
-*   **+**: stores the current frame's metadata under a name.
-*   **⋮** on a preset, or a right-click: apply, duplicate, edit or delete it.
-*   **Details**: edit the selected preset's fields in place; the pen renames it or changes which fields it stores. Per-frame fields (capture date, place, description) are read-only here. **Notes** is free text.
+*   **Apply to This Frame**: writes the preset's fields onto this frame; other fields stay.
+*   **+**: saves the current frame's metadata under a name.
+*   **⋮** or right-click a preset: apply, duplicate, edit or delete it.
+*   **Details**: edit the preset's fields. **Notes** is free text.
 
-Gear applies as one unit (camera, lens, film stock, format). A film stock sets the format, so set a frame format such as `6×7` after the stock. Presets never store the frame number.
+A film stock sets the format, so set a format such as `6×7` after the stock.
 
 ---
 
 ## 12. Export tab
 
-**Export** is pinned at the bottom of the tab. Above it, **File** holds the output settings and **Proof** the soft proof, with a dot while Proof on Screen is on. The two icon tabs after them are **Presets** and **Alongside Exports**.
+The **Export** button is at the bottom of the tab. Above it, **File** holds the output settings and **Proof** the soft proof. The two icon tabs are **Presets** and **Alongside Exports**.
 
 ### Output intent
 
-*   **Print** (default): the look you see on screen.
-*   **Flat**: a neutral, low-contrast master for editing elsewhere. It skips the print look, effects, toning and vignette, and writes a 16-bit TIFF, or lossless JPEG XL when JXL is selected with sRGB, P3, Rec 2020 or Grayscale.
-    *   **Preview Flat**: shows the flat master on the canvas.
-    *   Run **Roll Analysis** (Roll tab) before a flat batch so the masters match.
-*   **Linear**: writes the decoded buffer as linear 16-bit, with rotation, flip and only the corrections turned on below. **TIFF** (default, untagged) or **JPEG XL** (lossless; tagged with sRGB primaries, which is wrong for native primaries). **Effort** (1 to 9, default 7) trades JPEG XL speed for size.
-    *   **LinearRaw DNG**: SilverFast HDRi (3-channel) and VueScan (4-channel RGB+IR). IR goes to a separate grayscale `_ir` file.
-    *   **Camera RAW**: demosaiced at unity white balance with the Raw Decode card's Export algorithm (§10.7); as-shot WB goes to XMP (`RAW-WB: R G B`). Trichrome triplets merge into one TIFF.
-    *   **Coolscan NEF**: not raw sensor data but the Nikon Scan output; the full-resolution RGB is written.
-    *   **Flextight FFF**: 16-bit RGB and LogLuv raw (`.3fr`/`.fff`); FlexColor metadata is kept.
-    *   **Noritsu RAW**: headerless BGR 16-bit dumps; size detected from file size.
-    *   **TIFF**: IR (a 4th channel, an `_ir.tif` sidecar or a second page) goes to a separate `_ir` file. **Input gamma** (linear, 1.8, 2.2 or sRGB) linearizes the data.
-    *   **Expansion**: scales the data before writing. Defaults: Pakon RAW 4× (the 16-bit F335 off), Noritsu RAW 16×, LinearRaw DNG off. Camera RAW, Coolscan NEF and Flextight FFF have none.
-    *   **IR Dust Removal** (when IR exists): IR dust and scratch correction. Off by default.
-    *   **Corrections** (camera RAW only, all off): **White Balance** (as-shot gains), **Flat Field**, **Sensor Correction** (crosstalk unmixing). Stitch composites always get Flat Field and sensor correction per part.
-    *   **Lens Correction** (off; shown when the frame has a lens profile or a **Distortion Correction**): applies the **Optics** correction (§10.8). The embedded profile needs a single camera RAW; Distortion Correction skips half-frame scans.
+*   **Print** (default): the picture as you see it.
+*   **Flat**: a flat, low-contrast master for editing in another app. It skips the print look and the effects, and writes a 16-bit file. **Preview Flat** shows it on the canvas. Run **Roll Analysis** first so the masters of a roll match.
+*   **Linear**: the raw scan data before NegPy's processing, as a 16-bit TIFF or JPEG XL, for a raw workflow in another app. It reads camera RAW, LinearRaw DNG, Coolscan NEF, Flextight, Noritsu and Pakon files and TIFF scans. Options for infrared, white balance, flat field, sensor and lens correction are off at first. File names get `_linear`, so a source is never overwritten.
 
-    Files take `_linear` (then `_linear_2`… without **Overwrite Existing Files**), so a source is never overwritten. The file carries no ICC profile. **Abort** stops after the current frame.
+### File settings
 
-### Format / Size / Color Management / Destination
-
-*   **Format**: `JPEG`, `TIFF`, `PNG`, `JPEG XL` or `WebP`, each with quality or effort options. JPEG XL supports only `sRGB`, `P3 D65`, `Rec 2020` or `Grayscale`.
-*   **Bit Depth**: `8-bit` or `16-bit` (TIFF, PNG, JPEG XL).
-*   **Compression** (TIFF): `Uncompressed`, `LZW` or `ZIP`, all lossless; ZIP is usually smallest.
-*   **Compression** (PNG): `0` to `9`, lossless; higher is slower and smaller.
-*   **Progressive** (JPEG): renders in passes while it downloads.
-*   **Input ICC**: treats an untagged source as this profile (primaries only; a LUT profile's input curves still apply).
-*   **Export profile**: the space the file is converted to and tagged with: `Same as Source` (Adobe RGB for an untagged scan), `sRGB`, `Adobe RGB`, `ProPhoto RGB`, `P3 D65`, `Rec 2020`, `Grayscale` (true B&W), or an imported printer or paper ICC, embedded in the file. A warning shows when the soft proof targets a different profile than the export.
-*   **Import ICC**: copies a `.icc`/`.icm` into `~/NegPy/icc/`. A file named after a built-in space (`sRGB.icc`) replaces that space everywhere, after a confirmation.
-*   **Paper Aspect Ratio**: final print ratio, or *Original* (no resize).
-*   **Resolution**: *Original* (full resolution), *Print* (long-edge **Size** in cm plus **DPI**) or *Pixels* (**Long edge** in px). The DPI tag is your value (*Print*), the value the long edge implies (*Pixels*), or the source's, else the **DPI** field (*Original*).
-*   **Sharpening** (0.0 to 1.0, *Print* and *Pixels*): sharpens the export after the resize, to restore the edge contrast that scaling down removes. It adds to the Lab **Sharpening** and does not show in the preview.
-*   **Destination**: **Filename Pattern** (a Jinja2 template; see [TEMPLATING.md](TEMPLATING.md)), **Overwrite Existing Files**, and the location: subfolder of source (default, `export`), same as source, or an **Export Path**. A roll with no single source folder exports under its own folder in NegPy's data folder.
+*   **Format**: JPEG, TIFF, PNG, JPEG XL or WebP, with quality options. **Bit Depth**: 8 or 16 bits (TIFF, PNG, JPEG XL). TIFF and PNG compression is always lossless.
+*   **Export profile**: the color space of the file, such as sRGB for the web or Adobe RGB, or a printer or paper profile. **Import ICC** adds a profile. **Input ICC** sets the color space of a scan that has none.
+*   **Paper Aspect Ratio**: the shape of the final print, or **Original**.
+*   **Resolution**: **Original** (full size), **Print** (size in cm and DPI) or **Pixels** (the long edge in pixels).
+*   **Sharpening**: sharpens the export after it is resized. It adds to the Lab Sharpening.
+*   **Destination**: the **Filename Pattern** (see [TEMPLATING.md](TEMPLATING.md)), **Overwrite Existing Files**, and the folder: an `export` subfolder beside the source (default), the source folder, or a path you pick.
 
 ### Export button
 
-**Export** stays at the bottom of every sub-tab. Its chevron picks the scope: current frame (Ctrl+E), selected frames or all visible frames. For several formats or sizes in one run, use Export Presets. A batch with unedited frames asks first, since they may not match their thumbnails. After the batch, a warning names exports that rendered almost black with no crop set, where the bright scan border drove automatic levels.
+Its arrow picks what to export: this frame (`Ctrl+E`), the selected frames or all visible frames. NegPy asks first when a batch holds unedited frames.
 
 <!-- panel:export_presets -->
 ### Presets
 
-Saved Format/Size/Color Management/**Destination**/filename recipes. Each preset is a toggle; **Manage** edits them. **Export Presets** renders the frames with every preset turned on, each to its own destination. Presets are off while the output intent is Linear.
+Saved export recipes: format, size, color, folder and file name. Turn on the ones you want, and **Export Presets** writes each frame once per preset. **Manage** edits them. Presets do not work with Linear output.
 
 <!-- panel:export_alongside -->
 ### Alongside Exports
 
-Three jobs beside the print, each with a switch on the left and a one-shot action on the right. Linear output has no bake and no sidecars.
+Extra files beside the print. Each has a switch on the left and a one-time action on the right.
 
-*   **Printing Notes**: the printer's record for this frame, as described under Dodge & Burn. **Preview** shows it on the canvas (**Shift+N**); **Export Notes** writes it as an image beside the print.
-*   **Auto Density / Grade**: **Bake on Export** is an app-wide switch, the same on every frame: when on, every export freezes Auto Density and Auto Grade into fixed values for the frames it has metered, so the saved edit does not re-run the meters. **Bake to Roll** freezes them for every visible frame now, metering a frame it has not seen first. A frame with both helpers already off, or a composite or a roll fork, keeps its edit.
-*   **Edit Sidecars**: **Save on Export** writes a `.negpy` sidecar next to each source on export. **Export Sidecars** writes them for all visible frames at once. Edits always stay in the database too. A frame with no edit in the database takes its sidecar when its folder opens. **Load Edit from Sidecar…** (right-click a frame) replaces the frame's edit with a chosen `.negpy`, as one undo step.
+*   **Printing Notes**: a marked-up copy of the frame with its dodge and burn and print settings, as a darkroom printer keeps. **Preview** shows it (`Shift+N`); **Export Notes** saves it.
+*   **Auto Density / Grade**: **Bake on Export** fixes the automatic brightness and contrast of each exported frame, so they do not change later. **Bake to Roll** does it for every visible frame now.
+*   **Edit Sidecars**: **Save on Export** writes a `.negpy` file with the edit beside each source. **Export Sidecars** writes them for all visible frames. Right-click a frame → **Load Edit from Sidecar…** reads one back.
 
 <!-- panel:contact_sheet -->
 ### Contact Sheet
 
-On the **Alongside Exports** tab.
+On the **Alongside Exports** tab. A contact sheet shows the whole roll as film strips on one sheet of paper, as a darkroom contact print does.
 
-A darkroom proof of the roll: every visible frame at true size, as cut film strips on photographic paper, in capture order. The rebate, perforations and edge print follow the frames' **Film stock** and **Format** metadata.
+*   **Path**: the folder for the sheets. Empty uses the export folder.
+*   **Contact Sheet…**: opens the sheet. Drag an edge of the paper to resize it.
+*   **Format**: 35mm, 35mm Half Frame or 120 (with **Frame size** for 120).
+*   **Paper**, **Width**, **Height** and **DPI**: the sheet's size and resolution. The default paper holds a 36-exposure roll.
+*   **Order**: by date, or by scene with a new strip for each scene.
+*   **Print**: **As Edited**, or **Straight Proof**: the whole roll at one exposure and normal contrast, so you see which negatives are thin or dense.
+*   **Pick Frames**: click a frame to leave it out or put it back. Rejects start out.
+*   **Edge Print**: the film maker's markings along the edges, such as the film name and frame numbers.
+*   **Roll Label**: the roll name, film, camera and date above the strips.
+*   **White Paper** on, or **Film Base** off: saves ink on a home printer.
 
-*   **Path**: the folder for the sheets. Empty follows the export destination.
-*   **Contact Sheet…**: opens the proof. Drag an edge or corner of the paper to resize it; a size near an Ilford sheet snaps to it.
-*   **Format**: 35mm, 35mm Half Frame or 120. **Frame size** sets the 120 camera's frame (6×4.5 to 6×17).
-*   **Paper**: an Ilford sheet size, or Custom. The default, 24 × 30.5 cm, holds a whole 36-exposure roll.
-*   **Width** / **Height**: the paper size, 50–610 mm.
-*   **DPI**: 150, 300 or 600, tagged so the sheet prints at true size.
-*   **Order**: **Date**, or **Scene**, where each scene starts a new strip.
-*   **Print**: **As Edited**, or **Straight Proof**: the whole roll at one exposure on grade 2 from its Roll Analysis baseline, so thin and dense negatives print light and dark. It needs the roll scanned at one exposure.
-*   **Pick Frames**: click a frame to leave it out or put it back; rejected frames start out.
-*   **Edge Print**: the maker's markings on the film edge (stock name, frame numbers, DX barcode). A built-in stock prints its own codes and DX number where they are known, a cine stock or its respool its KEYKODE numbers and barcode; other stocks get the maker's usual layout with the stock name.
-*   **Roll Label**: the roll name, film, developer, camera and date above the strips.
-*   **White Paper**: white paper in place of the darkroom black, to save ink on a home printer.
-*   **Film Base** (on): prints the film base black, as a darkroom contact print. Off prints it as paper with the strip outlined, to save more ink.
-
-Sheets are JPEGs named `contact_sheet.jpg` (`contact_sheet_1of2.jpg` and on when the roll needs more sheets), with the **JPEG Quality** and **Progressive** settings of the File tab.
+Sheets are saved as `contact_sheet.jpg` (`contact_sheet_1of2.jpg` and on for a long roll).
 
 <!-- panel:soft_proof -->
 ### Soft Proof
 
-The **Proof** tab. Preview only; exports are never proofed. Paper is dimmer and has a smaller gamut than a screen, so a correct proof looks worse than the plain preview.
+The **Proof** tab shows on screen how the picture will look when printed on a given printer and paper. It changes the preview only, never the export. Paper cannot show colors as bright as a screen, so a correct proof looks duller.
 
-*   **Proof on Screen** (`Shift+P`, on by default): master switch.
-*   **Preset**: a saved printer and paper setup; **None** proofs the export target with no paper simulation.
-*   **Profile**: follows the **Export profile** until you pick a printer or paper, so you can proof a print while you export a web JPEG.
-*   **Intent**: **Relative Colorimetric** keeps printable colors and clips the rest. **Perceptual** compresses everything so color relations survive; try it on saturated frames. **Saturation** is for charts, not photographs.
-*   **Black Point Compensation** (off): maps the darkest tone to the paper's black in place of clipping.
-*   **Simulate Paper White** (off): shows the paper's white and tint.
-*   **Simulate Ink Black** (off): shows the paper's real black; shadows lift.
-*   **Gamut Warning**: shows unprintable colors as gray.
-*   **Display**: the monitor profile, auto-detected; set it by hand if detection fails.
+*   **Proof on Screen** (`Shift+P`): turns the proof on or off.
+*   **Preset**: a saved printer and paper setup.
+*   **Profile**: the printer or paper profile. It follows the export profile until you pick one.
+*   **Intent**: **Relative Colorimetric** keeps printable colors exact and clips the rest. **Perceptual** compresses all colors, which suits very colorful pictures. **Saturation** is for charts and graphics.
+*   **Black Point Compensation**: maps the darkest tone to the paper's black.
+*   **Simulate Paper White** and **Simulate Ink Black**: show the paper's real white and black.
+*   **Gamut Warning**: shows colors the printer cannot print as gray.
+*   **Display**: your monitor's profile, found automatically.
 
 ---
 

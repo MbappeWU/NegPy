@@ -176,7 +176,7 @@ class ExportSidebar(BaseSidebar):
         self._presets_inner.setSpacing(THEME.space_xs)
         content_layout.addLayout(self._presets_inner)
 
-        self._no_presets_label = hint_label(tr("No presets — click Manage to add some."))
+        self._no_presets_label = hint_label(tr("No presets yet. Click Manage to add one."))
         content_layout.addWidget(self._no_presets_label)
         self._preset_toggles: list[QPushButton] = []
 
@@ -211,10 +211,7 @@ class ExportSidebar(BaseSidebar):
         self.printing_notes_preview_btn = self._tool_toggle(
             "fa5s.eye",
             tr("Preview"),
-            tr(
-                "Show the marked-up work print over the frame: burns hatched, dodges open, each mask "
-                "labeled with its value in stops, plus a card with the print recipe. Display only."
-            ),
+            tr("Show the printing notes over the frame: the masks with their values, and the print settings. Display only."),
         )
         self.printing_notes_preview_btn.setChecked(self.state.printing_notes)
         self.printing_notes_preview_btn.setFixedHeight(default_button_height())
@@ -222,11 +219,7 @@ class ExportSidebar(BaseSidebar):
         self.printing_notes_btn = labeled_action(
             "mdi.playlist-edit",
             tr(" Export Notes"),
-            tr(
-                "Save this frame as a marked-up work print — the map plus the print recipe below it — as its "
-                "own JPEG in the export folder. The print itself is untouched. Resolution follows the "
-                "preview, so turn HQ on for a full-resolution sheet."
-            ),
+            tr("Save the printing notes as a JPEG in the export folder. Turn HQ on for full resolution."),
         )
         self.printing_notes_btn.setObjectName("printing_notes_btn")
 
@@ -293,11 +286,7 @@ class ExportSidebar(BaseSidebar):
         cs_path_row.addWidget(cs_path_label)
         self.cs_output_path_edit = QLineEdit(conf.contact_sheet_output_path)
         self.cs_output_path_edit.setPlaceholderText(tr("Uses export destination"))
-        self.cs_output_path_edit.setToolTip(
-            wrap_tooltip(
-                tr("Folder for contact sheet JPEGs. Leave empty to follow the export destination (same as source or absolute export path).")
-            )
-        )
+        self.cs_output_path_edit.setToolTip(wrap_tooltip(tr("Folder for contact sheets. Empty uses the export folder.")))
         self.cs_output_path_edit.textChanged.connect(lambda _: self.update_timer.start())
         self.cs_output_path_browse_btn = icon_button("fa5s.folder-open", tr("Choose contact sheet output folder"))
         self.cs_output_path_browse_btn.clicked.connect(self._browse_contact_sheet_output_path)
@@ -340,14 +329,7 @@ class ExportSidebar(BaseSidebar):
         self.intent_btn = SegmentedChoice(
             (("fa5s.image", tr("Print")), ("mdi6.math-log", tr("Flat")), ("mdi6.filmstrip", tr("Linear"))),
             tr(
-                "Print: export the print as you see it, with the full NegPy look applied.<br><br>"
-                "Flat: export a flat, neutral, low-contrast master that keeps maximum tonal and color "
-                "information for editing in Lightroom, Darktable or Photoshop. Skips the creative "
-                "print look (auto density/grade, cast removal, lab effects, toning, vignette) and "
-                "writes a wide-gamut, high-bit-depth file. Your in-app preview is unaffected.<br><br>"
-                "Linear: export the raw decoded sensor data as an untagged 16-bit TIFF, before any "
-                "NegPy processing (no normalization, exposure, lab, toning, color management). "
-                "Supported for Pakon RAW and LinearRaw DNG (SilverFast/VueScan) files."
+                "Print: the picture as you see it. Flat: a flat master for editing in another app. Linear: the raw scan data, before NegPy's processing."
             ),
         )
         self.intent_btn.setCurrentIndex(self._state_intent())
@@ -362,21 +344,13 @@ class ExportSidebar(BaseSidebar):
         self.flat_bake_btn = labeled_action(
             "fa5s.search",
             tr(" Roll Analysis"),
-            tr(
-                "Measure every visible frame's exposure bounds and apply their shared average, so flat "
-                "masters render consistently across the roll."
-            ),
+            tr("Measure all visible frames and use their average, so the flat masters of a roll match."),
         )
         peek_bake_row.addWidget(self.flat_peek_btn)
         peek_bake_row.addWidget(self.flat_bake_btn)
         box.addLayout(peek_bake_row)
 
-        self.flat_hint_label = hint_label(
-            tr(
-                "Exports a flat 16-bit TIFF master in the selected color space at full resolution by default. "
-                "Choose Print or Pixels below to downscale."
-            )
-        )
+        self.flat_hint_label = hint_label(tr("Exports a flat 16-bit master at full size. Pick Print or Pixels below to make it smaller."))
         box.addWidget(self.flat_hint_label)
 
         # Roll-consistency nudge: a flat master is identical across frames only once the roll
@@ -386,11 +360,7 @@ class ExportSidebar(BaseSidebar):
         box.addWidget(self.flat_roll_warning)
 
         self.linear_hint_label = hint_label(
-            tr(
-                "Exports the loader's decoded buffer as an untagged 16-bit file. "
-                "No pipeline processing, no color management, no scaling. "
-                "Pakon RAW, LinearRaw DNG (SilverFast/VueScan), and camera RAW."
-            )
+            tr("Exports the raw scan data as a 16-bit file, before NegPy's processing and color management.")
         )
         box.addWidget(self.linear_hint_label)
 
@@ -502,9 +472,7 @@ class ExportSidebar(BaseSidebar):
         self.linear_gamma_combo.currentIndexChanged.connect(self._on_linear_gamma_changed)
 
         self.linear_corrections_hint = hint_label(
-            tr(
-                "Corrections are baked in and cannot be undone from the exported file. Re-export from the original RAW to get uncorrected data."
-            )
+            tr("These corrections become part of the exported file. Export again from the original to get the data without them.")
         )
         self.linear_corrections_hint.setVisible(False)
         box.addWidget(self.linear_corrections_hint)
@@ -791,11 +759,7 @@ class ExportSidebar(BaseSidebar):
             "fa5s.print",
             tr("Proof on Screen"),
             self.state.soft_proof_enabled,
-            tr(
-                "Simulate the proof profile and Input ICC in the preview, so what you see matches "
-                "what you'll get. Preview only — the export is unaffected either way. Turn off to "
-                "preview at full gamut."
-            ),
+            tr("Show on screen how the picture will print. Only the preview changes; the export does not."),
             align_left=True,
         )
         col.addWidget(self.soft_proof_btn)
@@ -803,12 +767,7 @@ class ExportSidebar(BaseSidebar):
         # Saved printer x paper conditions.
         self.proof_condition_combo = StepCombo()
         constrain_combo(self.proof_condition_combo)
-        self.proof_condition_combo.setToolTip(
-            tr(
-                "A saved printer and paper set-up: profile, intent and simulation toggles in one pick. "
-                "None proofs the export target and simulates no paper."
-            )
-        )
+        self.proof_condition_combo.setToolTip(tr("A saved printer and paper setup. None shows the export target without paper simulation."))
         self.proof_save_btn = icon_button("fa5s.save", tr("Save the current proof set-up as a named preset"))
         self.proof_delete_btn = icon_button("fa5s.trash", tr("Delete the selected preset"))
         cond_row = self._proof_row("Preset", self.proof_condition_combo, railed=True)
@@ -820,10 +779,7 @@ class ExportSidebar(BaseSidebar):
         self.proof_profile_combo = StepCombo()
         constrain_combo(self.proof_profile_combo)
         self.proof_profile_combo.setToolTip(
-            tr(
-                "What the preview is proofed through. Follows the Export profile unless you name a "
-                "printer or paper here. Set one to proof a print while exporting something else."
-            )
+            tr("The printer or paper profile to preview. It follows the Export profile until you pick one.")
         )
 
         self.proof_intent_combo = StepCombo()
@@ -832,47 +788,32 @@ class ExportSidebar(BaseSidebar):
             self.proof_intent_combo.addItem(label, value)
         self.proof_intent_combo.setToolTip(
             tr(
-                "How colors the paper cannot make are fitted into what it can. Relative Colorimetric "
-                "keeps in-gamut colors exact and clips the rest to the edge; Perceptual squeezes the "
-                "whole picture inward so the relationships between colors survive, which a printer "
-                "profile carries its own table for. Saturation favours vividness over accuracy."
+                "How colors the paper cannot print are handled. Relative Colorimetric clips them; Perceptual compresses all colors to keep their relations."
             )
         )
 
         self.proof_bpc_btn = self._tool_toggle(
             "fa5s.adjust",
             tr("Black Point Compensation"),
-            tr(
-                "Scale the darkest tone in the picture onto the darkest the paper can make, instead of "
-                "clipping everything below it. Off is only useful for judging what falls off the bottom."
-            ),
+            tr("Map the darkest tone to the paper's darkest black, in place of clipping."),
             align_left=True,
         )
         self.proof_paper_white_btn = self._tool_toggle(
             "fa5s.file",
             tr("Simulate Paper White"),
-            tr(
-                "Show the paper's own white instead of the screen's. The picture goes dimmer and takes "
-                "the paper's tint, which is the print you will hold. Give your eyes a moment to adapt."
-            ),
+            tr("Show the paper's own white and tint. The picture gets dimmer, as the print will be."),
             align_left=True,
         )
         self.proof_ink_black_btn = self._tool_toggle(
             "fa5s.tint",
             tr("Simulate Ink Black"),
-            tr(
-                "Show the paper's real deepest black rather than mapping it onto the screen's. Shadows "
-                "lift and lose separation, which is what the print does."
-            ),
+            tr("Show the paper's real black. Shadows look lighter, as on the print."),
             align_left=True,
         )
         self.proof_gamut_btn = self._tool_toggle(
             "fa5s.exclamation-triangle",
             tr("Gamut Warning"),
-            tr(
-                "Flatten every color the profile cannot print to gray, so the unprintable areas are "
-                "visible rather than merely counted. The Analysis panel's Gamut row counts them."
-            ),
+            tr("Show colors the printer cannot print as gray."),
             align_left=True,
         )
         col.addWidget(
@@ -1050,7 +991,7 @@ class ExportSidebar(BaseSidebar):
             "fa5s.file-export",
             tr("Save on Export"),
             conf.export_sidecars_enabled,
-            tr("When on, every export also writes a .negpy edit sidecar next to each source frame. Edits stay in the database too."),
+            tr("Also write a .negpy edit file beside each source on export."),
         )
         btn_row.addWidget(self.sidecars_enabled_btn)
 
@@ -1068,10 +1009,7 @@ class ExportSidebar(BaseSidebar):
             "fa5s.fire",
             tr("Bake on Export"),
             self.state.bake_on_export,
-            tr(
-                "When on, every export freezes Auto Density and Auto Grade into fixed values for each "
-                "frame it has metered, so the exported result does not re-run the meters."
-            ),
+            tr("Fix Auto Density and Auto Grade of each exported frame, so they do not change later."),
         )
         btn_row.addWidget(self.bake_on_export_btn)
 
@@ -1346,7 +1284,7 @@ class ExportSidebar(BaseSidebar):
         desc = profile_description(detected)
         self.display_combo.setItemText(0, tr("As detected ({profile})", profile=desc))
         if detected is None:
-            self.display_detected_label.setText(tr("Auto-detection failed — select your monitor's color space above."))
+            self.display_detected_label.setText(tr("Auto-detection failed. Select your monitor's color space above."))
             set_hint_kind(self.display_detected_label, "error")
         else:
             self.display_detected_label.setText(tr("Detected: {desc}", desc=desc))

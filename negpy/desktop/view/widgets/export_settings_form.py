@@ -186,7 +186,7 @@ class ExportSettingsForm(QWidget):
         png_box = QVBoxLayout(self._png_container)
         png_box.setContentsMargins(0, 0, 0, 0)
         self.png_level_spin = CompactSlider(tr("Compression"), 0, 9, 6, step=1, precision=1)
-        self.png_level_spin.setToolTip(tr("Lossless either way: higher = slower, smaller file"))
+        self.png_level_spin.setToolTip(tr("Always lossless. Higher is slower but makes a smaller file."))
         self.png_level_spin.valueChanged.connect(self._on_changed)
         png_box.addWidget(self.png_level_spin)
         root.addWidget(self._png_container)
@@ -204,7 +204,7 @@ class ExportSettingsForm(QWidget):
         jxl_box.addWidget(self.jxl_lossless_btn)
 
         self.jxl_distance_spin = CompactSlider(tr("Distance"), 0.0, 15.0, 1.0, step=0.1)
-        self.jxl_distance_spin.setToolTip(tr("libjxl distance: ~1.0 ≈ visually lossless, higher = more loss"))
+        self.jxl_distance_spin.setToolTip(tr("Quality loss. About 1.0 looks lossless; higher loses more."))
         self.jxl_distance_spin.valueChanged.connect(self._on_changed)
         jxl_box.addWidget(self.jxl_distance_spin)
 
@@ -254,10 +254,7 @@ class ExportSettingsForm(QWidget):
 
         self.mode_btn = SegmentedChoice(
             (("", tr("Original")), ("", tr("Print")), ("", tr("Pixels"))),
-            tr(
-                "Original exports at the source resolution. Print sizes the export for a print: paper "
-                "size and DPI. Pixels sizes it to a pixel count on the long edge"
-            ),
+            tr("Original keeps the scan's size. Print sets a paper size and DPI. Pixels sets the long edge in pixels."),
         )
         self.mode_btn.currentChanged.connect(self._on_mode_toggled)
         mode_row = QHBoxLayout()
@@ -336,12 +333,7 @@ class ExportSettingsForm(QWidget):
         input_row.addWidget(self._row_label(tr("Input ICC")))
         self.input_combo = StepCombo()
         constrain_combo(self.input_combo)
-        self.input_combo.setToolTip(
-            tr(
-                "Treat the source as this profile, for a scan whose profile is known but untagged. "
-                "Processing itself is scene-linear on Adobe RGB primaries."
-            )
-        )
+        self.input_combo.setToolTip(tr("Use this color profile for a scan that has none."))
         self.input_combo.currentIndexChanged.connect(self._on_changed)
         input_row.addWidget(self.input_combo)
         root.addLayout(input_row)
@@ -353,12 +345,7 @@ class ExportSettingsForm(QWidget):
         profile_row.addWidget(self._row_label(tr("Export profile")))
         self.export_profile_combo = StepCombo()
         constrain_combo(self.export_profile_combo)
-        self.export_profile_combo.setToolTip(
-            tr(
-                "Color space the exported file is converted to and tagged with. Pick an imported "
-                "ICC profile to target a printer or paper instead."
-            )
-        )
+        self.export_profile_combo.setToolTip(tr("The color space of the exported file. Pick an imported profile for a printer or paper."))
         self.export_profile_combo.currentIndexChanged.connect(self._on_export_profile_changed)
         profile_row.addWidget(self.export_profile_combo)
         root.addLayout(profile_row)
@@ -581,7 +568,7 @@ class ExportSettingsForm(QWidget):
         if blocked:
             self.jxl_cs_warning.setText(
                 tr(
-                    "JPEG XL can't tag {value} — choose sRGB, P3 D65, Rec 2020, or Grayscale, or a different format.",
+                    "JPEG XL cannot use {value}. Choose sRGB, P3 D65, Rec 2020 or Grayscale, or another format.",
                     value=self.export_profile_combo.currentText(),
                 )
             )
