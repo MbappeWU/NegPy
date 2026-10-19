@@ -584,6 +584,7 @@ class MainWindow(QMainWindow):
         button.blockSignals(False)
         if on == self.light_table_active():
             return
+        self.toolbar.set_light_table(on)
         view = self.file_browser.light_table_view
         if on:
             self._strip_open_before_light_table = self.film_strip_expanded()
@@ -596,6 +597,10 @@ class MainWindow(QMainWindow):
         else:
             self.central_stack.setCurrentIndex(0)
             self.set_film_strip_expanded(self._strip_open_before_light_table, persist=False)
+
+    def _sync_frames_per_row(self) -> None:
+        table = self.file_browser.light_table_view
+        self.toolbar.set_frames_per_row(table.columns(), *table.column_range())
 
     def reset_panel_layout(self) -> None:
         """Restore the controls panel to its original edge and width, show it and expand the Film Strip."""
@@ -610,6 +615,10 @@ class MainWindow(QMainWindow):
         browser = self.file_browser
         self.controller.session.canvas_bg_changed.connect(self._sync_strip_handle)
         browser.light_table_opened.connect(lambda: self.set_light_table(False))
+        table = browser.light_table_view
+        self.toolbar.frames_per_row.valueChanged.connect(lambda columns: table.set_columns(round(columns)))
+        table.columns_changed.connect(self._sync_frames_per_row)
+        self._sync_frames_per_row()
         browser.library_requested.connect(self.show_library)
         library = self.right_panel.library_tree
         # An imported, renamed or deleted roll leaves the cached search walk describing a library

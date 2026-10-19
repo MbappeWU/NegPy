@@ -818,6 +818,7 @@ class ActionToolbar(QWidget):
         self._build_tool_row(v_layout, icon_color, icon_size, btn_height)
         self._build_paper_row(v_layout, btn_height)
         self._build_zone_row(v_layout)
+        self._build_light_table_row(v_layout)
 
         main_layout.addWidget(self.mode_switch)
         main_layout.addWidget(self._create_separator())
@@ -976,6 +977,41 @@ class ActionToolbar(QWidget):
         layout.addWidget(self.btn_zone_close)
         v_layout.addWidget(self._zone_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
+    def _build_light_table_row(self, v_layout: QVBoxLayout) -> None:
+        """While the Light Table is open, Photo mode shows how to open a frame and the frame size."""
+        from negpy.desktop.view.widgets.sliders import CompactSlider
+
+        self._light_table = False
+        self._light_table_row = QWidget()
+        self._light_table_row.hide()
+        layout = QHBoxLayout(self._light_table_row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self.light_table_hint = hint_label(tr("Click selects a frame. Double-click or Enter opens it."))
+        self.light_table_hint.setWordWrap(False)
+        # Inverted, so the frames grow to the right like the + key's.
+        self.frames_per_row = CompactSlider(tr("Frames per Row"), 1, 2, 1, step=1, precision=1, inverted=True)
+        self._tip(
+            self.frames_per_row,
+            tr("Light Table: the frames to a row; fewer frames are larger"),
+            ("light_table_zoom_in", "light_table_zoom_out"),
+        )
+        self.frames_per_row.setFixedHeight(default_button_height())
+        self.frames_per_row.slider.setMinimumWidth(self.frames_per_row.slider.sizeHint().width())
+        layout.addWidget(self.light_table_hint)
+        layout.addWidget(self._create_separator())
+        layout.addWidget(self.frames_per_row)
+        v_layout.addWidget(self._light_table_row, 0, Qt.AlignmentFlag.AlignRight)
+
+    def set_light_table(self, on: bool) -> None:
+        self._light_table = on
+        self._sync_rows()
+
+    def set_frames_per_row(self, columns: int, fewest: int, default: int, most: int) -> None:
+        self.frames_per_row.set_range(fewest, most)
+        self.frames_per_row.set_default(default)
+        self.frames_per_row.setValue(columns)
+
     def _sync_zone_row(self) -> None:
         state = self.session.state
         self.zone_style.blockSignals(True)
@@ -1123,7 +1159,8 @@ class ActionToolbar(QWidget):
     def _sync_rows(self) -> None:
         """A canvas row (an armed tool, the paper strip, the Zone Overlay) outranks the mode's row."""
         free = not any(self._shown_rows)
-        self._view_row.setVisible(free and self._mode == "photo")
+        self._view_row.setVisible(free and self._mode == "photo" and not self._light_table)
+        self._light_table_row.setVisible(free and self._mode == "photo" and self._light_table)
         if self._roll_row is not None:
             self._roll_row.setVisible(free and self._mode == "roll")
         self._relayout()
@@ -1461,7 +1498,7 @@ class ActionToolbar(QWidget):
 
     def _activate_layout(self) -> None:
         # Innermost first: an outer layout reads its rows' size hints as of their last activation.
-        for widget in (self._view_row, self._tool_row, self._rows, self):
+        for widget in (self._view_row, self._tool_row, self._light_table_row, self._rows, self):
             layout = widget.layout()
             if layout is not None:
                 layout.activate()
@@ -1591,6 +1628,17 @@ class ActionToolbar(QWidget):
         if not self._tool_row.isHidden():
             # The hint goes first, then the slider: the name, undo and Done always stay.
             optional = [widget for widget in (self.tool_hint, self._tool_slider) if widget is not None]
+            for widget in optional:
+                widget.setVisible(True)
+            for widget in optional:
+                if self._bar_width() <= w:
+                    break
+                widget.setVisible(False)
+            self._activate_layout()
+            return
+        if not self._light_table_row.isHidden():
+            # The hint goes first, then the slider's name; its tooltip still names it.
+            optional = (self.light_table_hint, self.frames_per_row.label)
             for widget in optional:
                 widget.setVisible(True)
             for widget in optional:

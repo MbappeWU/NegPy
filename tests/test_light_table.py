@@ -70,6 +70,7 @@ def _window():
         controller=MagicMock(),
         state=SimpleNamespace(selected_file_idx=0),
     )
+    win.toolbar.set_light_table = lambda on: setattr(win.toolbar, "light_table", on)
     win.film_strip_expanded = lambda: win.strip_open
     win.set_film_strip_expanded = lambda on, persist=True: setattr(win, "strip_open", on)
     win.controller.session.asset_model.actual_to_display.return_value = -1
@@ -85,10 +86,12 @@ def test_the_light_table_takes_the_canvas_and_strip_place_and_gives_it_back(qapp
     assert win.toolbar.btn_light_table.isChecked()
     assert not win.strip_open, "the strip folds under the grid; the toolbar stays"
     assert win.drawer.visible, "an open controls panel stays open"
+    assert win.toolbar.light_table, "the bar shows the Light Table row"
 
     MainWindow.set_light_table(win, False)
     assert win.central_stack.currentIndex() == 0
     assert not win.toolbar.btn_light_table.isChecked()
+    assert not win.toolbar.light_table
     assert win.strip_open and win.drawer.visible
 
 
@@ -472,6 +475,36 @@ def test_zoom_takes_one_frame_a_row_away_and_saves_the_size(browser, qapp):
 def _ctrl_wheel(angle_y: int, modifiers=Qt.KeyboardModifier.ControlModifier) -> QWheelEvent:
     at = QPointF(10.0, 10.0)
     return QWheelEvent(at, at, QPoint(), QPoint(0, angle_y), Qt.MouseButton.NoButton, modifiers, Qt.ScrollPhase.NoScrollPhase, False)
+
+
+def test_set_columns_keeps_to_the_range_and_reports_each_layout(browser, qapp):
+    view, _vw = _shown_table(browser, qapp)
+    reports = []
+    view.columns_changed.connect(lambda: reports.append(view.columns()))
+    fewest, default, most = view.column_range()
+    assert fewest < default < most
+
+    view.set_columns(fewest + 1)
+    assert view.columns() == reports[-1] == fewest + 1
+    browser.session.repo.save_global_setting.assert_called_with("light_table_cell", view._target_cell)
+    view.set_columns(most + 5)
+    assert view.columns() == most
+    view.set_columns(0)
+    assert view.columns() == fewest
+    view.hide()
+
+
+def test_the_bar_slider_follows_a_zoom_of_the_table(browser, qapp):
+    from test_canvas_toolbar import _make_toolbar
+
+    view, _vw = _shown_table(browser, qapp)
+    win = SimpleNamespace(file_browser=browser, toolbar=_make_toolbar())
+    view.zoom(1)
+    MainWindow._sync_frames_per_row(win)
+    fewest, default, most = view.column_range()
+    slider = win.toolbar.frames_per_row
+    assert (slider.value(), slider._min, slider.default_value(), slider._max) == (view.columns(), fewest, default, most)
+    view.hide()
 
 
 def test_ctrl_and_the_wheel_zoom_the_light_table(browser, qapp):

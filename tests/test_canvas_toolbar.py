@@ -762,6 +762,48 @@ class TestModes(unittest.TestCase):
         self.assertFalse(row.isHidden())
         self.assertTrue(tb._view_row.isHidden())
 
+    def test_the_light_table_swaps_the_photo_row_for_its_own(self):
+        tb, row = self._with_roll_row()
+        tb.set_light_table(True)
+        self.assertTrue(tb._view_row.isHidden())
+        self.assertFalse(tb._light_table_row.isHidden())
+
+        tb.set_mode("roll")
+        self.assertTrue(tb._light_table_row.isHidden())
+        self.assertFalse(row.isHidden())
+
+        tb.set_mode("photo")
+        tb.set_light_table(False)
+        self.assertFalse(tb._view_row.isHidden())
+        self.assertTrue(tb._light_table_row.isHidden())
+
+    def test_a_narrow_bar_drops_the_hint_then_the_name_and_keeps_the_slider(self):
+        tb = _make_toolbar()
+        tb.set_light_table(True)
+        tb.show()
+        tb.set_available_width(1200)
+        QApplication.processEvents()
+        self.assertFalse(tb.light_table_hint.isHidden())
+        self.assertFalse(tb.frames_per_row.label.isHidden())
+
+        tb.set_available_width(320)
+        QApplication.processEvents()
+        self.assertTrue(tb.light_table_hint.isHidden())
+        self.assertTrue(tb.frames_per_row.label.isHidden())
+        self.assertFalse(tb.frames_per_row.isHidden())
+        self.assertGreaterEqual(tb.frames_per_row.slider.width(), tb.frames_per_row.slider.minimumWidth())
+        tb.hide()
+
+    def test_frames_per_row_follows_the_table_without_emitting(self):
+        tb = _make_toolbar()
+        emitted = []
+        tb.frames_per_row.valueChanged.connect(emitted.append)
+        tb.set_frames_per_row(6, 2, 5, 10)
+        QApplication.processEvents()
+        slider = tb.frames_per_row
+        self.assertEqual((slider.value(), slider._min, slider.default_value(), slider._max), (6, 2, 5, 10))
+        self.assertEqual(emitted, [])
+
     def test_the_saved_mode_comes_back(self):
         controller = _make_toolbar().controller
         controller.session.repo.get_global_setting.side_effect = lambda key, default=None: "roll" if key == "toolbar_mode" else default

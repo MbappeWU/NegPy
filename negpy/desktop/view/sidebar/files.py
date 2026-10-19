@@ -1023,6 +1023,8 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
     cell_zoomed = pyqtSignal(int)
+    # A layout that may change the frames to a row or their range: a zoom, a resize or a new film.
+    columns_changed = pyqtSignal()
     # (ring, glow) strength of the active frame and the other selected frames.
     _MARKS = {"active": (1.0, 1.0), "selected": (0.6, 0.5)}
 
@@ -1121,16 +1123,31 @@ class _FilmGridView(ThumbnailGridView):
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
         return max(1, (vw - 1) // self.columns_for_width(vw))
 
-    def zoom(self, steps: int) -> None:
-        """One frame fewer a row per step; at the largest, one row of film fits the view's height."""
+    def column_range(self) -> tuple[int, int, int]:
+        """(fewest, default, most) frames to a row: one row of film as tall as the view, frames of
+        THUMB_CELL_DEFAULT, and the smallest frames."""
         vw, vh = self.viewport().width(), self.viewport().height()
         fewest = max(1, math.ceil(vw * self._aspect / max(1, vh)))
         most = max(fewest, vw // THUMB_CELL_MIN)
-        columns = min(most, max(fewest, self.columns_for_width(vw) - steps))
-        self._target_cell = vw // columns
+        return fewest, min(most, max(fewest, vw // THUMB_CELL_DEFAULT)), most
+
+    def columns(self) -> int:
+        return self.columns_for_width(self.viewport().width())
+
+    def set_columns(self, columns: int) -> None:
+        fewest, _default, most = self.column_range()
+        self._target_cell = self.viewport().width() // min(most, max(fewest, columns))
         self._relayout()
         self.scrollTo(self.currentIndex())
         self.cell_zoomed.emit(self._target_cell)
+
+    def zoom(self, steps: int) -> None:
+        """One frame fewer a row per step."""
+        self.set_columns(self.columns() - steps)
+
+    def _relayout(self) -> None:
+        super()._relayout()
+        self.columns_changed.emit()
 
     def wheelEvent(self, event) -> None:
         if not event.modifiers() & Qt.KeyboardModifier.ControlModifier:
