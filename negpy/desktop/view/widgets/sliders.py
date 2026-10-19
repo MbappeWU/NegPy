@@ -376,7 +376,7 @@ class CompactSlider(BaseSlider):
             self.spin.setSuffix(unit)
 
         self.spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self.spin.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.spin.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.spin.setStyleSheet(slider_value_qss())
 
         # Label-scrub: drag the label horizontally to change value
