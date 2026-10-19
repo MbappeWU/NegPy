@@ -469,6 +469,20 @@ QToolButton#toolbar_overflow::menu-indicator {
     width: 0px;
 }
 
+/* A named dropdown in the canvas bar's Roll row: a chevron after the name, as on a ChoiceButton. */
+QToolButton[dropdown="true"] {
+    padding-right: 22px;
+}
+
+QToolButton[dropdown="true"]::menu-indicator {
+    image: url("__CHEVRON_DOWN_ICON__");
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    width: 12px;
+    height: 12px;
+    right: 6px;
+}
+
 /* Shortcut overview/Customize dialog rows. Transparent by default so the row
    frame doesn't paint the global @bg_dark over the @bg_card collapsible card;
    the highlighted variant is the jump-to-row flash. */

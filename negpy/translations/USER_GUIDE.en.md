@@ -118,7 +118,7 @@ Plain-key shortcuts such as `?` work but do not show in the menus. `⌘W` on the
 <!-- panel:frames -->
 ## 2. Library and film strip
 
-The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The rebate takes the roll's mean print D-max, the deepest tone its thumbnails reach. The strip scrolls sideways, and its height sets the size of the frames; frames other than the selection are dimmed. The toolbar's **Roll** mode shows the strip's buttons, filter and tally, and its **ⓘ** opens this guide. Your imported rolls are on the right panel's **Library** tab.
+The **Film Strip** under the canvas shows the open frames as strips of film, with the edge print and perforations of the film stock and format set in the Metadata card; each frame lies as it does on the film. The rebate takes the roll's mean print D-max, the deepest tone its thumbnails reach. The strip scrolls sideways, and its height sets the size of the frames; frames other than the selection are dimmed. The toolbar's **Roll** mode shows the roll's name and tally, the filter and the strip's actions; **Film Strip Guide…** in its **⋮** menu opens this guide. Your imported rolls are on the right panel's **Library** tab.
 
 <!-- panel:library -->
 ### Your library
@@ -162,28 +162,34 @@ A frame has one edit in every roll that holds it. On a frame in more than one ro
 
 **Nikon High Efficiency raw**: Z 8 and Z 9 NEFs in **HE** or **HE\*** use a licensed codec that NegPy cannot decode. Shoot **Lossless Compressed**, or convert with Adobe DNG Converter.
 
-The **⋮** menu at the end of the toolbar's Roll row:
+The toolbar's Roll row, from the left:
 
+*   The roll's name over its tally of frames, the filter that hides any, keepers, rejects and the selection. **No roll** names frames that are not one roll, with **Save as Roll…** beside it ([Rolls that are not folders](#rolls-that-are-not-folders)).
+*   The **filter box** ([Filtering the sheet](#filtering-the-sheet)). Inside it: the **regex** toggle, the **search-library** button and, once enabled in Preferences, the **search-by-meaning** toggle. If a filter hides everything, **Show all frames** clears it.
+*   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
+*   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
+*   **Apply…**: copies the chosen aspects of the current frame's settings to selected frames or the whole roll. Crop and rotation stay per image.
+
+In a narrow bar, Save as Roll moves to the **⋮** menu first, then Sort, Sheet filter and Apply show only their icons.
+
+The **⋮** menu at the end of the row:
+
+*   **Add Files…** or **Add Folder…** (or drop a folder on the window). A folder with no images of its own imports its subfolders as rolls.
+*   **Save as Roll…**: keeps the loaded frames as a roll.
+*   **Roll Settings…**: writes gear, capture, place, process and scanning metadata to the frame, a selection or the whole roll. **Load** fills the fields from a metadata preset; tick the groups to write. An empty Analog Gear is matched from the folder name.
+*   **Update Thumbnails**: re-renders every stale thumbnail in the roll; **Cancel Thumbnail Update** while it runs.
+*   **Hot Folder**: loads new files as they appear in the current folder, for a scanner or tethering app. While it is on, a flame shows in the row; click it to stop.
+*   **Unload…**: drops the active frame or selection from the Film Strip. It is back the next time the roll opens.
 *   **New Roll…**: clears the film strip, to drag in frames and keep them with **Save as Roll…**.
 *   **Close Roll…** (**Unload All…** when the frames are not a roll): empties the film strip; edits stay saved.
 *   **Reset Roll to Defaults…**: **Reset Settings** on every visible frame, each an undo step.
+*   **Film Strip Guide…**: the Film Strip part of this guide.
+
+**Remove from Roll…** (right-click, with a roll open): takes the frame or selection out of the roll for good, with its scene, card locks and own edit in that roll. The file and its shared edit stay. A file in the roll's own folder is skipped when the folder is opened again, until you add it back with **Add Files…**. A half-frame scan goes as one file.
+
+**Trichrome Mode** and **Half Frame Mode** are on the Roll tab's Frame Assembly card ([§10.2](#102-frame-assembly)).
 
 The grid button at the toolbar's right end opens the **Light Table** (`Shift+G`): the roll as strips of film on a light table for culling, with the same selection, marks and menus. It takes the place of the canvas and the Film Strip; the toolbar and the controls panel stay. `+` and `-`, or **Ctrl** and the wheel, make the frames larger or smaller, one frame a row at a time; the size is kept. **Esc**, `Shift+G` or the grid button goes back.
-
-The toolbar's Roll row:
-
-*   **Add**: **Add Files…** or **Add Folder…** (or drop a folder on the window). A folder with no images of its own imports its subfolders as rolls.
-*   **Hot Folder**: loads new files as they appear in the current folder, for a scanner or tethering app.
-*   **Trichrome Mode** and **Half Frame Mode** are on the Roll tab's Frame Assembly card ([§10.2](#102-frame-assembly)).
-*   **Apply (clone)**: copies the chosen aspects of the current frame's settings to selected frames or the whole roll. Crop and rotation stay per image.
-*   **Roll Settings**: writes gear, capture, place, process and scanning metadata to the frame, a selection or the whole roll. **Load** fills the fields from a metadata preset; tick the groups to write. An empty Analog Gear is matched from the folder name.
-*   **Save as Roll…**: keeps the loaded frames as a roll ([Rolls that are not folders](#rolls-that-are-not-folders)).
-*   **Unload…**: drops the active frame or selection from the Film Strip. It is back the next time the roll opens.
-*   **Remove from Roll…** (right-click, with a roll open): takes the frame or selection out of the roll for good, with its scene, card locks and own edit in that roll. The file and its shared edit stay. A file in the roll's own folder is skipped when the folder is opened again, until you add it back with **Add Files…**. A half-frame scan goes as one file.
-*   **Sort**: Name or Date, or **Scene** once the loaded roll has one, ascending or descending.
-*   **Sheet filter**: *All Frames*, *Keepers Only*, *Hide Rejected* or *Unmarked Only*. **Advance After Marking** in the same menu moves on after a Keeper or Reject mark. `Home` and `End` jump to the first and last frame.
-
-Beside the buttons are the **filter box**, a **`.*`** regex toggle, a **search-library** button and, once enabled in Preferences, a **search-by-meaning** toggle, then a **tally** of frames, keepers and rejects. If a filter hides everything, **Show all frames** clears it.
 
 #### Filtering the sheet
 
@@ -204,7 +210,7 @@ A plain word matches the filename. `field:value` terms match frame data:
 | `keeper:` `rejected:` `edited:` | frames with that mark, or with a saved edit |
 | `-rejected:` `-film:velvia` | a leading `-` negates any term |
 
-Terms combine with AND (`film:portra iso:>=400 -rejected:`). Metadata fields match only once filled in the **Metadata** panel. **`.*`** makes the box a plain filename regex.
+Terms combine with AND (`film:portra iso:>=400 -rejected:`). Metadata fields match only once filled in the **Metadata** panel. The **regex** toggle makes the box a plain filename regex.
 
 #### Searching by meaning
 
@@ -278,7 +284,7 @@ The right-click menu also has:
 *   **Reset to Roll Settings**: **Reset to Roll** on every card that differs from the roll, as one undo step.
 *   **Apply Settings…**.
 *   **Sync Bounds…**: pushes only this frame's measured bounds (**Tonal span**, **Color balance**) to the selection or roll.
-*   **Update Thumbnail(s)**: re-renders the selection's thumbnails. **Update Thumbnails** on the toolbar re-renders every stale one in the roll. Sharpening, chroma denoise, dust and heal repairs, demosaic, display profile and soft proof do not make a thumbnail stale.
+*   **Update Thumbnail(s)**: re-renders the selection's thumbnails. **Update Thumbnails** in the Roll row's **⋮** menu re-renders every stale one in the roll. Sharpening, chroma denoise, dust and heal repairs, demosaic, display profile and soft proof do not make a thumbnail stale.
 *   **Reset Roll to Defaults…**, and per-frame export.
 *   **Edit Independently in This Roll** / **Use the Shared Edit Again** ([Rolls that are not folders](#rolls-that-are-not-folders)).
 *   **Show in Folder**: opens the system file manager on the frame's folder, with the file selected.

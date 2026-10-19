@@ -684,10 +684,10 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             tr("Roll Settings"),
             tr(
                 "One dialog tags gear, capture, place, process and scan fields for this frame, a selection "
-                "or the roll. A new roll whose folder name matches your gear, such as “penf” for “Pen F”, "
-                "opens it filled in."
+                "or the roll; it is in the ⋮ menu of the toolbar's Roll mode. A new roll whose folder name "
+                "matches your gear, such as “penf” for “Pen F”, opens it filled in."
             ),
-            lambda w: fb(w).roll_settings_btn,
+            lambda w: fb(w).roll_menu_btn,
         ),
         step(
             OUTPUT,

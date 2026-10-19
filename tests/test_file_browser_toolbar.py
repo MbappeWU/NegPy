@@ -2,7 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from negpy.desktop.view.styles.templates import TOOLBAR_BUTTON_HEIGHT
+from PyQt6.QtCore import Qt
+
+from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, TOOLBAR_BUTTON_HEIGHT
 from negpy.desktop.session import AssetListModel
 from negpy.desktop.view.sidebar.files import FileBrowser
 
@@ -23,99 +25,117 @@ def panel(qapp):
 
 
 def test_each_section_toolbar_has_its_own_sort(panel):
-    """The Film Strip's Sort orders the frames, the Library's the roll list; both sized like
-    every other section-toolbar button."""
+    """The Film Strip's Sort orders the frames, the Library's the roll list. The strip's sits
+    in the canvas bar, at the bar's height."""
     browser = panel.file_browser
     tree = panel.library_tree
 
-    assert browser.sort_btn in browser.film_strip_toolbar.buttons
+    assert browser.roll_row.isAncestorOf(browser.sort_btn)
     assert tree.sort_btn in tree.toolbar.buttons
     assert browser.sort_btn is not tree.sort_btn
-    assert {browser.sort_btn.height(), tree.sort_btn.height()} == {TOOLBAR_BUTTON_HEIGHT}
+    assert (browser.sort_btn.height(), tree.sort_btn.height()) == (BAR_BUTTON_HEIGHT, TOOLBAR_BUTTON_HEIGHT)
 
 
-def test_both_section_toolbars_size_their_buttons_the_same(panel):
+def test_the_roll_row_names_its_dropdowns_by_their_choice(panel):
     browser = panel.file_browser
-    tree = panel.library_tree
+    browser._apply_sort_order("date", save=False)
+    browser._apply_sheet_filter("keepers", save=False)
 
-    heights = {b.height() for b in tree.toolbar.buttons + browser.film_strip_toolbar.buttons}
+    assert (browser.sort_btn.text(), browser.sheet_btn.text()) == ("Date", "Keepers Only")
+    assert browser.apply_btn.text() == "Apply…"
 
-    assert heights == {TOOLBAR_BUTTON_HEIGHT}
 
-
-def test_film_strip_toolbar_holds_roll_scoped_actions(panel):
+def test_the_roll_menu_holds_the_actions_out_of_view(panel):
     browser = panel.file_browser
-    expected = [
-        browser.save_roll_btn,
-        browser.add_btn,
-        browser.hot_folder_btn,
-        browser.apply_btn,
-        browser.roll_settings_btn,
-        browser.update_thumbnails_btn,
-        browser.unload_btn,
-        browser.sort_btn,
-        browser.sheet_btn,
+    labels = [action.text() for action in browser.roll_menu_btn.menu().actions() if not action.isSeparator()]
+    assert [label.split("\t")[0] for label in labels] == [
+        "Add Files…",
+        "Add Folder…",
+        "Save as Roll…",
+        "Roll Settings…",
+        "Update Thumbnails",
+        "Hot Folder",
+        "Unload…",
+        "New Roll…",
+        "Close Roll…",
+        "Reset Roll to Defaults…",
+        "Film Strip Guide…",
     ]
-    assert browser.film_strip_toolbar.buttons == expected
 
 
-def test_new_roll_lives_in_the_roll_row_menu(panel):
-    """Not a toolbar button: the ⋮ menu at the end of the toolbar's Roll row."""
+def test_the_hot_folder_shows_in_the_row_while_it_is_on(panel):
     browser = panel.file_browser
-    assert not hasattr(browser, "new_roll_btn")
-    labels = [action.text() for action in browser.roll_menu_btn.menu().actions()]
-    assert labels == ["New Roll…", "Close Roll…", "Reset Roll to Defaults…"]
+    assert browser.hot_folder_btn.isHidden()
+
+    browser.hot_folder_action.setChecked(True)
+    assert not browser.hot_folder_btn.isHidden() and browser.scan_timer.isActive()
+
+    browser.hot_folder_btn.click()
+    assert not browser.hot_folder_action.isChecked()
+    assert browser.hot_folder_btn.isHidden() and not browser.scan_timer.isActive()
 
 
-def test_update_thumbnails_button_refreshes_the_whole_roll(panel):
-    panel.file_browser.update_thumbnails_btn.click()
+def test_update_thumbnails_refreshes_the_whole_roll(panel):
+    panel.file_browser.update_thumbnails_action.trigger()
     panel.file_browser.controller.request_thumbnail_refresh.assert_called_once_with("roll")
 
 
-def test_update_thumbnails_button_cancels_instead_while_running(panel):
+def test_update_thumbnails_cancels_instead_while_running(panel):
     panel.file_browser.controller.thumbnail_refresh_running = True
 
-    panel.file_browser.update_thumbnails_btn.click()
+    panel.file_browser.update_thumbnails_action.trigger()
 
     panel.file_browser.controller.cancel_thumbnail_refresh.assert_called_once_with()
     panel.file_browser.controller.request_thumbnail_refresh.assert_not_called()
 
 
-def test_update_thumbnails_button_reflects_the_running_state(panel):
+def test_update_thumbnails_reflects_the_running_state(panel):
     browser = panel.file_browser
-    idle_tip = browser.update_thumbnails_btn.toolTip()
+    idle = browser.update_thumbnails_action.text()
 
     browser._on_thumbnail_refresh_state_changed(True)
-    running_tip = browser.update_thumbnails_btn.toolTip()
-    assert running_tip != idle_tip
-    assert "Cancel" in running_tip
+    assert browser.update_thumbnails_action.text() == "Cancel Thumbnail Update"
 
     browser._on_thumbnail_refresh_state_changed(False)
-    assert browser.update_thumbnails_btn.toolTip() == idle_tip
+    assert browser.update_thumbnails_action.text() == idle
 
 
-def test_narrowing_the_panel_raises_a_populated_overflow_menu(panel, qapp):
-    """QToolBar's native extension menu was tried first and came up empty: widgets added with
-    addWidget() become QWidgetActions its popup cannot host."""
-    toolbar = panel.file_browser.film_strip_toolbar
-    row = panel.file_browser.roll_row
+def test_a_narrow_row_drops_the_names_before_the_filter_gets_cramped(panel, qapp):
+    browser = panel.file_browser
+    row = browser.roll_row
+    browser._show_save_roll(True)
     row.resize(1400, 40)
     row.show()
     qapp.processEvents()
-    assert not toolbar.overflow_btn.isVisible()
+    assert browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+    assert not browser.save_roll_btn.isHidden()
 
-    row.resize(320, 40)
+    row.resize(400, 40)
     qapp.processEvents()
-    assert toolbar.overflow_btn.isVisible()
+    assert all(btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly for btn in browser._named_roll_buttons)
+    assert browser.save_roll_btn.isHidden()
 
-    labels = [action.text() for action in toolbar.build_overflow_menu().actions()]
-    assert labels, "overflow button with an empty menu"
-    assert "Sheet filter" in labels
+    row.resize(1400, 40)
+    qapp.processEvents()
+    assert browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon
 
 
-def test_film_strip_toolbar_minimum_is_not_the_sum_of_its_buttons(panel):
-    toolbar = panel.file_browser.film_strip_toolbar
-    assert toolbar.minimumSizeHint().width() < toolbar.sizeHint().width()
+def test_save_as_roll_leaves_the_row_before_the_names_do(panel, qapp):
+    browser = panel.file_browser
+    browser._show_save_roll(True)
+    row = browser.roll_row
+    row.show()
+    states = []
+    for width in range(1400, 380, -10):
+        row.resize(width, 40)
+        qapp.processEvents()
+        states.append(
+            (not browser.save_roll_btn.isHidden(), browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        )
+
+    assert states[0] == (True, True) and states[-1] == (False, False)
+    assert (False, True) in states
+    assert (True, False) not in states
 
 
 def test_the_roll_row_shrinks_below_its_natural_width(panel):

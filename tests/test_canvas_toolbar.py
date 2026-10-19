@@ -396,6 +396,11 @@ class TestToolbarCustomization(unittest.TestCase):
         full = tb._bar_width()
         tb.set_available_width(full - 1)
         QApplication.processEvents()
+        self.assertEqual(tb.btn_tools.text(), "", "a name goes before a button")
+        self.assertFalse(tb.btn_copy.isHidden())
+
+        tb.set_available_width(tb._bar_width() - 1)
+        QApplication.processEvents()
         self.assertTrue(tb.btn_copy.isHidden())
         self.assertTrue(all(not tb._row_widgets[i].isHidden() for i in DEFAULT_TOOLBAR_IDS))
 

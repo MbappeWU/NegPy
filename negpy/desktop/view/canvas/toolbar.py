@@ -28,6 +28,8 @@ from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_wi
 from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating, roll_revert_icon
 from negpy.desktop.view.styles.templates import (
+    BAR_BUTTON_HEIGHT,
+    BAR_ICON_SIZE,
     EditedDot,
     default_button_height,
     field_label,
@@ -316,7 +318,7 @@ class ActionToolbar(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         main_layout = QHBoxLayout(self)
         main_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
-        main_layout.setContentsMargins(THEME.space_lg, THEME.space_md, THEME.space_lg, THEME.space_md)
+        main_layout.setContentsMargins(THEME.space_lg, THEME.space_lg, THEME.space_lg, THEME.space_lg)
         main_layout.setSpacing(6)
 
         self._rows = QWidget()
@@ -334,8 +336,8 @@ class ActionToolbar(QWidget):
         v_layout.addWidget(self._view_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
         icon_color = THEME.text_primary
-        icon_size = QSize(16, 16)
-        btn_height = default_button_height()
+        icon_size = QSize(BAR_ICON_SIZE, BAR_ICON_SIZE)
+        btn_height = BAR_BUTTON_HEIGHT
         self._shortcut_tips: list = []
         self._shortcut_labels: list = []
 
@@ -345,6 +347,7 @@ class ActionToolbar(QWidget):
         self.mode_switch = SegmentedChoice((("fa5s.image", tr("Photo")), ("fa5s.film", tr("Roll"))), mode_tip, data=_MODES)
         self._tip(self.mode_switch, mode_tip, "toggle_toolbar_mode")
         self.mode_switch.setCurrentIndex(_MODES.index(self._mode))
+        self.mode_switch.setFixedHeight(btn_height)
         self.mode_switch.currentChanged.connect(lambda _i: self.set_mode(self.mode_switch.currentData()))
 
         # 0. Panel toggles (live at the bar's right end)
@@ -392,7 +395,7 @@ class ActionToolbar(QWidget):
         self.position_label = QLabel()
         self.position_label.setFixedHeight(btn_height)
         self.position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.position_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_base}px; padding: 0 2px;")
+        self.position_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_header}px; padding: 0 2px;")
         self.position_label.setToolTip(tr("This frame's place in the Film Strip's order and filter"))
 
         # 3. Zoom: the readout opens the presets, since users zoom directly on the canvas.
@@ -503,7 +506,7 @@ class ActionToolbar(QWidget):
 
         self.btn_tools = MenuButton(tr("Tools — crop, straighten, the pickers, masks and retouching; each opens its own row here"))
         self.btn_tools.setIcon(qta.icon("fa5s.tools", color=icon_color, color_disabled=THEME.text_muted))
-        self.btn_tools.setMinimumWidth(self.btn_tools.sizeHint().width())
+        self._show_tools_name(True)
         self._fill_tools_menu(self.btn_tools.choice_menu)
 
         # One-shot actions that otherwise live only in the ⋯ menu.
@@ -778,10 +781,10 @@ class ActionToolbar(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setToolTip(wrap_tooltip(btn.toolTip()))
 
-        # The file-rotate glyphs (page plus arrow) read as a blob at the standard 16px icon size.
+        # The file-rotate glyphs (page plus arrow) read as a blob at the standard icon size.
         # A touch larger keeps the page and arrow legible without changing the button's own
         # footprint, since btn_height still applies.
-        rotate_icon_size = QSize(20, 20)
+        rotate_icon_size = QSize(BAR_ICON_SIZE + 4, BAR_ICON_SIZE + 4)
         for btn in (self.btn_rot_l, self.btn_rot_r):
             btn.setIconSize(rotate_icon_size)
             btn.setFixedHeight(btn_height)
@@ -789,6 +792,8 @@ class ActionToolbar(QWidget):
             btn.setToolTip(wrap_tooltip(btn.toolTip()))
         for btn in (self.btn_zoom, self.btn_tools, self.source_choice, self.overlays_menu):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFixedHeight(btn_height)
+            btn.setIconSize(icon_size)
 
         self._row_layout = row_layout
         self._row_widgets: dict[str, QWidget] = {
@@ -1474,6 +1479,10 @@ class ActionToolbar(QWidget):
             if layout is not None:
                 layout.activate()
 
+    def _show_tools_name(self, shown: bool) -> None:
+        self.btn_tools.setText(" " + tr("Tools") if shown else "")
+        self.btn_tools.setMinimumWidth(self.btn_tools.sizeHint().width())
+
     def _bar_width(self) -> int:
         """Measured width of what the bar shows now (sizeHint can stay stale)."""
         self._activate_layout()
@@ -1610,6 +1619,10 @@ class ActionToolbar(QWidget):
         for widget in widgets:
             widget.setVisible(True)
         self._sync_separators()
+        # A name goes before a button does.
+        self._show_tools_name(True)
+        if self._bar_width() > w:
+            self._show_tools_name(False)
 
         extras = [item_id for item_id in reversed(self._item_ids) if item_id not in _COLLAPSE_ORDER]
         for item_id in extras + [item_id for item_id in _COLLAPSE_ORDER if item_id in self._item_ids]:

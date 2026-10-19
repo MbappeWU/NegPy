@@ -75,6 +75,9 @@ HEADER_HEIGHT = 40
 # rows read as one control set.
 TOOLBAR_BUTTON_HEIGHT = 28
 TOOLBAR_ICON_SIZE = 16
+# The canvas bar under the picture, the app's main toolbar: larger than a section toolbar.
+BAR_BUTTON_HEIGHT = 36
+BAR_ICON_SIZE = 18
 
 _default_btn_height: int | None = None
 
@@ -96,6 +99,7 @@ def load_stylesheet() -> str:
     # the absolute icon path, with forward slashes for Qt.
     check_icon = get_resource_path("media/icons/checkbox_check.svg").replace("\\", "/")
     qss = qss.replace("__CHECKBOX_CHECK_ICON__", check_icon)
+    qss = qss.replace("__CHEVRON_DOWN_ICON__", get_resource_path("media/icons/chevron_down.svg").replace("\\", "/"))
     return qss.replace("__UI_FONT__", ui_font_family())
 
 

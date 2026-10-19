@@ -59,7 +59,7 @@ def browser(session):
 def test_search_input_is_present(browser):
     assert browser.search_input is not None
     assert "film:portra" in browser.search_input.placeholderText()
-    assert browser.regex_btn.isCheckable()
+    assert browser.regex_action.isCheckable()
 
 
 def test_apply_filter_narrows_visible_files(browser, session):
@@ -71,7 +71,7 @@ def test_apply_filter_narrows_visible_files(browser, session):
 
 
 def test_regex_toggle_compiles_pattern(browser, session):
-    browser.regex_btn.setChecked(True)
+    browser.regex_action.setChecked(True)
     browser.search_input.setText(r"^IMG_\d{4}")
     browser._apply_filter()
     assert session.asset_model._filter_pattern is not None
@@ -80,7 +80,7 @@ def test_regex_toggle_compiles_pattern(browser, session):
 
 
 def test_invalid_regex_sets_error_stylesheet(browser):
-    browser.regex_btn.setChecked(True)
+    browser.regex_action.setChecked(True)
     browser.search_input.setText("[")
     browser._apply_filter()
     assert THEME.accent_primary in browser.search_input.styleSheet()
@@ -90,7 +90,7 @@ def test_invalid_regex_does_not_change_visible(browser, session):
     browser.search_input.setText("IMG")
     browser._apply_filter()
     before = list(session.asset_model._sorted_indices)
-    browser.regex_btn.setChecked(True)
+    browser.regex_action.setChecked(True)
     browser.search_input.setText("[")
     browser._apply_filter()
     assert session.asset_model._sorted_indices == before
@@ -632,12 +632,12 @@ def test_add_files_falls_back_to_empty_dir_when_unset(browser, session):
 
 
 def test_clearing_filter_clears_error_stylesheet(browser):
-    browser.regex_btn.setChecked(True)
+    browser.regex_action.setChecked(True)
     browser.search_input.setText("[")
     browser._apply_filter()
     assert browser.search_input.styleSheet() != ""
 
-    browser.regex_btn.setChecked(False)
+    browser.regex_action.setChecked(False)
     browser.search_input.setText("")
     browser._apply_filter()
     assert browser.search_input.styleSheet() == ""
@@ -935,14 +935,14 @@ def test_unload_button_always_targets_the_selection_never_the_whole_roll(browser
     session.clear_files.assert_not_called()
 
 
-def test_unload_button_tooltip_reflects_the_selection(browser, session):
+def test_the_unload_item_names_the_selection(browser, session):
     session.state.selected_indices = [0]
     browser._update_unload_button()
-    assert browser.unload_btn.toolTip() == "Unload…"
+    assert browser.unload_action.text() == "Unload…"
 
     session.state.selected_indices = [0, 1]
     browser._update_unload_button()
-    assert browser.unload_btn.toolTip() == "Unload Selected…"
+    assert browser.unload_action.text() == "Unload Selected…"
 
 
 def test_save_roll_prompts_for_a_name_and_refreshes_the_tree(browser):

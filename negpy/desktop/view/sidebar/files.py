@@ -9,6 +9,7 @@ import numpy as np
 import qtawesome as qta
 from PyQt6.QtCore import (
     Qt,
+    QEvent,
     QEasingCurve,
     QItemSelection,
     QItemSelectionModel,
@@ -23,7 +24,20 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QActionGroup, QColor, QIcon, QImage, QKeySequence, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTransform
+from PyQt6.QtGui import (
+    QAction,
+    QActionGroup,
+    QColor,
+    QIcon,
+    QImage,
+    QKeySequence,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QShortcut,
+    QTransform,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QDialog,
@@ -69,17 +83,8 @@ from negpy.features.hdr.models import hdr_frame_paths
 from negpy.desktop.view.widgets.elided_label import ElidedLabel
 from negpy.desktop.view.widgets.marks import draw_mark_badge
 from negpy.desktop.view.widgets.sort_button import SortButton
-from negpy.desktop.view.widgets.overflow_bar import OverflowBar
 from negpy.desktop.view.shortcut_registry import label_with_shortcut
-from negpy.desktop.view.styles.templates import (
-    ICON_BUTTON_WIDTH,
-    TOOLBAR_BUTTON_HEIGHT,
-    TOOLBAR_ICON_SIZE,
-    header_button,
-    icon_button,
-    tool_toggle,
-    wrap_tooltip,
-)
+from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, BAR_ICON_SIZE, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME, scene_color
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.sidecar_action import LABEL as SIDECAR_LABEL, load_edit_from_sidecar
@@ -1064,6 +1069,12 @@ class _FilmStripView(_FilmGridView):
         event.accept()
 
 
+# The Roll row: the widest its roll name and tally get, and the filter box's width below which
+# the row's buttons drop their names.
+_ROLL_TITLE_MAX_WIDTH = 280
+_FILTER_ROOM = 220
+
+
 class FileBrowser(QWidget):
     """
     Asset management panel for loading and selecting images.
@@ -1111,53 +1122,14 @@ class FileBrowser(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        icon_size = QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE)
-        btn_height = TOOLBAR_BUTTON_HEIGHT
-
-        self.film_strip_toolbar = OverflowBar(height=btn_height, spacing=4)
-
-        # One button for both: Add Files and Add Folder are two pickers for the same job
-        # (put pictures in this session), not two different actions worth their own icons.
-        self.add_btn = QToolButton()
-        self.add_btn.setIcon(qta.icon("fa5s.file-import", color=THEME.text_primary))
-        self.add_btn.setToolTip(tr("Add pictures or a folder to this session"))
-        self.add_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        add_menu = QMenu(self.add_btn)
-        add_menu.addAction(tr("Add Files…")).triggered.connect(self.prompt_add_files)
-        add_menu.addAction(tr("Add Folder…")).triggered.connect(self.prompt_add_folder)
-        self.add_btn.setMenu(add_menu)
-        self.unload_btn = QToolButton()
-        self.unload_btn.setIcon(qta.icon("fa5s.times-circle", color=THEME.text_primary))
-        self.unload_btn.setToolTip(tr("Unload…"))
-
-        self.hot_folder_btn = QToolButton()
-        self.hot_folder_btn.setCheckable(True)
-        self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_primary))
-        self.hot_folder_btn.setToolTip(tr("Hot Folder — automatically load new images from the current folder"))
-        self._update_hot_folder_style(False)
+        icon_size = QSize(BAR_ICON_SIZE, BAR_ICON_SIZE)
+        btn_height = BAR_BUTTON_HEIGHT
 
         self.apply_btn = QToolButton()
         self.apply_btn.setIcon(qta.icon("fa5s.clone", color=THEME.text_primary))
+        self.apply_btn.setText(tr("Apply…"))
         self.apply_btn.setToolTip(tr("Apply settings from the current frame to selected frames or the whole roll"))
         self.apply_btn.clicked.connect(self._open_apply_dialog)
-
-        self.roll_settings_btn = QToolButton()
-        self.roll_settings_btn.setIcon(qta.icon("fa5s.tags", color=THEME.text_primary))
-        self.roll_settings_btn.setToolTip(
-            wrap_tooltip(
-                tr("Roll Settings — tag gear, capture and process metadata across the current frame, a selection or the whole roll")
-            )
-        )
-        self.roll_settings_btn.clicked.connect(self._open_roll_settings_dialog)
-
-        self.save_roll_btn = QToolButton()
-        self.save_roll_btn.setIcon(qta.icon("fa5s.search", color=THEME.text_primary))
-        self.save_roll_btn.setToolTip(wrap_tooltip(tr("Save these frames as a roll — a named, reopenable group, not tied to a folder")))
-        self.save_roll_btn.clicked.connect(self._on_save_roll_clicked)
-        self.update_thumbnails_btn = QToolButton()
-        self.update_thumbnails_btn.setIcon(qta.icon("fa5s.sync-alt", color=THEME.text_primary))
-        self.update_thumbnails_btn.setToolTip(tr("Update Thumbnails — re-render every stale thumbnail in the roll"))
-        self.update_thumbnails_btn.clicked.connect(self._on_update_thumbnails_clicked)
 
         # Sheet filter dropdown
         self.sheet_btn = QToolButton()
@@ -1194,45 +1166,22 @@ class FileBrowser(QWidget):
         self.sort_btn.order_selected.connect(self._apply_sort_order)
         self.sort_btn.direction_selected.connect(self._apply_sort_direction)
 
-        for btn in (
-            self.add_btn,
-            self.unload_btn,
-            self.hot_folder_btn,
-            self.apply_btn,
-            self.roll_settings_btn,
-            self.save_roll_btn,
-            self.update_thumbnails_btn,
-            self.sort_btn,
-            self.sheet_btn,
-        ):
+        # Named, so the row reads without hovering; a narrow row drops the names (_fit_roll_row).
+        self._named_roll_buttons = (self.sort_btn, self.sheet_btn, self.apply_btn)
+        for btn in (self.sort_btn, self.sheet_btn):
+            btn.setProperty("dropdown", True)
+        for btn in self._named_roll_buttons:
             btn.setIconSize(icon_size)
             btn.setFixedHeight(btn_height)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        for widget, label in (
-            (self.save_roll_btn, tr("Save as Roll…")),
-            (None, None),
-            (self.add_btn, "Add"),
-            (None, None),
-            (self.hot_folder_btn, tr("Hot Folder")),
-            (None, None),
-            (self.apply_btn, tr("Apply settings")),
-            (self.roll_settings_btn, "Roll Settings"),
-            (self.update_thumbnails_btn, tr("Update thumbnails")),
-            (None, None),
-            (self.unload_btn, "Unload…"),
-            (self.sort_btn, "Sort"),
-            (self.sheet_btn, tr("Sheet filter")),
-        ):
-            if widget is None:
-                self.film_strip_toolbar.add_separator(self._create_separator())
-            else:
-                self.film_strip_toolbar.add_button(widget, label)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        # 0 shows everything; 1 moves Save as Roll to the ⋮ menu; 2 also drops the names.
+        self._roll_fit = 0
+        self._save_roll_wanted = False
 
         saved_sort = self.session.repo.get_global_setting("file_sort_order") or "name"
         saved_desc = self.session.repo.get_global_setting("file_sort_descending") or False
 
-        search_row = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(tr("Filter — name, film:portra, iso:>=400…"))
         self.search_input.setToolTip(
@@ -1248,35 +1197,41 @@ class FileBrowser(QWidget):
             qta.icon("fa5s.search", color=THEME.text_secondary),
             QLineEdit.ActionPosition.LeadingPosition,
         )
-        # The elastic item in this row. Its natural minimum is what keeps the panel from narrowing
-        # further, and the other two here are fixed-width by design.
+        # The elastic item in the row: _fit_roll_row reads its width.
         self.search_input.setMinimumWidth(40)
-        self.regex_btn = tool_toggle("", ".*", tr("Regex mode"))
-        self.regex_btn.setFixedWidth(ICON_BUTTON_WIDTH)
-
-        # Same query text, wider net: the box above filters what is loaded, and this runs it
+        self.search_input.setFixedHeight(btn_height)
+        self.search_input.installEventFilter(self)
+        # Same query text, wider net: the box filters what is loaded, and this runs it
         # against every library folder and opens what it finds.
-        self.library_search_btn = icon_button(
-            "mdi.folder-search-outline", tr("Search the whole library — runs this search across your library folders and loads the matches")
+        self.library_search_action = QAction(qta.icon("mdi.folder-search-outline", color=THEME.text_hint), "", self)
+        self.search_input.addAction(self.library_search_action, QLineEdit.ActionPosition.TrailingPosition)
+        self.library_search_action.setToolTip(
+            tr("Search the whole library — runs this search across your library folders and loads the matches")
         )
-
+        self.regex_action = self._box_toggle("mdi6.regex", tr("Regex mode"))
         # Opt-in (Preferences); hidden until then. Mutually exclusive with regex/the
         # structured query language -- ranks this session's frames by meaning instead.
-        self.semantic_btn = tool_toggle(
-            "mdi.image-search-outline", "", tr("Search by meaning — describe what you're looking for instead of using field:value terms")
+        self.semantic_action = self._box_toggle(
+            "mdi.image-search-outline", tr("Search by meaning — describe what you're looking for instead of using field:value terms")
         )
-        self.semantic_btn.setFixedWidth(ICON_BUTTON_WIDTH)
-        self.semantic_btn.setVisible(False)
-
-        search_row.addWidget(self.search_input)
-        search_row.addWidget(self.regex_btn)
-        search_row.addWidget(self.semantic_btn)
-        search_row.addWidget(self.library_search_btn)
+        self.semantic_action.setVisible(False)
 
         self._refresh_progress = ""
+        # First in the Roll row: the roll's name over the tally of its frames.
+        self.roll_name_label = QLabel("")
+        self.roll_name_label.setStyleSheet(
+            f"color: {THEME.text_primary}; font-size: {THEME.font_size_header}px; font-weight: {THEME.weight_semibold};"
+        )
         self.tally_label = ElidedLabel("")
-        self.tally_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
-        self.tally_label.setVisible(False)
+        self.tally_label.setStyleSheet(f"color: {THEME.text_hint}; font-size: {THEME.font_size_small}px;")
+        self.roll_title = QWidget()
+        self.roll_title.setMaximumWidth(_ROLL_TITLE_MAX_WIDTH)
+        title_col = QVBoxLayout(self.roll_title)
+        title_col.setContentsMargins(THEME.space_sm, 0, THEME.space_sm, 0)
+        title_col.setSpacing(0)
+        title_col.addWidget(self.roll_name_label)
+        title_col.addWidget(self.tally_label)
+        self.roll_title.setVisible(False)
 
         self.list_view = _FilmStripView()
         self._thumbnail_delegate = _FilmStripDelegate(self.list_view, state=self.session.state, frame_geometry=self._frame_geometry)
@@ -1314,37 +1269,81 @@ class FileBrowser(QWidget):
         # Shown in the right panel's Library tab; the strip reloads it and reads its state.
         self.library_tree = LibraryTree(self.controller)
 
-        self.guide_btn = header_button(
-            qta.icon("fa5s.info-circle", color=THEME.text_muted), tr("What am I looking at? — {title} guide", title=tr("Film Strip"))
-        )
-        self.guide_btn.clicked.connect(self._show_guide)
+        self.save_roll_btn = QToolButton()
+        self.save_roll_btn.setIcon(qta.icon("fa5s.save", color=THEME.text_primary))
+        self.save_roll_btn.setText(tr("Save as Roll…"))
+        self.save_roll_btn.setToolTip(wrap_tooltip(tr("Save these frames as a roll — a named, reopenable group, not tied to a folder")))
+        self.save_roll_btn.clicked.connect(self._on_save_roll_clicked)
+
+        self.hot_folder_action = QAction(tr("Hot Folder"), self)
+        self.hot_folder_action.setCheckable(True)
+        self.hot_folder_action.setToolTip(tr("Hot Folder — automatically load new images from the current folder"))
+        # The ⋮ menu holds the switch; the row shows this while it is on, since a watched
+        # folder keeps loading files. A click turns it off.
+        self.hot_folder_btn = QToolButton()
+        self.hot_folder_btn.setCheckable(True)
+        self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_primary, color_on=THEME.text_on_accent))
+        self.hot_folder_btn.setToolTip(tr("Hot Folder is on — click to stop loading new images from the current folder"))
+        self.hot_folder_btn.clicked.connect(lambda: self.hot_folder_action.setChecked(False))
+        self.hot_folder_btn.setVisible(False)
+
+        for btn in (self.save_roll_btn, self.hot_folder_btn):
+            btn.setIconSize(icon_size)
+            btn.setFixedHeight(btn_height)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.save_roll_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.save_roll_btn.setVisible(False)
+
         self.roll_menu_btn = QToolButton()
         self.roll_menu_btn.setIcon(qta.icon("fa5s.ellipsis-v", color=THEME.text_primary))
         self.roll_menu_btn.setIconSize(icon_size)
         self.roll_menu_btn.setFixedHeight(btn_height)
         self.roll_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.roll_menu_btn.setToolTip(tr("Start, close or reset the roll"))
+        self.roll_menu_btn.setToolTip(tr("Add frames, Roll Settings, the Hot Folder, and start, close or reset the roll"))
         self.roll_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.roll_menu_btn.setObjectName("toolbar_overflow")
         roll_menu = QMenu(self.roll_menu_btn)
+        roll_menu.setToolTipsVisible(True)
+        roll_menu.addAction(tr("Add Files…")).triggered.connect(self.prompt_add_files)
+        roll_menu.addAction(tr("Add Folder…")).triggered.connect(self.prompt_add_folder)
+        self.save_roll_action = roll_menu.addAction(label_with_shortcut(tr("Save as Roll…"), "save_as_roll"))
+        self.save_roll_action.triggered.connect(self._on_save_roll_clicked)
+        self.roll_settings_action = roll_menu.addAction(label_with_shortcut(tr("Roll Settings…"), "roll_settings"))
+        self.roll_settings_action.setToolTip(
+            tr("Roll Settings — tag gear, capture and process metadata across the current frame, a selection or the whole roll")
+        )
+        self.roll_settings_action.triggered.connect(self._open_roll_settings_dialog)
+        self.update_thumbnails_action = roll_menu.addAction("")
+        self.update_thumbnails_action.triggered.connect(self._on_update_thumbnails_clicked)
+        self._on_thumbnail_refresh_state_changed(False)
+        roll_menu.addAction(self.hot_folder_action)
+        self.unload_action = roll_menu.addAction(tr("Unload…"))
+        self.unload_action.triggered.connect(self._on_unload_clicked)
+        roll_menu.addSeparator()
         roll_menu.addAction(tr("New Roll…")).triggered.connect(self._on_clear_all)
         self.close_roll_action = roll_menu.addAction(label_with_shortcut(tr("Close Roll…"), "close_roll"))
         self.close_roll_action.triggered.connect(lambda: _close_roll(self, self.controller))
         roll_menu.aboutToShow.connect(self._sync_close_roll_action)
         roll_menu.addAction(label_with_shortcut(tr("Reset Roll to Defaults…"), "reset_roll")).triggered.connect(self._on_reset_roll)
+        roll_menu.addSeparator()
+        roll_menu.addAction(tr("Film Strip Guide…")).triggered.connect(self._show_guide)
         self.roll_menu_btn.setMenu(roll_menu)
 
-        # The toolbar's Roll mode shows this row: the tools, the box that filters the frames and
-        # searches the library, the tally.
+        # The toolbar's Roll mode shows this row: what the strip holds, the box that filters the
+        # frames and searches the library, how they are sorted and shown, Apply and the ⋮ menu.
         self.roll_row = QWidget()
         roll_layout = QHBoxLayout(self.roll_row)
         roll_layout.setContentsMargins(0, 0, 0, 0)
-        roll_layout.setSpacing(6)
-        roll_layout.addWidget(self.film_strip_toolbar)
+        roll_layout.setSpacing(THEME.space_sm)
+        self._title_separator = self._create_separator()
+        self._title_separator.setVisible(False)
+        for widget in (self.roll_title, self.save_roll_btn, self.hot_folder_btn, self._title_separator):
+            roll_layout.addWidget(widget)
+        roll_layout.addWidget(self.search_input, 1)
+        roll_layout.addWidget(self.sort_btn)
+        roll_layout.addWidget(self.sheet_btn)
         roll_layout.addWidget(self._create_separator())
-        roll_layout.addLayout(search_row, 1)
-        roll_layout.addWidget(self.tally_label)
-        roll_layout.addWidget(self.guide_btn)
+        roll_layout.addWidget(self.apply_btn)
         roll_layout.addWidget(self.roll_menu_btn)
 
         layout.addWidget(self.list_view, 1)
@@ -1356,7 +1355,6 @@ class FileBrowser(QWidget):
 
     def _connect_signals(self) -> None:
         self.library_tree.folder_roll_created.connect(self._maybe_suggest_gear)
-        self.unload_btn.clicked.connect(self._on_unload_clicked)
         self.list_view.clicked.connect(self._on_item_clicked)
         self.list_view.doubleClicked.connect(self._on_item_double_clicked)
         self.list_view.customContextMenuRequested.connect(self._show_context_menu)
@@ -1367,7 +1365,7 @@ class FileBrowser(QWidget):
         open_key.activated.connect(lambda: self._open_from_light_table(self.light_table_view.currentIndex()))
         self.light_table_view.customContextMenuRequested.connect(lambda pos: self._show_context_menu(pos, self.light_table_view))
         self.list_view.selectionModel().selectionChanged.connect(self._on_selection_changed)
-        self.hot_folder_btn.toggled.connect(self._on_hot_folder_toggled)
+        self.hot_folder_action.toggled.connect(self._on_hot_folder_toggled)
         self.controller.thumbnail_refresh_state_changed.connect(self._on_thumbnail_refresh_state_changed)
         self.session.canvas_bg_changed.connect(self._sync_film)
         self.session.film_edges_changed.connect(self._sync_film)
@@ -1385,9 +1383,9 @@ class FileBrowser(QWidget):
         self.session.session_emptied.connect(lambda: self.library_requested.emit(False))
         self.search_input.textChanged.connect(lambda _: self.filter_timer.start())
         self.search_input.returnPressed.connect(self.search_library)
-        self.regex_btn.toggled.connect(lambda _: self.filter_timer.start())
-        self.semantic_btn.toggled.connect(self._on_semantic_toggled)
-        self.library_search_btn.clicked.connect(self.search_library)
+        self.regex_action.toggled.connect(lambda _: self.filter_timer.start())
+        self.semantic_action.toggled.connect(self._on_semantic_toggled)
+        self.library_search_action.triggered.connect(self.search_library)
 
         # Delete unloads the selected frames, scoped to the thumbnail list so it does not fire
         # while typing in the filter box or editing elsewhere.
@@ -1476,7 +1474,7 @@ class FileBrowser(QWidget):
         # would fire _apply_filter over whatever the hand-off loaded, putting back the
         # in-session query the hand-off clears. One action, one rebuild.
         self.filter_timer.stop()
-        if self.semantic_btn.isChecked():
+        if self.semantic_action.isChecked():
             self.controller.request_library_semantic_search(self.search_input.text())
         else:
             self.controller.request_library_search(self.search_input.text())
@@ -1535,15 +1533,15 @@ class FileBrowser(QWidget):
 
     def _update_unload_button(self) -> None:
         multi = len(self.session.state.selected_indices) > 1
-        self.unload_btn.setToolTip(tr("Unload Selected…") if multi else tr("Unload…"))
+        self.unload_action.setText(tr("Unload Selected…") if multi else tr("Unload…"))
 
     def sync_ui(self) -> None:
         """Updates list selection to match session state."""
         model = self.session.asset_model
         selection_model = self.list_view.selectionModel()
-        self.semantic_btn.setVisible(self.session.state.semantic_search_enabled)
-        if not self.session.state.semantic_search_enabled and self.semantic_btn.isChecked():
-            self.semantic_btn.setChecked(False)  # reverts to the plain filter via _on_semantic_toggled
+        self.semantic_action.setVisible(self.session.state.semantic_search_enabled)
+        if not self.session.state.semantic_search_enabled and self.semantic_action.isChecked():
+            self.semantic_action.setChecked(False)  # reverts to the plain filter via _on_semantic_toggled
         self.library_tree.sync_ui()
         self._update_unload_button()
         self._update_tally()
@@ -1603,7 +1601,7 @@ class FileBrowser(QWidget):
 
     def _apply_filter(self) -> None:
         text = self.search_input.text().strip()
-        if self.semantic_btn.isChecked():
+        if self.semantic_action.isChecked():
             embedding = self.controller.embed_search_query(text)
             self.session.asset_model.set_semantic_query(embedding)
             self._set_search_error(bool(text) and embedding is None)
@@ -1613,7 +1611,7 @@ class FileBrowser(QWidget):
 
         if self.session.asset_model.semantic_query_active:
             self.session.asset_model.set_semantic_query(None)
-        regex = self.regex_btn.isChecked()
+        regex = self.regex_action.isChecked()
         ok = self.session.asset_model.set_filter(text, regex)
         self._set_search_error(not ok)
         if ok:
@@ -1621,7 +1619,7 @@ class FileBrowser(QWidget):
             self.sync_ui()
 
     def _on_semantic_toggled(self, checked: bool) -> None:
-        self.regex_btn.setEnabled(not checked)
+        self.regex_action.setEnabled(not checked)
         self.search_input.setPlaceholderText(
             tr("Describe what you're looking for…") if checked else tr("Filter — name, film:portra, iso:>=400…")
         )
@@ -1681,6 +1679,7 @@ class FileBrowser(QWidget):
         self.act_sort_name.setChecked(order == "name")
         self.act_sort_date.setChecked(order == "date")
         self.act_sort_scene.setChecked(order == "scene")
+        self.sort_btn.setText(self.sort_btn.order_action(order).text())
 
     def _apply_sheet_filter(self, mode: str, save: bool = True) -> None:
         self.act_sheet_all.setChecked(mode == "all")
@@ -1689,6 +1688,7 @@ class FileBrowser(QWidget):
         self.act_sheet_unmarked.setChecked(mode == "unmarked")
         icon_color = "white" if mode != "all" else THEME.text_primary
         self.sheet_btn.setIcon(qta.icon("fa5s.filter", color=icon_color))
+        self.sheet_btn.setText(next(a.text() for a in self._sheet_group.actions() if a.isChecked()))
         self.session.asset_model.set_sheet_filter(mode)
         if save:
             self.session.repo.save_global_setting("sheet_filter", mode)
@@ -1716,7 +1716,9 @@ class FileBrowser(QWidget):
     def _update_tally(self) -> None:
         files = self.session.state.uploaded_files
         if not files:
-            self.tally_label.setVisible(False)
+            self.roll_title.setVisible(False)
+            self._title_separator.setVisible(False)
+            self._show_save_roll(False)
             return
         keepers = sum(1 for f in files if f.get("keeper"))
         rejected = sum(1 for f in files if f.get("excluded"))
@@ -1731,23 +1733,27 @@ class FileBrowser(QWidget):
             text += f" · {count_of(keepers, 'keeper')}"
         if rejected:
             text += f" · {rejected} rejected"
-        roll_name = self._active_roll_name()
-        # The prefix slot holds the roll's name. Frames that are not one roll get named
-        # as what they are instead: an edit here reaches the roll each frame came from,
-        # which a strip that looks identical either way gives no sign of.
-        text = f"{roll_name or tr('No roll')} — {text}"
-        # First, so a narrow panel elides the roll name rather than the progress.
+        selected = len(self.session.state.selected_indices)
+        if selected > 1:
+            text += " · " + tr("{count} selected", count=selected)
+        # First, so a narrow row elides the counts rather than the progress.
         if self._refresh_progress:
             text = f"{self._refresh_progress} · {text}"
+        roll_name = self._active_roll_name()
+        # Frames that are not one roll get named as what they are: an edit here reaches the
+        # roll each frame came from, which a strip that looks identical either way gives no sign of.
+        self.roll_name_label.setText(roll_name or tr("No roll"))
         self.tally_label.setText(text)
-        self.tally_label.setToolTip(
+        self.roll_title.setToolTip(
             ""
             if roll_name
             else wrap_tooltip(
                 tr("These frames are not one roll. An edit changes the photo itself, so it also shows in the roll the frame came from.")
             )
         )
-        self.tally_label.setVisible(True)
+        self.roll_title.setVisible(True)
+        self._title_separator.setVisible(True)
+        self._show_save_roll(not roll_name)
 
     def _active_roll_name(self) -> str:
         """The roll the Film Strip's frames came from, if any -- shown ahead of the
@@ -1784,15 +1790,55 @@ class FileBrowser(QWidget):
         self._apply_sheet_filter("all")
 
     def _on_hot_folder_toggled(self, checked: bool) -> None:
-        self._update_hot_folder_style(checked)
+        self.hot_folder_btn.setChecked(checked)
+        self.hot_folder_btn.setVisible(checked)
         if checked:
             self.scan_timer.start()
         else:
             self.scan_timer.stop()
 
-    def _update_hot_folder_style(self, checked: bool) -> None:
-        icon_color = "white" if checked else THEME.text_primary
-        self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=icon_color))
+    def _box_toggle(self, icon_name: str, tooltip: str) -> QAction:
+        """A switch inside the filter box, its icon lit while on."""
+
+        def icon(on: bool) -> QIcon:
+            return qta.icon(icon_name, color=THEME.accent_secondary if on else THEME.text_hint, color_disabled=THEME.text_muted)
+
+        action = QAction(icon(False), "", self)
+        self.search_input.addAction(action, QLineEdit.ActionPosition.TrailingPosition)
+        action.setCheckable(True)
+        action.setToolTip(tooltip)
+        action.toggled.connect(lambda on: action.setIcon(icon(on)))
+        return action
+
+    def _show_save_roll(self, wanted: bool) -> None:
+        self._save_roll_wanted = wanted
+        self.save_roll_btn.setVisible(wanted and self._roll_fit == 0)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        # Events still reach the filter while the browser is torn down, after its attributes are gone.
+        if event.type() == QEvent.Type.Resize and obj is getattr(self, "search_input", None):
+            self._fit_roll_row()
+        return False
+
+    def _fit_roll_row(self) -> None:
+        """Save as Roll moves to the ⋮ menu, then the row's buttons drop their names, while the
+        filter box would be narrower than _FILTER_ROOM with them."""
+        save = self.save_roll_btn.sizeHint().width() + THEME.space_sm if self._save_roll_wanted else 0
+        names = sum(btn.fontMetrics().horizontalAdvance(btn.text()) + THEME.space_sm for btn in self._named_roll_buttons)
+        freed = (0, save, save + names)
+        room = self.search_input.width() - freed[self._roll_fit]
+        # A step back needs a margin: a width right at the edge must not flicker.
+        level = next(
+            (lv for lv in (0, 1) if room + freed[lv] >= _FILTER_ROOM + (THEME.space_2xl if lv < self._roll_fit else 0)),
+            2,
+        )
+        if level == self._roll_fit:
+            return
+        self._roll_fit = level
+        style = Qt.ToolButtonStyle.ToolButtonIconOnly if level == 2 else Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        for btn in self._named_roll_buttons:
+            btn.setToolButtonStyle(style)
+        self._show_save_roll(self._save_roll_wanted)
 
     def _on_adjust_half_frame_split(self, path: str, base_hash: str) -> None:
         """Open the rectangle editor for one file, defaulting Apply to just that
@@ -1982,11 +2028,11 @@ class FileBrowser(QWidget):
         """Same button starts and stops it: a refresh over a very large folder needs a
         way out that isn't waiting for it to finish."""
         if running:
-            self.update_thumbnails_btn.setIcon(qta.icon("fa5s.stop-circle", color=THEME.text_primary))
-            self.update_thumbnails_btn.setToolTip(tr("Cancel Thumbnail Update — stop the background refresh in progress"))
+            self.update_thumbnails_action.setText(tr("Cancel Thumbnail Update"))
+            self.update_thumbnails_action.setToolTip(tr("Cancel Thumbnail Update — stop the background refresh in progress"))
         else:
-            self.update_thumbnails_btn.setIcon(qta.icon("fa5s.sync-alt", color=THEME.text_primary))
-            self.update_thumbnails_btn.setToolTip(tr("Update Thumbnails — re-render every stale thumbnail in the roll"))
+            self.update_thumbnails_action.setText(tr("Update Thumbnails"))
+            self.update_thumbnails_action.setToolTip(tr("Update Thumbnails — re-render every stale thumbnail in the roll"))
 
     def _build_session_menu(self) -> QMenu:
         """Mirrors the panel toolbar's add/clear tools, for a right click on empty space."""
