@@ -194,6 +194,24 @@ def test_the_light_table_shares_the_strip_selection(browser):
     assert browser.light_table_view.selectionModel() is browser.list_view.selectionModel()
 
 
+def test_a_click_on_the_light_table_selects_a_frame_without_opening_it(browser, qapp):
+    from PyQt6.QtTest import QTest
+
+    opened = []
+    browser.session.file_selected.connect(opened.append)
+    view = browser.light_table_view
+    view.resize(1200, 700)
+    view.show()
+    qapp.processEvents()
+
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=view.visualRect(view.model().index(1, 0)).center())
+    qapp.processEvents()
+
+    assert [index.row() for index in view.selectionModel().selectedIndexes()] == [1]
+    assert opened == [] and browser.session.state.current_file_path is None
+    view.hide()
+
+
 def test_opening_a_frame_from_the_light_table_asks_for_the_canvas(browser, monkeypatch):
     opened, left = [], []
     monkeypatch.setattr(browser, "_activate_file", opened.append)
@@ -370,12 +388,6 @@ def test_without_film_edges_the_light_table_rows_fill_its_width(browser, qapp):
     view.hide()
 
 
-def _no_pointer(view, qapp) -> None:
-    """The offscreen pointer rests on the first frame; a test of marks takes it off just before the grab."""
-    qapp.processEvents()
-    view._hover_row = -1
-
-
 def _near(c: QColor, color: QColor) -> bool:
     return abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 60
 
@@ -392,7 +404,7 @@ def test_without_film_edges_a_scene_draws_a_line_over_its_frames_that_starts_wit
     browser.show()
     strip.selectionModel().clearSelection()
     strip.selectionModel().select(strip.model().index(2, 0), QItemSelectionModel.SelectionFlag.Select)
-    _no_pointer(strip, qapp)
+    qapp.processEvents()
     image = strip.viewport().grab().toImage()
     color = QColor(scene_color(2))
     bands = [strip.itemDelegate().band(strip.visualRect(strip.model().index(row, 0))) for row in range(4)]
@@ -413,7 +425,7 @@ def test_without_film_edges_each_row_of_a_scene_starts_with_its_name(browser, qa
     _thumbs(browser, [(300, 200)] * 8)
     view, vw = _shown_table(browser, qapp)
     view.selectionModel().clearSelection()
-    _no_pointer(view, qapp)
+    qapp.processEvents()
     image = view.viewport().grab().toImage()
     color = QColor(scene_color(2))
     bands = [view.itemDelegate().band(view.visualRect(view.model().index(row, 0))) for row in range(8)]
@@ -606,7 +618,7 @@ def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser,
     model, select = strip.model(), QItemSelectionModel.SelectionFlag.Select
     strip.selectionModel().select(model.index(1, 0), select)
     strip.selectionModel().select(model.index(2, 0), select)
-    _no_pointer(strip, qapp)
+    qapp.processEvents()
     image = strip.viewport().grab().toImage()
     bands = [strip.itemDelegate().band(strip.visualRect(model.index(row, 0))) for row in range(3)]
 
@@ -624,6 +636,27 @@ def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser,
     assert picture.red() < picture.green(), "the picture stays clear"
     assert light(1, 6) > light(2, 6) > table, "the glow fades out past the ring"
     assert light(1, strip.SLIM_MARGIN) <= table + 2, "the glow is gone at the strip's edge"
+    browser.hide()
+
+
+def test_the_frame_under_the_pointer_gets_no_ring(browser, qapp):
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtGui import QHoverEvent
+
+    _thumbs(browser, [(300, 200)] * 3)
+    strip = browser.list_view
+    browser.resize(1400, 200)
+    browser.show()
+    strip.selectionModel().clearSelection()
+    qapp.processEvents()
+    band = strip.itemDelegate().band(strip.visualRect(strip.model().index(1, 0)))
+    at = QPointF(band.center())
+    qapp.sendEvent(strip.viewport(), QHoverEvent(QEvent.Type.HoverMove, at, at, QPointF(-1, -1)))
+    qapp.processEvents()
+    image = strip.viewport().grab().toImage()
+
+    color = image.pixelColor(band.center().x(), band.top() - 1)
+    assert color.red() - color.green() <= 2
     browser.hide()
 
 

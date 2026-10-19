@@ -1005,12 +1005,11 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
     cell_zoomed = pyqtSignal(int)
-    # (ring, glow) strength of the active frame, the other selected frames and the frame under the pointer.
-    _MARKS = {"active": (1.0, 1.0), "selected": (0.6, 0.5), "hover": (0.35, 0.0)}
+    # (ring, glow) strength of the active frame and the other selected frames.
+    _MARKS = {"active": (1.0, 1.0), "selected": (0.6, 0.5)}
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         self._slim_cells: Optional[dict[int, QRect]] = None
-        self._hover_row = -1
         super().__init__(parent, target_cell)
         self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
@@ -1156,15 +1155,6 @@ class _FilmGridView(ThumbnailGridView):
         # A mark reaches past its cell, where Qt repaints nothing.
         self.viewport().update()
 
-    def viewportEvent(self, event) -> bool:  # noqa: N802
-        kind = event.type()
-        if kind in (QEvent.Type.HoverEnter, QEvent.Type.HoverMove, QEvent.Type.HoverLeave):
-            row = -1 if kind == QEvent.Type.HoverLeave else self.indexAt(event.position().toPoint()).row()
-            if row != self._hover_row:
-                self._hover_row = row
-                self.viewport().update()
-        return super().viewportEvent(event)
-
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
         delegate = self.itemDelegate()
@@ -1185,12 +1175,9 @@ class _FilmGridView(ThumbnailGridView):
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
         marks = []
-        for row in sorted(rows | ({self._hover_row} if self._hover_row >= 0 else set())):
+        for row in sorted(rows):
             index = model.index(row, 0)
-            if row not in rows:
-                level = "hover"
-            else:
-                level = "active" if delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}) else "selected"
+            level = "active" if delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}) else "selected"
             cell = self.visualRect(index)
             marks.append((delegate.band(cell), delegate._window(cell), *self._MARKS[level]))
         reach = 2 + _GLOW_REACH
@@ -1620,7 +1607,6 @@ class FileBrowser(QWidget):
         self.list_view.clicked.connect(self._on_item_clicked)
         self.list_view.doubleClicked.connect(self._on_item_double_clicked)
         self.list_view.customContextMenuRequested.connect(self._show_context_menu)
-        self.light_table_view.clicked.connect(lambda index: self._on_item_clicked(index, self.light_table_view))
         self.light_table_view.doubleClicked.connect(self._open_from_light_table)
         open_key = QShortcut(QKeySequence(Qt.Key.Key_Return), self.light_table_view)
         open_key.setContext(Qt.ShortcutContext.WidgetShortcut)
@@ -2162,13 +2148,12 @@ class FileBrowser(QWidget):
         if actual >= 0 and actual != self.session.state.selected_file_idx:
             self.session.select_file(actual)
 
-    def _on_item_clicked(self, index, view=None) -> None:
+    def _on_item_clicked(self, index) -> None:
         # `clicked` fires from inside Qt's own mouseReleaseEvent, before ThumbnailGridView's
         # reapply runs — force it now so a plain click is told apart from a Shift/Ctrl one
         # (left to the selectionChanged handler) by the gesture's final, decided selection.
-        view = view or self.list_view
-        view._apply_pending_row(index.row())
-        selected = view.selectionModel().selectedIndexes()
+        self.list_view._apply_pending_row(index.row())
+        selected = self.list_view.selectionModel().selectedIndexes()
         if len(selected) == 1 and selected[0].row() == index.row():
             self._activate_file(index)
 
