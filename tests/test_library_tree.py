@@ -157,7 +157,7 @@ def test_a_roll_row_says_what_the_roll_is(widget):
 
     item = widget.tree.topLevelItem(0)
     parts = item.data(0, _DETAIL_ROLE).split(" · ")
-    assert parts[:2] == ["empty", "B&W"] and len(parts) == 3, "count, film mode, import date"
+    assert parts[:2] == ["0 photos", "B&W"] and len(parts) == 3, "count, film mode, import date"
     assert item.data(0, _DOT_ROLE) == THEME.mode_bw
 
 

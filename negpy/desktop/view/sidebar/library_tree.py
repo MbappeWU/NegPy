@@ -41,7 +41,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.kernel.system.text import count_of
 from negpy.services.assets import rolls
 from negpy.services.assets.composites import frame_count, saved_composites
-from negpy.services.assets.library import folder_counts, folder_image_paths, folder_label, summarize_counts
+from negpy.services.assets.library import folder_counts, folder_image_paths, folder_label
 from negpy.services.assets.triplets import saved_triplets
 from negpy.services.assets.presets import is_valid_preset_name
 from negpy.services.assets.gear import GearProfiles
@@ -522,7 +522,7 @@ class LibraryTree(QWidget):
         defaults = entry.get("defaults") or {}
         frames = self._frame_count(roll_id, entry)
         item.setData(0, _FRAMES_ROLE, frames)
-        parts = [summarize_counts(frames, 0)]
+        parts = [count_of(frames, "photo")]
         mode = defaults.get("process_mode")
         label, color = _MODES.get(ProcessMode(mode), ("", "")) if mode else ("", "")
         if label:
