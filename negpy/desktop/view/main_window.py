@@ -351,6 +351,11 @@ class MainWindow(QMainWindow):
         self.right_panel = RightPanel(self.controller, library_tree=self.file_browser.library_tree)
         # Back-compat alias: tutorial, keyboard shortcuts, and _sync_tool_buttons reach feature sidebars here.
         self.controls_panel = self.right_panel.controls_panel
+        geo = self.controls_panel.geometry_sidebar
+        geo.rot_l_btn.clicked.connect(lambda: self.toolbar.rotate(1))
+        geo.rot_r_btn.clicked.connect(lambda: self.toolbar.rotate(-1))
+        geo.flip_h_btn.clicked.connect(lambda: self.toolbar.flip("horizontal"))
+        geo.flip_v_btn.clicked.connect(lambda: self.toolbar.flip("vertical"))
 
         # Object names are required for saveState/restoreState to identify the docks.
         self.drawer.setObjectName("controls_dock")
@@ -928,7 +933,7 @@ class MainWindow(QMainWindow):
 
         # We access buttons through the controls panel
         self.controls_panel.color_sidebar.pick_wb_btn.setChecked(mode == ToolMode.WB_PICK)
-        self.controls_panel.geometry_sidebar.manual_crop_btn.setChecked(mode == ToolMode.CROP_MANUAL)
+        self.controls_panel.autocrop_sidebar.manual_crop_btn.setChecked(mode == ToolMode.CROP_MANUAL)
         self.controls_panel.retouch_sidebar.pick_dust_btn.setChecked(mode == ToolMode.DUST_PICK)
         self.controls_panel.retouch_sidebar.clone_btn.setChecked(mode == ToolMode.CLONE)
 

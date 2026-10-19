@@ -134,12 +134,12 @@ CATALOG: list[tuple[str, tuple[SettingRow, ...]]] = [
         _row(mark("Rebate Trim"), "geometry", "autocrop_rebate_trim", sticky=True),
         _row(mark("Crop Ratio"), "geometry", "autocrop_ratio", sticky=True),
         _row(mark("Crop Mode"), "geometry", "autocrop_mode", sticky=True),
-        _row(mark("Square Before Crop"), "geometry", "autocrop_square", sticky=True),
+        _row(mark("Square First"), "geometry", "autocrop_square", sticky=True),
         # Rect and key copy together: without the key a copied auto rect looks freshly
         # detected on the target.
         _row(mark("Crop"), "geometry", "crop_rect", "crop_detect_key", fmt=lambda v: _fmt_scalar(v[0])),
     )),
-    (mark("Geometry"), (
+    (mark("Straighten"), (
         _row(mark("Rotation"), "geometry", "rotation"),
         _row(mark("Fine Rotation"), "geometry", "fine_rotation"),
         _row(mark("Tilt"), "geometry", "converge_v"),

@@ -76,18 +76,6 @@ def test_rebate_trim_slider_follows_the_crop_mode(qapp):
     assert sidebar.auto_crop_all_btn.isEnabled() is True
 
 
-def test_the_run_buttons_are_icons_on_the_auto_crop_header(qapp):
-    """Frame/Roll words would read as the card header's scope pair."""
-    sidebar, _ = _sidebar()
-    assert sidebar.auto_frame_btn.text() == "" and sidebar.auto_crop_all_btn.text() == ""
-    row = next(
-        sidebar.layout.itemAt(i).layout()
-        for i in range(sidebar.layout.count())
-        if sidebar.layout.itemAt(i).layout() is not None and sidebar.layout.itemAt(i).layout().indexOf(sidebar.auto_frame_btn) != -1
-    )
-    assert row.indexOf(sidebar.auto_crop_all_btn) != -1
-
-
 def test_the_frame_button_crops_this_frame_and_clears_it(qapp):
     sidebar, controller = _sidebar()
 

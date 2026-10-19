@@ -165,10 +165,10 @@ class ControlsPanel(QWidget):
 
         self.geometry_sidebar = GeometrySidebar(self.controller)
         self.geometry_section = self._make_section(
-            tr("Geometry"),
+            tr("Straighten"),
             "geometry",
             self.geometry_sidebar,
-            icon_name="fa5s.crop",
+            icon_name="fa5s.ruler",
         )
 
         self.autocrop_sidebar = AutocropSidebar(self.controller)
@@ -568,7 +568,6 @@ class ControlsPanel(QWidget):
             (self.flatfield_sidebar.check_btn, "toggle_flatfield_peek"),
             (self.autocrop_sidebar.auto_frame_btn, "auto_crop"),
             (self.autocrop_sidebar.square_btn, "auto_crop_square"),
-            (self.geometry_sidebar.auto_crop_btn, "auto_crop"),
             (self.autocrop_sidebar.auto_crop_all_btn, "batch_autocrop"),
             (self.tone_sidebar.auto_density_action, "toggle_auto_density"),
             (self.tone_sidebar.auto_grade_action, "toggle_auto_grade"),
@@ -699,24 +698,31 @@ class ControlsPanel(QWidget):
             )
         )
 
-        geo.manual_crop_btn.setToolTip(
+        crop.manual_crop_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Crop: drag a rectangle on the picture."),
+                tr("Draw: drag a crop on the picture."),
                 "manual_crop",
             )
         )
         geo.auto_skew_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Auto Skew: line the picture up with the edges of the film."),
+                tr("Square to Film: line the picture up with the edges of the film."),
                 "auto_skew",
             )
         )
         geo.straighten_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Straighten: draw a line along the horizon or a vertical edge, and the picture turns to level it."),
+                tr("Level: draw a line along the horizon or a vertical edge, and the picture turns to level it."),
                 "straighten",
             )
         )
+        for btn, text, action_id in (
+            (geo.rot_l_btn, tr("Rotate 90° counter-clockwise."), "rotate_ccw"),
+            (geo.rot_r_btn, tr("Rotate 90° clockwise."), "rotate_cw"),
+            (geo.flip_h_btn, tr("Flip the picture left to right."), "flip_h"),
+            (geo.flip_v_btn, tr("Flip the picture top to bottom."), "flip_v"),
+        ):
+            btn.setToolTip(tooltip_with_shortcut(text, action_id))
         geo.keystone_lines_btn.setToolTip(
             tooltip_with_shortcut(
                 tr("Draw a line along each edge of the film, and Tilt and Swing make them square."),
@@ -1129,17 +1135,7 @@ class ControlsPanel(QWidget):
     def _sync_crop_block(self) -> None:
         """Crop controls are disabled while Auto-crop all frames runs (controller.crop_edits_blocked)."""
         enabled = not self.controller.crop_edits_blocked()
-        geo = self.geometry_sidebar
-        for widget in (
-            self.autocrop_sidebar,
-            self.autocrop_section.reset_btn,
-            self.autocrop_section.roll_revert_btn,
-            self.geometry_section.reset_btn,
-            geo.manual_crop_btn,
-            geo.auto_crop_btn,
-            geo.clear_crop_btn,
-            geo.ratio_combo,
-        ):
+        for widget in (self.autocrop_sidebar, self.autocrop_section.reset_btn, self.autocrop_section.roll_revert_btn):
             widget.setEnabled(enabled)
 
     def _reset_geometry_fields(self) -> None:

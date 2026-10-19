@@ -326,7 +326,7 @@ class TestAppController(unittest.TestCase):
 
         self.mock_session_manager.update_config.assert_not_called()
         self.controller.request_render.assert_not_called()
-        self.assertIn("no adjustment necessary", self.controller.set_status.call_args.args[0])
+        self.assertIn("already square", self.controller.set_status.call_args.args[0])
 
     def test_auto_skew_measures_the_flat_fielded_source(self):
         from negpy.features.geometry.skew import FrameSkew

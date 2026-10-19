@@ -362,9 +362,7 @@ assert {page['key']: page['label'] for page in panel.pages} == {
 }
 assert panel.pages[0]['tooltip'] == '几何'
 controller.state.config = replace(controller.state.config, geometry=replace(controller.state.config.geometry, autocrop_ratio='6:7'))
-panel.geometry_sidebar.sync_ui()
 panel.autocrop_sidebar.sync_ui()
-assert panel.geometry_sidebar.ratio_combo.currentData() == '6:7'
 assert panel.autocrop_sidebar.ratio_combo.currentData() == '6:7'
 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
 assert 'Cancel' not in buttons.button(QDialogButtonBox.StandardButton.Cancel).text()

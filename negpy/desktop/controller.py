@@ -4077,12 +4077,12 @@ class AppController(QObject):
             fit = squared_geometry(source, geo, config.process.process_mode)
         except Exception:
             logger.exception("Auto Skew failed on %s", self.state.current_file_path)
-            self.set_status(tr("Auto Skew failed; see the log"), 3000, "warning")
+            self.set_status(tr("Square to Film failed; see the log"), 3000, "warning")
             return
         finally:
             QApplication.restoreOverrideCursor()
         if fit is None:
-            self.set_status(tr("Auto Skew could not read the frame edges confidently enough to apply"), 3000, "warning")
+            self.set_status(tr("Square to Film could not read the frame edges clearly enough"), 3000, "warning")
             return
         new_geo, skew = fit
         # Under the sliders' step, the frame is already square.
@@ -4091,7 +4091,7 @@ class AppController(QObject):
             and abs(new_geo.converge_v - geo.converge_v) < 0.05
             and abs(new_geo.converge_h - geo.converge_h) < 0.05
         ):
-            self.set_status(tr("Auto Skew: no adjustment necessary"), 3000)
+            self.set_status(tr("Square to Film: the frame is already square"), 3000)
             return
         self._crop_bounds_dirty = True
         self.session.update_config(replace(config, geometry=new_geo), persist=True)
@@ -4102,7 +4102,7 @@ class AppController(QObject):
             parts.append(f"Tilt {new_geo.converge_v:+.1f}%")
         if skew.converge_h is not None:
             parts.append(f"Swing {new_geo.converge_h:+.1f}%")
-        self.set_status(tr("Auto Skew: ") + ", ".join(parts), 4000)
+        self.set_status(tr("Square to Film: ") + ", ".join(parts), 4000)
         self.request_render()
 
     def handle_keystone_line_marked(self, edge: str, nx1: float, ny1: float, nx2: float, ny2: float) -> None:
@@ -5581,7 +5581,7 @@ class AppController(QObject):
     METADATA_CARDS = ("metadata_gear", "metadata_capture", "metadata_process", "metadata_scanning", "metadata_exposure")
     _FRAME_CARD_LABELS = {
         "autocrop": "Crop",
-        "geometry": "Geometry",
+        "geometry": "Straighten",
         "color": "Filtration",
         "tone": "Tone",
         "paper": "Paper Response",

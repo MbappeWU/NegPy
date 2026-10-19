@@ -64,7 +64,7 @@ Actions with no default key are not listed; every one of them can still be bound
 | `V` | Flip vertical |
 | `X` / `Z` | Increase / decrease **Crop offset** (default step 1 px) |
 | `Alt + R` / `Alt + Shift + R` | Increase / decrease **Fine rotation** (default step 0.01°) |
-| `L` | Toggle straighten line tool |
+| `L` | Toggle the Level tool |
 | `O` | Next crop guide overlay |
 | `Shift + O` | Rotate crop guide orientation |
 | `Shift + A` | Toggle Auto Crop |

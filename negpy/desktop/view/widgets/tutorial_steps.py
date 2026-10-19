@@ -231,7 +231,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
                 value=_k("crop_guide_next"),
             ),
             lambda w: cp(w).geometry_section,
-            focus=lambda w: cp(w).geometry_sidebar.manual_crop_btn,
+            focus=lambda w: cp(w).autocrop_sidebar.manual_crop_btn,
             task=tr("Click the crop tool and drag a new rectangle on the picture. Enter confirms."),
             watch=lambda w: w.state.config.geometry.crop_rect,
             guide=("geometry", "Geometry"),

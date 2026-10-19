@@ -269,16 +269,7 @@ def test_A14_crop_controls_are_disabled_while_the_run_goes(qapp):
     controller.state = AppState()
     controller.crop_edits_blocked.return_value = True
     panel = ControlsPanel(controller)
-    geo = panel.geometry_sidebar
-    widgets = (
-        panel.autocrop_sidebar,
-        panel.autocrop_section.reset_btn,
-        panel.geometry_section.reset_btn,
-        geo.manual_crop_btn,
-        geo.auto_crop_btn,
-        geo.clear_crop_btn,
-        geo.ratio_combo,
-    )
+    widgets = (panel.autocrop_sidebar, panel.autocrop_section.reset_btn, panel.autocrop_section.roll_revert_btn)
 
     panel._sync_crop_block()
     assert not any(w.isEnabled() for w in widgets)
