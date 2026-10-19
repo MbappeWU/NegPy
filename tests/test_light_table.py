@@ -339,6 +339,12 @@ def test_justified_rows_fill_the_width_and_the_last_row_keeps_its_height():
     assert justified_rows([], 400, 100, 4) == []
 
 
+def _show_strip(browser) -> None:
+    """A wide, low strip. A fixed size, because the offscreen platform can give a shown window another size."""
+    browser.setFixedSize(1400, 200)
+    browser.show()
+
+
 def _thumbs(browser, sizes) -> None:
     from negpy.services.assets.thumbnails import asset_thumbnail_key
 
@@ -353,8 +359,7 @@ def test_without_film_edges_each_strip_frame_is_as_wide_as_its_upright_picture(b
     _thumbs(browser, [(300, 200), (200, 300), (300, 200)])
     assert not browser.session.state.film_edges, "off by default"
     strip = browser.list_view
-    browser.resize(1400, 200)
-    browser.show()
+    _show_strip(browser)
     qapp.processEvents()
 
     landscape, portrait = (strip.visualRect(strip.model().index(row, 0)) for row in (0, 1))
@@ -401,14 +406,13 @@ def test_without_film_edges_a_scene_draws_a_line_over_its_frames_that_starts_wit
     _scene_roll(browser, [None, NIGHT, NIGHT, None])
     _thumbs(browser, [(300, 200)] * 4)
     strip = browser.list_view
-    browser.resize(1400, 200)
-    browser.show()
+    _show_strip(browser)
     strip.selectionModel().clearSelection()
     strip.selectionModel().select(strip.model().index(2, 0), QItemSelectionModel.SelectionFlag.Select)
     qapp.processEvents()
+    bands = [strip.itemDelegate().band(strip.visualRect(strip.model().index(row, 0))) for row in range(4)]
     image = strip.viewport().grab().toImage()
     color = QColor(scene_color(2))
-    bands = [strip.itemDelegate().band(strip.visualRect(strip.model().index(row, 0))) for row in range(4)]
 
     assert [_near(image.pixelColor(band.center().x(), band.top() + 1), color) for band in bands] == [False, True, False, False]
     selected = image.pixelColor(bands[2].center().x(), bands[2].top() + 1)
@@ -427,9 +431,9 @@ def test_without_film_edges_each_row_of_a_scene_starts_with_its_name(browser, qa
     view, vw = _shown_table(browser, qapp)
     view.selectionModel().clearSelection()
     qapp.processEvents()
+    bands = [view.itemDelegate().band(view.visualRect(view.model().index(row, 0))) for row in range(8)]
     image = view.viewport().grab().toImage()
     color = QColor(scene_color(2))
-    bands = [view.itemDelegate().band(view.visualRect(view.model().index(row, 0))) for row in range(8)]
     starts = [band for band in bands if band.left() == 0]
 
     assert len(starts) > 1, "the scene wraps"
@@ -506,8 +510,7 @@ BEACH, NIGHT = (1, "s1", "Beach"), (2, "s2", "Night")
 def test_a_loop_rings_each_run_of_a_scenes_frames_on_one_row(browser, qapp):
     _scene_roll(browser, [None, BEACH, BEACH, NIGHT, None, BEACH])
     strip, table = browser.list_view, browser.light_table_view
-    browser.resize(1400, 200)
-    browser.show()
+    _show_strip(browser)
     qapp.processEvents()
 
     runs = [(scene, index.row(), first, last) for scene, index, first, last in strip.scene_runs_on_rows()]
@@ -613,15 +616,14 @@ def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser,
     _thumbs(browser, [(300, 200)] * 3)
     browser.session.state.current_file_path = "/r/1.tif"
     strip = browser.list_view
-    browser.resize(1400, 200)
-    browser.show()
+    _show_strip(browser)
     qapp.processEvents()
     model, select = strip.model(), QItemSelectionModel.SelectionFlag.Select
     strip.selectionModel().select(model.index(1, 0), select)
     strip.selectionModel().select(model.index(2, 0), select)
     qapp.processEvents()
-    image = strip.viewport().grab().toImage()
     bands = [strip.itemDelegate().band(strip.visualRect(model.index(row, 0))) for row in range(3)]
+    image = strip.viewport().grab().toImage()
 
     def light(row: int, above: int) -> int:
         color = image.pixelColor(bands[row].center().x(), bands[row].top() - above)
@@ -646,8 +648,7 @@ def test_the_frame_under_the_pointer_gets_no_ring(browser, qapp):
 
     _thumbs(browser, [(300, 200)] * 3)
     strip = browser.list_view
-    browser.resize(1400, 200)
-    browser.show()
+    _show_strip(browser)
     strip.selectionModel().clearSelection()
     qapp.processEvents()
     band = strip.itemDelegate().band(strip.visualRect(strip.model().index(1, 0)))
