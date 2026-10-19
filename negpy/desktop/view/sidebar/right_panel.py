@@ -403,12 +403,11 @@ class RightPanel(QWidget):
         return page
 
     def _build_roll_page(self) -> QWidget:
-        """Facts the whole roll shares, not one frame's own edit: what film it is (Film
-        Mode), how its files become frames (Frame Assembly), what the rig does to it
-        (Calibration), each frame's own exposure baseline (Metering), the frame's shape
-        (Crop) and the roll's shared baseline (Roll Analysis), and how it decodes and the
-        scanning optics (Raw Decode, Optics). Film Mode leads, since it decides which of the others
-        even apply."""
+        """Facts the whole roll shares, not one frame's own edit: what film it is and how it
+        was scanned (Setup), how its files become frames (Frame Assembly), what the rig does to
+        it (Calibration), each frame's own exposure baseline (Metering), the frame's shape (Crop)
+        and the roll's shared baseline (Roll Analysis), and how it decodes and the scanning
+        optics (Raw Decode, Optics). Setup leads, since it decides which of the others even apply."""
         cp = self.controls_panel
         page = QWidget()
         page_layout = QVBoxLayout(page)
@@ -434,7 +433,6 @@ class RightPanel(QWidget):
 
         page_layout.addWidget(cp.roll_override_summary)
         for section in (
-            cp.setup_section,
             cp.film_section,
             cp.assembly_section,
             cp.sensor_section,

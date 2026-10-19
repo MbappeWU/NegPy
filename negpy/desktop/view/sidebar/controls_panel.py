@@ -204,21 +204,20 @@ class ControlsPanel(QWidget):
         )
 
         self.scan_setup_sidebar = ScanSetupSidebar(self.controller)
-        self.setup_section = self._make_section(
-            tr("Scanning Setup"),
-            "setup",
-            self.scan_setup_sidebar,
-            icon_name="mdi6.scanner",
-            collapsible=False,
-        )
-
         self.process_sidebar = ProcessSidebar(self.controller)
-        # Always expanded (no chevron): the first choice of every edit, and the one
-        # every other Roll-tab card's fields assume is already settled.
+        # Always expanded (no chevron): the first choices of every edit, and the ones
+        # every other Roll-tab card's fields assume are already settled. The roll shares
+        # the film mode; the scanning setup is one setting for the app.
+        setup_body = QWidget()
+        setup_layout = QVBoxLayout(setup_body)
+        setup_layout.setContentsMargins(0, 0, 0, 0)
+        setup_layout.setSpacing(THEME.space_lg)
+        setup_layout.addWidget(self.process_sidebar.mode_bar)
+        setup_layout.addWidget(self.scan_setup_sidebar)
         self.film_section = self._make_section(
-            tr("Film Mode"),
+            tr("Setup"),
             "film",
-            self.process_sidebar.mode_bar,
+            setup_body,
             icon_name="mdi6.film",
             collapsible=False,
         )

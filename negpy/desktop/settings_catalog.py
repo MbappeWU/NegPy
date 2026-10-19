@@ -101,7 +101,7 @@ def _fmt_gear(values: tuple) -> str:
 
 # fmt: off
 CATALOG: list[tuple[str, tuple[SettingRow, ...]]] = [
-    (mark("Film Mode"), (
+    (mark("Setup"), (
         _row(mark("Film Mode"), "process", "process_mode", sticky=True),
         _row(mark("Positive"), "process", "positive_source", sticky=True),
     )),

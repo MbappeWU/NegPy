@@ -80,8 +80,8 @@ def test_positive_is_slide_only(qapp):
 
 def test_positive_lives_in_mode_bar_not_the_normalization_body(qapp):
     """Whether the source is already a finished positive is a fact about the file, not
-    a Normalization setting -- it lives beside Film Mode in mode_bar, the "Film Mode"
-    card's own content, not inside Normalization's."""
+    a Normalization setting -- it lives beside Film Mode in mode_bar, at the top of the
+    "Setup" card, not inside Normalization's."""
     _, sidebar = _sidebar()
     assert sidebar.positive_source_btn.parentWidget() is sidebar.mode_bar
 

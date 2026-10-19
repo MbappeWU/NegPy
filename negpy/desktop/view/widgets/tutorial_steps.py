@@ -192,27 +192,17 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         ),
         step(
             ROLL,
-            tr("Scanning Setup"),
+            tr("Setup"),
             tr(
-                "Tell NegPy how you scan: <b>Camera</b> or <b>Film Scanner</b> (read from the file until you "
-                "pick one), and <b>White Light</b> or <b>Narrowband RGB</b>. It sets the decode and the print "
-                "stock, and the Roll tab shows only the controls your setup uses."
-            ),
-            lambda w: cp(w).setup_section,
-            guide=("setup", "Scanning Setup"),
-        ),
-        step(
-            ROLL,
-            tr("Film Mode"),
-            tr(
-                "The first choice: <b>Color</b> negative, <b>B&amp;W</b> negative or <b>Slide</b>. The wand "
-                "detects the mode when a file opens. <b>Positive</b>, on Slide, is for a file that is already "
-                "a positive, such as a scanned print."
+                "The first choices. Film: <b>Color</b> negative, <b>B&amp;W</b> negative or <b>Slide</b>; the wand "
+                "detects it when a file opens. Then how you scan: <b>Camera</b> or <b>Film Scanner</b> (read from "
+                "the file until you pick one), and <b>White Light</b> or <b>Narrowband RGB</b>. The Roll tab shows "
+                "only the controls your setup uses."
             ),
             lambda w: cp(w).film_section,
             task=tr("Change the film mode, then set it back."),
             watch=lambda w: w.state.config.process.process_mode,
-            guide=("film", "Film Mode"),
+            guide=("film", "Setup"),
             offer=_DEMO,
         ),
         step(

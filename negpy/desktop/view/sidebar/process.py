@@ -98,8 +98,8 @@ class ProcessSidebar(BaseSidebar):
     def _init_ui(self) -> None:
         conf = self.state.config.process
 
-        # The "Film Mode" Roll-tab card's content -- ControlsPanel wraps it in a section
-        # with that title, so it carries no header of its own; deliberately not in
+        # The top of the "Setup" Roll-tab card -- ControlsPanel wraps it in that section,
+        # so it carries no header of its own; deliberately not in
         # self.layout, the same reason analysis_bar below is not.
         self.mode_bar = QWidget()
         mode_col = QVBoxLayout(self.mode_bar)

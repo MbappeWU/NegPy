@@ -17,7 +17,6 @@ from negpy.desktop.view.widgets.section_help_dialog import SectionHelpDialog, _g
 GUIDED_KEYS = (
     "analysis",
     "presets",
-    "setup",
     "film",
     "assembly",
     "sensor",

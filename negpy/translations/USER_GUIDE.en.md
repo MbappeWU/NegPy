@@ -56,7 +56,7 @@ Drag the film strip's top edge to change its height, which sets the size of its 
 
 | Tab | Panels | What it is for |
 |-----|--------|---------------|
-| **Roll** | Scanning Setup · Film Mode · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics | The scanning rig, film type, capture color, crop shape, roll baselines, metering |
+| **Roll** | Setup · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics | The scanning rig, film type, capture color, crop shape, roll baselines, metering |
 
 **Frame** tabs follow the pipeline order. Favorites (star) and History (clock) are the two icon tabs at the end:
 
@@ -85,7 +85,7 @@ An unedited frame gets the rig and roll settings: film process, crop ratio, flip
 
 **Preferences → Session & Storage → Persistent Settings…** sets which settings carry. **Carry settings between frames** is the master switch; off, new frames get bare defaults.
 
-An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Linear RAW, demosaic); the **Scanning Setup** card sets those, and a camera Scan sets the decode and the print stock per frame from its light.
+An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Linear RAW, demosaic); the **Setup** card's scanning choices set those, and a camera Scan sets the decode and the print stock per frame from its light.
 
 ### Frame or roll: the scope pair
 
@@ -684,13 +684,15 @@ Every edit step, newest on top; NegPy keeps the last 100.
 
 ## 10. Roll tab
 
-Scanning Setup leads the tab; every card below it is shared by the roll, with the scope pair of [§1](#frame-or-roll-the-scope-pair): an edit makes the card **Frame** until it matches the roll again, and a push to the roll skips frames that locked the card. The line above the cards names every card this frame overrides.
+Setup leads the tab. Its film mode, like every card below it, is shared by the roll, with the scope pair of [§1](#frame-or-roll-the-scope-pair): an edit makes the card **Frame** until it matches the roll again, and a push to the roll skips frames that locked the card. The line above the cards names every card this frame overrides.
 
-<!-- panel:setup -->
-### Scanning Setup
+<!-- panel:film -->
+### 10.1 Setup
 
-How you scan, for the whole app. It sets the RAW decode and the print stock, and the Roll tab shows only the controls that setup uses.
+What the film is and how you scan it. The film mode decides which cards apply. The scanning choices are one setting for the whole app: they set the RAW decode and the print stock, and the Roll tab shows only the controls they use.
 
+*   **Color / B&W / Slide**: **Color** (C-41 negative), **B&W** (negative) or **Slide** (transparency, E-6 and similar). The wand button detects the mode when a file loads.
+*   **Positive** (default off, **Slide** only): for a source that is already a positive (a scanned print, another app's export). NegPy reads its embedded profile (sRGB if none) and skips metering and inversion, so the tone controls shape the image directly.
 *   **Camera / Film Scanner**: read from each frame until you pick one (a camera RAW is a camera, a TIFF or JPEG a film scanner); your pick holds for every frame and picks the Scan tab's scanner.
 *   **White Light / Narrowband RGB** (default White Light): the light behind the negative.
 
@@ -701,16 +703,9 @@ How you scan, for the whole app. It sets the RAW decode and the print stock, and
 | Film scanner | White light (Plustek, Epson) | Linear RAW | Digital (Adobe RGB) | None |
 | Film scanner | Narrowband RGB (Coolscan, Pakon) | Linear RAW | Digital (Pakon Minilab) | None |
 
-A change sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks. A hidden control keeps its value, and one that holds a setting stays in view.
+A change of capture or light sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks. A hidden control keeps its value, and one that holds a setting stays in view.
 
 A camera Scan sets the decode and the print stock per frame from its light instead: white light keeps Camera WB, Trichrome and Single Capture decode Linear RAW, and a Digital print stock follows the same table.
-
-<!-- panel:film -->
-### 10.1 Film Mode
-
-Decides which cards apply: **Color** (C-41 negative), **B&W** (negative) or **Slide** (transparency, E-6 and similar). The wand button detects the mode when a file loads.
-
-**Positive** (default off, **Slide** only): for a source that is already a positive (a scanned print, another app's export). NegPy reads its embedded profile (sRGB if none) and skips metering and inversion, so the tone controls shape the image directly.
 
 <!-- panel:assembly -->
 ### 10.2 Frame Assembly
@@ -744,7 +739,7 @@ Half Frame never splits a frame assembled from several files.
 
 These controls correct the capture, not the look.
 
-Single-Shot Narrowband Calibration and Hue Trim show for a camera under Narrowband RGB light (Scanning Setup), or while they hold a setting.
+Single-Shot Narrowband Calibration and Hue Trim show for a camera under Narrowband RGB light (Setup), or while they hold a setting.
 
 **Single-Shot Narrowband Calibration**: for single-shot camera scans under narrowband light, where each color leaks into the others through the sensor's filters. Needs **Linear RAW**; grayed out on a Trichrome triplet. **Re-run Roll Analysis** after changing it.
 
@@ -838,9 +833,9 @@ Meters the roll once and shares the result, so frames of one film match.
 <!-- panel:demosaic -->
 ### 10.7 Raw Decode: turning the sensor mosaic into pixels
 
-How a camera RAW decodes; shown for a camera (Scanning Setup). The demosaic fills in the two colors each photosite misses, which affects sharpness and grain. Bayer and X-Trans RAW only; only algorithms in your LibRaw build are listed.
+How a camera RAW decodes; shown for a camera (Setup). The demosaic fills in the two colors each photosite misses, which affects sharpness and grain. Bayer and X-Trans RAW only; only algorithms in your LibRaw build are listed.
 
-*   **White Balance: Camera WB / Linear RAW** (set by Scanning Setup): *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
+*   **White Balance: Camera WB / Linear RAW** (set by Setup): *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
 
 **Demosaic**:
 
@@ -851,7 +846,7 @@ How a camera RAW decodes; shown for a camera (Scanning Setup). The demosaic fill
 <!-- panel:optics -->
 ### 10.8 Optics
 
-The scanning optics: one lens correction and one light correction for every frame of the rig. Shown for a camera (Scanning Setup), or while it holds a correction.
+The scanning optics: one lens correction and one light correction for every frame of the rig. Shown for a camera (Setup), or while it holds a correction.
 
 #### Lens Correction
 
