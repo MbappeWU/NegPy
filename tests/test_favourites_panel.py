@@ -6,7 +6,7 @@ from negpy.desktop.view.sidebar.favourites import FavouritesSidebar, load_favour
 from negpy.desktop.view.slider_shortcut_groups import SLIDER_GROUP_BY_ID
 from negpy.desktop.view.slider_targets import SLIDER_ATTRS, slider_widget_map
 from negpy.desktop.view.widgets.favourites_dialog import FavouritesDialog
-from negpy.desktop.view.widgets.sliders import CompactSlider, HueSlider, KelvinSlider, PowerWarpSlider, clone_slider
+from negpy.desktop.view.widgets.sliders import CompactSlider, HueSlider, KelvinSlider, LogSlider, PowerWarpSlider, clone_slider
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +47,23 @@ def test_clone_round_trips_hue_and_kelvin(qapp):
     kelvin = clone_slider(KelvinSlider("Temperature"))
     assert isinstance(kelvin, KelvinSlider)
     assert (kelvin._min, kelvin._max) == (3000.0, 12000.0)
+
+
+def test_clone_keeps_log_travel(qapp):
+    src = LogSlider("Capture Delay", 0, 10, 0, log_floor=0.1, unit=" s")
+    clone = clone_slider(src)
+    assert isinstance(clone, LogSlider)
+    assert clone._log_floor == 0.1
+    assert clone._to_int(2.5) == src._to_int(2.5)
+
+
+def test_every_right_panel_slider_is_clonable(qapp):
+    """The Find box clones every slider in the right panel, the Scan tab's included."""
+    from negpy.desktop.view.sidebar.right_panel import RightPanel
+
+    panel = RightPanel(_Controller(_Repo()))
+    for src in panel.findChildren(CompactSlider):
+        assert type(clone_slider(src)) is type(src)
 
 
 def test_clone_refuses_unhandled_class(qapp):

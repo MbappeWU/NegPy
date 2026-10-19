@@ -678,8 +678,9 @@ def clone_slider(src: CompactSlider) -> CompactSlider:
         return HueSlider(label, src._default)
     if cls is KelvinSlider:
         return KelvinSlider(label)
-    if cls is CompactSlider:
-        clone = CompactSlider(
+    if cls in (CompactSlider, LogSlider):
+        extra = {"log_floor": src._log_floor} if cls is LogSlider else {}
+        clone = cls(
             label,
             src._min,
             src._max,
@@ -690,6 +691,7 @@ def clone_slider(src: CompactSlider) -> CompactSlider:
             has_neutral=src.slider.objectName() == "neutral_slider",
             unit=src.spin.suffix(),
             inverted=src.slider.invertedAppearance(),
+            **extra,
         )
         # Decimals are not a constructor argument, so a fine slider would drop back to 2.
         clone.spin.setDecimals(src.spin.decimals())
