@@ -739,6 +739,8 @@ _RIM_LIFT = 5
 _DMAX_SHARE = 0.01
 # Frames spread over the roll that stand for its D-max; measuring every frame stalls a long roll.
 _DMAX_SAMPLES = 5
+# A new thumbnail this close to the shape a frame shows keeps the layout: about 2 px on a strip frame.
+_SHAPE_TOLERANCE = 0.02
 
 
 def roll_film(
@@ -884,9 +886,11 @@ class _FilmDelegate(_ThumbnailDelegate):
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         base = super()._thumbnail(icon, index) if isinstance(icon, QIcon) and not icon.isNull() else None
         bounds = self._picture_bounds(base) if base is not None and not base.isNull() else QRect()
-        if not bounds.height():
-            return self._film[0].window_aspect if self._film is not None else 1.5
-        return bounds.width() / bounds.height()
+        return bounds.width() / bounds.height() if bounds.height() else self.placeholder_aspect
+
+    @property
+    def placeholder_aspect(self) -> float:
+        return self._film[0].window_aspect if self._film is not None else 1.5
 
     def _picture_bounds(self, base: QPixmap) -> QRect:
         bounds = self._bounds.get(base.cacheKey())
@@ -1027,6 +1031,8 @@ class _FilmGridView(ThumbnailGridView):
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         self._slim_cells: Optional[dict[int, QRect]] = None
+        # Each row's picture shape as its last thumbnail gave it.
+        self._shown_aspects: dict[int, float] = {}
         super().__init__(parent, target_cell)
         self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
@@ -1051,14 +1057,32 @@ class _FilmGridView(ThumbnailGridView):
 
     def setModel(self, model) -> None:  # noqa: N802
         super().setModel(model)
-        for signal in (model.modelReset, model.layoutChanged, model.rowsInserted, model.rowsRemoved, model.dataChanged):
-            signal.connect(self._invalidate_slim)
+        for signal in (model.modelReset, model.layoutChanged, model.rowsInserted, model.rowsRemoved):
+            signal.connect(self._on_rows_changed)
+        model.dataChanged.connect(self._on_data_changed)
 
-    def _invalidate_slim(self, *_args) -> None:
-        # A new thumbnail can change a frame's width, which Qt does not lay out again by itself.
+    def _on_rows_changed(self, *_args) -> None:
+        self._shown_aspects = {}
+        self._invalidate_slim()
+
+    def _invalidate_slim(self) -> None:
         self._slim_cells = None
         if self._slim():
             self.scheduleDelayedItemsLayout()
+
+    def _on_data_changed(self, top_left: QModelIndex, bottom_right: QModelIndex, *_roles) -> None:
+        # Qt does not move the frames after one whose width a new thumbnail changed. A layout of every frame
+        # per thumbnail stalls a long roll, so a thumbnail within _SHAPE_TOLERANCE of the shape it replaces keeps it.
+        if not self._slim():
+            return
+        delegate, changed = self.itemDelegate(), False
+        for row in range(top_left.row(), bottom_right.row() + 1):
+            aspect = delegate.picture_aspect(top_left.siblingAtRow(row))
+            before = self._shown_aspects.get(row, delegate.placeholder_aspect)
+            self._shown_aspects[row] = aspect
+            changed = changed or abs(aspect / before - 1) > _SHAPE_TOLERANCE
+        if changed:
+            self._invalidate_slim()
 
     def _slim(self) -> bool:
         delegate = self.itemDelegate()

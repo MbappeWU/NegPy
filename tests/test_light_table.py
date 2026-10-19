@@ -731,3 +731,46 @@ def test_the_same_table_color_leaves_the_stylesheet(browser, monkeypatch):
     view.set_table_color(table_color(browser.session.state.canvas_bg_index))
 
     assert styled == []
+
+
+def test_a_thumbnail_lays_the_frames_out_again_only_when_it_changes_a_frame_shape(browser, qapp):
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    _thumbs(browser, [(300, 200)] * 3)
+    view, _vw = _shown_table(browser, qapp)
+    cells = view._slim_layout()
+    state = browser.session.state
+    key = asset_thumbnail_key(state.uploaded_files[1])
+
+    def arrive(size) -> None:
+        picture = prepare_thumbnail(Image.new("RGB", size, (40, 160, 220)), 120)
+        state.thumbnails[key] = QIcon(QPixmap.fromImage(_qimage(picture)))
+        browser.session.asset_model.refresh_thumbnails({key})
+
+    arrive((300, 200))
+    assert view._slim_cells is cells, "the same shape keeps the layout"
+    arrive((200, 300))
+    assert view._slim_cells is None, "a new shape lays the rows out again"
+    view.hide()
+
+
+def test_a_portrait_thumbnail_moves_the_strip_frames_after_it(browser, qapp):
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    _thumbs(browser, [(300, 200)] * 3)
+    strip = browser.list_view
+    _show_strip(browser)
+    qapp.processEvents()
+    state = browser.session.state
+    key = asset_thumbnail_key(state.uploaded_files[1])
+    landscape = strip.visualRect(strip.model().index(1, 0)).width()
+
+    picture = prepare_thumbnail(Image.new("RGB", (200, 300), (40, 160, 220)), 120)
+    state.thumbnails[key] = QIcon(QPixmap.fromImage(_qimage(picture)))
+    browser.session.asset_model.refresh_thumbnails({key})
+    qapp.processEvents()
+    portrait, after = (strip.visualRect(strip.model().index(row, 0)) for row in (1, 2))
+
+    assert portrait.width() < landscape / 2
+    assert after.left() == portrait.right() + 1
+    browser.hide()
