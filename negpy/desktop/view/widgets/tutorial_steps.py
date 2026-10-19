@@ -217,7 +217,8 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             tr("Roll Analysis"),
             tr(
                 "The frames of one film should print alike. <b>Reanalyze</b> measures the whole roll and shares "
-                "the result, so the frames match. <b>Scenes</b> get their own."
+                "the result, so the frames match. It crops the frames that wait for Auto Crop first. <b>Scenes</b> "
+                "get their own."
             ),
             lambda w: cp(w).baseline_section,
             guide=("baseline", "Roll Analysis"),
@@ -226,27 +227,27 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             FRAMING,
             tr("Crop"),
             tr(
-                "Drag a corner to resize the crop, the inside to move it, or outside the box to rotate. The wand "
-                "finds the edges by itself. {value} changes the composition guide.",
+                "<b>Draw</b>: drag a corner to resize the crop, the inside to move it, or outside the box to rotate. "
+                "<b>Auto Crop</b> finds the edges by itself. {value} changes the composition guide.",
                 value=_k("crop_guide_next"),
             ),
-            lambda w: cp(w).geometry_section,
+            lambda w: cp(w).autocrop_section,
             focus=lambda w: cp(w).autocrop_sidebar.manual_crop_btn,
-            task=tr("Click the crop tool and drag a new rectangle on the picture. Enter confirms."),
+            task=tr("Click Draw and drag a new rectangle on the picture. Enter confirms."),
             watch=lambda w: w.state.config.geometry.crop_rect,
-            guide=("geometry", "Geometry"),
+            guide=("autocrop", "Crop"),
             offer=_DEMO,
         ),
         step(
             FRAMING,
             tr("Straighten"),
             tr(
-                "<b>Straighten</b>: draw a line along the horizon, and the picture turns to level it. <b>Tilt</b> and "
-                "<b>Swing</b> fix buildings that lean. <b>Auto Skew</b> lines the frame up with the film edges."
+                "<b>Level</b>: draw a line along the horizon, and the picture turns to level it. <b>Tilt</b> and "
+                "<b>Swing</b> fix buildings that lean. <b>Square to Film</b> lines the frame up with the film edges."
             ),
             lambda w: cp(w).geometry_section,
             focus=lambda w: cp(w).geometry_sidebar.straighten_btn,
-            guide=("geometry", "Geometry"),
+            guide=("geometry", "Straighten"),
         ),
         step(
             PRINTING,

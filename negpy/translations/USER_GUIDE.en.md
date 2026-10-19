@@ -35,14 +35,15 @@ For the math behind each step, read [PIPELINE.md](PIPELINE.md).
 ### The workflow
 
 1.  On the **Library** tab, import a folder as a roll and open it.
-2.  On the **Roll** tab, check **Setup** (film type and scanner), then crop and run **Roll Analysis** so the frames match.
-3.  On the **Frame** tabs, set brightness, contrast and color (**Exposure**), the look (**Look**), and remove dust (**Finish**).
-4.  Export on the **Export** tab.
+2.  On the **Roll** tab, check **Setup** (film type and scanner).
+3.  On **Frame › Geometry**, crop and straighten. Then run **Roll Analysis** on the Roll tab, so the frames match.
+4.  On the other **Frame** tabs, set brightness, contrast and color (**Exposure**), the look (**Look**), and remove dust (**Finish**).
+5.  Export on the **Export** tab.
 
 | Tab | Cards |
 |---|---|
-| **Roll** | Setup · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics |
-| **Frame › Geometry** | Geometry |
+| **Roll** | Setup · Frame Assembly · Calibration · Metering · Roll Analysis · Raw Decode · Optics |
+| **Frame › Geometry** | Crop · Straighten |
 | **Frame › Exposure** | Filtration · Tone · Paper Response · Dodge & Burn |
 | **Frame › Look** | Lab · Alternative Processes · Toning |
 | **Frame › Finish** | Retouch · Finishing |
@@ -70,7 +71,7 @@ Right-click a card header for **Copy Card Settings** and **Undo Apply to Roll**.
 
 ### What carries to the next frame
 
-A new frame gets the roll's settings: film type, crop shape, print stock and Lab settings. The look (brightness, color, dodge and burn, toning) starts clean. **Preferences → Session & Storage → Persistent Settings…** sets what carries.
+A new frame gets the roll's film type, and the crop, print stock and Lab settings of the frame before it. The look (brightness, color, dodge and burn, toning) starts clean. **Preferences → Session & Storage → Persistent Settings…** sets what carries.
 
 **Reset Settings** returns a frame to the defaults. It does not change the scanning choices on the **Setup** card.
 
@@ -212,27 +213,37 @@ The **Readouts** fold holds numbers about the scan. An amber value is a warning;
 
 ## 4. Geometry tab
 
+Two cards: **Crop** sets the part of the picture you keep, and **Straighten** turns and levels it. Both hold this frame's own values. Their **Roll** button copies them to the selection or the whole roll ([§1](#frame-or-roll)).
+
+<!-- panel:autocrop -->
+### 4.1 Crop
+
+Choose the part of the picture to keep, by hand or with Auto Crop.
+
+*   **Draw**: drag a crop on the picture. Drag a corner to resize it, the inside to move it, or outside the box to rotate. The **×** removes a crop you drew. Drawing turns Auto Crop off.
+*   **Auto Crop**: finds the edges of the picture and crops to them.
+*   **Ratio**: the crop shape, such as `3:2` or `1:1`, turned to fit the frame. **Free** uses the shape NegPy finds, and you can drag one side at a time. **Detect** picks the nearest standard shape.
+*   **Guide**: composition lines, such as thirds, while you draw. The rotate button turns them.
+*   **Mode** (Auto Crop Settings fold): **Image only** crops to the picture. **Film edge** keeps the whole film with its border and holes.
+*   **Crop Offset** and **Rebate Trim** (fold under Mode): move the crop inside (positive) or outside (negative) the found edge, and set how far it cuts into the film border (Image only). 0% stops at the film edge and 100% at the picture edge; above 100% cuts into the picture to remove a white border.
+*   **Square First**: straightens the frame to its film edges before Auto Crop crops it.
+*   **Crop All Frames** (Image only): crops every frame together. Clear frames help unclear ones, and crops you drew stay.
+
+Auto Crop needs the scanner light or holder to be the brightest part of the scan. It leaves a frame alone when the picture is as bright as the light, or when the next frame fills a large part of one side. Crop such a frame by hand, or use **Film edge** and trim in.
+
 <!-- panel:geometry -->
-### 4.1 Geometry: crop and straighten
+### 4.2 Straighten
 
-Crop the picture and make it level.
+Turn the picture and make it level.
 
-**Crop:**
-
-*   **Crop** tool: drag a rectangle on the picture. Drag a corner to resize it, the inside to move it, or outside the box to rotate. Drawing a crop turns Auto Crop off.
-*   **Auto Crop** (the wand): finds the edges of the picture and crops to them. It is the same setting as on the Roll tab's Crop card ([§10.5](#105-crop)).
-*   **Ratio**: the shape of the crop, for the whole roll. With **Free**, you can drag one side at a time.
-*   **Guide**: composition lines, such as thirds. The rotate button turns them. **Reset** removes the crop.
-
-**Alignment:**
-
-*   **Straighten** tool: draw a line along the horizon or a vertical edge, and the picture turns to make it level.
+*   **Rotate** and **Flip**: turn the picture a quarter turn, or mirror it. The toolbar has the same buttons.
+*   **Level**: draw a line along the horizon or a vertical edge, and the picture turns to make it level.
+*   **Square to Film**: lines the picture up with the edges of the film. It ignores what is in the picture, so a photo taken at a tilt stays tilted.
 *   **Fine Rotation**: turns the picture by small amounts. Positive is clockwise.
-*   **Auto Skew**: lines the picture up with the edges of the film. It ignores what is in the picture, so a photo taken at a tilt stays tilted.
-*   **Tilt** and **Swing**: straighten a building shot from below (Tilt) or a wall shot from one side (Swing). The reference-lines tool sets both from lines along the four film edges.
-*   **Crop by Default**: crops away the empty corners that rotation, Tilt and Swing leave.
+*   **Tilt** and **Swing** (fold): straighten a building shot from below (Tilt) or a wall shot from one side (Swing). **Draw Lines** sets both from lines along the four film edges.
+*   **Crop Empty Corners**: crops away the empty corners that rotation, Tilt and Swing leave.
 
-Crop before a large Tilt or Swing, or the film border can come into view and darken the print. Lens distortion is fixed in **Optics** ([§10.8](#108-optics)).
+Crop before a large Tilt or Swing, or the film border can come into view and darken the print. Lens distortion is fixed in **Optics** ([§10.7](#107-optics)).
 
 ---
 
@@ -440,7 +451,7 @@ Every change you made, newest on top (the last 100). **Now** marks the current s
 
 ## 10. Roll tab
 
-These cards hold what the frames of a roll share: the film, how it was scanned, the crop shape and the roll's measurements. Each card has the Frame / Roll pair ([§1](#frame-or-roll)). The line above the cards lists the cards this frame changes for itself.
+These cards hold what the frames of a roll share: the film, how it was scanned and the roll's measurements. Each card has the Frame / Roll pair ([§1](#frame-or-roll)). The line above the cards lists the cards this frame changes for itself.
 
 <!-- panel:film -->
 ### 10.1 Setup
@@ -522,27 +533,12 @@ To turn a negative into a positive, NegPy measures its darkest and brightest par
 
 A **slide** needs no inversion: the tone controls shape the picture directly. Auto Density and Auto Grade start off; turn them on for a faded slide. In Lightroom terms, Exposure is Print Density (lower is brighter), Contrast is ISO-R Grade, and Shadows and Highlights are Shadows and Highlights Density.
 
-<!-- panel:autocrop -->
-### 10.5 Crop
-
-The crop shape for the whole roll, and how NegPy finds each frame. Each frame's own crop is in **Geometry** ([§4.1](#41-geometry-crop-and-straighten)).
-
-*   **Ratio**: the crop shape, such as `3:2` or `1:1`, turned to fit each frame. **Free** uses the shape NegPy finds. **Detect** picks the nearest standard shape.
-*   **Mode**: **Image only** crops to the picture. **Film edge** keeps the whole film with its border and holes.
-*   **Crop Offset** (fold): moves the crop inside (positive) or outside (negative) the found edge.
-*   **Rebate Trim** (fold, Image only): how far the crop cuts into the film border. 0% stops at the film edge and 100% at the picture edge; above 100% cuts into the picture to remove a white border.
-*   **Auto Crop** (the wand): finds the edges and crops each frame. New frames start with this setting. A crop you draw turns it off for that frame.
-*   **Square Before Crop**: straightens each frame to its film edges before Auto Crop crops it.
-*   **Auto-crop all frames** (Image only): crops every frame together. Clear frames help unclear ones, and crops you drew stay.
-
-Auto Crop needs the scanner light or holder to be the brightest part of the scan. It leaves a frame alone when the picture is as bright as the light, or when the next frame fills a large part of one side. Crop such a frame by hand, or use **Film edge** and trim in.
-
 <!-- panel:baseline -->
-### 10.6 Roll Analysis
+### 10.5 Roll Analysis
 
 Measures the whole roll once and shares the result, so the frames of one film print alike.
 
-*   **Reanalyze**: measures every loaded frame (except scene and locked frames) and saves the average as the roll's baseline. Frames very different from the rest keep their own. Run **Auto-crop all frames** first.
+*   **Reanalyze**: measures every loaded frame (except scene and locked frames) and saves the average as the roll's baseline. Frames very different from the rest keep their own. It first crops the frames that wait for Auto Crop.
 *   **Use This Frame**: makes this frame's measurement the roll's baseline.
 *   **Use average**: **Luma** uses the roll's black and white points, **Color** the roll's color balance, and **Cast** (color negatives) the roll's gray balance for Cast Removal. With Luma and Color on, the roll prints evenly; with both off, each frame is measured on its own.
 *   **Baseline**: says where the baseline came from (roll, scene or frame). It warns when there is none or when it is out of date.
@@ -550,7 +546,7 @@ Measures the whole roll once and shares the result, so the frames of one film pr
 *   **Scenes**: groups of frames with their own baseline, such as one subject under one light ([Scenes](#scenes)). **Analyze** measures the scene, **Select** selects its frames and **Delete** removes the group.
 
 <!-- panel:demosaic -->
-### 10.7 Raw Decode
+### 10.6 Raw Decode
 
 How a camera RAW file is turned into pixels. Shown for a camera.
 
@@ -559,7 +555,7 @@ How a camera RAW file is turned into pixels. Shown for a camera.
 *   **Recovery** (slides): rebuilds blown highlights in a camera RAW. **Blend** suits sun and sky. **Reconstruct** is stronger but can get the color wrong.
 
 <!-- panel:optics -->
-### 10.8 Optics
+### 10.7 Optics
 
 Corrections for the lens and the light, the same for every frame you scan with this setup. Shown for a camera.
 
