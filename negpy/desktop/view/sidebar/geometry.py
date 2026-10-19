@@ -15,8 +15,8 @@ from negpy.features.geometry.models import FINE_ROTATION_LIMIT
 def _keystone_reference_icon() -> QIcon:
     icon = QIcon()
     modes = (
-        (QIcon.Mode.Normal, THEME.text_primary, THEME.text_on_accent),
-        (QIcon.Mode.Active, THEME.text_primary, THEME.text_on_accent),
+        (QIcon.Mode.Normal, THEME.text_hint, THEME.text_primary),
+        (QIcon.Mode.Active, THEME.text_hint, THEME.text_primary),
         (QIcon.Mode.Disabled, THEME.text_muted, THEME.text_muted),
     )
     for mode, off_color, on_color in modes:

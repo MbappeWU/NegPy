@@ -148,7 +148,7 @@ def pin_button_box(box: QDialogButtonBox) -> None:
 def _button_icon(icon_name: str, checkable: bool, on_accent: bool = False):
     color = THEME.text_on_accent if on_accent else THEME.text_primary
     if checkable:
-        return qta.icon(icon_name, color=color, color_on=THEME.text_on_accent, color_disabled=THEME.text_muted)
+        return qta.icon(icon_name, color=THEME.text_hint, color_on=THEME.text_primary, color_disabled=THEME.text_muted)
     return qta.icon(icon_name, color=color, color_disabled=THEME.text_muted)
 
 
@@ -294,12 +294,12 @@ CLIPPING_SWEEP = Sweep((THEME.clip_warning, THEME.clip_shadow))
 
 class _GradientIconEngine(QIconEngine):
     """Paints a qtawesome glyph, then fills its shape with a sweep. A disabled or checked glyph
-    stays flat, gray or `text_on_accent`, so it reads like every other toggle in that state."""
+    stays flat, gray or `text_primary`, so it reads like every other toggle in that state."""
 
     def __init__(self, icon_name: str, sweep: Sweep):
         super().__init__()
         self._icon_name, self._sweep = icon_name, sweep
-        self._glyph = qta.icon(icon_name, color=THEME.text_primary, color_on=THEME.text_on_accent, color_disabled=THEME.text_muted)
+        self._glyph = qta.icon(icon_name, color=THEME.text_primary, color_on=THEME.text_primary, color_disabled=THEME.text_muted)
 
     def paint(self, painter: QPainter | None, rect: QRect, mode: QIcon.Mode, state: QIcon.State) -> None:
         if painter is None or rect.isEmpty():

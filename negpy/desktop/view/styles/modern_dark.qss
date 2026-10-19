@@ -63,19 +63,21 @@ QPushButton:pressed {
     color: @text_on_accent;
 }
 
-/* Active/checked toggle tools (e.g. "Linear RAW", "Lock Bounds"). Low-key but
-   clearly engaged: a warm-tinted fill and a safelight-accent border so the user
-   can tell at a glance which tools are currently on. */
+/* A checked toggle takes the chip of a segmented control's current choice; its icon
+   brightens from text_hint to text_primary (templates._button_icon). */
 QPushButton:checked {
-    background-color: @bg_checked;
-    color: @text_on_accent;
-    border: 1px solid @accent_primary;
+    background-color: @bg_selected;
+    border: 1px solid transparent;
     font-weight: 600;
 }
 
 QPushButton:checked:hover {
-    background-color: @bg_checked_hover;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_menu_selected;
+}
+
+/* The fill means checked, so hover on a toggle that is off draws only the border. */
+QPushButton[checkable="true"]:hover:!checked {
+    background-color: transparent;
 }
 
 /* The Scan panel's commit button: the only control that moves the transport and
@@ -129,13 +131,12 @@ QToolButton:hover {
 }
 
 QToolButton:checked {
-    background-color: @bg_checked;
-    border: 1px solid @accent_primary;
+    background-color: @bg_selected;
+    border: 1px solid transparent;
 }
 
 QToolButton:checked:hover {
-    background-color: @bg_checked_hover;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_menu_selected;
 }
 
 QSlider {

@@ -1596,7 +1596,7 @@ class FileBrowser(QWidget):
         # folder keeps loading files. A click turns it off.
         self.hot_folder_btn = QToolButton()
         self.hot_folder_btn.setCheckable(True)
-        self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_primary, color_on=THEME.text_on_accent))
+        self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_hint, color_on=THEME.text_primary))
         self.hot_folder_btn.setToolTip(tr("Hot Folder is on. Click to stop loading new images from the current folder."))
         self.hot_folder_btn.clicked.connect(lambda: self.hot_folder_action.setChecked(False))
         self.hot_folder_btn.setVisible(False)

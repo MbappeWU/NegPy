@@ -170,7 +170,7 @@ class ToggleMenuButton(_MenuButton):
         super().__init__(tooltip, parent)
         self.setStyleSheet(tool_toggle_qss(icon_only=not label))
         self.setCheckable(True)
-        self.setIcon(qta.icon(icon_name, color=THEME.text_primary, color_on=THEME.text_on_accent, color_disabled=THEME.text_muted))
+        self.setIcon(qta.icon(icon_name, color=THEME.text_hint, color_on=THEME.text_primary, color_disabled=THEME.text_muted))
         self.setText(f" {label}" if label else "")
         self._toggles: list[QAction] = []
 
