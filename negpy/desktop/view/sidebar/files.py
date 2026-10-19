@@ -835,7 +835,7 @@ def _selection_glow(width: int, height: int) -> QImage:
     qx = np.abs(xs - (width / 2 + pad)) - (width / 2 + 2 - corner)
     qy = np.abs(ys - (height / 2 + pad)) - (height / 2 + 2 - corner)
     outside = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - corner
-    alpha = np.where(outside > 0, 0.9 * np.exp(-((outside / (_GLOW_REACH / 2.4)) ** 2)), 0.0)
+    alpha = np.where(outside > 0, 0.5 * np.exp(-((outside / (_GLOW_REACH / 2.4)) ** 2)), 0.0)
     color = QColor(THEME.accent_primary)
     rgba = np.empty((*alpha.shape, 4), np.uint8)
     for channel, value in enumerate((color.red(), color.green(), color.blue(), 255)):
