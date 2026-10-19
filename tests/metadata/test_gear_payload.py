@@ -135,13 +135,13 @@ def test_empty_personal_list_shows_a_hint_not_a_blank_box(gear_dir):
     library = GearLibrary(cameras=[Camera(id="cam-bundled", make="Leica", model="M6", is_bundled=True)])
     dlg = GearLibraryPanel(library)
 
-    assert dlg.items.empty_hint.isVisibleTo(dlg) is True
+    assert dlg.items.empty_hint.isVisibleTo(dlg.items) is True
     assert "cameras" in dlg.items.empty_hint.text()
-    assert dlg.items.item_list.isVisibleTo(dlg) is False
+    assert dlg.items.item_list.isVisibleTo(dlg.items) is False
 
     dlg.items.show_catalog_btn.setChecked(True)
-    assert dlg.items.empty_hint.isVisibleTo(dlg) is False
-    assert dlg.items.item_list.isVisibleTo(dlg) is True
+    assert dlg.items.empty_hint.isVisibleTo(dlg.items) is False
+    assert dlg.items.item_list.isVisibleTo(dlg.items) is True
 
 
 def test_add_item_opens_the_catalog_and_clones_the_pick(gear_dir):

@@ -74,7 +74,7 @@ Tabs that do not change the render:
 | Tab | Panels | What it is for |
 |-----|--------|---------------|
 | **Export** | Export settings | Format, size, color, batch |
-| **Metadata** | Archival metadata · My Gear · Presets | Camera, lens, film; your gear library and metadata presets |
+| **Metadata** | Metadata Preview · Shot · Process · Presets · My Gear | Camera, lens, film; metadata presets and your gear library |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
 On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. A chevron beside a control or a sub-header folds the fine-tune controls under it; click the chevron or the name. Each fold stays as you leave it, and a dot on a closed one marks an edited control inside. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
@@ -885,23 +885,16 @@ A newly chosen profile becomes the rig's default for the next roll.
 
 ## 11. Metadata tab
 
-Metadata for the original analog capture (camera, lens, film, process), written into every export as EXIF and XMP, so a DAM such as Lightroom shows your film gear, not the scanner. **Protect Original Metadata** copies the source's own EXIF/XMP and resolution unchanged instead.
+Metadata for the original analog capture (camera, lens, film, process), written into every export as EXIF and XMP, so a DAM such as Lightroom shows your film gear, not the scanner.
+
+**Metadata Preview** is pinned on top: fold it to its header, or drag the grip under it to set its height. Under it, **Shot** holds Analog Gear, Capture and Exposure, and **Process** holds Process and Scanning; a dot marks a tab with an edited card. The two icon tabs after them are **Presets** and **My Gear**.
 
 **Analog Gear**, **Capture**, **Process**, **Scanning** and **Exposure** are roll-wide by default ([§1](#frame-or-roll-the-scope-pair)). The frame number is always per frame.
-
-<!-- panel:metadata_presets -->
-### Metadata Presets
-
-Saved sets of metadata values in `~/NegPy/presets/metadata/`, managed in **Presets** at the bottom of the tab.
-
-*   **Preset** + **Load**: writes the preset's fields onto this frame; other fields stay.
-
-Gear loads as one unit (camera, lens, film stock, format). A film stock sets the format, so set a frame format such as `6×7` after the stock. Presets never store the frame number.
 
 <!-- panel:metadata_gear -->
 ### Analog Gear
 
-Searches your own gear (**My Gear** at the bottom of the tab). **Other…** opens the full built-in catalog.
+Searches your own gear (the **My Gear** tab). **Other…** opens the full built-in catalog.
 
 *   **Camera / Lens / Film stock**: empty means not set.
 *   **Clear**: empties all three.
@@ -940,7 +933,7 @@ Optional original shutter, aperture and ISO. Click the lock to edit a free-text 
 <!-- panel:metadata_preview -->
 ### Metadata Preview
 
-A live view of what goes into the file. **Description…** picks the fields joined into EXIF `ImageDescription` (default: camera, lens, film stock, ISO); the choice becomes the default for frames without their own.
+A live view of what goes into the file. The shield in its header, **Protect Original Metadata**, copies the source's own EXIF/XMP and resolution unchanged instead, and grays out the Shot and Process cards. **Description…** picks the fields joined into EXIF `ImageDescription` (default: camera, lens, film stock, ISO); the choice becomes the default for frames without their own.
 
 Capture gear goes to standard EXIF and the digitizing rig to `negpy:Scan*` XMP tags; with gear unset, your scanner or DSLR stays in EXIF. Other XMP tags: `photoshop:DateCreated` (with `negpy:CaptureDatePrecision`), `photoshop:City`/`State`/`Country`, `exif:GPS*` (the only GPS in a TIFF), `negpy:DevelopmentDilution`/`DevelopmentTime`/`DevelopmentTemperature`, `negpy:CaptureRoll`/`CaptureFrame`. A star rating set in the camera carries over as `xmp:Rating`.
 
@@ -956,12 +949,14 @@ Your gear library, for Metadata, Roll Settings and every gear picker. **Category
 <!-- panel:gear_presets -->
 ### Presets
 
-Metadata field sets, loaded with **Metadata Presets** above.
+Saved sets of metadata values in `~/NegPy/presets/metadata/`. Each row names the fields its preset stores.
 
+*   **Apply to This Frame**: writes the selected preset's fields onto this frame; other fields stay. Off while Protect Original Metadata is on.
 *   **+**: stores the current frame's metadata under a name.
-*   **pen**: rename, or change which fields it stores.
-*   **copy / trash**: duplicate or delete.
-*   Edit a preset's fields in place. Per-frame fields (capture date, place, description) are read-only here. **Notes** is free text.
+*   **⋮** on a preset, or a right-click: apply, duplicate, edit or delete it.
+*   **Details**: edit the selected preset's fields in place; the pen renames it or changes which fields it stores. Per-frame fields (capture date, place, description) are read-only here. **Notes** is free text.
+
+Gear applies as one unit (camera, lens, film stock, format). A film stock sets the format, so set a frame format such as `6×7` after the stock. Presets never store the frame number.
 
 ---
 

@@ -16,7 +16,8 @@ from dataclasses import fields, replace
 from typing import Callable, Optional
 
 import qtawesome as qta
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PyQt6.QtWidgets import (
     QDialog,
     QDoubleSpinBox,
@@ -25,9 +26,11 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
-    QScrollArea,
     QSpinBox,
+    QStyle,
+    QStyledItemDelegate,
     QVBoxLayout,
     QWidget,
 )
@@ -42,9 +45,20 @@ from negpy.desktop.settings_catalog import (
 )
 from negpy.desktop.view.confirm import confirm_delete_named
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
-from negpy.desktop.view.styles.templates import field_label, hint_label, icon_button, section_subheader, tool_toggle, wrap_tooltip
+from negpy.desktop.view.styles.templates import (
+    field_label,
+    header_button,
+    header_row,
+    hint_label,
+    icon_button,
+    labeled_action,
+    section_subheader,
+    tool_toggle,
+    wrap_tooltip,
+)
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
+from negpy.desktop.view.widgets.flat_rows import ICON, RowList, more_rect, paint_fill, paint_more, two_line_rects
 from negpy.desktop.view.widgets.gear_catalog_dialog import GearCatalogDialog, resolve_other_gear_pick
 from negpy.desktop.view.widgets.granular_settings_dialog import GranularSettingsDialog
 from negpy.desktop.view.widgets.step_combo import StepCombo
@@ -144,6 +158,51 @@ def _push_pull_index(value: int) -> int:
 # detail form on screen beside them.
 _LIST_MAX_HEIGHT = 160
 
+_PRESET_ROW = 46
+_DETAIL_ROLE = Qt.ItemDataRole.UserRole
+_APPLY_TOOLTIP = tr("Write the selected preset's fields onto this frame")
+
+
+class _PresetDelegate(QStyledItemDelegate):
+    """A preset: its name over the fields it stores, the selected one with a red bar, ⋮ on hover."""
+
+    def sizeHint(self, option, index) -> QSize:  # noqa: N802
+        return QSize(option.rect.width(), _PRESET_ROW)
+
+    def paint(self, p: QPainter, option, index) -> None:
+        p.save()
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = option.rect.adjusted(0, 1, 0, -1)
+        hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        paint_fill(p, rect, current=selected, hover=hover)
+
+        font = QFont(option.font)
+        font.setPixelSize(THEME.font_size_base)
+        small = QFont(font)
+        small.setPixelSize(THEME.font_size_small)
+        x = rect.left() + THEME.space_lg
+        index.data(Qt.ItemDataRole.DecorationRole).paint(p, QRect(x, rect.center().y() - ICON // 2, ICON, ICON))
+        x += ICON + THEME.space_lg
+        right = more_rect(option.rect).left() - THEME.space_md
+        name_font = QFont(font)
+        name_font.setWeight(QFont.Weight(THEME.weight_semibold if selected else THEME.weight_regular))
+        name_metrics, small_metrics = QFontMetrics(name_font), QFontMetrics(small)
+        name_line, detail_line = two_line_rects(rect, x, right, name_metrics, small_metrics)
+        p.setFont(name_font)
+        p.setPen(QColor(THEME.text_primary))
+        name = index.data(Qt.ItemDataRole.DisplayRole) or ""
+        p.drawText(name_line, Qt.AlignmentFlag.AlignVCenter, name_metrics.elidedText(name, Qt.TextElideMode.ElideRight, name_line.width()))
+        p.setFont(small)
+        p.setPen(QColor(THEME.text_hint))
+        detail = index.data(_DETAIL_ROLE) or ""
+        p.drawText(
+            detail_line, Qt.AlignmentFlag.AlignVCenter, small_metrics.elidedText(detail, Qt.TextElideMode.ElideRight, detail_line.width())
+        )
+        if hover:
+            paint_more(p, option.rect)
+        p.restore()
+
 
 class GearItemsPanel(QWidget):
     """Cameras, lenses, film stocks, processes and scan setups: one searchable,
@@ -172,10 +231,9 @@ class GearItemsPanel(QWidget):
 
     def _init_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(THEME.space_xl, 0, THEME.space_xl, 5)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(THEME.space_lg)
 
-        root.addWidget(section_subheader(tr("MY GEAR")))
         root.addWidget(hint_label(tr("Cameras, lenses, film stocks and processes you own. Catalog shows the full shipped list.")))
 
         root.addWidget(field_label(tr("Category")))
@@ -636,6 +694,7 @@ class GearPresetsPanel(QWidget):
 
     library_changed = pyqtSignal()
     presets_changed = pyqtSignal()
+    apply_requested = pyqtSignal(str)
 
     def __init__(
         self,
@@ -664,43 +723,47 @@ class GearPresetsPanel(QWidget):
 
     def _init_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(THEME.space_xl, 0, THEME.space_xl, 5)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(THEME.space_lg)
 
-        root.addWidget(section_subheader(tr("PRESETS")))
-        root.addWidget(hint_label(tr("Saved metadata field sets, applied to any frame from the Metadata tab.")))
+        root.addWidget(hint_label(tr("Saved sets of metadata values. Apply one to write its fields onto this frame.")))
 
+        search_row = QHBoxLayout()
+        search_row.setSpacing(THEME.space_sm)
         self.item_search = QLineEdit()
         self.item_search.setPlaceholderText(tr("Search presets…"))
         self.item_search.setToolTip(wrap_tooltip(tr("Filter the list below by name")))
         self.item_search.textChanged.connect(self._on_item_search_changed)
-        root.addWidget(self.item_search)
+        search_row.addWidget(self.item_search, 1)
+        self.add_btn = icon_button("fa5s.plus", tr("Store the current frame's metadata as a preset"))
+        self.add_btn.clicked.connect(self._add_item)
+        search_row.addWidget(self.add_btn)
+        root.addLayout(search_row)
 
-        self.item_list = QListWidget()
-        self.item_list.setMaximumHeight(_LIST_MAX_HEIGHT)
+        self.item_list = RowList(_PresetDelegate, _PRESET_ROW)
+        self.item_list.setToolTip(tr("Click a preset to see what it stores; ⋮ or right-click for more."))
         self.item_list.currentRowChanged.connect(self._on_item_changed)
+        self.item_list.menu_requested.connect(self._on_preset_menu)
         root.addWidget(self.item_list)
 
         self.empty_hint = hint_label()
         self.empty_hint.setVisible(False)
         root.addWidget(self.empty_hint)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(THEME.space_sm)
-        self.add_btn = icon_button("fa5s.plus", tr("Store the current frame's metadata as a preset"))
-        self.add_btn.clicked.connect(self._add_item)
-        self.dup_btn = icon_button("fa5s.copy", tr("Duplicate"))
-        self.dup_btn.clicked.connect(self._duplicate_item)
-        self.edit_btn = icon_button("fa5s.pen", tr("Rename the preset, or change which fields it stores"))
-        self.edit_btn.clicked.connect(self._edit_preset)
-        self.del_btn = icon_button("fa5s.trash-alt", tr("Delete this preset"))
-        self.del_btn.clicked.connect(self._delete_item)
-        for b in (self.add_btn, self.dup_btn, self.edit_btn, self.del_btn):
-            btn_row.addWidget(b)
-        btn_row.addStretch()
-        root.addLayout(btn_row)
+        apply_row = QHBoxLayout()
+        apply_row.addStretch()
+        self.apply_btn = labeled_action("mdi6.auto-fix", tr("Apply to This Frame"), _APPLY_TOOLTIP, primary=True)
+        self.apply_btn.clicked.connect(lambda: self.apply_requested.emit(self._selected_preset()))
+        apply_row.addWidget(self.apply_btn)
+        root.addLayout(apply_row)
+        self._apply_allowed = True
 
-        root.addWidget(section_subheader(tr("DETAILS")))
+        self.edit_btn = header_button(
+            qta.icon("fa5s.pen", color=THEME.text_muted, color_disabled=THEME.border_hover),
+            tr("Rename the preset, or change which fields it stores"),
+        )
+        self.edit_btn.clicked.connect(self._edit_preset)
+        root.addLayout(header_row(section_subheader(tr("DETAILS")), self.edit_btn))
 
         self.preset_panel = QWidget()
         preset_layout = QVBoxLayout(self.preset_panel)
@@ -729,7 +792,7 @@ class GearPresetsPanel(QWidget):
         root.addWidget(self.preset_panel)
         root.addStretch()
 
-        self.add_btn.setEnabled(self._current_config_fn() is not None)
+        self._sync_buttons()
 
     def _build_preset_form(self) -> None:
         self.preset_camera_combo = SearchableGearCombo(placeholder=tr("Search cameras…"))
@@ -759,21 +822,21 @@ class GearPresetsPanel(QWidget):
         self.preset_exposure_edit.setPlaceholderText(tr("e.g. 1/125s f/2.8 ISO 400"))
 
         for key, label, widget in (
-            ("camera", "Camera", self.preset_camera_combo),
-            ("lens", "Lens", self.preset_lens_combo),
-            ("film_stock", "Film stock", self.preset_film_combo),
-            ("format", "Format", self.preset_format_combo),
+            ("camera", tr("Camera"), self.preset_camera_combo),
+            ("lens", tr("Lens"), self.preset_lens_combo),
+            ("film_stock", tr("Film stock"), self.preset_film_combo),
+            ("format", tr("Format"), self.preset_format_combo),
             ("format_other", tr("Other format"), self.preset_format_other_edit),
-            ("process", "Saved process", self.preset_process_combo),
-            ("developer", "Developer", self.preset_developer_edit),
-            ("dilution", "Dilution", self.preset_dilution_edit),
-            ("push_pull", "Push / Pull", self.preset_push_combo),
-            ("dev_time", "Time", self.preset_time_edit),
-            ("dev_temp", "Temperature (°C)", self.preset_temp_edit),
-            ("scan_setup", "Saved setup", self.preset_scan_combo),
-            ("scanning", "Scanning", self.preset_scanning_edit),
-            ("roll", "Roll", self.preset_roll_edit),
-            ("exposure", "Exposure", self.preset_exposure_edit),
+            ("process", tr("Saved process"), self.preset_process_combo),
+            ("developer", tr("Developer"), self.preset_developer_edit),
+            ("dilution", tr("Dilution"), self.preset_dilution_edit),
+            ("push_pull", tr("Push / Pull"), self.preset_push_combo),
+            ("dev_time", tr("Time"), self.preset_time_edit),
+            ("dev_temp", tr("Temperature (°C)"), self.preset_temp_edit),
+            ("scan_setup", tr("Saved setup"), self.preset_scan_combo),
+            ("scanning", tr("Scanning"), self.preset_scanning_edit),
+            ("roll", tr("Roll"), self.preset_roll_edit),
+            ("exposure", tr("Exposure"), self.preset_exposure_edit),
         ):
             row_label = field_label(label)
             self.preset_form_layout.addWidget(row_label)
@@ -820,9 +883,41 @@ class GearPresetsPanel(QWidget):
         self.preset_push_combo.currentIndexChanged.connect(self._on_preset_value_changed)
 
     def on_activated(self) -> None:
-        """Re-check whether a frame is open every time this subtab is shown, since it
-        may have changed while Items was active."""
-        self.add_btn.setEnabled(self._current_config_fn() is not None)
+        """Re-check whether a frame is open every time this tab is shown, since it may
+        have changed while another tab was in front."""
+        self._sync_buttons()
+
+    def set_apply_allowed(self, allowed: bool) -> None:
+        """False while Protect Original Metadata is on: the frame's own fields are ignored then."""
+        self._apply_allowed = allowed
+        self._sync_buttons()
+
+    def _sync_buttons(self) -> None:
+        has_frame = self._current_config_fn() is not None
+        self.add_btn.setEnabled(has_frame)
+        self.apply_btn.setEnabled(has_frame and self._apply_allowed and bool(self._selected_preset()))
+        self.edit_btn.setEnabled(bool(self._selected_preset()))
+
+    def _on_preset_menu(self, pos) -> None:
+        item = self.item_list.itemAt(pos)
+        if item is None:
+            return
+        self.item_list.setCurrentItem(item)
+        menu = QMenu(self)
+        apply_action = menu.addAction(tr("Apply to This Frame"))
+        apply_action.setEnabled(self.apply_btn.isEnabled())
+        duplicate_action = menu.addAction(tr("Duplicate"))
+        edit_action = menu.addAction(tr("Edit Preset…"))
+        delete_action = menu.addAction(tr("Delete…"))
+        chosen = menu.exec(self.item_list.mapToGlobal(pos))
+        if chosen is apply_action:
+            self.apply_btn.click()
+        elif chosen is duplicate_action:
+            self._duplicate_item()
+        elif chosen is edit_action:
+            self._edit_preset()
+        elif chosen is delete_action:
+            self._delete_item()
 
     def refresh_gear_combos(self) -> None:
         """Personal gear added on Items must reach an already-open preset's combos
@@ -849,8 +944,13 @@ class GearPresetsPanel(QWidget):
         self._list_items = visible
         self.item_list.blockSignals(True)
         self.item_list.clear()
+        icon = qta.icon("mdi6.auto-fix", color=THEME.text_secondary)
         for name in visible:
-            self.item_list.addItem(QListWidgetItem(name))
+            item = QListWidgetItem(icon, name)
+            rows = rows_for_keys(MetadataPresets.load_preset(name) or {}, "metadata")
+            item.setData(_DETAIL_ROLE, ", ".join(tr(r.label) for r in rows) or tr("Stores nothing"))
+            self.item_list.addItem(item)
+        self.item_list.fit()
 
         row = -1
         if visible:
@@ -874,16 +974,18 @@ class GearPresetsPanel(QWidget):
             self._clear_form()
         elif row >= 0:
             self._on_item_changed(row)
+        self._sync_buttons()
 
     def _on_item_changed(self, row: int) -> None:
         if row < 0 or row >= len(self._list_items):
             self._selected_idx = -1
             self._clear_form()
-            return
-        name = self._list_items[row]
-        all_items = self._current_items()
-        self._selected_idx = next(i for i, candidate in enumerate(all_items) if candidate == name)
-        self._populate_preset(name)
+        else:
+            name = self._list_items[row]
+            all_items = self._current_items()
+            self._selected_idx = next(i for i, candidate in enumerate(all_items) if candidate == name)
+            self._populate_preset(name)
+        self._sync_buttons()
 
     def _selected_preset(self) -> str:
         items = self._current_items()
@@ -1190,7 +1292,7 @@ class GearPresetsPanel(QWidget):
         if self._selected_idx < 0:
             return
         name = self._selected_preset()
-        if not confirm_delete_named(self, "Preset", name):
+        if not confirm_delete_named(self, tr("Preset"), name):
             return
         MetadataPresets.delete_preset(name)
         self._rebuild_item_list()
@@ -1198,10 +1300,10 @@ class GearPresetsPanel(QWidget):
 
 
 class GearLibraryPanel(QWidget):
-    """My Gear and Presets, as two sections over one gear library. My Gear holds physical
-    gear (Cameras, Lenses, Film Stocks, Process, Scanning), with a bundled/personal
-    Catalog toggle; Presets holds saved metadata field sets, which have no bundled
-    counterpart, so the toggle lives on My Gear only."""
+    """My Gear and Presets over one gear library, each a card the Metadata tab gives a tab of
+    its own. My Gear holds physical gear (Cameras, Lenses, Film Stocks, Process, Scanning),
+    with a bundled/personal Catalog toggle; Presets holds saved metadata field sets, which
+    have no bundled counterpart."""
 
     library_changed = pyqtSignal()
     presets_changed = pyqtSignal()
@@ -1224,7 +1326,11 @@ class GearLibraryPanel(QWidget):
         self.presets.library_changed.connect(self.library_changed.emit)
         self.presets.presets_changed.connect(self.presets_changed.emit)
 
-        self._init_ui()
+        self.sections: dict[str, CollapsibleSection] = {
+            "items": make_section(self._repo, tr("My Gear"), "gear_items", self.items, "fa5s.toolbox", collapsible=False),
+            "presets": make_section(self._repo, tr("Presets"), "gear_presets", self.presets, "fa5s.magic", collapsible=False),
+        }
+        self.apply_shortcut_tooltips()
 
     def library(self) -> GearLibrary:
         return self._library
@@ -1238,47 +1344,5 @@ class GearLibraryPanel(QWidget):
         self.items._rebuild_item_list(select_id=selected.id if selected is not None else None)
         self.presets.refresh_gear_combos()
 
-    def _init_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # (key, title, icon_name, content_widget)
-        specs = [
-            ("items", tr("My Gear"), "fa5s.toolbox", self.items),
-            ("presets", "Presets", "fa5s.magic", self.presets),
-        ]
-
-        column = QWidget()
-        column_layout = QVBoxLayout(column)
-        column_layout.setContentsMargins(0, 0, 0, 0)
-        column_layout.setSpacing(THEME.space_md)
-
-        self._sections: dict[str, CollapsibleSection] = {}
-        self._section_titles: dict[str, str] = {}
-        for key, title, icon_name, content in specs:
-            section = make_section(self._repo, title, f"gear_{key}", content, icon_name, default_expanded=True)
-            column_layout.addWidget(section)
-            self._sections[key] = section
-            self._section_titles[key] = title
-        layout.addWidget(column)
-
-        self._sections["presets"].expanded_changed.connect(lambda shown: self.presets.on_activated() if shown else None)
-        self.presets.on_activated()
-        self.apply_shortcut_tooltips()
-
-    def show_section_by_key(self, key: str) -> None:
-        section = self._sections.get(key)
-        if section is None:
-            return
-        section.expand()
-        scroll = self.parentWidget()
-        while scroll is not None and not isinstance(scroll, QScrollArea):
-            scroll = scroll.parentWidget()
-        if scroll is not None:
-            scroll.ensureWidgetVisible(section)
-
     def apply_shortcut_tooltips(self) -> None:
-        for key, section in self._sections.items():
-            tip = tooltip_with_shortcut(self._section_titles[key], f"tab_gear_{key}")
-            section.toggle_button.setToolTip(wrap_tooltip(tip))
+        self.presets.apply_btn.setToolTip(tooltip_with_shortcut(_APPLY_TOOLTIP, "metadata_preset_load"))

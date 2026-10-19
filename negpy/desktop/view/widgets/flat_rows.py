@@ -1,11 +1,12 @@
-"""Flat rows a delegate paints, for the History steps and the Library's rolls: a fill for the
-hovered, selected or current row, a red bar on the current one, a pill, and ⋮ on hover."""
+"""Flat rows a delegate paints, for the History steps, the Library's rolls and the metadata presets:
+a fill for the hovered, selected or current row, a red bar on the current one, a pill, and ⋮ on hover."""
 
 from typing import Optional
 
 import qtawesome as qta
-from PyQt6.QtCore import QPoint, QRect, QRectF, Qt
+from PyQt6.QtCore import QPoint, QRect, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
+from PyQt6.QtWidgets import QListWidget
 
 from negpy.desktop.view.styles.theme import THEME
 
@@ -51,3 +52,38 @@ def paint_pill(p: QPainter, right: int, center_y: float, text: str, font: QFont,
 
 def paint_more(p: QPainter, row: QRect) -> None:
     qta.icon("mdi6.dots-vertical", color=THEME.text_hint).paint(p, more_rect(row))
+
+
+def two_line_rects(rect: QRect, x: int, right: int, name: QFontMetrics, detail: QFontMetrics) -> tuple[QRect, QRect]:
+    """A name's line over a detail line, centered as a pair in the row."""
+    top = rect.center().y() - (name.height() + detail.height() + THEME.space_xs) // 2
+    return QRect(x, top, right - x, name.height()), QRect(x, top + name.height() + THEME.space_xs, right - x, detail.height())
+
+
+class RowList(QListWidget):
+    """Flat rows sized to fit, since the tab scrolls; a press on a row's ⋮, or a right click,
+    asks for that row's menu instead of picking it."""
+
+    menu_requested = pyqtSignal(QPoint)
+
+    def __init__(self, delegate_cls, row_height: int) -> None:
+        super().__init__()
+        self._row_height = row_height
+        self.setObjectName("flat_rows")
+        self.setItemDelegate(delegate_cls(self))
+        self.setMouseTracking(True)
+        self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.menu_requested)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        pos = more_press(self, event)
+        if pos is not None:
+            self.menu_requested.emit(pos)
+            return
+        super().mousePressEvent(event)
+
+    def fit(self) -> None:
+        self.setFixedHeight(self.count() * self._row_height + 2 * self.frameWidth())

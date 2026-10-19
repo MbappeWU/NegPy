@@ -35,7 +35,7 @@ from negpy.desktop.view.widgets.rename_roll_dialog import RenameRollDialog
 from negpy.desktop.view.keyboard_shortcuts import _close_roll
 from negpy.desktop.view.shortcut_registry import label_with_shortcut
 from negpy.desktop.view.styles.templates import TOOLBAR_BUTTON_HEIGHT, TOOLBAR_ICON_SIZE, hint_label, labeled_action, wrap_tooltip
-from negpy.desktop.view.widgets.flat_rows import ICON, more_press, more_rect, paint_fill, paint_more, paint_pill
+from negpy.desktop.view.widgets.flat_rows import ICON, more_press, more_rect, paint_fill, paint_more, paint_pill, two_line_rects
 from negpy.desktop.view.widgets.sort_button import SortButton
 from negpy.desktop.view.styles.theme import THEME
 from negpy.kernel.system.text import count_of
@@ -126,15 +126,10 @@ class _RollDelegate(QStyledItemDelegate):
         name_font = QFont(font)
         name_font.setWeight(QFont.Weight(THEME.weight_semibold if is_open else THEME.weight_regular))
         name_metrics, small_metrics = QFontMetrics(name_font), QFontMetrics(small)
-        top = rect.center().y() - (name_metrics.height() + small_metrics.height() + THEME.space_xs) // 2
+        name_line, line = two_line_rects(rect, x, right, name_metrics, small_metrics)
         p.setFont(name_font)
         p.setPen(QColor(THEME.text_primary))
-        p.drawText(
-            QRect(x, top, right - x, name_metrics.height()),
-            Qt.AlignmentFlag.AlignVCenter,
-            name_metrics.elidedText(name, Qt.TextElideMode.ElideRight, right - x),
-        )
-        line = QRect(x, top + name_metrics.height() + THEME.space_xs, right - x, small_metrics.height())
+        p.drawText(name_line, Qt.AlignmentFlag.AlignVCenter, name_metrics.elidedText(name, Qt.TextElideMode.ElideRight, right - x))
         # The dot's slot stays when a roll records no film mode, so the lines align.
         dot = index.data(_DOT_ROLE)
         if dot:

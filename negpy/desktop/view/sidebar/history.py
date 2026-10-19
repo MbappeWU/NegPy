@@ -1,11 +1,10 @@
 from negpy.kernel.system.i18n import tr
 import qtawesome as qta
-from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QRect, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
-    QListWidget,
     QListWidgetItem,
     QMenu,
     QMessageBox,
@@ -21,7 +20,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import make_section
-from negpy.desktop.view.widgets.flat_rows import ICON, more_press, more_rect, paint_fill, paint_more, paint_pill
+from negpy.desktop.view.widgets.flat_rows import ICON, RowList, more_rect, paint_fill, paint_more, paint_pill
 from negpy.kernel.system.config import APP_CONFIG
 
 _INDEX_ROLE = Qt.ItemDataRole.UserRole
@@ -97,41 +96,13 @@ class _RowDelegate(QStyledItemDelegate):
         p.restore()
 
 
-class _RowList(QListWidget):
-    """Flat rows sized to fit, since the tab scrolls; a press on a row's ⋮, or a right click,
-    asks for that row's menu instead of picking it."""
-
-    menu_requested = pyqtSignal(QPoint)
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setObjectName("history_rows")
-        self.setItemDelegate(_RowDelegate(self))
-        self.setMouseTracking(True)
-        self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.menu_requested)
-
-    def mousePressEvent(self, event) -> None:  # noqa: N802
-        pos = more_press(self, event)
-        if pos is not None:
-            self.menu_requested.emit(pos)
-            return
-        super().mousePressEvent(event)
-
-    def fit(self) -> None:
-        self.setFixedHeight(self.count() * _ROW_HEIGHT + 2 * self.frameWidth())
-
-
 class HistoryPanel(BaseSidebar):
     """Work prints (named versions, kept) above the edit-history steps (pruned), each a card."""
 
     def _init_ui(self) -> None:
         repo = self.controller.session.repo
 
-        self.work_prints = _RowList()
+        self.work_prints = RowList(_RowDelegate, _ROW_HEIGHT)
         self.work_prints.setToolTip(_WORK_PRINT_TOOLTIP)
         self.work_prints_hint = hint_label(
             tr("Keep this edit as a named version. Work prints are never pruned, and a click brings one back.")
@@ -164,7 +135,7 @@ class HistoryPanel(BaseSidebar):
             repo, tr("Work Prints"), "work_prints", prints_body, "mdi6.bookmark-outline", default_expanded=True
         )
 
-        self.list = _RowList()
+        self.list = RowList(_RowDelegate, _ROW_HEIGHT)
         self.list.setToolTip(tr("Click a step to jump to it (last 100 edits kept)."))
         history_body = QWidget()
         history_col = QVBoxLayout(history_body)

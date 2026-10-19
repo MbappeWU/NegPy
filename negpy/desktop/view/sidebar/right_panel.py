@@ -111,7 +111,7 @@ def default_analysis_split(screen) -> list[int]:
 class RightPanel(QWidget):
     """Right sidebar panel: a flat tab switcher across Library / Roll / Frame / Metadata / Export /
     Scan, in the order an edit moves through them. Analysis is pinned above Roll and Frame. Metadata
-    pins its Preview above its own scroll area, which ends with My Gear and Presets."""
+    pins its Preview above its own tabs, the last two of which are Presets and My Gear."""
 
     def __init__(self, controller: AppController, library_tree: Optional[LibraryTree] = None):
         super().__init__()
@@ -452,7 +452,7 @@ class RightPanel(QWidget):
         if group == "roll":
             return self.roll_tab_header
         if group == "metadata":
-            return self.metadata_sidebar.tab_header
+            return self.metadata_sidebar.active_tab_header()
         if group == "frame":
             return self._frame_tab_headers.get(self._tab_keys[self._active_index])
         return None
@@ -856,25 +856,31 @@ class RightPanel(QWidget):
 
     def show_gear_section_by_key(self, key: str) -> None:
         self._switch_group(self._group_keys.index("metadata"))
-        self.gear_panel.show_section_by_key(key)
+        self.metadata_sidebar.show_tab("presets" if key == "presets" else "gear")
 
-    def _pages_holding(self, widget: QWidget) -> list[tuple[QStackedWidget, int]]:
+    def _stacks(self) -> tuple:
+        """Each tab stack with its switch and its tab names, outermost first."""
+        meta = self.metadata_sidebar
+        return (
+            (self.group_stack, self._switch_group, self._group_tooltips),
+            (self.stack, self._switch_tab, [btn.text() for btn in self._tab_buttons]),
+            (meta.tab_stack, meta._switch_tab, [btn.text() for btn in meta._tab_buttons]),
+        )
+
+    def _pages_holding(self, widget: QWidget) -> list[tuple[Any, int, str]]:
         found = []
-        for stack in (self.group_stack, self.stack):
+        for stack, switch, names in self._stacks():
             for i in range(stack.count()):
                 if stack.widget(i).isAncestorOf(widget):
-                    found.append((stack, i))
+                    found.append((switch, i, names[i]))
         return found
 
     def tab_path(self, widget: QWidget) -> list[str]:
-        return [
-            self._group_tooltips[i] if stack is self.group_stack else self._tab_buttons[i].text()
-            for stack, i in self._pages_holding(widget)
-        ]
+        return [name for _switch, _i, name in self._pages_holding(widget)]
 
     def reveal_widget(self, widget: QWidget) -> None:
-        for stack, i in self._pages_holding(widget):
-            (self._switch_group if stack is self.group_stack else self._switch_tab)(i)
+        for switch, i, _name in self._pages_holding(widget):
+            switch(i)
         parent = widget
         while parent is not None:
             if isinstance(parent, CollapsibleSection):

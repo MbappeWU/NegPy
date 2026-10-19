@@ -578,8 +578,8 @@ QTreeWidget#roll_tree::item:selected, QTreeWidget#roll_tree::branch:selected, QT
     background: transparent;
 }
 
-/* History's flat rows (see sidebar/history.py): the delegate paints them. */
-QListWidget#history_rows {
+/* Flat rows (see widgets/flat_rows.py): the delegate paints them. */
+QListWidget#flat_rows {
     background: transparent;
     border: none;
     outline: none;

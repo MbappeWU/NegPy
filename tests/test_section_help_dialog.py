@@ -45,7 +45,6 @@ GUIDED_KEYS = (
     "export_bake",
     "contact_sheet",
     "soft_proof",
-    "metadata_presets",
     "metadata_gear",
     "metadata_capture",
     "metadata_process",
