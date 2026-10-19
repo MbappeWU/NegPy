@@ -705,9 +705,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             OUTPUT,
             tr("Export"),
             tr(
-                "Pick a format, color space and size. The button's arrow chooses this frame, the selection "
-                "or all visible frames. <b>Presets</b> run several recipes at once. <b>Contact Sheet</b> prints "
-                "the roll as film strips; <b>Sidecars</b> save edits beside the scans."
+                "Pick a format, color space and size on <b>File</b>. <b>Export</b> stays at the bottom; its arrow "
+                "chooses this frame, the selection or all visible frames. <b>Presets</b> run several recipes at "
+                "once, and <b>Alongside Exports</b> holds the contact sheet, printing notes and edit sidecars."
             ),
             lambda w: rp(w).export_sidebar,
             focus=lambda w: rp(w).export_sidebar.export_main_btn,

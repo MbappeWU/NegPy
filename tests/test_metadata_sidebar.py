@@ -243,13 +243,13 @@ def _cards_enabled(sidebar: MetadataSidebar) -> list[bool]:
 
 
 def _page(sidebar: MetadataSidebar, key: str):
-    return sidebar.tab_stack.widget(sidebar._tab_keys.index(key))
+    return sidebar.tabs.stack.widget(sidebar.tabs.keys.index(key))
 
 
 class TestTabs:
     def test_two_field_tabs_then_the_two_library_tabs_as_icons(self, sidebar: MetadataSidebar) -> None:
-        assert [btn.text() for btn in sidebar._tab_buttons] == ["Shot", "Process", "Presets", "My Gear"]
-        assert [btn._icon_only for btn in sidebar._tab_buttons] == [False, False, True, True]
+        assert [btn.text() for btn in sidebar.tabs.buttons] == ["Shot", "Process", "Presets", "My Gear"]
+        assert [btn._icon_only for btn in sidebar.tabs.buttons] == [False, False, True, True]
 
     def test_each_card_sits_on_its_tab_under_that_tabs_header(self, sidebar: MetadataSidebar) -> None:
         for key, sections in (
@@ -272,7 +272,7 @@ class TestTabs:
     def test_a_tab_is_marked_while_a_card_on_it_is_edited(self, sidebar: MetadataSidebar) -> None:
         _set_metadata(sidebar, developer="D-76")
         sidebar.sync_ui()
-        assert [btn.is_marked() for btn in sidebar._tab_buttons] == [False, True, False, False]
+        assert [btn.is_marked() for btn in sidebar.tabs.buttons] == [False, True, False, False]
 
     def test_library_tab_tooltips_carry_their_bound_shortcut(self, sidebar: MetadataSidebar, monkeypatch) -> None:
         import negpy.desktop.view.shortcut_registry as registry
@@ -280,7 +280,7 @@ class TestTabs:
         monkeypatch.setattr(registry, "key_for", lambda action_id, bindings=None: "G" if action_id == "tab_gear_items" else "")
         sidebar.apply_shortcut_tooltips()
 
-        tips = {key: btn.toolTip() for key, btn in zip(sidebar._tab_keys, sidebar._tab_buttons)}
+        tips = {key: btn.toolTip() for key, btn in zip(sidebar.tabs.keys, sidebar.tabs.buttons)}
         assert "G" in tips["gear"]
         assert "G" not in tips["presets"]
 
@@ -290,7 +290,7 @@ class TestPreviewPinning:
 
     def test_preview_is_pinned_above_the_tabs(self, sidebar: MetadataSidebar) -> None:
         assert sidebar.preview_split.widget(0) is sidebar.preview_section
-        assert sidebar.preview_split.widget(1).isAncestorOf(sidebar.tab_stack)
+        assert sidebar.preview_split.widget(1).isAncestorOf(sidebar.tabs.stack)
 
     def test_a_folded_preview_keeps_only_its_header(self, sidebar: MetadataSidebar) -> None:
         sidebar.preview_section.set_expanded(False)

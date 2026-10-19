@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QScrollArea,
     QSplitter,
-    QStackedWidget,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -31,8 +30,7 @@ from negpy.desktop.controller import AppController
 from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, make_section
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.services.assets.rolls import ROLL_DEFAULT_FIELDS
-from negpy.desktop.view.widgets.overflow_bar import OverflowBar
-from negpy.desktop.view.widgets.panel_tab import PanelTab
+from negpy.desktop.view.widgets.sub_tabs import SubTabs, tab_page
 from negpy.desktop.view.widgets.tab_header import TabHeader
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_sequential_frame_dialog
 from negpy.desktop.settings_catalog import rows_for_fields
@@ -378,58 +376,30 @@ class MetadataSidebar(BaseSidebar):
             header.apply_requested.connect(lambda keys=card_keys: self._apply_cards(keys))
             header.roll_revert_requested.connect(lambda keys=card_keys: self.controller.revert_to_roll(keys))
             self.tab_headers[key] = header
-            pages.append((key, title, (header, *sections)))
+            pages.append((key, title, _TAB_ICONS[key], tab_page(header, *sections)))
         self._gear_pages: dict[str, QVBoxLayout] = {}
         for key, title in (("presets", tr("Presets")), ("gear", tr("My Gear"))):
-            pages.append((key, title, ()))
-
-        self.tab_bar = OverflowBar(height=38, min_item=PanelTab.min_width([tr("Shot"), tr("Process")], stacked=False))
-        self.tab_stack = QStackedWidget()
-        self.tab_stack.setContentsMargins(0, THEME.space_md, 0, 0)
-        self._tab_keys: list[str] = []
-        self._tab_buttons: list[PanelTab] = []
-        for i, (key, title, widgets) in enumerate(pages):
-            btn = PanelTab(_TAB_ICONS[key], title, icon_only=key in ("presets", "gear"), divider=key == "presets")
-            btn.setToolTip(title)
-            btn.clicked.connect(lambda _checked=False, idx=i: self._switch_tab(idx))
-            self.tab_bar.add_button(btn, title)
-            page = QWidget()
-            page_layout = QVBoxLayout(page)
-            page_layout.setContentsMargins(0, 0, 0, 0)
-            page_layout.setSpacing(THEME.space_lg)
-            for widget in widgets:
-                page_layout.addWidget(widget)
-            page_layout.addStretch()
-            if key in ("presets", "gear"):
-                self._gear_pages[key] = page_layout
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
-            scroll.setWidget(page)
-            self.tab_stack.addWidget(scroll)
-            self._tab_keys.append(key)
-            self._tab_buttons.append(btn)
-
-        tabs = QWidget()
-        tabs_layout = QVBoxLayout(tabs)
-        tabs_layout.setContentsMargins(0, 0, 0, 0)
-        tabs_layout.setSpacing(THEME.space_sm)
-        tabs_layout.addWidget(self.tab_bar)
+            page = tab_page()
+            self._gear_pages[key] = page.layout()
+            pages.append((key, title, _TAB_ICONS[key], page))
+        self._gear_panel = None
+        repo = self.controller.session.repo
+        self.tabs = SubTabs(repo, "metadata_tab", pages, icon_only=("presets", "gear"))
+        self.tabs.current_changed.connect(self._on_tab_changed)
         # One line naming every card this frame has taken off the roll, the same answer
         # roll_override_summary gives on the Roll tab.
         self.metadata_scope_hint = hint_label("", "muted")
         self.metadata_scope_hint.setVisible(False)
-        tabs_layout.addWidget(self.metadata_scope_hint)
-        tabs_layout.addWidget(self.tab_stack, 1)
+        self.tabs.layout().insertWidget(1, self.metadata_scope_hint)
 
         # The preview is pinned over the tabs like Analysis over the Frame tab: folded, it keeps
         # only its header, and the height dragged while it is open is kept.
-        repo = self.controller.session.repo
         saved_height = repo.get_global_setting("metadata_preview_height")
         self._preview_height = saved_height if isinstance(saved_height, int) else _PREVIEW_HEIGHT
         self._preview_split_shown = False
         self.preview_split = QSplitter(Qt.Orientation.Vertical)
         self.preview_split.addWidget(self.preview_section)
-        self.preview_split.addWidget(tabs)
+        self.preview_split.addWidget(self.tabs)
         self.preview_split.setCollapsible(0, False)
         self.preview_split.setCollapsible(1, False)
         self.preview_split.setStretchFactor(0, 0)
@@ -437,34 +407,25 @@ class MetadataSidebar(BaseSidebar):
         self.preview_split.splitterMoved.connect(self._on_preview_split_moved)
         self.preview_section.expanded_changed.connect(self._fit_preview)
         self.layout.addWidget(self.preview_split, 1)
-        self._gear_panel = None
 
         for key, section in self._scope_sections():
             section.scope_selected.connect(lambda scope, k=key: self._on_scope_selected(k, scope))
             section.reset_requested.connect(lambda k=key: self._reset_card(k))
             section.roll_revert_requested.connect(lambda k=key: self.controller.revert_to_roll((k,)))
 
-        saved_tab = repo.get_global_setting("metadata_tab", "shot")
-        self._switch_tab(self._tab_keys.index(saved_tab) if saved_tab in self._tab_keys else 0)
         # After every card: the tooltips it fills in span all of them.
         self.apply_shortcut_tooltips()
         self._set_metadata_controls_enabled(not conf.protect_original_metadata)
 
-    def _switch_tab(self, index: int) -> None:
-        self._active_tab = index
-        self.controller.session.repo.save_global_setting("metadata_tab", self._tab_keys[index])
-        self.tab_stack.setCurrentIndex(index)
-        for i, btn in enumerate(self._tab_buttons):
-            btn.setChecked(i == index)
-        self.tab_bar.set_pinned(index)
-        if self._tab_keys[index] == "presets" and self._gear_panel is not None:
+    def _on_tab_changed(self, key: str) -> None:
+        if key == "presets" and self._gear_panel is not None:
             self._gear_panel.presets.on_activated()
 
     def show_tab(self, key: str) -> None:
-        self._switch_tab(self._tab_keys.index(key))
+        self.tabs.show_tab(key)
 
     def active_tab_header(self) -> Optional[TabHeader]:
-        return self.tab_headers.get(self._tab_keys[self._active_tab])
+        return self.tab_headers.get(self.tabs.current_key())
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
@@ -552,7 +513,7 @@ class MetadataSidebar(BaseSidebar):
 
         for header in self.tab_headers.values():
             header.refresh()
-        for btn, key in zip(self._tab_buttons, self._tab_keys):
+        for btn, key in zip(self.tabs.buttons, self.tabs.keys):
             btn.set_marked(any(section.modified_count for section in self._tab_sections.get(key, ())))
         if overridden:
             set_hint_kind(self.metadata_scope_hint, "warning")
@@ -911,7 +872,7 @@ class MetadataSidebar(BaseSidebar):
     def apply_shortcut_tooltips(self) -> None:
         """Re-read the binding: tooltips are built before saved overrides load, and again
         whenever the shortcut editor writes a new one."""
-        for btn, key in zip(self._tab_buttons, self._tab_keys):
+        for btn, key in zip(self.tabs.buttons, self.tabs.keys):
             tab_action = {"presets": "tab_gear_presets", "gear": "tab_gear_items"}.get(key, "")
             btn.setToolTip(tooltip_with_shortcut(btn.text(), tab_action) if tab_action else btn.text())
         self.frame_sequence_btn.setToolTip(tooltip_with_shortcut(_SEQUENCE_TOOLTIP, "assign_sequential_frame"))

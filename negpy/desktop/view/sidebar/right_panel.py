@@ -111,7 +111,7 @@ def default_analysis_split(screen) -> list[int]:
 class RightPanel(QWidget):
     """Right sidebar panel: a flat tab switcher across Library / Roll / Frame / Metadata / Export /
     Scan, in the order an edit moves through them. Analysis is pinned above Roll and Frame. Metadata
-    pins its Preview above its own tabs, the last two of which are Presets and My Gear."""
+    pins its Preview above its own sub-tabs, and Export pins its Export button below its own."""
 
     def __init__(self, controller: AppController, library_tree: Optional[LibraryTree] = None):
         super().__init__()
@@ -186,7 +186,7 @@ class RightPanel(QWidget):
             self.group_switcher.add_button(btn, tooltip)
 
             # These pages scroll inside, beside a pinned part; every other page scrolls whole.
-            page = content if key in ("library", "frame", "metadata", "scan") else wrap_scroll(content)
+            page = content if key in ("library", "frame", "metadata", "export", "scan") else wrap_scroll(content)
             self.group_stack.addWidget(page)
             self._group_buttons.append(btn)
             self._group_keys.append(key)
@@ -860,11 +860,13 @@ class RightPanel(QWidget):
 
     def _stacks(self) -> tuple:
         """Each tab stack with its switch and its tab names, outermost first."""
-        meta = self.metadata_sidebar
         return (
             (self.group_stack, self._switch_group, self._group_tooltips),
             (self.stack, self._switch_tab, [btn.text() for btn in self._tab_buttons]),
-            (meta.tab_stack, meta._switch_tab, [btn.text() for btn in meta._tab_buttons]),
+            *(
+                (tabs.stack, tabs.switch, [btn.text() for btn in tabs.buttons])
+                for tabs in (self.metadata_sidebar.tabs, self.export_sidebar.tabs)
+            ),
         )
 
     def _pages_holding(self, widget: QWidget) -> list[tuple[Any, int, str]]:

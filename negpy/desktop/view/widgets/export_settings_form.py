@@ -519,7 +519,7 @@ class ExportSettingsForm(QWidget):
             align_left=True,
         )
         self.overwrite_btn.toggled.connect(self._on_changed)
-        root.addWidget(self.overwrite_btn)
+        root.addLayout(self._field_row("", self.overwrite_btn))
 
     # --- Change handling -----------------------------------------------------
 

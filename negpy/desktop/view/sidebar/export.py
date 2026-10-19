@@ -37,6 +37,7 @@ from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup, align
 from negpy.desktop.view.widgets.export_settings_form import ExportSettingsForm, constrain_combo
 from negpy.desktop.view.widgets.split_button import make_split_button
 from negpy.desktop.view.widgets.step_combo import StepCombo
+from negpy.desktop.view.widgets.sub_tabs import SubTabs, tab_page
 from negpy.domain.models import PROOF_INTENT_LABELS, ColorSpace, ProofIntent, preset_display_name
 from negpy.infrastructure.display.color_spaces import ColorSpaceRegistry
 
@@ -58,13 +59,11 @@ class ExportSidebar(BaseSidebar):
         self.update_timer.setInterval(500)
         self.update_timer.timeout.connect(self._persist_all_export_settings)
 
-        # Task-flow order: the output intent reframes the whole form, so it comes first; the
-        # Export action follows the form it reads, and the occasional tools sit collapsed below.
+        # The output intent reframes the whole form, so it comes first.
         body = QWidget()
         self._body = QVBoxLayout(body)
         self._body.setContentsMargins(0, 0, 0, 0)
         self._body.setSpacing(THEME.space_lg)
-        self.layout.addWidget(body)
         self._add_flat_master_section()
 
         # Shared FORMAT / SIZE / COLOR / DESTINATION rows.
@@ -72,19 +71,28 @@ class ExportSidebar(BaseSidebar):
         self.form.load(self._config_to_form_values())
         self._body.addWidget(self.form)
         self._add_proof_controls()
-        self._add_export_section()
+        self._body.addStretch()
 
-        # Nearest the export first: another way to export, then the export's proof, then
-        # other outputs, and last the edits rather than the images.
         self._add_presets_section()
         self._add_soft_proof_section()
         self._add_contact_sheet_section()
-        self._add_printing_notes_section()
-        self._add_bake_section()
-        self._add_sidecars_section()
+        self._add_alongside_section()
+        self.tabs = SubTabs(
+            self.controller.session.repo,
+            "export_tab",
+            (
+                ("file", tr("File"), "mdi6.file-image-outline", body),
+                ("proof", tr("Proof"), "mdi6.printer-outline", tab_page(self._soft_proof_section)),
+                ("presets", tr("Presets"), "mdi6.layers-triple-outline", tab_page(self._presets_section)),
+                ("alongside", tr("Alongside Exports"), "mdi6.puzzle-outline", tab_page(self.contact_sheet_section, self.alongside_section)),
+            ),
+            icon_only=("presets", "alongside"),
+        )
+        self.layout.addWidget(self.tabs, 1)
+        # Pinned under every sub-tab, so the action never moves with the form above it.
+        self._add_export_section()
         self._sync_flat_enabled()
-
-        self.layout.addStretch()
+        self._sync_proof_mark()
 
         self._rebuild_preset_rows()
         self._refresh_export_enabled()
@@ -157,7 +165,7 @@ class ExportSidebar(BaseSidebar):
     # --- Presets -------------------------------------------------------------
 
     def _add_presets_section(self) -> None:
-        """Collapsible PRESETS section pinned to the top of the panel."""
+        """The presets to export with, their manager, and their own Export Presets action."""
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
@@ -189,19 +197,17 @@ class ExportSidebar(BaseSidebar):
         preset_btn_row.addWidget(self.manage_presets_btn, 0)
         preset_btn_row.addWidget(self.export_presets_group, 1)
         content_layout.addLayout(preset_btn_row)
+        self.presets_linear_hint = hint_label(tr("Presets are off while the output intent is Linear."))
+        content_layout.addWidget(self.presets_linear_hint)
 
-        self._presets_section = make_section(self.controller.session.repo, tr("Presets"), "export_presets", content, "fa5s.layer-group")
-        self.layout.addWidget(self._presets_section)
+        self._presets_section = make_section(
+            self.controller.session.repo, tr("Presets"), "export_presets", content, "fa5s.layer-group", collapsible=False
+        )
 
     # --- Printing notes ------------------------------------------------------
 
-    def _add_printing_notes_section(self) -> None:
-        """Collapsible PRINTING NOTES section: the canvas preview toggle + the export."""
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(6)
-
+    def _add_printing_notes_row(self) -> QHBoxLayout:
+        """The canvas preview toggle + the export."""
         self.printing_notes_preview_btn = self._tool_toggle(
             "fa5s.eye",
             tr("Preview"),
@@ -215,7 +221,7 @@ class ExportSidebar(BaseSidebar):
 
         self.printing_notes_btn = labeled_action(
             "mdi.playlist-edit",
-            tr(" Export"),
+            tr(" Export Notes"),
             tr(
                 "Save this frame as a marked-up work print — the map plus the print recipe below it — as its "
                 "own JPEG in the export folder. The print itself is untouched. Resolution follows the "
@@ -227,12 +233,40 @@ class ExportSidebar(BaseSidebar):
         btn_row = QHBoxLayout()
         btn_row.addWidget(self.printing_notes_preview_btn, 1)
         btn_row.addWidget(self.printing_notes_btn, 1)
-        content_layout.addLayout(btn_row)
+        return btn_row
 
-        self.printing_notes_section = make_section(
-            self.controller.session.repo, tr("Printing Notes"), "printing_notes", content, "mdi.playlist-edit"
+    def _add_alongside_section(self) -> None:
+        """Printing notes, the Auto Density/Grade bake and edit sidecars in one card: each a
+        toggle on the left and a one-shot action on the right."""
+        content = QWidget()
+        col = QVBoxLayout(content)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(6)
+        col.addWidget(section_subheader(tr("PRINTING NOTES")))
+        col.addLayout(self._add_printing_notes_row())
+        bake_header = section_subheader(tr("AUTO DENSITY / GRADE"))
+        col.addWidget(bake_header)
+        col.addLayout(self._add_bake_row())
+        sidecars_header = section_subheader(tr("EDIT SIDECARS"))
+        col.addWidget(sidecars_header)
+        col.addLayout(self._add_sidecars_row())
+        # Linear writes neither a print to bake nor an edit to keep beside it.
+        self._not_linear = (
+            bake_header,
+            self.bake_on_export_btn,
+            self.bake_to_roll_btn,
+            sidecars_header,
+            self.sidecars_enabled_btn,
+            self.export_sidecars_btn,
         )
-        self.layout.addWidget(self.printing_notes_section)
+        self.alongside_section = make_section(
+            self.controller.session.repo,
+            tr("Alongside Exports"),
+            "export_alongside",
+            content,
+            "mdi6.puzzle-outline",
+            collapsible=False,
+        )
 
     def _on_printing_notes_changed(self, active: bool) -> None:
         self.printing_notes_preview_btn.blockSignals(True)
@@ -279,8 +313,9 @@ class ExportSidebar(BaseSidebar):
         self.contact_sheet_btn.setObjectName("contact_sheet_btn")
         content_layout.addWidget(self.contact_sheet_btn)
 
-        self.contact_sheet_section = make_section(self.controller.session.repo, tr("Contact Sheet"), "contact_sheet", content, "fa5s.th")
-        self.layout.addWidget(self.contact_sheet_section)
+        self.contact_sheet_section = make_section(
+            self.controller.session.repo, tr("Contact Sheet"), "contact_sheet", content, "fa5s.th", collapsible=False
+        )
 
     def _browse_contact_sheet_output_path(self) -> None:
         start = self.cs_output_path_edit.text().strip() or self.state.config.export.export_path
@@ -510,11 +545,12 @@ class ExportSidebar(BaseSidebar):
             self.linear_ice_btn.setVisible(False)
             self.linear_corrections_hint.setVisible(False)
         if hasattr(self, "_presets_section"):
-            self._presets_section.setVisible(not linear_on)
-        if hasattr(self, "_sidecars_section"):
-            self._sidecars_section.setVisible(not linear_on)
-        if hasattr(self, "_bake_section"):
-            self._bake_section.setVisible(not linear_on)
+            for widget in (self.manage_presets_btn, self.export_presets_group, *self._preset_toggles):
+                widget.setEnabled(not linear_on)
+            self.presets_linear_hint.setVisible(linear_on)
+        if hasattr(self, "alongside_section"):
+            for widget in self._not_linear:
+                widget.setVisible(not linear_on)
         self._sync_flat_roll_warning()
         if hasattr(self, "form"):
             self._refresh_export_enabled()
@@ -873,8 +909,9 @@ class ExportSidebar(BaseSidebar):
         col.addWidget(self.display_detected_label)
         self._refresh_display_info()
 
-        self._soft_proof_section = make_section(self.controller.session.repo, tr("Soft Proof"), "soft_proof", content, "fa5s.print")
-        self.layout.addWidget(self._soft_proof_section)
+        self._soft_proof_section = make_section(
+            self.controller.session.repo, tr("Soft Proof"), "soft_proof", content, "fa5s.print", collapsible=False
+        )
 
         self._reload_proof_profiles()
         self._reload_proof_conditions()
@@ -965,6 +1002,11 @@ class ExportSidebar(BaseSidebar):
             w.setEnabled(st.soft_proof_enabled)
         self._select_matching_preset()
         self._refresh_proof_mismatch_warning()
+        self._sync_proof_mark()
+
+    def _sync_proof_mark(self) -> None:
+        if hasattr(self, "tabs"):
+            self.tabs.button("proof").set_marked(self.state.soft_proof_enabled)
 
     def _on_proof_profile_changed(self) -> None:
         self.controller.set_proof_field("proof_icc_path", self.proof_profile_combo.currentData())
@@ -1000,17 +1042,10 @@ class ExportSidebar(BaseSidebar):
 
     # --- Edit sidecars -------------------------------------------------------
 
-    def _add_sidecars_section(self) -> None:
-        """Collapsible EXPORT EDITS SIDECARS section: on-export toggle + manual export, side by side."""
+    def _add_sidecars_row(self) -> QHBoxLayout:
+        """The on-export toggle + the manual export, side by side."""
         conf = self.state.config.export
-
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(6)
-
         btn_row = QHBoxLayout()
-
         self.sidecars_enabled_btn = self._small_toggle(
             "fa5s.file-export",
             tr("Save on Export"),
@@ -1024,22 +1059,11 @@ class ExportSidebar(BaseSidebar):
         )
         self.export_sidecars_btn.setObjectName("export_sidecars_btn")
         btn_row.addWidget(self.export_sidecars_btn)
+        return btn_row
 
-        content_layout.addLayout(btn_row)
-
-        self._sidecars_section = make_section(self.controller.session.repo, tr("Sidecars"), "export_sidecars", content, "fa5s.file-export")
-        self.layout.addWidget(self._sidecars_section)
-
-    def _add_bake_section(self) -> None:
-        """Collapsible BAKE AUTO DENSITY/GRADE section: on-export toggle + manual bake, side by side."""
-
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(6)
-
+    def _add_bake_row(self) -> QHBoxLayout:
+        """The on-export toggle + the manual bake, side by side."""
         btn_row = QHBoxLayout()
-
         self.bake_on_export_btn = self._small_toggle(
             "fa5s.fire",
             tr("Bake on Export"),
@@ -1058,11 +1082,7 @@ class ExportSidebar(BaseSidebar):
         )
         self.bake_to_roll_btn.setObjectName("bake_to_roll_btn")
         btn_row.addWidget(self.bake_to_roll_btn)
-
-        content_layout.addLayout(btn_row)
-
-        self._bake_section = make_section(self.controller.session.repo, tr("Auto Density/Grade"), "export_bake", content, "fa5s.fire")
-        self.layout.addWidget(self._bake_section)
+        return btn_row
 
     # --- Batch ---------------------------------------------------------------
 
@@ -1070,12 +1090,12 @@ class ExportSidebar(BaseSidebar):
     # itself triggers an export. key -> (menu label, button label, tooltip)
     _EXPORT_SCOPES = {
         "current": (
-            "Export Current Frame",
+            tr("Export Current Frame"),
             tr(" Export Current Frame"),
             tr("Export the current frame with the settings below"),
         ),
         "selected": (
-            "Export Selected Frames",
+            tr("Export Selected Frames"),
             tr(" Export Selected"),
             tr("Export the selected filmstrip frames using the settings below"),
         ),
@@ -1095,12 +1115,12 @@ class ExportSidebar(BaseSidebar):
 
     _PRESET_SCOPES = {
         "current": (
-            "Export Current Frame",
-            " Export Presets",
+            tr("Export Current Frame"),
+            tr(" Export Presets"),
             tr("Export the current frame with every enabled preset"),
         ),
         "selected": (
-            "Export Selected Frames",
+            tr("Export Selected Frames"),
             tr(" Export Presets (selected)"),
             tr("Export the selected filmstrip frames with every enabled preset"),
         ),
@@ -1133,7 +1153,7 @@ class ExportSidebar(BaseSidebar):
 
         container, self.export_main_btn, self.export_menu_btn = make_split_button(tr(" Export"), "fa5s.check-circle", menu, primary=True)
         self.export_menu_btn.setToolTip(tr("Choose what the Export button does"))
-        self._body.addWidget(container)
+        self.layout.addWidget(container)
 
         saved = self.controller.session.repo.get_global_setting("export_scope", "current")
         saved = self._RETIRED_EXPORT_SCOPES.get(saved, saved)
@@ -1215,6 +1235,7 @@ class ExportSidebar(BaseSidebar):
                 "fa5s.layer-group", preset_display_name(preset), preset.enabled, tr("Export with this preset"), align_left=True
             )
             btn.toggled.connect(lambda checked, idx=i: self._on_preset_toggled(idx, checked))
+            btn.setEnabled(not self.state.linear_output)
             self._presets_inner.addWidget(btn)
             self._preset_toggles.append(btn)
 

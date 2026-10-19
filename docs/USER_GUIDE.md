@@ -962,6 +962,8 @@ Gear applies as one unit (camera, lens, film stock, format). A film stock sets t
 
 ## 12. Export tab
 
+**Export** is pinned at the bottom of the tab. Above it, **File** holds the output settings and **Proof** the soft proof, with a dot while Proof on Screen is on. The two icon tabs after them are **Presets** and **Alongside Exports**.
+
 ### Output intent
 
 *   **Print** (default): the look you see on screen.
@@ -999,32 +1001,26 @@ Gear applies as one unit (camera, lens, film stock, format). A film stock sets t
 
 ### Export button
 
-**Export**'s chevron picks the scope: current frame (Ctrl+E), selected frames or all visible frames. For several formats or sizes in one run, use Export Presets. A batch with unedited frames asks first, since they may not match their thumbnails. After the batch, a warning names exports that rendered almost black with no crop set, where the bright scan border drove automatic levels.
-
-### Collapsible sections
+**Export** stays at the bottom of every sub-tab. Its chevron picks the scope: current frame (Ctrl+E), selected frames or all visible frames. For several formats or sizes in one run, use Export Presets. A batch with unedited frames asks first, since they may not match their thumbnails. After the batch, a warning names exports that rendered almost black with no crop set, where the bright scan border drove automatic levels.
 
 <!-- panel:export_presets -->
-#### Presets
+### Presets
 
-Saved Format/Size/Color Management/**Destination**/filename recipes. Each preset is a toggle; **Manage** edits them. **Export Presets** renders the frames with every preset turned on, each to its own destination.
+Saved Format/Size/Color Management/**Destination**/filename recipes. Each preset is a toggle; **Manage** edits them. **Export Presets** renders the frames with every preset turned on, each to its own destination. Presets are off while the output intent is Linear.
 
-<!-- panel:printing_notes -->
-#### Printing Notes
+<!-- panel:export_alongside -->
+### Alongside Exports
 
-The printer's record for this frame, as described under Dodge & Burn. **Preview** shows it on the canvas (**Shift+N**); **Export** writes it as an image beside the print.
+Three jobs beside the print, each with a switch on the left and a one-shot action on the right. Linear output has no bake and no sidecars.
 
-<!-- panel:export_sidecars -->
-#### Sidecars
-
-**Save on Export** writes a `.negpy` sidecar next to each source on export. **Export Sidecars** writes them for all visible frames at once. Edits always stay in the database too. A frame with no edit in the database takes its sidecar when its folder opens. **Load Edit from Sidecar…** (right-click a frame) replaces the frame's edit with a chosen `.negpy`, as one undo step.
-
-<!-- panel:export_bake -->
-#### Auto Density/Grade
-
-**Bake on Export** is an app-wide switch, the same on every frame: when on, every export freezes Auto Density and Auto Grade into fixed values for the frames it has metered, so the saved edit does not re-run the meters. **Bake to Roll** freezes them for every visible frame now, metering a frame it has not seen first. A frame with both helpers already off, or a composite or a roll fork, keeps its edit.
+*   **Printing Notes**: the printer's record for this frame, as described under Dodge & Burn. **Preview** shows it on the canvas (**Shift+N**); **Export Notes** writes it as an image beside the print.
+*   **Auto Density / Grade**: **Bake on Export** is an app-wide switch, the same on every frame: when on, every export freezes Auto Density and Auto Grade into fixed values for the frames it has metered, so the saved edit does not re-run the meters. **Bake to Roll** freezes them for every visible frame now, metering a frame it has not seen first. A frame with both helpers already off, or a composite or a roll fork, keeps its edit.
+*   **Edit Sidecars**: **Save on Export** writes a `.negpy` sidecar next to each source on export. **Export Sidecars** writes them for all visible frames at once. Edits always stay in the database too. A frame with no edit in the database takes its sidecar when its folder opens. **Load Edit from Sidecar…** (right-click a frame) replaces the frame's edit with a chosen `.negpy`, as one undo step.
 
 <!-- panel:contact_sheet -->
-#### Contact Sheet
+### Contact Sheet
+
+On the **Alongside Exports** tab.
 
 A darkroom proof of the roll: every visible frame at true size, as cut film strips on photographic paper, in capture order. The rebate, perforations and edge print follow the frames' **Film stock** and **Format** metadata.
 
@@ -1042,16 +1038,12 @@ A darkroom proof of the roll: every visible frame at true size, as cut film stri
 *   **White Paper**: white paper in place of the darkroom black, to save ink on a home printer.
 *   **Film Base** (on): prints the film base black, as a darkroom contact print. Off prints it as paper with the strip outlined, to save more ink.
 
-Sheets are JPEGs named `contact_sheet.jpg` (`contact_sheet_1of2.jpg` and on when the roll needs more sheets), with the **JPEG Quality** and **Progressive** settings above.
-
-#### Soft Proof
-
-Simulates the print on screen. See below.
+Sheets are JPEGs named `contact_sheet.jpg` (`contact_sheet_1of2.jpg` and on when the roll needs more sheets), with the **JPEG Quality** and **Progressive** settings of the File tab.
 
 <!-- panel:soft_proof -->
 ### Soft Proof
 
-Preview only; exports are never proofed. Paper is dimmer and has a smaller gamut than a screen, so a correct proof looks worse than the plain preview.
+The **Proof** tab. Preview only; exports are never proofed. Paper is dimmer and has a smaller gamut than a screen, so a correct proof looks worse than the plain preview.
 
 *   **Proof on Screen** (`Shift+P`, on by default): master switch.
 *   **Preset**: a saved printer and paper setup; **None** proofs the export target with no paper simulation.
