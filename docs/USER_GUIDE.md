@@ -691,7 +691,7 @@ Setup leads the tab. Its film mode, like every card below it, is shared by the r
 
 What the film is and how you scan it. The film mode decides which cards apply. The scanning choices are one setting for the whole app: they set the RAW decode and the print stock, and the Roll tab shows only the controls they use.
 
-*   **Color / B&W / Slide**: **Color** (C-41 negative), **B&W** (negative) or **Slide** (transparency, E-6 and similar). The wand button detects the mode when a file loads.
+*   **Color / B&W / Slide**: **Color** (C-41 negative), **B&W** (negative) or **Slide** (transparency, E-6 and similar).
 *   **Positive** (default off, **Slide** only): for a source that is already a positive (a scanned print, another app's export). NegPy reads its embedded profile (sRGB if none) and skips metering and inversion, so the tone controls shape the image directly.
 *   **Camera / Film Scanner**: read from each frame until you pick one (a camera RAW is a camera, a TIFF or JPEG a film scanner); your pick holds for every frame and picks the Scan tab's scanner.
 *   **White Light / Narrowband RGB** (default White Light; not shown for **B&W**): the light behind the negative.

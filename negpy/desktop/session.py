@@ -203,9 +203,6 @@ class AppState:
     # High Quality / Full Resoluiton Preview Toggle
     hq_preview: bool = False
 
-    # Process-mode autodetect on file load (opt-in)
-    autodetect_enabled: bool = False
-
     # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray, 3=White, 4=Light Gray)
     canvas_bg_index: int = 2
     # Rebate, perforations and edge print around the frames of the Film Strip and the Light Table
@@ -312,9 +309,6 @@ class AppState:
 
     # Dirty flag: True when explicit persist=True edits have been made since last file open/switch
     is_dirty: bool = False
-
-    # True when the active file has no saved config yet (gates process-mode autodetect)
-    current_file_is_new: bool = False
 
     # True while the before/after split shows the un-graded auto baseline beside the edit
     compare_mode: bool = False
@@ -894,10 +888,6 @@ class DesktopSessionManager(QObject):
         if APP_CONFIG.force_hq_preview is not None:
             self.state.hq_preview = APP_CONFIG.force_hq_preview
 
-        saved_autodetect = self.repo.get_global_setting("autodetect_enabled")
-        if saved_autodetect is not None:
-            self.state.autodetect_enabled = bool(saved_autodetect)
-
         saved_bg = self.repo.get_global_setting("canvas_bg_index")
         if saved_bg is not None:
             self.state.canvas_bg_index = int(saved_bg)
@@ -1057,13 +1047,6 @@ class DesktopSessionManager(QObject):
         if self.state.hq_preview != enabled:
             self.state.hq_preview = enabled
             self.repo.save_global_setting("hq_preview", enabled)
-            self.state_changed.emit()
-
-    def set_autodetect_enabled(self, enabled: bool) -> None:
-        """Updates and persists the process-mode autodetect preference."""
-        if self.state.autodetect_enabled != enabled:
-            self.state.autodetect_enabled = enabled
-            self.repo.save_global_setting("autodetect_enabled", enabled)
             self.state_changed.emit()
 
     def set_sticky_zoom(self, enabled: bool) -> None:
@@ -1350,8 +1333,8 @@ class DesktopSessionManager(QObject):
         self.relock_diverged_cards()
         return True
 
-    def _hydrate_asset_config(self, asset: dict) -> tuple[WorkspaceConfig, bool]:
-        """Build an asset's effective config and report whether it had saved edits."""
+    def _hydrate_asset_config(self, asset: dict) -> WorkspaceConfig:
+        """Build an asset's effective config."""
         saved_config = load_or_promote(
             self.repo,
             asset["hash"],
@@ -1364,14 +1347,14 @@ class DesktopSessionManager(QObject):
             # A saved edit keeps its own process mode and shadow lift, which are the user's
             # now, so only the wiring overlays apply.
             config = self._overlay_roll_defaults(self._apply_sticky_settings(saved_config, only_global=True), asset)
-            return resolve_asset_hdr(resolve_asset_stitch(resolve_asset_rgbscan(config, asset), asset), asset), False
+            return resolve_asset_hdr(resolve_asset_stitch(resolve_asset_rgbscan(config, asset), asset), asset)
         # Sticky settings include the global process mode, which a composite must not take over
         # the mode of the frames it was built from. _asset_defaults applies after.
         #
         # Not a bare WorkspaceConfig(): only this config holds the shipped autocrop fields, and the
         # print/transfer curves are an identity at it (transfer_grade_ref, test_transparency_transfer.py).
         config = self._overlay_roll_defaults(self._apply_sticky_settings(DEFAULT_WORKSPACE_CONFIG, only_global=False), asset)
-        return self._asset_defaults(config, asset), True
+        return self._asset_defaults(config, asset)
 
     def config_for_asset(self, asset: dict) -> WorkspaceConfig:
         """Return an asset's hydrated config without changing the active session state.
@@ -1380,8 +1363,7 @@ class DesktopSessionManager(QObject):
         global overlays. Fresh assets start from clean defaults plus sticky workflow
         preferences. RGB-scan paths always come from the asset itself.
         """
-        config, _ = self._hydrate_asset_config(asset)
-        return config
+        return self._hydrate_asset_config(asset)
 
     def stored_process_mode(self, asset: dict) -> str:
         """The film process already decided for an asset, or "" when nothing has decided.
@@ -1442,7 +1424,7 @@ class DesktopSessionManager(QObject):
             self.state.undo_index = self.repo.get_max_history_index(file_info["hash"])
             self.state.max_history_index = self.state.undo_index
 
-            self.state.config, self.state.current_file_is_new = self._hydrate_asset_config(file_info)
+            self.state.config = self._hydrate_asset_config(file_info)
 
             self.file_selected.emit(file_info["path"])
             self.state_changed.emit()

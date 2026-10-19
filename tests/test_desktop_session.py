@@ -324,16 +324,6 @@ class TestDesktopSessionSync(unittest.TestCase):
         # even though the asset is currently showing its forked edit identity.
         self.assertFalse(config.process.linear_raw)
 
-    def test_set_autodetect_enabled_persists(self):
-        self.assertFalse(self.session.state.autodetect_enabled)
-        self.session.set_autodetect_enabled(True)
-        self.assertTrue(self.session.state.autodetect_enabled)
-        self.mock_repo.save_global_setting.assert_called_with("autodetect_enabled", True)
-
-    def test_set_autodetect_enabled_noop_when_unchanged(self):
-        self.session.set_autodetect_enabled(False)
-        self.mock_repo.save_global_setting.assert_not_called()
-
     def test_set_sticky_zoom_persists(self):
         self.assertFalse(self.session.state.sticky_zoom)
         self.session.set_sticky_zoom(True)

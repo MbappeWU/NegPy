@@ -106,16 +106,12 @@ class ProcessSidebar(BaseSidebar):
         mode_col.setContentsMargins(0, 0, 0, 0)
         mode_col.setSpacing(THEME.space_sm)
 
-        self.autodetect_btn = self._small_toggle("mdi6.auto-fix", "", False, tr("Auto-detect the film process on load"))
-        self.autodetect_btn.setFixedWidth(ICON_BUTTON_WIDTH)
-
         mode_row = QHBoxLayout()
         mode_col.addLayout(mode_row)
         self.mode_btn = SegmentedChoice(tuple(("mdi6.film", label, color) for _mode, label, color, _tip in _MODES), tr("Film process"))
         for i, (*_rest, tip) in enumerate(_MODES):
             self.mode_btn.set_choice_tooltip(i, tip)
         mode_row.addWidget(self.mode_btn, 1)
-        mode_row.addWidget(self.autodetect_btn)
 
         # Lives beside Film Mode, not inside Normalization: whether the source is
         # already a finished positive is a fact about the file, not a Normalization
@@ -286,7 +282,6 @@ class ProcessSidebar(BaseSidebar):
 
     def _connect_signals(self) -> None:
         self.mode_btn.currentChanged.connect(lambda i: self._on_mode_changed(_MODES[i][0]))
-        self.autodetect_btn.toggled.connect(lambda c: self.controller.toggle_autodetect(c))
         self.lock_bounds_btn.toggled.connect(self._on_lock_bounds_toggled)
 
         self.reanalyze_frame_btn.clicked.connect(self._on_reanalyze_frame)
@@ -460,7 +455,6 @@ class ProcessSidebar(BaseSidebar):
                 self.render_ev_slider.blockSignals(False)
 
             self.lock_bounds_btn.setChecked(conf.lock_bounds)
-            self.autodetect_btn.setChecked(self.state.autodetect_enabled)
 
             has_region = conf.analysis_rect is not None
             self.analysis_region_btn.setChecked(self.state.active_tool == ToolMode.ANALYSIS_DRAW)
@@ -522,7 +516,6 @@ class ProcessSidebar(BaseSidebar):
         """
         widgets = [
             self.mode_btn,
-            self.autodetect_btn,
             self.lock_bounds_btn,
             self.analysis_buffer_slider,
             self.analysis_region_btn,

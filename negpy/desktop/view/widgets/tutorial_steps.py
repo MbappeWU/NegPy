@@ -194,10 +194,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             ROLL,
             tr("Setup"),
             tr(
-                "The first choices. Film: <b>Color</b> negative, <b>B&amp;W</b> negative or <b>Slide</b>; the wand "
-                "detects it when a file opens. Then how you scan: <b>Camera</b> or <b>Film Scanner</b> (read from "
-                "the file until you pick one), and <b>White Light</b> or <b>Narrowband RGB</b>. The Roll tab shows "
-                "only the controls your setup uses."
+                "The first choices. Film: <b>Color</b> negative, <b>B&amp;W</b> negative or <b>Slide</b>. Then how "
+                "you scan: <b>Camera</b> or <b>Film Scanner</b> (read from the file until you pick one), and "
+                "<b>White Light</b> or <b>Narrowband RGB</b>. The Roll tab shows only the controls your setup uses."
             ),
             lambda w: cp(w).film_section,
             task=tr("Change the film mode, then set it back."),

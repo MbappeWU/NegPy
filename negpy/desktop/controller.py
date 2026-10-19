@@ -2720,7 +2720,7 @@ class AppController(QObject):
         if self._foreground_preview_generation == generation:
             self.loading_started.emit()
 
-    def load_file(self, file_path: str, preserve_zoom: bool = False, force_detect: bool = False) -> None:
+    def load_file(self, file_path: str, preserve_zoom: bool = False) -> None:
         """
         Dispatches RAW decode to a background worker to keep the UI thread free.
         """
@@ -2886,11 +2886,7 @@ class AppController(QObject):
                 file_hash=self._file_hash_for_path(file_path),
                 # A reload or memo hit keeps the rendered frame until its replacement is ready.
                 use_splash=memo is None and not keep_preview,
-                detect_mode=(
-                    pending_import.detect_mode
-                    if pending_import is not None
-                    else force_detect or (self.state.autodetect_enabled and self.state.current_file_is_new)
-                ),
+                detect_mode=pending_import is not None and pending_import.detect_mode,
                 # Whole, not flattened: the worker gates on the same predicates the decode
                 # paths use, so a disabled section needs no blanking here.
                 rgbscan=rgbscan,
@@ -3114,18 +3110,13 @@ class AppController(QObject):
 
     def _apply_detected_mode(self, detected_mode: str) -> None:
         """
-        Silently apply the autodetected process mode for a new file. Never overrides
-        a saved or user-edited mode (the worker only runs detection on new files).
+        Silently apply the process mode detected for a new white-light capture of unknown
+        film. Never overrides a saved or user-edited mode (only that import asks for it).
         """
         if not detected_mode or detected_mode == self.state.config.process.process_mode:
             return
         self.state.config = with_process_mode(self.state.config, detected_mode)
         self.state.is_dirty = True
-
-    def toggle_autodetect(self, enabled: bool) -> None:
-        self.session.set_autodetect_enabled(enabled)
-        if enabled and self.state.current_file_path:
-            self.load_file(self.state.current_file_path, preserve_zoom=True, force_detect=True)
 
     def toggle_hq_preview(self) -> None:
         # Resolution is in the memo key: every entry is now a permanent miss holding a
