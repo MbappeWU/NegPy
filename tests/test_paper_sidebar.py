@@ -28,21 +28,26 @@ def test_paper_reset_covers_every_paper_control():
         assert field in PAPER_FIELDS
 
 
-def test_separation_damping_shows_only_with_a_separation_push(qapp):
+def test_separation_damping_folds_and_grays_out_without_a_separation_push(qapp):
     """It only redistributes Dye Separation's push, so at separation 1.0 it renders nothing."""
     controller, sidebar = _sidebar()
-    assert sidebar.separation_damping_rail.isHidden()
+    fold = sidebar.separation_damping_fold
+    assert not fold.is_open()
+    fold.set_open(True)
+    assert fold.isVisibleTo(sidebar)
+    assert not sidebar.separation_damping_slider.isEnabled()
 
-    conf = controller.state.config
-    controller.state.config = replace(conf, exposure=replace(conf.exposure, dye_separation=1.3))
-    sidebar.sync_ui()
-    assert not sidebar.separation_damping_rail.isHidden()
+    sidebar.dye_separation_slider.setValue(1.3)
+    sidebar.dye_separation_slider.valueChanged.emit(1.3)
+    assert sidebar.separation_damping_slider.isEnabled()
+    fold.set_open(False)
+    assert not fold.isVisibleTo(sidebar)
 
 
 def test_separation_damping_armed_by_a_trim_alone(qapp):
     """A per-channel trim gives Dye Separation a real push with the global value at 1.0."""
     _controller, sidebar = _sidebar(dye_separation_trim_red=0.3)
-    assert not sidebar.separation_damping_rail.isHidden()
+    assert sidebar.separation_damping_slider.isEnabled()
 
 
 def test_paper_combo_rebuilt_only_when_entries_change(qapp):
@@ -193,13 +198,13 @@ def test_dye_separation_trim_swaps_per_channel_on_transfer_too(qapp):
 
     assert not sidebar.dye_separation_slider.isHidden()
     assert sidebar.dye_separation_trim_slider.isHidden()
-    assert not sidebar.separation_damping_rail.isHidden()
+    assert not sidebar.separation_damping_fold.content.isHidden()
 
     sidebar.ch_btn.setCurrentIndex(1)
     assert sidebar.dye_separation_slider.isHidden()
     assert not sidebar.dye_separation_trim_slider.isHidden()
     assert abs(sidebar.dye_separation_trim_slider.value() - 0.25) < 1e-9
-    assert sidebar.separation_damping_rail.isHidden()
+    assert sidebar.separation_damping_fold.content.isHidden()
 
 
 def test_mini_curve_paints_base_and_channel_traces(qapp):

@@ -10,8 +10,8 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, TEST_STRIP_SWEEP, gradient_icon, hint_label, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice, ToggleMenuButton
-from negpy.desktop.view.widgets.fold import group_fold, rail_fold, show_while
-from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.fold import group_fold, rail_fold
+from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.features.hdr.models import hdr_active
 from negpy.features.exposure.auto_sliders import NEUTRAL
 from negpy.features.exposure.models import EXPOSURE_CONSTANTS, TUNABLE_TARGETS, apply_targets
@@ -141,10 +141,10 @@ class ToneSidebar(BaseSidebar):
         self.preflash_slider = CompactSlider(tr("Preflash"), 0.0, 1.0, conf.preflash)
         self.diffusion_slider = CompactSlider(tr("Diffusion"), 0.0, 1.0, conf.diffusion)
         self.diffusion_slider.setToolTip(tr("Diffusion: a soft glow. Dark areas spread into bright ones and edges soften. 0 is off."))
-        self.mask_spacer_rail = SliderGroup(self.mask_spacer_slider)
-        self._sync_spacer_rail = show_while(self.contrast_mask_slider, self.mask_spacer_rail)
+        self.mask_spacer_fold = rail_fold("tone_mask_spacer", self.contrast_mask_slider, self.mask_spacer_slider)
+        self.contrast_mask_slider.valueChanged.connect(lambda _v: self._sync_spacer())
         aids_header, self.aids_fold = group_fold(
-            "tone_aids", tr("Printing Aids"), self.preflash_slider, self.diffusion_slider, self.contrast_mask_slider, self.mask_spacer_rail
+            "tone_aids", tr("Printing Aids"), self.preflash_slider, self.diffusion_slider, self.contrast_mask_slider, self.mask_spacer_fold
         )
         self.layout.addLayout(aids_header)
         self.layout.addWidget(self.aids_fold)
@@ -397,15 +397,17 @@ class ToneSidebar(BaseSidebar):
             self.diffusion_slider.setValue(conf.diffusion)
             self.preflash_slider.setValue(conf.preflash)
             self.hold_black_action.setChecked(conf.hold_black)
-            # Out of _global_only: that tuple means enabled exactly when global.
-            self.mask_spacer_slider.setEnabled(global_mode)
-            self._sync_spacer_rail()
+            self._sync_spacer()
             self.auto_density_action.setChecked(conf.auto_exposure)
             self.auto_grade_action.setChecked(conf.auto_normalize_contrast)
             self.auto_both_action.setChecked(conf.auto_exposure and conf.auto_normalize_contrast)
             self.auto_btn.refresh()
         finally:
             self.block_signals(False)
+
+    def _sync_spacer(self) -> None:
+        # Out of _global_only: that tuple means enabled exactly when global.
+        self.mask_spacer_slider.setEnabled(self._channel_index() == 0 and self.contrast_mask_slider.value() != 0.0)
 
     def block_signals(self, blocked: bool) -> None:
         for w in (

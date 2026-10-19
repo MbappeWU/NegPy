@@ -14,7 +14,7 @@ from negpy.desktop.view.styles.templates import (
 )
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.fold import group_fold, rail_fold
-from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.exposure.logic import per_channel_dye_separation
 from negpy.features.exposure.papers import DEFAULT_PROFILE_KEY, profiles_for_mode
@@ -92,13 +92,12 @@ class PaperSidebar(BaseSidebar):
         self.dye_separation_trim_slider = CompactSlider(tr("Dye Separation"), -0.4, 0.4, 0.0, has_neutral=True)
         self.dye_separation_trim_slider.setToolTip(tr("Dye Separation of this color layer only."))
         self.dye_separation_trim_slider.setVisible(False)
-        # Redistributes the slider above by each pixel's own chroma. Inert at 1.0 separation, so
-        # it shows only once separation moves.
+        # Redistributes the slider above by each pixel's own chroma, so it is inert at 1.0 separation.
         self.separation_damping_slider = CompactSlider(tr("Separation Damping"), 0.0, 1.0, conf.separation_damping)
         self.layout.addWidget(self.dye_separation_slider)
         self.layout.addWidget(self.dye_separation_trim_slider)
-        self.separation_damping_rail = SliderGroup(self.separation_damping_slider)
-        self.layout.addWidget(self.separation_damping_rail)
+        self.separation_damping_fold = rail_fold("paper_separation", self.dye_separation_slider, self.separation_damping_slider)
+        self.layout.addWidget(self.separation_damping_fold)
 
         self.midtone_gamma_slider = CompactSlider(tr("Snap"), -0.5, 0.5, conf.midtone_gamma)
 
@@ -329,7 +328,8 @@ class PaperSidebar(BaseSidebar):
             (conf.dye_separation_trim_red, conf.dye_separation_trim_green, conf.dye_separation_trim_blue),
         )
         is_bw = self.state.config.process.process_mode == ProcessMode.BW
-        self.separation_damping_rail.setVisible(self._channel_index() == 0 and not is_bw and sep_k3 != (1.0, 1.0, 1.0))
+        self.separation_damping_fold.content.setVisible(self._channel_index() == 0 and not is_bw)
+        self.separation_damping_slider.setEnabled(sep_k3 != (1.0, 1.0, 1.0))
 
     def block_signals(self, blocked: bool) -> None:
         for w in (
