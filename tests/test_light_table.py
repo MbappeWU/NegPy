@@ -774,3 +774,10 @@ def test_a_portrait_thumbnail_moves_the_strip_frames_after_it(browser, qapp):
     assert portrait.width() < landscape / 2
     assert after.left() == portrait.right() + 1
     browser.hide()
+
+
+def test_a_roll_without_scenes_finds_no_runs_without_reading_its_frames(browser, monkeypatch):
+    view = browser.light_table_view
+    monkeypatch.setattr(view, "visualRect", lambda index: pytest.fail("read a frame's rect"))
+
+    assert view.scene_runs_on_rows() == []

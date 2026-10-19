@@ -1173,8 +1173,10 @@ class _FilmGridView(ThumbnailGridView):
         """(scene, first index, first cell, last cell) per run of one scene's consecutive frames on one row."""
         model = self.model()
         runs: list[tuple[tuple, QModelIndex, QRect, QRect]] = []
+        if model is None or not getattr(model, "has_scenes", True):
+            return runs
         current = None
-        for row in range(model.rowCount() if model is not None else 0):
+        for row in range(model.rowCount()):
             index = model.index(row, 0)
             scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
             rect = self.visualRect(index)
