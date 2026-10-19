@@ -316,7 +316,7 @@ class ActionToolbar(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         main_layout = QHBoxLayout(self)
         main_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
-        main_layout.setContentsMargins(THEME.space_lg, THEME.space_sm, THEME.space_lg, THEME.space_sm)
+        main_layout.setContentsMargins(THEME.space_lg, THEME.space_md, THEME.space_lg, THEME.space_md)
         main_layout.setSpacing(6)
 
         self._rows = QWidget()
