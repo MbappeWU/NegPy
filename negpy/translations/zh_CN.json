@@ -1851,6 +1851,7 @@
   "Read one line per pass: slower, and free of line registration": "每次读取一行，较慢，但无需行对齐",
   "Reading capture dates…": "正在读取拍摄日期…",
   "Reading the {title} panel": "{title}面板指南",
+  "Readouts": "读数",
   "Reads per line the scanner averages": "扫描仪对每行取平均的读取次数",
   "Reanalyze Frame — measure this frame's bounds again from its current crop and analysis settings": "重新分析画面：按当前裁切与分析设置重新测量边界",
   "Reanalyze this frame's bounds": "重新分析此画面的边界",

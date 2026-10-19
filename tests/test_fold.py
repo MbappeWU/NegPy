@@ -198,3 +198,29 @@ def test_a_fold_can_start_open_until_the_user_closes_it():
     _header, again = group_fold("paper_curve_shape", "Curve Shape", CompactSlider("Glow", 0, 1, 0), default_open=True)
     again.bind(repo2)
     assert not again.is_open()
+
+
+def test_a_warning_marks_a_closed_fold_amber_and_an_edit_outranks_it():
+    repo, _ = _repo()
+    _section, _grade, shadows, fold = _grade_card(repo)
+
+    fold.set_warning(True)
+    assert fold.button.is_marked() and fold.button._mark_color == THEME.warn_amber
+
+    shadows.setValue(-15)
+    assert fold.button._mark_color == THEME.channel_red
+
+    fold.set_open(True)
+    assert not fold.button.is_marked()
+
+
+def test_the_analysis_stats_report_a_warning(qapp):
+    from negpy.desktop.view.widgets.stats import NegativeStatsWidget
+    from negpy.features.exposure.stats import StatRow
+
+    stats = NegativeStatsWidget()
+    seen = []
+    stats.warning_changed.connect(seen.append)
+    stats.update_stats([StatRow("Clipping", "Sh 3.0%", warn=True)])
+    stats.update_stats([StatRow("Clipping", "Sh 0.0%")])
+    assert seen == [True, False]

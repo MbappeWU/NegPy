@@ -19,7 +19,7 @@ _DOT = 6
 
 class FoldButton(QAbstractButton):
     """A chevron, and with text a sub-header that folds the group under it. A dot marks an
-    edited control behind a closed fold."""
+    edited control behind a closed fold, or in amber a warning its owner reports."""
 
     GUTTER = THEME.space_xl
 
@@ -30,15 +30,17 @@ class FoldButton(QAbstractButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self._marked = False
+        self._mark_color = THEME.channel_red
         self._font = QFont(self.font())
         self._font.setPixelSize(THEME.font_size_small)
         self._font.setWeight(QFont.Weight(THEME.weight_semibold))
         if not text:
             self.setFixedWidth(self.GUTTER)
 
-    def set_marked(self, marked: bool) -> None:
-        if marked != self._marked:
+    def set_marked(self, marked: bool, color: str = THEME.channel_red) -> None:
+        if (marked, color) != (self._marked, self._mark_color):
             self._marked = marked
+            self._mark_color = color
             self.update()
 
     def is_marked(self) -> bool:
@@ -69,7 +71,7 @@ class FoldButton(QAbstractButton):
             p.drawText(QRectF(self.GUTTER, 0, self.width() - self.GUTTER, self.height()), Qt.AlignmentFlag.AlignVCenter, self.text())
         if self._marked:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(THEME.channel_red))
+            p.setBrush(QColor(self._mark_color))
             p.drawEllipse(QPointF(_CHEVRON, top), _DOT / 2, _DOT / 2)
 
 
@@ -90,6 +92,7 @@ class Fold(QWidget):
         self.buttons: list[FoldButton] = []
         self._labels: list[QWidget] = []
         self._open = False
+        self._warning = False
         self._default_open = default_open
         self._repo = None
         layout = QVBoxLayout(self)
@@ -153,10 +156,16 @@ class Fold(QWidget):
         for button in self.buttons:
             button.setToolTip(wrap_tooltip(text) if text else "")
 
+    def set_warning(self, warning: bool) -> None:
+        """Mark the closed fold amber: something behind it needs a look (a clipping readout)."""
+        self._warning = warning
+        self._sync_mark()
+
     def _sync_mark(self) -> None:
         edited = not self._open and any(not dot.isHidden() for dot in self.content.findChildren(EditedDot))
+        warning = not self._open and self._warning and not edited
         for button in self.buttons:
-            button.set_marked(edited)
+            button.set_marked(edited or warning, THEME.warn_amber if warning else THEME.channel_red)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if obj in self._labels and event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:

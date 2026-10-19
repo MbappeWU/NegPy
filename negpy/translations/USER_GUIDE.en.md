@@ -349,10 +349,6 @@ Eleven cells on the Adams scale (**0** paper black, **V** 18% mid-gray, **X** pa
 
 Double-click the strip, or press `Shift+Z`, to toggle the canvas **Zone Overlay**. While it is up the toolbar shows its own row: the look, a legend with each zone's share of the frame, and **✕** (or `Esc`) to close it. **Color** tints each zone over the photo (I–IV cool, V gray, VI–IX warm, in your Color vision palette) and shows paper black and paper white as solid black and white; **Grayscale** draws the print in eleven gray steps; both number the larger regions. **Grid** lays a coarse grid over the photo with one numeral per region, red at paper black and paper white. Hovering the frame outlines the pointer's zone and rings its legend cell. Hovering a legend cell or a strip cell shows that zone alone, the rest of the frame dimmed, with the Zone Overlay on or off; the highlighter icon in the Analysis header turns this off for the strip.
 
-#### Probe
-
-A spot densitometer. Hover the image to read the print density, its zone and ΔD per channel. ΔD is density above the thin end of the normalization window. On a negative that end is the detected thin bound plus the Black Point offset, or the roll's bound under Roll Analysis; the rebate reads below zero. On a slide it is decoder white plus the White Point offset. **Probe at Cursor** (**Overlays**, or `Shift+I`) shows the same reading in a chip beside the pointer.
-
 #### Zone placement
 
 Works like an enlarging analyzer: click a zone on the strip, then a spot on the photo, and NegPy solves the print so the spot prints on that zone. Up to three pins; − and + trim each pin's **target** in thirds.
@@ -364,6 +360,14 @@ Works like an enlarging analyzer: click a zone on the strip, then a spot on the 
 The result is a preview until **Place zones** (or **Enter**) commits it as one edit, which turns off Auto Density (and Auto Grade with two or more pins). **Esc** discards the armed zone, then the pins; **✕** removes one pin. Drag a pin to move it. An unreachable target shows the closest zone the print can make.
 
 Pins are proofs, not edits: any other edit or a frame change removes them. Zone placement is off on an as-captured slide or a Positive frame.
+
+#### Readouts
+
+The **Readouts** fold under the zone strip holds the Probe and the negative stats; click its chevron or its name. It starts closed and keeps the state you leave it in. While it is closed, an amber dot marks a stat that warns.
+
+#### Probe
+
+A spot densitometer. Hover the image to read the print density, its zone and ΔD per channel. ΔD is density above the thin end of the normalization window. On a negative that end is the detected thin bound plus the Black Point offset, or the roll's bound under Roll Analysis; the rebate reads below zero. On a slide it is decoder white plus the White Point offset. **Probe at Cursor** (**Overlays**, or `Shift+I`) shows the same reading in a chip beside the pointer.
 
 #### Negative stats
 

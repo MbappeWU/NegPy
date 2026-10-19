@@ -1851,6 +1851,7 @@
   "Read one line per pass: slower, and free of line registration": "パスごとに 1 行を読み取ります: 速度は遅く、行登録は不要です",
   "Reading capture dates…": "キャプチャ日付を読み取り中…",
   "Reading the {title} panel": "{title} パネルを読む",
+  "Readouts": "読み取り値",
   "Reads per line the scanner averages": "スキャナーの 1 行あたりの読み取りの平均値",
   "Reanalyze Frame — measure this frame's bounds again from its current crop and analysis settings": "フレームの再分析 — 現在のトリミングおよび分析設定からこのフレームの境界を再度測定します。",
   "Reanalyze this frame's bounds": "このフレームの境界を再分析します",

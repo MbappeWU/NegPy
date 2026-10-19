@@ -27,7 +27,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
-from negpy.desktop.view.widgets.fold import Fold
+from negpy.desktop.view.widgets.fold import Fold, group_fold
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
 from negpy.desktop.view.widgets.tab_header import TabHeader
@@ -324,9 +324,11 @@ class RightPanel(QWidget):
         analysis_layout.addLayout(chart_row)
         analysis_layout.addWidget(self.step_wedge, 0)
         analysis_layout.addWidget(self.zone_strip, 0)
-        analysis_layout.addWidget(self.probe_row, 0)
         analysis_layout.addWidget(self.zone_placement, 0)
-        analysis_layout.addWidget(self.stats_widget, 0)
+        readouts_header, self.readouts_fold = group_fold("analysis_readouts", tr("Readouts"), self.probe_row, self.stats_widget)
+        self.stats_widget.warning_changed.connect(self.readouts_fold.set_warning)
+        analysis_layout.addLayout(readouts_header)
+        analysis_layout.addWidget(self.readouts_fold, 0)
 
         repo = self.controller.session.repo
         # Roll and Frame each keep their own expanded state; _switch_group restores it.

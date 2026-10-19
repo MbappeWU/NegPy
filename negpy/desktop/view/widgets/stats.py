@@ -109,7 +109,7 @@ class DensitometerRow(QWidget):
 
 
 class ZonePlacementRows(QWidget):
-    """Zone-placement rows under the probe: one per pinned spot with a ⅓-step target
+    """Zone-placement rows under the zone strip: one per pinned spot with a ⅓-step target
     stepper and its own remove button, plus Place zones. Dumb widget — the controller
     owns the pins and the solve; rows arrive via refresh() as (index, measured roman,
     target zone, achieved roman when the target is out of the paper's scale, solvable)."""
@@ -244,6 +244,9 @@ class NegativeStatsWidget(QWidget):
 
     _ROWS = 6
 
+    # True while any stat shows amber.
+    warning_changed = pyqtSignal(bool)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         grid = QGridLayout(self)
@@ -306,3 +309,4 @@ class NegativeStatsWidget(QWidget):
         for pair, divider in enumerate(self._dividers):
             # A divider separates two stats; hide it when the pair's second slot is empty.
             divider.setVisible(2 * pair + 1 < len(rows))
+        self.warning_changed.emit(any(row.warn for row in rows[: self._ROWS]))
