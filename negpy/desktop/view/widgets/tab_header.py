@@ -95,4 +95,4 @@ class TabHeader(CollapsibleSection):
     def _sync_cards_button(self) -> None:
         collapse = self._any_expanded()
         self.cards_btn.setIcon(qta.icon("fa5s.angle-double-up" if collapse else "fa5s.angle-double-down", color=THEME.text_muted))
-        self.cards_btn.setToolTip(wrap_tooltip(tr("{value} every card on this tab", value=tr("Collapse") if collapse else "Expand")))
+        self.cards_btn.setToolTip(wrap_tooltip(tr("Collapse every card on this tab") if collapse else tr("Expand every card on this tab")))

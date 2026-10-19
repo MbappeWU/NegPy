@@ -152,7 +152,7 @@ def confirm_roll_auto_crop(parent, on: bool, count: int) -> bool:
     box = QMessageBox(parent)
     box.setIcon(QMessageBox.Icon.Question)
     box.setWindowTitle(tr("Auto Crop"))
-    box.setText(tr("Turn Auto Crop {value} for this roll?", value="on" if on else "off"))
+    box.setText(tr("Turn Auto Crop on for this roll?") if on else tr("Turn Auto Crop off for this roll?"))
     change = tr("are auto-cropped") if on else tr("lose their auto crop")
     box.setInformativeText(
         tr("{value} that follow the roll {change}. A hand-drawn crop stays.", value=count_of(count, "frame"), change=change)

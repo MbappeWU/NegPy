@@ -1,4 +1,5 @@
 from negpy.kernel.system.i18n import tr
+from negpy.kernel.system.text import plural
 from dataclasses import replace
 from typing import Callable, Optional, Protocol, Sequence
 
@@ -368,7 +369,7 @@ class ContactSheetDialog(QDialog):
         )
         self.format_btn.setCurrentIndex(_FORMATS.index(self._format))
         self.format_btn.currentChanged.connect(self._on_format_changed)
-        col.addLayout(self._row(tr("Format"), self.format_btn))
+        col.addLayout(self._row(tr("Film format"), self.format_btn))
 
         self.frame_size_btn = ChoiceButton(tuple(("", size) for size in _FRAME_SIZES), tr("The 120 camera's frame size"))
         self.frame_size_btn.setCurrentIndex(_FRAME_SIZES.index(self._frame_size))
@@ -722,9 +723,9 @@ class ContactSheetDialog(QDialog):
         set_hint_kind(self.summary_label, "muted")
         count = len(self.kept_frames())
         strips = sum(len(page.strips) for page in final.pages)
-        frames = "frame" if count == 1 else "frames"
-        strip_word = "strip" if strips == 1 else "strips"
-        sheets = "sheet" if len(final.pages) == 1 else "sheets"
+        frames = plural(count, "frame")
+        strip_word = plural(strips, "strip")
+        sheets = plural(len(final.pages), "sheet")
         text = tr(
             "{count} {frames} · {strips} {strip_word} of {value} · {value1} {sheets}",
             count=count,

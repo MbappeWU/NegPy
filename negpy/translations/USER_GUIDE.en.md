@@ -605,7 +605,7 @@ Details about how you took and developed the picture: camera, lens, film and pro
 How the film was developed.
 
 *   **Saved process**: a recipe from My Gear that fills the fields below. Typing over a field unlinks it.
-*   **Format**: the film size, such as `35mm`, `120` or `4×5`.
+*   **Film format**: the film size, such as `35mm`, `120` or `4×5`.
 *   **Developer** and **Dilution**: for example `D-76` and `1+1`.
 *   **Push / Pull**: from `Push +3` to `Pull -3`.
 *   **Time** and **Temperature (°C)**: time as `9:30` or in minutes.
@@ -699,7 +699,7 @@ On the **Alongside Exports** tab. A contact sheet shows the whole roll as film s
 
 *   **Path**: the folder for the sheets. Empty uses the export folder.
 *   **Contact Sheet…**: opens the sheet. Drag an edge of the paper to resize it.
-*   **Format**: 35mm, 35mm Half Frame or 120 (with **Frame size** for 120).
+*   **Film format**: 35mm, 35mm Half Frame or 120 (with **Frame size** for 120).
 *   **Paper**, **Width**, **Height** and **DPI**: the sheet's size and resolution. The default paper holds a 36-exposure roll.
 *   **Order**: by date, or by scene with a new strip for each scene.
 *   **Print**: **As Edited**, or **Straight Proof**: the whole roll at one exposure and normal contrast, so you see which negatives are thin or dense.

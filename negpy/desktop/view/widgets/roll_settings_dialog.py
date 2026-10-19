@@ -190,7 +190,7 @@ class RollSettingsDialog(QDialog):
 
         # The stock carries the film's format, so Format lives in the Gear row, matching
         # GEAR_FIELDS (settings_catalog applies it as a unit with camera/lens/film stock).
-        col.addWidget(field_label(tr("Format")))
+        col.addWidget(field_label(tr("Film format")))
         self.format_combo = StepCombo()
         self.format_combo.setToolTip(wrap_tooltip(tr("Film format written to the frame's metadata")))
         add_choice_items(self.format_combo, FORMAT_OPTIONS)

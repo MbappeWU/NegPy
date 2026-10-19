@@ -355,7 +355,7 @@ class GearItemsPanel(QWidget):
         self._register_form_row("manufacturer", tr("Manufacturer"), self.manufacturer_edit)
         self._register_form_row("stock_name", tr("Stock name"), self.stock_name_edit)
         self._register_form_row("iso", tr("ISO"), self.iso_spin)
-        self._register_form_row("format", tr("Format"), self.format_combo)
+        self._register_form_row("format", tr("Film format"), self.format_combo)
         self._register_form_row("color_type", tr("Color type"), self.color_combo)
         self._register_form_row("developer", tr("Developer"), self.developer_edit)
         self._register_form_row("dilution", tr("Dilution"), self.dilution_edit)
@@ -834,7 +834,7 @@ class GearPresetsPanel(QWidget):
             ("camera", tr("Camera"), self.preset_camera_combo),
             ("lens", tr("Lens"), self.preset_lens_combo),
             ("film_stock", tr("Film stock"), self.preset_film_combo),
-            ("format", tr("Format"), self.preset_format_combo),
+            ("format", tr("Film format"), self.preset_format_combo),
             ("format_other", tr("Other format"), self.preset_format_other_edit),
             ("process", tr("Saved process"), self.preset_process_combo),
             ("developer", tr("Developer"), self.preset_developer_edit),

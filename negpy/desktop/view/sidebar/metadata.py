@@ -182,7 +182,7 @@ class MetadataSidebar(BaseSidebar):
         self.process_combo.setToolTip(tr("A saved development recipe. Picking one fills Developer and Push / Pull."))
         proc.addWidget(self.process_combo)
 
-        proc.addWidget(field_label(tr("Format")))
+        proc.addWidget(field_label(tr("Film format")))
         self.format_combo = StepCombo()
         self.format_combo.setToolTip(wrap_tooltip(tr("Film format written to the frame's metadata")))
         add_choice_items(self.format_combo, FORMAT_OPTIONS)

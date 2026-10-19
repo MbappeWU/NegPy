@@ -1546,7 +1546,7 @@ class DesktopSessionManager(QObject):
 
         if count:
             n = len(rows) + int(luma) + int(color)
-            noun = "setting" if n == 1 else "settings"
+            noun = plural(n, "setting")
             if scope == "roll":
                 msg = f"{n} {noun} synced to whole roll ({count} frames)"
             else:
@@ -1600,7 +1600,7 @@ class DesktopSessionManager(QObject):
 
         if count:
             n = len(rows) + int(finish is not None)
-            noun = "setting" if n == 1 else "settings"
+            noun = plural(n, "setting")
             self.settings_synced.emit(
                 tr(
                     "{label}: {n} {noun} to {count} {frame_word}",

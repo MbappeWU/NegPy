@@ -225,7 +225,7 @@ class MetadataPayload:
 
         process: list[tuple[str, str]] = []
         if self.film_format and not capture:
-            process.append((mark("Format"), self.film_format))
+            process.append((mark("Film format"), self.film_format))
         if self.developer:
             process.append((mark("Developer"), self.developer))
         if self.dilution:
