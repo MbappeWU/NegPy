@@ -234,14 +234,7 @@ class RollSettingsDialog(QDialog):
         self.capture_date_edit = QLineEdit()
         self.capture_date_edit.setPlaceholderText(CAPTURE_DATE_HINT)
         self.capture_date_edit.setText(self._meta.capture_date)
-        self.capture_date_edit.setToolTip(
-            wrap_tooltip(
-                tr(
-                    "When the frames were shot. Give only what you know: a year, a year and month, "
-                    "a date, or a date and time. An offset like +02:00 may follow a time."
-                )
-            )
-        )
+        self.capture_date_edit.setToolTip(wrap_tooltip(tr("When the frames were taken: a year, a month, a date, or a date and time.")))
         self.capture_date_edit.textEdited.connect(lambda _t: self._checks["Capture Date"].setChecked(True))
         return self._group("Capture Date", self.capture_date_edit)
 

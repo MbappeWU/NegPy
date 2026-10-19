@@ -19,36 +19,31 @@ _OFF_AT_MIN = frozenset({"shadow_hold_strength", "highlight_hold_density"})
 # (heading, hint, ((key, slider label, tooltip), ...)).
 _GROUPS = (
     (
-        "Auto Density",
-        tr("How bright the metered midtone prints and how far the meter is trusted."),
+        tr("Auto Density"),
+        tr("How bright Auto Density makes each frame, and how closely it follows the meter."),
         (
             (
                 "anchor_target_density",
                 tr("Print Density Target"),
-                tr("Density the metered reference tone prints at. Raise for darker, moodier prints; lower for brighter ones."),
+                tr("How dark the middle tones print. Raise for darker prints, lower for brighter ones."),
             ),
             (
                 "anchor_meter_strength",
                 tr("Metering Strength"),
                 tr(
-                    "How far the anchor moves from the assumed key toward what was measured. "
-                    "0% ignores the meter; 100% forces every frame to the metered midtone "
-                    "(low-key and high-key scenes lose their intended key)."
+                    "How closely Auto Density follows the meter. At 100% every frame prints equally bright, so dark and bright scenes lose their mood."
                 ),
             ),
             (
                 "anchor_meter_band",
                 tr("Metering Band"),
-                tr(
-                    "Hard safety clamp around the assumed key. Raise to allow bigger exposure "
-                    "swings between frames; lower to keep a roll consistent."
-                ),
+                tr("The largest brightness change Auto Density may make. Lower keeps a roll more even."),
             ),
         ),
     ),
     (
-        "Auto Grade",
-        tr("The contrast each frame prints at, from its textural density range."),
+        tr("Auto Grade"),
+        tr("The contrast Auto Grade gives each frame."),
         (
             (
                 "auto_grade_target",
@@ -59,38 +54,30 @@ _GROUPS = (
                 "auto_grade_strength",
                 tr("Adaptation Strength"),
                 tr(
-                    "How far the grade is pulled toward a normal negative's textural range. 0% prints "
-                    "every frame on one fixed paper; 100% prints every frame's detail range alike."
+                    "How much Auto Grade adapts to each negative. 0% prints every frame at one grade; 100% gives every frame the same detail range."
                 ),
             ),
         ),
     ),
     (
         tr("Shadows and Highlights"),
-        tr("Where Auto Grade puts the darkest and brightest textured tones."),
+        tr("Where Auto Grade puts the darkest and brightest detail."),
         (
             (
                 "shadow_reach_density",
                 tr("Shadow Reach"),
-                tr(
-                    "Print density the darkest textured tones must reach. The grade only goes harder "
-                    "for it, so a flat negative still prints a black. Lower for softer shadows."
-                ),
+                tr("How dark the darkest detail must print, so a flat negative still gets a black. Lower for softer shadows."),
             ),
             (
                 "shadow_hold_strength",
                 tr("Shadow Hold"),
-                tr(
-                    "How far the shadows of a contrasty frame are lifted when its darkest textured tones "
-                    "print far past black. Raise for more open shadows; Off leaves them."
-                ),
+                tr("Lifts the shadows of a contrasty frame when its darkest detail would go black. Raise for more open shadows."),
             ),
             (
                 "highlight_hold_density",
                 tr("Highlight Hold"),
                 tr(
-                    "Print density the brightest textured tones must keep, so a sunlit wall or sky holds "
-                    "tone instead of printing paper white. Off lets them reach paper white."
+                    "Keeps detail in the brightest areas, such as a sunlit wall or sky, so they do not print pure white. Off allows pure white."
                 ),
             ),
         ),

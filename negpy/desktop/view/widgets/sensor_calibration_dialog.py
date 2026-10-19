@@ -34,8 +34,7 @@ _CLIP_LEVEL = 0.98
 _CLIP_FRACTION = 0.02
 _CAPTURE_LABEL = tr("Capture from Camera…")
 _CAPTURE_TOOLTIP = tr(
-    "Shoot the red, green and blue exposures with the tethered camera and the Scanlight, then save "
-    "the profile under the name above. It asks before the first exposure."
+    "Shoot the red, green and blue exposures with the camera and the Scanlight, then save the profile under the name above."
 )
 _PRESENCE_POLL_MS = 3000
 _LED_SETTLE_S = 0.05  # the Scanlight panel's settle before each exposure
