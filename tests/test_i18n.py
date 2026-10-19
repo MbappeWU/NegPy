@@ -297,9 +297,9 @@ for capture in ('auto', 'camera', 'scanner'):
         controller.session.repo.get_global_setting.return_value = {'capture': capture, 'light': light}
         card = ScanSetupSidebar(controller)
         card.sync_ui()
-        assert card.capture_btn.currentData() == capture
+        assert card.capture_btn.currentData() == ('camera' if capture == 'auto' else capture)
         assert card.light_btn.currentData() == light
-        assert card.capture_btn._choices[1][1] == tr('Camera') != 'Camera'
+        assert card.capture_btn._choices[0][1] == tr('Camera') != 'Camera'
         assert card.light_btn._choices[0][1] == tr('White Light') != 'White Light'
         assert card.hint.text() != ''
         card.light_btn.setCurrentIndex(1 - card.light_btn.currentIndex())

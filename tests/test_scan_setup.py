@@ -62,6 +62,18 @@ class TestScanSetupCard(unittest.TestCase):
         card.light_btn.setCurrentIndex(card.light_btn.findData("narrowband"))
         controller.apply_scan_setup.assert_called_once_with("scanner", "narrowband")
 
+    def test_the_capture_is_read_from_the_file_until_picked(self):
+        controller = _setup_controller(None, current_file_hash="h", preview_cam_xyz=None)
+        card = ScanSetupSidebar(controller)
+        card.sync_ui()
+        self.assertEqual(card.capture_btn.count(), 2)
+        self.assertEqual(card.capture_btn.currentData(), "scanner")
+
+        card.light_btn.setCurrentIndex(card.light_btn.findData("narrowband"))
+        controller.apply_scan_setup.assert_called_with("auto", "narrowband")
+        card.capture_btn.setCurrentIndex(card.capture_btn.findData("camera"))
+        controller.apply_scan_setup.assert_called_with("camera", "narrowband")
+
     def test_auto_reads_the_open_frame(self):
         camera = _setup_controller(None, current_file_hash="h", preview_cam_xyz=((1, 0, 0), (0, 1, 0), (0, 0, 1)))
         scanner = _setup_controller(None, current_file_hash="h", preview_cam_xyz=None)

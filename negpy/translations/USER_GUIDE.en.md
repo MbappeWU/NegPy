@@ -691,7 +691,7 @@ Scanning Setup leads the tab; every card below it is shared by the roll, with th
 
 How you scan, for the whole app. It sets the RAW decode and the print stock, and the Roll tab shows only the controls that setup uses.
 
-*   **Auto / Camera / Film Scanner** (default Auto): Auto reads each frame: a camera RAW is a camera, a TIFF or JPEG a film scanner. Pick one to override it.
+*   **Camera / Film Scanner**: read from each frame until you pick one (a camera RAW is a camera, a TIFF or JPEG a film scanner); your pick holds for every frame.
 *   **White Light / Narrowband RGB** (default White Light): the light behind the negative.
 
 | Capture | Light | Decode | Print stock | Rig cards |

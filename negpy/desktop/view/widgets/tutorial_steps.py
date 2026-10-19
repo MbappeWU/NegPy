@@ -194,9 +194,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             ROLL,
             tr("Scanning Setup"),
             tr(
-                "Tell NegPy how you scan: <b>Camera</b> or <b>Film Scanner</b> (<b>Auto</b> reads it from the "
-                "file), and <b>White Light</b> or <b>Narrowband RGB</b>. It sets the decode and the print stock, "
-                "and the Roll tab shows only the controls your setup uses."
+                "Tell NegPy how you scan: <b>Camera</b> or <b>Film Scanner</b> (read from the file until you "
+                "pick one), and <b>White Light</b> or <b>Narrowband RGB</b>. It sets the decode and the print "
+                "stock, and the Roll tab shows only the controls your setup uses."
             ),
             lambda w: cp(w).setup_section,
             guide=("setup", "Scanning Setup"),

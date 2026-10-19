@@ -32,16 +32,17 @@ def resolved_rig(repo, state) -> tuple[str, str]:
 
 class ScanSetupSidebar(BaseSidebar):
     """How the roll was scanned: it sets the RAW decode and the print stock, and decides which
-    Roll-tab controls show. One setting for the app, as the rig is."""
+    Roll-tab controls show. One setting for the app, as the rig is. Camera or Film Scanner is
+    read from the open frame until the user picks one."""
 
     def _init_ui(self) -> None:
         self.capture_btn = SegmentedChoice(
-            (("fa5s.magic", tr("Auto")), ("fa5s.camera", tr("Camera")), ("fa5s.camera-retro", tr("Film Scanner"))),
+            (("fa5s.camera", tr("Camera")), ("fa5s.camera-retro", tr("Film Scanner"))),
             tr(
-                "What the negatives were scanned with. Auto reads it from the file: a camera RAW is a "
-                "camera, anything else a film scanner. Pick one to override it."
+                "What the negatives were scanned with. NegPy reads it from the file until you pick one: "
+                "a camera RAW is a camera, anything else a film scanner."
             ),
-            data=("auto", "camera", "scanner"),
+            data=("camera", "scanner"),
         )
         self.light_btn = SegmentedChoice(
             (("mdi6.lightbulb-outline", tr("White Light")), ("mdi6.led-on", tr("Narrowband RGB"))),
@@ -54,21 +55,25 @@ class ScanSetupSidebar(BaseSidebar):
         self.layout.addWidget(self.hint)
 
     def _connect_signals(self) -> None:
-        self.capture_btn.currentChanged.connect(self._on_changed)
-        self.light_btn.currentChanged.connect(self._on_changed)
+        self.capture_btn.currentChanged.connect(lambda _i: self._apply(self.capture_btn.currentData()))
+        # A light change keeps a capture still read from the file.
+        self.light_btn.currentChanged.connect(lambda _i: self._apply(self._saved()[0]))
 
-    def _on_changed(self, _index: int) -> None:
-        self.controller.apply_scan_setup(self.capture_btn.currentData(), self.light_btn.currentData())
+    def _saved(self) -> tuple[str, str]:
+        return scan_setup_rig(self.controller.session.repo.get_global_setting("scan_setup"))
+
+    def _apply(self, capture: str) -> None:
+        self.controller.apply_scan_setup(capture, self.light_btn.currentData())
         # With no frame open nothing re-syncs the panel, and the cards follow the setup.
         self.controller.config_updated.emit()
 
     def sync_ui(self) -> None:
-        capture, light = scan_setup_rig(self.controller.session.repo.get_global_setting("scan_setup"))
-        for btn, value in ((self.capture_btn, capture), (self.light_btn, light)):
+        capture, light = self._saved()
+        resolved = detected_capture(self.state) if capture == "auto" else capture
+        for btn, value in ((self.capture_btn, resolved), (self.light_btn, light)):
             btn.blockSignals(True)
             btn.setCurrentIndex(btn.findData(value))
             btn.blockSignals(False)
-        resolved = detected_capture(self.state) if capture == "auto" else capture
         detected = (
             (tr("A camera RAW, so a camera.") if resolved == "camera" else tr("Not a camera RAW, so a film scanner."))
             if capture == "auto" and self.state.current_file_hash
