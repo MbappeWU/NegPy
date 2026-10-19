@@ -206,7 +206,7 @@ class AppState:
     # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray, 3=White, 4=Light Gray)
     canvas_bg_index: int = 2
     # Rebate, perforations and edge print around the frames of the Film Strip and the Light Table
-    film_edges: bool = True
+    film_edges: bool = False
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
     color_vision: str = "standard"
 

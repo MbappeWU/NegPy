@@ -25,7 +25,7 @@ For the math behind each step, read [PIPELINE.md](PIPELINE.md).
 ### Screen layout
 
 *   **Canvas** (center): the picture. Scroll or pinch to zoom, drag to pan, and double-click to switch between fit and 100%. Right-click for view options, copy and paste of settings, resets and **Unload**.
-*   **Film Strip** (under the canvas): the open frames as strips of film. Drag its top edge to resize it; `Ctrl+[` folds it away.
+*   **Film Strip** (under the canvas): the open frames in one row. Drag its top edge to resize it; `Ctrl+[` folds it away.
 *   **Toolbar** (bottom): **Photo** holds navigation, zoom, rotate, **Tools** (crop, pickers, masks, retouching), undo, the **Print** menu (Before / After and the peeks) and **Overlays**. **Roll** holds the Film Strip's import, sort, filter and marking tools. The **⋯** menu holds every action, **Preferences…** included.
 *   **Controls** (right): the tabs **Library**, **Roll**, **Frame**, **Metadata**, **Export** and **Scan**. Only Roll and Frame change the picture. Drag the panel by its top edge to float it.
 *   **Frame Info** (`I`): the file name, film and size in the corners of the canvas.
@@ -122,7 +122,7 @@ Nikon Z 8 and Z 9 NEFs in **HE** or **HE\*** compression cannot be opened. Shoot
 <!-- panel:frames -->
 ### Film Strip
 
-The **Film Strip** under the canvas shows the open frames as strips of film. Drag its top edge to make it taller; a tall strip wraps into rows.
+The **Film Strip** under the canvas shows the open frames in one row. Drag its top edge to make the frames larger.
 
 The toolbar's **Roll** row holds:
 
@@ -135,7 +135,7 @@ The toolbar's **Roll** row holds:
 
 Right-click a frame to **Keep** it (a check) or **Reject** it (a cross; batch exports skip it).
 
-The grid button opens the **Light Table** (`Shift+G`): the whole roll as film on a light table, for sorting. `+` and `-` change the frame size; `Esc` goes back.
+The grid button opens the **Light Table** (`Shift+G`): the whole roll in rows, for sorting. `+` and `-` change the frame size; `Esc` goes back.
 
 #### Filtering
 
@@ -823,7 +823,7 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 *   **Language**: English, Simplified Chinese, Japanese or Korean, after a restart.
 *   **UI scale**: 80% to 120%, after a restart.
 *   **Canvas background**: from black to white. Mid gray is best for judging a print.
-*   **Film edges**: draws the perforations and edge print on the Film Strip and the Light Table.
+*   **Film edges**: shows the Film Strip and the Light Table as film, with perforations and edge print. Off (the default), each frame stands upright in a thin border, and a scene colors the border of its frames.
 *   **Sticky zoom**: keeps the zoom when you change frames. **Reverse scroll zoom**: scroll up zooms out.
 *   **Customize Shortcuts…**, **Edit Toolbar…** and **Reset Panel Layout**.
 

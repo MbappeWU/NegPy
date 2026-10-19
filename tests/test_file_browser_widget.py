@@ -651,12 +651,13 @@ def test_the_film_strip_is_one_row_as_tall_as_the_strip_scrolling_sideways(brows
 
     assert not view.isWrapping()
     assert view.flow() == QListView.Flow.LeftToRight
-    assert view.gridSize().height() <= view.viewport().height()
-    assert view.viewport().height() - view.gridSize().height() <= 2
+    cell = view.visualRect(view.model().index(0, 0))
+    assert 0 <= view.viewport().height() - cell.height() <= 2
 
     browser.resize(900, 500)
     qapp.processEvents()
-    assert view.viewport().height() - view.gridSize().height() <= 2
+    cell = view.visualRect(view.model().index(0, 0))
+    assert 0 <= view.viewport().height() - cell.height() <= 2
 
 
 def test_the_film_strip_lies_on_the_canvas_background(browser, qapp):
@@ -669,7 +670,7 @@ def test_the_film_strip_lies_on_the_canvas_background(browser, qapp):
     qapp.processEvents()
 
     image = view.grab().toImage()
-    assert image.pixelColor(view.width() // 2, THEME.space_lg) == QColor(table_color(browser.session.state.canvas_bg_index))
+    assert image.pixelColor(view.width() // 2, 1) == QColor(table_color(browser.session.state.canvas_bg_index))
 
 
 def test_the_scroll_bars_sit_on_the_edge_and_the_film_runs_off_the_other_edges(browser, qapp):
@@ -697,6 +698,7 @@ def test_the_strip_margin_above_and_below_the_film_follows_its_height(browser, q
     from PyQt6.QtWidgets import QWidget
 
     view = browser.list_view
+    browser.session.set_film_edges(True)
     # A child resizes at once; a window's size can settle late.
     host = QWidget()
     browser.setParent(host)
@@ -716,6 +718,7 @@ def test_the_strip_margin_above_and_below_the_film_follows_its_height(browser, q
 
 def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     view = browser.list_view
+    browser.session.set_film_edges(True)
     browser.resize(300, 260)
     browser.show()
     qapp.processEvents()
@@ -748,6 +751,7 @@ def _scrollable(browser, value: int = 0):
     """Lay the Light Table out narrow and short so the grid genuinely overflows — the
     scrollbar range is recomputed from the layout, so it can't just be faked."""
     view = browser.light_table_view
+    browser.session.set_film_edges(True)
     view.resize(240, 300)
     view.show()
     QApplication.processEvents()

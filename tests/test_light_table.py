@@ -17,6 +17,7 @@ from negpy.desktop.view.sidebar.files import (
     FileBrowser,
     _FilmDelegate,
     _FilmStripDelegate,
+    justified_rows,
     print_dmax,
     roll_film,
     picture_in_thumbnail,
@@ -283,6 +284,7 @@ def test_the_gear_library_is_read_again_only_when_the_film_changes(browser):
 
 def test_a_light_table_cell_is_one_frame_of_film(browser):
     view, delegate = browser.light_table_view, browser._light_table_delegate
+    browser.session.state.film_edges = True
     browser.session.state.canvas_bg_index = 3  # White
     browser._film_key = None
     browser.sync_ui()
@@ -307,32 +309,108 @@ def test_a_light_table_cell_is_one_frame_of_film(browser):
     assert max(rebate.red(), rebate.green(), rebate.blue()) < 40
 
 
-def test_without_film_edges_the_film_is_blank_in_its_rebate_tone(browser):
-    view, delegate = browser.light_table_view, browser._light_table_delegate
-    browser.session.set_canvas_bg(3)  # White
-    browser.session.set_film_edges(False)
-    browser.session.repo.save_global_setting.assert_any_call("film_edges", False)
-    view.resize(900, 600)
-    view._relayout()
-    cell = view.gridSize()
-    s = cell.width() / 38.0
-    assert cell.height() == round(35.0 * s) + view.STRIP_GAP
-    assert browser.list_view._aspect == pytest.approx(35.0 / 38.0)
+def test_justified_rows_fill_the_width_and_the_last_row_keeps_its_height():
+    rows = justified_rows([1.5, 1.5, 0.75, 1.5, 0.75], width=400, height=100, gap=4)
 
-    canvas = QImage(cell.width(), cell.height(), QImage.Format.Format_RGB888)
-    canvas.fill(QColor(WHITE))
-    option = QStyleOptionViewItem()
-    option.rect = QRect(0, 0, cell.width(), cell.height())
-    painter = QPainter(canvas)
-    delegate.paint(painter, option, view.model().index(0, 0))
-    painter.end()
+    assert [len(frames) for _height, frames in rows] == [4, 1]
+    height, frames = rows[0]
+    assert height == 73 and sum(width for _x, width in frames) == 400
+    assert all(x + width == next_x for (x, width), (next_x, _w) in zip(frames, frames[1:]))
+    assert rows[1] == (100, [(0, 79)])
+    assert justified_rows([], 400, 100, 4) == []
 
-    rebate = QColor(*delegate._film[2].rebate)
-    top = (cell.height() - round(35.0 * s)) // 2
-    hole = canvas.pixelColor(round(perforation_centers(0.0, 38.0)[0] * s), top + round((PERF_FROM_EDGE + PERF_ACROSS / 2) * s))
-    window = delegate._layout(delegate._film[0], option.rect)[1]
-    assert hole == rebate
-    assert canvas.pixelColor(window.center().x(), window.top() - delegate._MARGIN - 1) == rebate
+
+def _thumbs(browser, sizes) -> None:
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    state = browser.session.state
+    for info, size in zip(state.uploaded_files, sizes, strict=True):
+        picture = prepare_thumbnail(Image.new("RGB", size, (40, 160, 220)), 120)
+        state.thumbnails[asset_thumbnail_key(info)] = QIcon(QPixmap.fromImage(_qimage(picture)))
+    browser.session.asset_model.refresh_thumbnails({asset_thumbnail_key(info) for info in state.uploaded_files})
+
+
+def test_without_film_edges_each_strip_frame_is_as_wide_as_its_upright_picture(browser, qapp):
+    _thumbs(browser, [(300, 200), (200, 300), (300, 200)])
+    assert not browser.session.state.film_edges, "off by default"
+    strip = browser.list_view
+    browser.resize(1400, 200)
+    browser.show()
+    qapp.processEvents()
+
+    landscape, portrait = (strip.visualRect(strip.model().index(row, 0)) for row in (0, 1))
+    picture = landscape.height() - 2 * _FilmDelegate._BORDER
+    assert landscape.height() == strip.viewport().height()
+    assert landscape.width() == round(picture * 1.5) + _FilmDelegate._BORDER
+    assert portrait.width() == round(picture / 1.5) + _FilmDelegate._BORDER
+    assert portrait.left() == landscape.right() + 1
+    assert strip.viewport().geometry().top() == _FilmDelegate._BORDER
+    browser.hide()
+
+
+def test_without_film_edges_the_light_table_rows_fill_its_width(browser, qapp):
+    state = browser.session.state
+    state.uploaded_files = [{"name": f"{i}.tif", "path": f"/r/{i}.tif", "hash": f"h{i}"} for i in range(12)]
+    browser.session.asset_model.refresh()
+    _thumbs(browser, [(300, 200), (200, 300)] * 6)
+    view, vw = _shown_table(browser, qapp)
+    qapp.processEvents()
+
+    rows: dict[int, list[QRect]] = {}
+    for row in range(12):
+        cell = view.visualRect(view.model().index(row, 0))
+        rows.setdefault(cell.top(), []).append(cell)
+    *full, last = (rows[top] for top in sorted(rows))
+    assert full, "more than one row"
+    for cells in full:
+        assert cells[0].left() == 0 and cells[-1].right() == vw - 1
+        assert len({cell.height() for cell in cells}) == 1
+    assert last[0].left() == 0 and last[-1].right() < vw - 1
+    assert last[0].height() == view._slim_height() + 2 * _FilmDelegate._BORDER
+    view.hide()
+
+
+def _near(c: QColor, color: QColor) -> bool:
+    return abs(c.red() - color.red()) + abs(c.green() - color.green()) + abs(c.blue() - color.blue()) < 60
+
+
+def test_without_film_edges_a_scene_colors_the_border_of_its_frames(browser, qapp):
+    from negpy.desktop.view.styles.theme import scene_color
+
+    _scene_roll(browser, [None, NIGHT, NIGHT, None])
+    _thumbs(browser, [(300, 200)] * 4)
+    strip = browser.list_view
+    browser.resize(1400, 200)
+    browser.show()
+    qapp.processEvents()
+    image = strip.viewport().grab().toImage()
+    color = QColor(scene_color(2))
+    cells = [strip.visualRect(strip.model().index(row, 0)) for row in range(4)]
+
+    assert [_near(image.pixelColor(cell.center().x(), cell.top() + 1), color) for cell in cells] == [False, True, True, False]
+    middle = cells[1].center().y()
+    assert _near(image.pixelColor(cells[1].left(), middle), color), "the run's first frame closes its left side"
+    assert not _near(image.pixelColor(cells[1].right(), middle), color), "frames of one run join"
+    assert _near(image.pixelColor(cells[2].right(), middle), color)
+    browser.hide()
+
+
+def test_without_film_edges_a_scene_border_closes_at_each_row_end(browser, qapp):
+    from negpy.desktop.view.styles.theme import scene_color
+
+    _scene_roll(browser, [NIGHT] * 8)
+    _thumbs(browser, [(300, 200)] * 8)
+    view, vw = _shown_table(browser, qapp)
+    qapp.processEvents()
+    image = view.viewport().grab().toImage()
+    color = QColor(scene_color(2))
+    cells = [view.visualRect(view.model().index(row, 0)) for row in range(8)]
+    end = max((cell for cell in cells if cell.top() == cells[0].top()), key=QRect.right)
+    after = next(cell for cell in cells if cell.top() > end.top())
+
+    assert _near(image.pixelColor(end.right(), end.center().y()), color)
+    assert _near(image.pixelColor(after.left(), after.center().y()), color)
+    view.hide()
 
 
 def _shown_table(browser, qapp):
@@ -344,6 +422,7 @@ def _shown_table(browser, qapp):
 
 
 def test_zoom_takes_one_frame_a_row_away_and_saves_the_size(browser, qapp):
+    browser.session.set_film_edges(True)
     view, vw = _shown_table(browser, qapp)
     columns = view.columns_for_width(vw)
 
@@ -422,6 +501,7 @@ def test_a_loop_rings_each_run_of_a_scenes_frames_on_one_row(browser, qapp):
 def test_the_outline_runs_along_the_film_edge_in_the_scene_color(browser, qapp):
     from negpy.desktop.view.styles.theme import scene_color
 
+    browser.session.set_film_edges(True)
     _scene_roll(browser, [None, NIGHT, NIGHT, None])
     strip = browser.list_view
     browser.resize(1400, 260)
@@ -459,6 +539,18 @@ def test_a_portrait_frame_lies_on_the_strip_as_on_the_film(qapp, rotation, top_l
     assert (picture.pixelColor(5, picture.height() // 2).red() > 150) == top_lies_left
 
 
+def test_without_film_edges_a_portrait_frame_stays_upright(qapp):
+    icon = QIcon(QPixmap.fromImage(_qimage(prepare_thumbnail(Image.new("RGB", (200, 300), (0, 0, 200)), 120))))
+    delegate = _FilmDelegate(frame_geometry=lambda asset: GeometryConfig())
+    delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE), edges=False)
+    model = QStandardItemModel()
+    model.appendRow(QStandardItem())
+
+    picture = delegate._thumbnail(icon, model.index(0, 0))
+
+    assert picture.height() > picture.width()
+
+
 def _paint_cell(delegate: _FilmDelegate, hover: bool, edges: bool = True) -> tuple[QImage, QRect]:
     delegate.set_film(*roll_film({}, *_hp5(), half_frame=False, table=WHITE), edges=edges)
     model = QStandardItemModel()
@@ -468,16 +560,18 @@ def _paint_cell(delegate: _FilmDelegate, hover: bool, edges: bool = True) -> tup
         Qt.ItemDataRole.DecorationRole,
     )
     model.appendRow(item)
-    canvas = QImage(380, 350, QImage.Format.Format_RGB888)
+    # Without edges, a cell is the picture's shape inside its border.
+    cell = QRect(0, 0, 380, 350) if edges else QRect(0, 0, 300 + delegate._BORDER, 200 + 2 * delegate._BORDER)
+    canvas = QImage(cell.width(), cell.height(), QImage.Format.Format_RGB888)
     canvas.fill(QColor(WHITE))
     option = QStyleOptionViewItem()
-    option.rect = QRect(0, 0, 380, 350)
+    option.rect = cell
     if hover:
         option.state |= QStyle.StateFlag.State_MouseOver
     painter = QPainter(canvas)
     delegate.paint(painter, option, model.index(0, 0))
     painter.end()
-    return canvas, delegate._layout(delegate._film[0], option.rect)[1]
+    return canvas, delegate._window(option.rect)
 
 
 @pytest.mark.parametrize("hover", [False, True])

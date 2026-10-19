@@ -797,11 +797,36 @@ def picture_in_thumbnail(image: QImage) -> QRect:
     return QRect(pad_x, 0, width - 2 * pad_x, height)
 
 
+def justified_rows(aspects: list[float], width: int, height: int, gap: int) -> list[tuple[int, list[tuple[int, int]]]]:
+    """Frames `gap` apart in rows that fill `width`: per row, the picture height and each frame's (x, width).
+    A row takes frames until they reach the width at `height`, then shrinks to fit; the last row keeps `height`."""
+    rows: list[tuple[int, list[tuple[int, int]]]] = []
+    start, reach = 0, 0.0
+    for end in range(1, len(aspects) + 1):
+        reach += aspects[end - 1] * height + gap
+        last = end == len(aspects)
+        if reach < width and not last:
+            continue
+        row = aspects[start:end]
+        h = (width - gap * len(row)) / sum(row) if reach >= width else float(height)
+        x, frames = 0.0, []
+        for aspect in row:
+            right = x + aspect * h + gap
+            frames.append((round(x), round(right) - round(x)))
+            x = right
+        rows.append((round(h), frames))
+        start, reach = end, 0.0
+    return rows
+
+
 class _FilmDelegate(_ThumbnailDelegate):
-    """Cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film."""
+    """Cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film.
+    Without film edges, each frame stands upright in a cell as wide as its picture, a thin rebate border
+    around it, and a scene colors the border of its frames."""
 
     _CACHE_LIMIT = 512
     _IDLE_OPACITY = 1.0
+    _BORDER = THEME.space_sm
 
     def __init__(
         self, parent=None, state: Optional[AppState] = None, frame_geometry: Optional[Callable[[dict], GeometryConfig]] = None
@@ -816,8 +841,27 @@ class _FilmDelegate(_ThumbnailDelegate):
     def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette, edges: bool = True) -> None:
         self._film = (geometry, style, palette)
         self._edges = edges
+        # Slim frames lie half a border apart; a wider ring would spill into the next cell.
+        self._SELECTION_OUTSET = _ThumbnailDelegate._SELECTION_OUTSET if edges else self._BORDER // 2
         self._rebates.clear()
         self._pictures.clear()
+
+    @property
+    def slim(self) -> bool:
+        return self._film is not None and not self._edges
+
+    def picture_aspect(self, index: QModelIndex) -> float:
+        icon = index.data(Qt.ItemDataRole.DecorationRole)
+        picture = self._thumbnail(icon, index) if isinstance(icon, QIcon) and not icon.isNull() else None
+        if picture is None or picture.isNull() or not picture.height():
+            return self._film[0].window_aspect if self._film is not None else 1.5
+        return picture.width() / picture.height()
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
+        view = self.parent()
+        if self.slim and isinstance(view, _FilmGridView):
+            return view.slim_cell(index)
+        return super().sizeHint(option, index)
 
     def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
         super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
@@ -839,7 +883,7 @@ class _FilmDelegate(_ThumbnailDelegate):
             if len(self._pictures) > self._CACHE_LIMIT:
                 self._pictures.clear()
             picture = base.copy(picture_in_thumbnail(base.toImage()))
-            if self._frame_geometry is not None and picture.height() > 0:
+            if self._edges and self._frame_geometry is not None and picture.height() > 0:
                 geo = self._frame_geometry(index.data(Qt.ItemDataRole.UserRole) or {})
                 turns = frame_turns(picture.width() / picture.height(), film[0], geo.rotation, geo.flip_horizontal, geo.flip_vertical)
                 if turns:
@@ -870,11 +914,37 @@ class _FilmDelegate(_ThumbnailDelegate):
         along, across = geometry.frame_along * s, geometry.frame_across * s
         return top, QRect(int(round(left)), int(round(top + geometry.image_top * s)), int(round(along)), int(round(across)))
 
+    def _window(self, cell: QRect) -> QRect:
+        if self._edges and self._film is not None:
+            return self._layout(self._film[0], cell)[1]
+        b = self._BORDER
+        return cell.adjusted(b // 2, b, -(b - b // 2), -b)
+
     def picture_rect(self, cell: QRect, index: QModelIndex) -> QRect:
         if self._film is None:
             return super().picture_rect(cell, index)
         m = self._MARGIN
-        return super().picture_rect(self._layout(self._film[0], cell)[1].adjusted(-m, -m, m, m), index)
+        return super().picture_rect(self._window(cell).adjusted(-m, -m, m, m), index)
+
+    def _run_ends(self, index: QModelIndex, step: int, scene: tuple, top: int) -> bool:
+        """The scene's run of frames ends on this side of `index`: the next frame is another scene or on another row."""
+        other = index.siblingAtRow(index.row() + step)
+        if not other.isValid() or (other.data(Qt.ItemDataRole.UserRole) or {}).get("scene") != scene:
+            return True
+        view = self.parent()
+        return isinstance(view, QListView) and view.visualRect(other).top() != top
+
+    def _paint_scene_border(self, painter: QPainter, cell: QRect, index: QModelIndex) -> None:
+        scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
+        if not scene:
+            return
+        color, b = QColor(scene_color(scene[0])), self._BORDER
+        painter.fillRect(cell.left(), cell.top(), cell.width(), b, color)
+        painter.fillRect(cell.left(), cell.bottom() - b + 1, cell.width(), b, color)
+        if self._run_ends(index, -1, scene, cell.top()):
+            painter.fillRect(cell.left(), cell.top(), b // 2, cell.height(), color)
+        if self._run_ends(index, 1, scene, cell.top()):
+            painter.fillRect(cell.right() - (b - b // 2) + 1, cell.top(), b - b // 2, cell.height(), color)
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         film = self._film
@@ -882,12 +952,13 @@ class _FilmDelegate(_ThumbnailDelegate):
             super().paint(painter, option, index)
             return
         cell = option.rect
-        top, window = self._layout(film[0], cell)
         if self._edges:
+            top, window = self._layout(film[0], cell)
             painter.drawImage(cell.left(), top, self._rebate(film, index.row(), cell.width(), index.model().rowCount()))
         else:
-            s = cell.width() / film[0].pitch
-            painter.fillRect(cell.left(), top, cell.width(), int(round(film[0].width * s)), QColor(*film[2].rebate))
+            window = self._window(cell)
+            painter.fillRect(cell, QColor(*film[2].rebate))
+            self._paint_scene_border(painter, cell, index)
         framed = QStyleOptionViewItem(option)
         m = self._MARGIN
         framed.rect = window.adjusted(-m, -m, m, m)
@@ -910,6 +981,7 @@ class _FilmGridView(ThumbnailGridView):
     cell_zoomed = pyqtSignal(int)
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
+        self._slim_cells: Optional[dict[int, QRect]] = None
         super().__init__(parent, target_cell)
         self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
@@ -923,10 +995,52 @@ class _FilmGridView(ThumbnailGridView):
         return f"QListView {{ background-color: {color}; border: none; }}"
 
     def set_film_aspect(self, aspect: float) -> None:
-        if aspect != self._aspect:
-            self._aspect = aspect
-            self._last_cell = -1
-            self._relayout()
+        """Lays the cells out again: the film's shape or the delegate's film edges changed."""
+        self._aspect = aspect
+        self._last_cell = -1
+        self._slim_cells = None
+        self._relayout()
+
+    def setModel(self, model) -> None:  # noqa: N802
+        super().setModel(model)
+        for signal in (model.modelReset, model.layoutChanged, model.rowsInserted, model.rowsRemoved, model.dataChanged):
+            signal.connect(self._invalidate_slim)
+
+    def _invalidate_slim(self, *_args) -> None:
+        # A new thumbnail can change a frame's width, which Qt does not lay out again by itself.
+        self._slim_cells = None
+        if self._slim():
+            self.scheduleDelayedItemsLayout()
+
+    def _slim(self) -> bool:
+        delegate = self.itemDelegate()
+        return isinstance(delegate, _FilmDelegate) and delegate.slim
+
+    def _slim_height(self) -> int:
+        """The picture height of a full row: a landscape frame as wide as one cell."""
+        return max(1, round(self._last_cell / self.itemDelegate()._film[0].window_aspect))
+
+    def slim_cell(self, index: QModelIndex) -> QSize:
+        return self._slim_layout().get(index.row(), QRect()).size()
+
+    def _slim_layout(self) -> dict[int, QRect]:
+        """Each frame's cell in justified rows; a scene sort starts each scene's block on a new row."""
+        if self._slim_cells is None:
+            model, delegate = self.model(), self.itemDelegate()
+            runs = model.scene_runs() if hasattr(model, "scene_runs") else []
+            blocks = [(first, last) for _ordinal, first, last in runs] or [(0, model.rowCount() - 1)]
+            border, cells, y = delegate._BORDER, {}, self.STRIP_GAP // 2
+            for first, last in blocks:
+                aspects = [delegate.picture_aspect(model.index(row, 0)) for row in range(first, last + 1)]
+                row = first
+                for height, frames in justified_rows(aspects, self.viewport().width(), self._slim_height(), border):
+                    for x, width in frames:
+                        cells[row] = QRect(x, y, width, height + 2 * border)
+                        row += 1
+                    y += height + 2 * border + self.STRIP_GAP
+                y += self.SCENE_GAP
+            self._slim_cells = cells
+        return self._slim_cells
 
     def cell_for_width(self, vw: int) -> int:
         # QListView wraps a row whose right edge reaches the viewport's last pixel.
@@ -959,10 +1073,34 @@ class _FilmGridView(ThumbnailGridView):
         if cell == self._last_cell:
             return
         self._last_cell = cell
+        if self._slim():
+            # No grid: each cell takes the size the delegate asks of slim_cell.
+            self._slim_cells = None
+            self.setGridSize(QSize())
+            self.scheduleDelayedItemsLayout()
+            self.verticalScrollBar().setSingleStep(max(1, self._row_step() // 4))
+            return
         size = QSize(cell, int(round(cell * self._aspect)) + self.STRIP_GAP)
         self.setGridSize(size)
         self.setIconSize(size)
         self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
+
+    def resizeEvent(self, event) -> None:
+        self._slim_cells = None
+        super().resizeEvent(event)
+
+    def _row_step(self) -> int:
+        if self._slim():
+            return self._slim_height() + 2 * _FilmDelegate._BORDER + self.STRIP_GAP
+        return super()._row_step()
+
+    def _place_scene_runs(self) -> None:
+        if not self._slim():
+            super()._place_scene_runs()
+            return
+        model = self.model()
+        for row, cell in self._slim_layout().items():
+            self.setPositionForIndex(cell.topLeft(), model.index(row, 0))
 
     def scene_runs_on_rows(self) -> list[tuple[tuple, QModelIndex, QRect, QRect]]:
         """(scene, first index, first cell, last cell) per run of one scene's consecutive frames on one row."""
@@ -986,7 +1124,8 @@ class _FilmGridView(ThumbnailGridView):
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
         delegate = self.itemDelegate()
-        if not isinstance(delegate, _FilmDelegate) or delegate._film is None:
+        # Slim frames color their own border.
+        if not isinstance(delegate, _FilmDelegate) or delegate._film is None or delegate.slim:
             return
         runs = self.scene_runs_on_rows()
         if not runs:
@@ -1038,13 +1177,21 @@ class _FilmStripView(_FilmGridView):
 
     def _fit_margins(self, height: int) -> None:
         # The film runs off the left and right edges.
-        margin = round(height * self.MARGIN_SHARE)
+        margin = _FilmDelegate._BORDER if self._slim() else round(height * self.MARGIN_SHARE)
         self.setViewportMargins(0, margin, 0, margin)
+
+    def set_film_aspect(self, aspect: float) -> None:
+        self._fit_margins(self.height())
+        super().set_film_aspect(aspect)
 
     def resizeEvent(self, event) -> None:
         # Not event.size(): the viewport's own resizes arrive here too.
         self._fit_margins(self.height())
         super().resizeEvent(event)
+
+    def slim_cell(self, index: QModelIndex) -> QSize:
+        height, border = self.viewport().height(), _FilmDelegate._BORDER
+        return QSize(round((height - 2 * border) * self.itemDelegate().picture_aspect(index)) + border, height)
 
     def cell_for_width(self, vw: int) -> int:
         return max(1, int((self.viewport().height() - 1) / self._aspect))
@@ -1065,7 +1212,8 @@ class _FilmStripView(_FilmGridView):
             bar.setValue(bar.value() - (pixel.y() or pixel.x()))
         else:
             angle = event.angleDelta()
-            bar.setValue(bar.value() - int(round((angle.y() or angle.x()) / 120 * self.gridSize().width())))
+            frame = self.gridSize().width() if self.gridSize().isValid() else self.viewport().height()
+            bar.setValue(bar.value() - int(round((angle.y() or angle.x()) / 120 * frame)))
         event.accept()
 
 
