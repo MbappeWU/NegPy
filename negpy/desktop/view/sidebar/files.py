@@ -1167,6 +1167,7 @@ class _FilmStripView(_FilmGridView):
         # Always on, so the viewport height that sizes the frames never changes as the row grows.
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self._wheel_axis: Optional[str] = None
 
     def _table_qss(self, color: str) -> str:
         return (
@@ -1207,13 +1208,25 @@ class _FilmStripView(_FilmGridView):
     def wheelEvent(self, event) -> None:
         """The wheel moves the row a frame a notch; a trackpad moves it by its own pixels."""
         bar = self.horizontalScrollBar()
+        phase = event.phase()
+        if phase in (Qt.ScrollPhase.ScrollBegin, Qt.ScrollPhase.NoScrollPhase):
+            self._wheel_axis = None
         pixel = event.pixelDelta()
+        delta = pixel if not pixel.isNull() else event.angleDelta()
+        # A trackpad swipe drifts off its axis: a gesture keeps the axis it starts on, momentum included.
+        axis = self._wheel_axis
+        if axis is None and (delta.x() or delta.y()):
+            axis = "x" if abs(delta.x()) >= abs(delta.y()) else "y"
+            if phase != Qt.ScrollPhase.NoScrollPhase:
+                self._wheel_axis = axis
+        step = delta.x() if axis == "x" else delta.y()
         if not pixel.isNull():
-            bar.setValue(bar.value() - (pixel.y() or pixel.x()))
+            bar.setValue(bar.value() - step)
         else:
-            angle = event.angleDelta()
             frame = self.gridSize().width() if self.gridSize().isValid() else self.viewport().height()
-            bar.setValue(bar.value() - int(round((angle.y() or angle.x()) / 120 * frame)))
+            bar.setValue(bar.value() - int(round(step / 120 * frame)))
+        if phase == Qt.ScrollPhase.ScrollEnd:
+            self._wheel_axis = None
         event.accept()
 
 

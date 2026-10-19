@@ -731,6 +731,43 @@ def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     assert bar.value() == view.gridSize().width() - 10
 
 
+def _swipe(dx: int, dy: int, phase: Qt.ScrollPhase, pixel: bool = True) -> QWheelEvent:
+    delta = QPoint(dx, dy)
+    return QWheelEvent(
+        QPointF(10.0, 10.0),
+        QPointF(10.0, 10.0),
+        delta if pixel else QPoint(),
+        QPoint() if pixel else delta,
+        Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier,
+        phase,
+        False,
+    )
+
+
+def test_a_sideways_swipe_keeps_its_axis_through_vertical_drift(browser, qapp):
+    view = browser.list_view
+    browser.session.set_film_edges(True)
+    browser.resize(300, 260)
+    browser.show()
+    qapp.processEvents()
+    bar = view.horizontalScrollBar()
+    bar.setValue(100)
+
+    phases = (Qt.ScrollPhase.ScrollBegin, Qt.ScrollPhase.ScrollUpdate, Qt.ScrollPhase.ScrollMomentum)
+    for (dx, dy), phase in zip(((-30, 2), (-20, -3), (-10, 15)), phases, strict=True):
+        view.wheelEvent(_swipe(dx, dy, phase))
+    assert bar.value() == 160
+    view.wheelEvent(_swipe(0, 0, Qt.ScrollPhase.ScrollEnd))
+
+    view.wheelEvent(_swipe(2, -40, Qt.ScrollPhase.ScrollBegin))
+    view.wheelEvent(_swipe(-30, -5, Qt.ScrollPhase.ScrollUpdate))
+    assert bar.value() == 205, "a vertical swipe stays vertical"
+
+    view.wheelEvent(_swipe(-120, 10, Qt.ScrollPhase.NoScrollPhase, pixel=False))
+    assert bar.value() == 205 + view.gridSize().width(), "a wheel notch takes its larger axis"
+
+
 # --- Grid scrolling & empty-space menu -------------------------------------
 
 
