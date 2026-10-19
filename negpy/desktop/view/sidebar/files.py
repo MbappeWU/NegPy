@@ -848,8 +848,10 @@ class _FilmDelegate(_ThumbnailDelegate):
     around it, and a scene colors the top border of its frames."""
 
     _CACHE_LIMIT = 512
-    # Every layout reads the picture bounds of every frame, so their small cache holds a long roll.
+    # Every layout reads the picture bounds of every frame, so their small cache holds a long roll. The strip's
+    # and the Light Table's delegates share it, as they show the same thumbnails.
     _BOUNDS_LIMIT = 1 << 16
+    _bounds: dict[int, QRect] = {}
     _IDLE_OPACITY = 1.0
     _BORDER = THEME.space_sm
 
@@ -862,7 +864,6 @@ class _FilmDelegate(_ThumbnailDelegate):
         self._edges = True
         self._rebates: dict[tuple[int, int, int], QImage] = {}
         self._pictures: dict[int, QPixmap] = {}
-        self._bounds: dict[int, QRect] = {}
 
     def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette, edges: bool = True) -> None:
         # An upright picture depends on the film's shape and edges, not on its colors.

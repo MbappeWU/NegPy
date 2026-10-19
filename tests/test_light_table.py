@@ -788,3 +788,15 @@ def test_a_roll_without_scenes_finds_no_runs_without_reading_its_frames(browser,
     monkeypatch.setattr(view, "visualRect", lambda index: pytest.fail("read a frame's rect"))
 
     assert view.scene_runs_on_rows() == []
+
+
+def test_the_strip_and_the_light_table_measure_a_picture_once(qapp, monkeypatch):
+    from negpy.desktop.view.sidebar import files
+
+    calls = []
+    measure = files.picture_in_thumbnail
+    monkeypatch.setattr(files, "picture_in_thumbnail", lambda image: calls.append(1) or measure(image))
+    pixmap = QPixmap.fromImage(_qimage(prepare_thumbnail(Image.new("RGB", (300, 200), (40, 160, 220)), 120)))
+
+    assert _FilmStripDelegate()._picture_bounds(pixmap) == _FilmDelegate()._picture_bounds(pixmap)
+    assert len(calls) == 1
