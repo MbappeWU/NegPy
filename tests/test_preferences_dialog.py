@@ -63,6 +63,12 @@ class TestPreferencesDialog(unittest.TestCase):
         dlg.film_edges_box.setChecked(True)
         dlg.session.set_film_edges.assert_called_once_with(True)
 
+    def test_automatic_thumbnail_updates_default_off_and_go_through_the_session(self):
+        dlg = _dlg()
+        self.assertFalse(dlg.auto_thumbnails_box.isChecked())
+        dlg.auto_thumbnails_box.setChecked(True)
+        dlg.session.set_auto_thumbnail_refresh.assert_called_once_with(True)
+
     def test_color_vision_offers_every_palette_and_sets_it(self):
         from negpy.desktop.view.styles.color_vision import PALETTES
 

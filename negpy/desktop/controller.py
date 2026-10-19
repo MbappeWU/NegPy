@@ -1065,7 +1065,7 @@ class AppController(QObject):
         self.thumbnail_render_worker.finished.connect(self._on_thumbnail_render_finished)
         self.thumbnail_render_worker.cancelled.connect(self._on_thumbnail_render_cancelled)
         self.thumbnail_render_worker.error.connect(self._on_thumbnail_render_error)
-        self.session.frames_edited_offscreen.connect(self.refresh_thumbnails_for)
+        self.session.frames_edited_offscreen.connect(self._on_frames_edited_offscreen)
 
         self.asset_discovery_requested.connect(self.discovery_worker.process)
         self.discovery_worker.progress.connect(self._on_discovery_progress)
@@ -4573,6 +4573,21 @@ class AppController(QObject):
             self.session.asset_model.refresh()
         if self._stale_seed_pending:
             QTimer.singleShot(0, self._seed_stale_chunk)
+
+    def _on_frames_edited_offscreen(self, hashes: list[str]) -> None:
+        if self.state.auto_thumbnail_refresh:
+            self.refresh_thumbnails_for(hashes)
+            return
+        wanted = set(hashes)
+        # refresh_thumbnails_for skips the active frame and diptychs, so a dot on them would never clear.
+        keys = {
+            asset_thumbnail_key(a)
+            for a in self.state.uploaded_files
+            if a.get("hash") in wanted and a.get("hash") != self.state.current_file_hash and self.diptych_pair(a) is None
+        }
+        if keys:
+            self.state.stale_thumbnails |= keys
+            self.session.asset_model.refresh_thumbnails(keys)
 
     def refresh_thumbnails_for(self, hashes: list[str]) -> None:
         """Re-render the filmstrip thumbnails of frames a bulk settings write touched

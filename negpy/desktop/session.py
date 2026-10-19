@@ -207,6 +207,8 @@ class AppState:
     canvas_bg_index: int = 2
     # Rebate, perforations and edge print around the frames of the Film Strip and the Light Table
     film_edges: bool = False
+    # Render the thumbnails of frames a bulk edit wrote without opening them; off marks them stale
+    auto_thumbnail_refresh: bool = False
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
     color_vision: str = "standard"
 
@@ -682,7 +684,7 @@ class AssetListModel(QAbstractListModel):
             if file_info.get("scene"):
                 lines.append(f"Scene: {file_info['scene'][2]}")
             if asset_thumbnail_key(file_info) in self._state.stale_thumbnails:
-                lines.append(tr("Thumbnail predates a settings change; open the frame to refresh it."))
+                lines.append(tr("Thumbnail predates a settings change; open the frame or use Update Thumbnails to refresh it."))
             return "\n".join(lines)
 
         if role == Qt.ItemDataRole.UserRole:
@@ -894,6 +896,7 @@ class DesktopSessionManager(QObject):
         saved_edges = self.repo.get_global_setting("film_edges")
         if saved_edges is not None:
             self.state.film_edges = bool(saved_edges)
+        self.state.auto_thumbnail_refresh = bool(self.repo.get_global_setting("auto_thumbnail_refresh", False))
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
         self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
         self.state.cursor_probe = bool(self.repo.get_global_setting("cursor_probe", False))
@@ -1088,6 +1091,11 @@ class DesktopSessionManager(QObject):
             self.state.film_edges = on
             self.repo.save_global_setting("film_edges", on)
             self.film_edges_changed.emit()
+
+    def set_auto_thumbnail_refresh(self, on: bool) -> None:
+        if self.state.auto_thumbnail_refresh != on:
+            self.state.auto_thumbnail_refresh = on
+            self.repo.save_global_setting("auto_thumbnail_refresh", on)
 
     def set_color_vision(self, key: str) -> None:
         if self.state.color_vision != key:

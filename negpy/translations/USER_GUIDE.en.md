@@ -836,6 +836,7 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 *   **GPU acceleration**: renders on the graphics card. Off uses the slower CPU, with the same result. If the GPU fails at launch, an amber line here says so.
 *   **Multi-core CPU rendering**: uses all CPU cores. It is off at first on macOS, where it can crash.
 *   **Search by meaning**: find frames by description (§2).
+*   **Update thumbnails automatically**: after a change to many frames, renders their thumbnails again in the background. Off (the default), the frames get an amber dot until you use **Update Thumbnails**.
 *   **Preview size**: the canvas resolution. Higher is sharper and uses more memory.
 *   **Preview cache**, **HQ buffers**, **Rendered frames** and **GPU texture cap**: how much memory NegPy uses. Lower them on a computer with little memory, or if exports run out of GPU memory.
 *   **Show GPU memory warning**: tells you when an HQ preview is reduced to fit.

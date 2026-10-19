@@ -380,6 +380,16 @@ class PreferencesDialog(QDialog):
             )
             row += 1
 
+        self.auto_thumbnails_box = self._add_checkbox(
+            grid,
+            row,
+            tr("Update thumbnails automatically"),
+            self.session.state.auto_thumbnail_refresh,
+            tr("Render thumbnails again in the background after a change to many frames; off marks them with a dot for Update Thumbnails"),
+        )
+        self.auto_thumbnails_box.toggled.connect(self.session.set_auto_thumbnail_refresh)
+        row += 1
+
         self.parallel_box = self._add_checkbox(
             grid,
             row,
