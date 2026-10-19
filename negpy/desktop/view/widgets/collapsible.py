@@ -123,9 +123,7 @@ class CollapsibleSection(QWidget):
         if info:
             # Nested in the header button, like reset_btn: it eats its own clicks, so opening the help
             # does not also collapse the section.
-            self.info_btn = header_button(
-                qta.icon("fa5s.info-circle", color=THEME.text_muted), tr("What am I looking at? — {title} guide", title=title)
-            )
+            self.info_btn = header_button(qta.icon("fa5s.info-circle", color=THEME.text_muted), tr("Open the {title} guide", title=title))
             self.info_btn.clicked.connect(self.info_requested)
             btn_layout.addWidget(self.info_btn)
 

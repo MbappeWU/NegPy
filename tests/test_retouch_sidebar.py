@@ -50,7 +50,7 @@ def test_ir_tooltip_restores_after_ir_loads(qapp):
 
     controller.state.has_ir = True
     sb.sync_ui()
-    assert "recover the image" in sb.ir_dust_btn.toolTip().lower()
+    assert "infrared channel" in sb.ir_dust_btn.toolTip()
 
 
 def test_ir_degenerate_shows_hint(qapp):
@@ -58,7 +58,7 @@ def test_ir_degenerate_shows_hint(qapp):
     controller.state.has_ir = True
     controller.state.ir_degenerate = True
     sb.sync_ui()
-    assert "image content" in sb.ir_dust_btn.toolTip().lower()
+    assert "Kodachrome" in sb.ir_dust_btn.toolTip()
 
 
 def test_ir_buttons_unchecked_without_ir(qapp):

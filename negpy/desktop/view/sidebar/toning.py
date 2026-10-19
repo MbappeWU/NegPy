@@ -16,9 +16,7 @@ class ToningSidebar(BaseSidebar):
         conf = self.state.config.toning
 
         self.chemical_header = section_subheader(tr("CHEMICAL TONING"))
-        self.chemical_header.setToolTip(
-            tr("Toners apply as sequential baths in the order shown — silver toned by an earlier bath is locked to the later ones")
-        )
+        self.chemical_header.setToolTip(tr("Toners act in the order shown. A later toner does not change what an earlier one toned."))
         self.layout.addWidget(self.chemical_header)
         # Disabled sliders get no hover, so the reason an alternative process grays them hangs here.
         self.alt_process_hint = hint_label("")
@@ -28,29 +26,13 @@ class ToningSidebar(BaseSidebar):
         self.selenium_slider = CompactSlider(tr("Selenium"), 0.0, 2.0, conf.selenium_strength)
         self.sepia_slider = CompactSlider(tr("Sepia"), 0.0, 2.0, conf.sepia_strength)
         self.gold_slider = CompactSlider(tr("Gold"), 0.0, 2.0, conf.gold_strength)
-        self.gold_slider.setToolTip(
-            tr(
-                "Simulates gold toning — cool blue-black on untoned silver, slight Dmax boost; over sepia it shifts the highlights orange-red (B&W Negative only)"
-            )
-        )
+        self.gold_slider.setToolTip(tr("Gold toner: blue-black tones; over sepia, orange-red highlights. B&W negatives only."))
         self.blue_slider = CompactSlider(tr("Iron Blue"), 0.0, 2.0, conf.blue_strength)
-        self.blue_slider.setToolTip(
-            tr(
-                "Simulates iron blue (Prussian blue) toning — blues the image shadows-first and intensifies: deeper navy blacks (B&W Negative only)"
-            )
-        )
+        self.blue_slider.setToolTip(tr("Iron blue toner: blue shadows and navy blacks. B&W negatives only."))
         self.copper_slider = CompactSlider(tr("Copper"), 0.0, 2.0, conf.copper_strength)
-        self.copper_slider.setToolTip(
-            tr(
-                "Simulates copper toning — pink to brick-red shift with the classic Dmax loss: blacks weaken as the bath bleaches (B&W Negative only)"
-            )
-        )
+        self.copper_slider.setToolTip(tr("Copper toner: pink to brick-red tones; blacks get weaker. B&W negatives only."))
         self.vanadium_slider = CompactSlider(tr("Vanadium"), 0.0, 2.0, conf.vanadium_strength)
-        self.vanadium_slider.setToolTip(
-            tr(
-                "Simulates vanadium green toning — bleach-then-tone greens the mids and highlights while deep shadows keep their black silver (B&W Negative only)"
-            )
-        )
+        self.vanadium_slider.setToolTip(tr("Vanadium toner: green midtones and highlights; blacks stay black. B&W negatives only."))
         for slider in (
             self.selenium_slider,
             self.sepia_slider,

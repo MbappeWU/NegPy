@@ -65,7 +65,7 @@ class GeometrySidebar(BaseSidebar):
         # Icons on the header, like the Roll tab's Crop card.
         self.manual_crop_btn = self._tool_toggle("fa5s.crop-alt", "", tr("Crop: draw the crop by hand on the canvas"))
         # The Crop card's Auto Crop, mirrored here as Ratio is: the Crop card owns it.
-        auto_tip = tr("Auto Crop: find the frame edges and crop to them; off clears the crop. The same setting as the Crop card's wand")
+        auto_tip = tr("Auto Crop: find the edges of the picture and crop to them.")
         self.auto_crop_btn = self._tool_toggle("fa5s.magic", "", auto_tip)
         self.auto_crop_btn.plain_tooltip = auto_tip
         for btn in (self.manual_crop_btn, self.auto_crop_btn):
@@ -79,9 +79,7 @@ class GeometrySidebar(BaseSidebar):
         self.ratio_combo = StepCombo()
         add_choice_items(self.ratio_combo, [r.value for r in CROP_RATIO_CHOICES])
         select_choice(self.ratio_combo, canonical_crop_ratio(conf.autocrop_ratio))
-        self.ratio_combo.setToolTip(
-            wrap_tooltip(tr("Aspect ratio the crop tool and auto crop snap to. A roll setting, shared with the Crop card on the Roll tab"))
-        )
+        self.ratio_combo.setToolTip(wrap_tooltip(tr("Shape of the crop. It applies to the whole roll.")))
         ratio_row.addWidget(self.ratio_combo, 1)
         self.layout.addLayout(ratio_row)
 
@@ -106,12 +104,12 @@ class GeometrySidebar(BaseSidebar):
             "fa5s.crop",
             "",
             conf.crop_to_valid,
-            tr("Crop by Default: crop out the wedge Fine Rotation, Tilt and Swing leave behind, so no edge shows extrapolated pixels"),
+            tr("Crop by Default: crop away the empty corners that rotation, Tilt and Swing leave."),
         )
         self.crop_to_valid_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.straighten_btn = self._tool_toggle("fa5s.ruler", "", tr("Draw a line along a horizon or edge to level the frame"))
         self.straighten_btn.setFixedWidth(ICON_BUTTON_WIDTH)
-        self.auto_skew_btn = self._icon_action("fa5s.ruler-combined", tr("Auto Skew: square the frame to its own film and frame edges"))
+        self.auto_skew_btn = self._icon_action("fa5s.ruler-combined", tr("Auto Skew: line the picture up with the edges of the film."))
         # The tools sit on the header so all three sliders keep one track width.
         self.keystone_lines_btn = self._tool_toggle("", "", tr("Tilt and swing with reference lines"))
         self.keystone_lines_btn.setIcon(_keystone_reference_icon())
@@ -133,21 +131,10 @@ class GeometrySidebar(BaseSidebar):
 
         self.converge_v_slider = CompactSlider(tr("Tilt"), -15.0, 15.0, conf.converge_v, step=0.1, unit="%")
         self.converge_v_slider.setToolTip(
-            tr(
-                "Easel Tilt: tip the easel about a horizontal axis to straighten converging verticals, "
-                "the building that leans back because the camera pointed up. Positive stretches the top "
-                "edge. Per-cent of the frame, what you would measure on the easel, not a tilt angle: "
-                "the same tilt keystones differently at every enlargement."
-            )
+            tr("Tilt: straighten buildings that lean back because the camera pointed up. Positive stretches the top.")
         )
         self.converge_h_slider = CompactSlider(tr("Swing"), -15.0, 15.0, conf.converge_h, step=0.1, unit="%")
-        self.converge_h_slider.setToolTip(
-            tr(
-                "Easel Swing: the same movement about a vertical axis, for converging horizontals. A "
-                "wall shot from one side, or a copy stand not square to the film. Positive stretches "
-                "the left edge."
-            )
-        )
+        self.converge_h_slider.setToolTip(tr("Swing: straighten a wall that narrows to one side. Positive stretches the left side."))
         self.layout.addWidget(rail_fold("geometry_easel", self.fine_rot_slider, self.converge_v_slider, self.converge_h_slider))
 
     def cycle_guide(self) -> None:

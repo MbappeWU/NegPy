@@ -31,26 +31,16 @@ class FinishSidebar(BaseSidebar):
         self.layout.addWidget(section_subheader(tr("FILED CARRIER")))
         self.carrier_width_slider = CompactSlider(tr("Width"), 0.0, 5.0, conf.carrier_width)
         self.carrier_width_slider.setToolTip(
-            tr("Filed-out negative carrier: a black rebate frame inside a margin of unexposed paper. 0 = off")
+            tr("Filed Carrier: a rough black frame around the picture, as from a filed negative carrier. 0 is off.")
         )
         self.carrier_rough_slider = CompactSlider(tr("Roughness"), 0.0, 1.0, conf.carrier_rough)
-        self.carrier_rough_slider.setToolTip(
-            tr(
-                "How raggedly the aperture was filed — the paper-side edge of the black frame. "
-                "The picture-side edge is the camera's film gate and only ever wobbles slightly."
-            )
-        )
+        self.carrier_rough_slider.setToolTip(tr("How rough the outer edge of the black frame is."))
         self.layout.addWidget(self.carrier_width_slider)
 
         self.carrier_flare_slider = CompactSlider(tr("Flare"), 0.0, 1.0, conf.carrier_flare)
-        self.carrier_flare_slider.setToolTip(
-            tr(
-                "Light reflected off the bared metal of the filed bevel exposes the paper just outside the filed edge. "
-                "It prints in the paper's own toe color under this frame's filtration, neutral in B&W. 0 = off"
-            )
-        )
+        self.carrier_flare_slider.setToolTip(tr("A soft gray glow just outside the black frame. 0 is off."))
         self.carrier_corner_slider = CompactSlider(tr("Corners"), 0.0, 1.0, conf.carrier_corner)
-        self.carrier_corner_slider.setToolTip(tr("How far the filed aperture's corners round off — no file cuts a sharp inside corner"))
+        self.carrier_corner_slider.setToolTip(tr("How round the corners of the black frame are."))
         carrier_rail = SliderGroup(self.carrier_rough_slider, self.carrier_flare_slider, self.carrier_corner_slider)
         self.layout.addWidget(carrier_rail)
 
@@ -58,14 +48,12 @@ class FinishSidebar(BaseSidebar):
 
         self.border_slider = CompactSlider(tr("Width"), 0.0, 2.5, conf.border_size)
         self.bottom_weight_slider = CompactSlider(tr("Bottom Weight"), 1.0, 2.0, conf.border_bottom_weight)
-        self.bottom_weight_slider.setToolTip(
-            wrap_tooltip(tr("Thicken the bottom border relative to the other three, the window-mat proportion."))
-        )
+        self.bottom_weight_slider.setToolTip(wrap_tooltip(tr("Makes the bottom border wider than the others, as in a picture mat.")))
         self.layout.addWidget(self.border_slider)
 
         self.border_color_btn = ChoiceButton(
             (("fa5s.file", tr("Paper White")), ("fa5s.palette", tr("Custom"))),
-            tr("Border color: Paper White tints the mat with the toned paper white; Custom uses the picked color"),
+            tr("Paper White matches the border to the paper color; Custom uses the color you pick."),
         )
         self.border_color_btn.setCurrentIndex(0 if conf.border_match_paper else 1)
         self.color_btn = self._icon_action("fa5s.square", tr("Pick the custom border color…"))

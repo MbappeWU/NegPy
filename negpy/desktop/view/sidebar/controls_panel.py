@@ -12,7 +12,6 @@ from negpy.desktop.view.styles.templates import gradient_icon, header_row, hint_
 from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, make_section
 from negpy.desktop.view.widgets.charts import MiniCurveWidget, MiniHistogramWidget, MiniRGBHistogramWidget
 from negpy.desktop.view.styles.theme import THEME
-from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 from negpy.features.lab.models import LabConfig
 from negpy.features.altprocess.models import AltProcessConfig
 from negpy.features.toning.models import ToningConfig
@@ -611,157 +610,122 @@ class ControlsPanel(QWidget):
 
         col.pick_wb_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Activate eyedropper — click a neutral gray pixel to auto-compute white balance offsets"),
+                tr("Click something in the picture that should be gray, and the color is corrected to make it gray."),
                 "pick_wb",
             )
         )
         col.temp_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Color temperature lever over the Global Magenta/Yellow white balance — moving it "
-                    "steers M/Y along the warm-cool axis (tint preserved); moving M/Y updates the readout. "
-                    "Mired-linear travel, warm right; Kelvin is nominal"
-                ),
+                tr("Makes the picture warmer or cooler."),
                 ["temp_warm", "temp_cool"],
             )
         )
         col.cyan_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Cyan↔Red white balance shift; negative = cyan, positive = red. Applies to selected region (Global/Shadows/Highlights)"),
+                tr("Shifts the color between cyan and red."),
                 ["cyan_inc", "cyan_dec"],
             )
         )
         col.magenta_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Magenta↔Green white balance shift. Applies to selected region (Global/Shadows/Highlights)"),
+                tr("Shifts the color between magenta and green."),
                 ["magenta_up", "magenta_down"],
             )
         )
         col.yellow_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Yellow↔Blue white balance shift. Applies to selected region (Global/Shadows/Highlights)"),
+                tr("Shifts the color between yellow and blue."),
                 ["yellow_up", "yellow_down"],
             )
         )
         exp.density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Overall print density — simulates enlarger exposure time. Lower = brighter, higher = darker. "
-                    "With Auto Density on, it shows the metered density; moving it trims the meter"
-                ),
+                tr("How light or dark the print is. Lower is lighter."),
                 ["density_up", "density_down"],
             )
         )
         exp.grade_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Paper contrast (ISO R): R{value:.0f} is very soft, R{value1:.0f} very hard, R110 ≈ grade 2. With Auto Grade on, it shows the grade the frame prints at; moving it trims the auto",
-                    value=EXPOSURE_CONSTANTS["iso_r_max"],
-                    value1=EXPOSURE_CONSTANTS["iso_r_min"],
-                ),
+                tr("Contrast. A lower number gives more contrast; about 110 is a normal print."),
                 ["grade_up", "grade_down"],
             )
         )
         paper.toe_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Shadow toe: positive lifts shadows for a gentle film toe; negative deepens blacks"),
+                tr("Shapes the shadows. Positive lifts them; negative makes them deeper."),
                 ["toe_inc", "toe_dec"],
             )
         )
         paper.toe_w_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How broadly the shadow toe transition spreads into the midtones"),
+                tr("How far the Toe change reaches into the midtones."),
                 ["toe_width_inc", "toe_width_dec"],
             )
         )
         paper.sh_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Highlight shoulder: positive compresses highlights (film roll-off); negative extends them and risks clipping"),
+                tr("Shapes the highlights. Positive softens them; negative brightens them and can lose detail."),
                 ["shoulder_inc", "shoulder_dec"],
             )
         )
         paper.sh_w_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How broadly the highlight shoulder transition spreads into the midtones"),
+                tr("How far the Shoulder change reaches into the midtones."),
                 ["shoulder_width_inc", "shoulder_width_dec"],
             )
         )
         paper.midtone_gamma_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Snap — paper midtone gamma trim: steepens or flattens the S-curve around the reference "
-                    "tone; paper white/black stay put. In R/G/B mode: this layer's Snap trim"
-                ),
+                tr("Midtone contrast. The deepest black and the paper white do not change."),
                 ["snap_inc", "snap_dec"],
             )
         )
         exp.shadow_density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Shadow zone density (ΔD): weighted to the deep shadows, bounded by paper black. "
-                    "Positive darkens shadows; negative lifts them. With Auto Grade on, it includes "
-                    "the automatic shadow lift"
-                ),
+                tr("Darkens (positive) or lightens (negative) only the shadows. Auto Grade can set it too."),
                 ["shadow_density_inc", "shadow_density_dec"],
             )
         )
         exp.highlight_density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Highlight zone density (ΔD): weighted to the highlights, bounded by paper white. "
-                    "Positive burns highlights in; negative bleaches them. With Auto Grade on, it includes "
-                    "the automatic highlight burn"
-                ),
+                tr("Darkens (positive) or lightens (negative) only the highlights. Auto Grade can set it too."),
                 ["highlight_density_inc", "highlight_density_dec"],
             )
         )
         exp.shadow_grade_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Split grade — shadow zone contrast trim (ISO-R): rotates the curve locally in the deep "
-                    "shadows. In R/G/B mode: this layer's shadow-grade trim"
-                ),
+                tr("Contrast in the shadows only."),
                 ["shadow_grade_inc", "shadow_grade_dec"],
             )
         )
         exp.highlight_grade_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Split grade — highlight zone contrast trim (ISO-R): rotates the curve locally in the "
-                    "highlights. In R/G/B mode: this layer's highlight-grade trim"
-                ),
+                tr("Contrast in the highlights only."),
                 ["highlight_grade_inc", "highlight_grade_dec"],
             )
         )
 
         geo.manual_crop_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Crop: draw a crop rectangle on the canvas — drag to set, constrained by the current aspect ratio"),
+                tr("Crop: drag a rectangle on the picture."),
                 "manual_crop",
             )
         )
         geo.auto_skew_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Auto Skew: square the frame to its film edges, not to the picture. Sets Fine Rotation, Tilt and Swing"),
+                tr("Auto Skew: line the picture up with the edges of the film."),
                 "auto_skew",
             )
         )
         geo.straighten_btn.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Straighten with a reference line — draw along the horizon or a vertical edge "
-                    "(a building, a door frame) and the image rotates to make it level or plumb. "
-                    "Applies once per line; Esc cancels an in-progress line"
-                ),
+                tr("Straighten: draw a line along the horizon or a vertical edge, and the picture turns to level it."),
                 "straighten",
             )
         )
         geo.keystone_lines_btn.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Tilt and swing with reference lines: drag a line along each rebate edge, and Tilt and "
-                    "Swing square them. Stays on until you turn it off"
-                ),
+                tr("Draw a line along each edge of the film, and Tilt and Swing make them square."),
                 "keystone_lines",
             )
         )
@@ -773,10 +737,7 @@ class ControlsPanel(QWidget):
         )
         geo.fine_rot_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Sub-degree rotation correction for tilted scans: positive turns clockwise, negative counter-clockwise. "
-                    "For quick rotation, drag the round handles outside the crop box in the Crop tool"
-                ),
+                tr("Turns the picture by small amounts. Positive turns it clockwise."),
                 ["fine_rot_inc", "fine_rot_dec"],
             )
         )
@@ -855,136 +816,92 @@ class ControlsPanel(QWidget):
         )
         lab.chroma_denoise_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Removes color speckle finer than this radius and keeps color edges; luminance grain stays"),
+                tr("Removes colored speckles. Film grain stays."),
                 ["chroma_denoise_inc", "chroma_denoise_dec"],
             )
         )
         lab.saturation_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Linear chroma scale (CIELAB a*/b*) after the print is decoded — a retouching move, "
-                    "applied evenly to every tone. Dye Separation in Tone is the density-space equivalent: "
-                    "it works on the print's dye densities, so it stays in step with the paper and the curve. "
-                    "1.0 = unchanged, 0 = grayscale, 2.0 = double"
-                ),
+                tr("Color strength. 1 is unchanged, 0 is black and white."),
                 ["saturation_inc", "saturation_dec"],
             )
         )
-        lab.skin_protection_slider.setToolTip(
-            tr(
-                "Holds skin-hued color under a chroma ceiling so faces don't go sunburnt — hue and lightness "
-                "untouched, and chroma is only ever pulled down. Independent of Chroma: it also reins in skin "
-                "that arrived over-saturated from the print curve. 0 = off, 1.0 = matte"
-            )
-        )
+        lab.skin_protection_slider.setToolTip(tr("Keeps skin tones from getting too strong in color. 0 is off."))
         paper.dye_separation_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Pushes density apart before decode. On a print, in the same matrix slot as the "
-                    "paper's own dye crosstalk — so it responds to the print stock and eases off where the "
-                    "curve is already compressed at toe and shoulder, and takes per-layer R/G/B trims. On a "
-                    "slide, applied directly with no paper matrix or trims. Chroma in "
-                    "Color is the flat version: an even a*/b* scale after decode. 1.0 = off/identity"
-                ),
+                tr("Color strength in the print, through the paper's dyes. 1 is unchanged."),
                 ["dye_separation_inc", "dye_separation_dec"],
             )
         )
         paper.separation_damping_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Decides where Dye Separation's push lands instead of adding one of its own — at 0 every "
-                    "color gets the same push, at 1 muted color takes it all while color that is already "
-                    "saturated gets the opposite, so a hard push adds color where there was none instead of "
-                    "flattening the strongest colors. Dead at Dye Separation 1.0. 0 = flat"
-                ),
+                tr("Puts more of the Dye Separation change on dull colors and less on strong ones."),
                 ["separation_damping_inc", "separation_damping_dec"],
             )
         )
         exp.preflash_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "A flash of plain light over the whole sheet, as a fraction of the paper's threshold exposure. It adds "
-                    "to the image exposure, so it pulls highlight detail off paper white and moves the shadows "
-                    "little; the print gets softer, which a harder grade gives back. Bare paper stays white up to 1.0. 0 = off"
-                ),
+                tr("Preflash: brings back detail in the brightest areas. It also lowers contrast a little."),
                 ["preflash_inc", "preflash_dec"],
             )
         )
         lab.clahe_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Local contrast (CLAHE) without blowing global highlights or crushing shadows. Use sparingly — near 1.0 can look cartoonish"
-                ),
+                tr("Adds local contrast to bring out detail. Strong values can look unnatural."),
                 ["clahe_inc", "clahe_dec"],
             )
         )
         lab.sharpen_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("L-channel unsharp mask with halo suppression — crisps detail without bright edge outlines or color fringing"),
+                tr("Sharpens detail without colored edges."),
                 ["sharpen_inc", "sharpen_dec"],
             )
         )
         lab.sharpen_method_combo.setToolTip(
-            tr(
-                "Unsharp Mask boosts edge contrast; Deconvolution (Richardson–Lucy) reverses the scanner's optical blur — set Radius to the blur width of the scan"
-            )
+            tr("Unsharp Mask makes edges crisper. Deconvolution undoes the scanner's blur; set Radius to the blur size.")
         )
-        lab.sharpen_radius_slider.setToolTip(
-            tr("Blur radius in pixels — small for fine grain and detail, larger for smoother films and soft scans")
-        )
-        lab.sharpen_masking_slider.setToolTip(
-            tr("Restricts sharpening to edges — higher values protect flat areas (sky, skin, grain) from being crisped")
-        )
+        lab.sharpen_radius_slider.setToolTip(tr("Size of the detail to sharpen, in pixels. Small for fine grain, larger for soft scans."))
+        lab.sharpen_masking_slider.setToolTip(tr("Sharpens only edges, so sky, skin and grain stay smooth."))
         lab.glow_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Lens bloom — bright highlights scatter equally across all channels, softening edges and adding a dreamy quality"),
+                tr("A soft glow around bright areas, like an old lens."),
                 ["glow_inc", "glow_dec"],
             )
         )
         lab.halation_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Simulates the red glow from light scattering back through the film base. Affects highlights only, strongly red-dominant"
-                ),
+                tr("A red glow around bright areas, as some films give."),
                 ["halation_inc", "halation_dec"],
             )
         )
 
         ret.pick_dust_btn.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Toggle manual heal brush — click dust spots in the preview to paint them out one at a time. "
-                    "Right-click an existing heal overlay to delete it"
-                ),
+                tr("Heal: click or paint over dust to remove it. Clean film under the brush stays as it is."),
                 "pick_dust",
             )
         )
         ret.clone_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Clone Tool: copy film from another area over a defect. Alt-click the source, then paint. Uses Brush Size"),
+                tr("Clone: copy film from another area over a defect. Alt-click to pick the area to copy from."),
                 "clone_tool",
             )
         )
         ret.threshold_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "How far a speck must stand out from the grain to be repaired. Lower catches more, with more false positives. 1.0 is off"
-                ),
+                tr("How easily dust specks are found. Lower finds more but can remove real detail. 1 is off."),
                 ["threshold_inc", "threshold_dec"],
             )
         )
         ret.hair_threshold_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "How far a hair-shaped mark must stand out from the grain to be repaired. Lower it for a hair "
-                    "missed in busy detail. 1.0 is off"
-                ),
+                tr("How easily hairs are found. Lower finds more. 1 is off."),
                 ["hair_threshold_inc", "hair_threshold_dec"],
             )
         )
         ret.auto_size_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Maximum radius of auto-detected dust spots. Larger catches bigger blobs but risks eating fine detail"),
+                tr("Largest dust size to remove. Larger values can remove real detail."),
                 ["auto_size_inc", "auto_size_dec"],
             )
         )
@@ -997,64 +914,57 @@ class ControlsPanel(QWidget):
 
         ton.selenium_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Simulates selenium toning — converts the densest silver first: deeper blacks, cool eggplant shadows. B&W Negative mode only"
-                ),
+                tr("Selenium toner: deeper, cooler blacks. B&W negatives only."),
                 ["selenium_inc", "selenium_dec"],
             )
         )
         ton.sepia_slider.setToolTip(
             tooltip_with_shortcut(
-                tr(
-                    "Simulates sepia bleach-redevelop toning — warms the highlights first; more strength reaches "
-                    "further into the mids, and the deepest shadows stay black at any strength. B&W Negative mode only"
-                ),
+                tr("Sepia toner: warm brown tones, from the highlights down. B&W negatives only."),
                 ["sepia_inc", "sepia_dec"],
             )
         )
         ton.shadow_hue_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Hue of the shadow split-tone color injection"),
+                tr("Color added to the shadows."),
                 ["shadow_hue_inc", "shadow_hue_dec"],
             )
         )
         ton.shadow_str_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How strongly the shadow hue is mixed in"),
+                tr("How much color is added to the shadows."),
                 ["shadow_strength_inc", "shadow_strength_dec"],
             )
         )
         ton.highlight_hue_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Hue of the highlight split-tone color injection"),
+                tr("Color added to the highlights."),
                 ["highlight_hue_inc", "highlight_hue_dec"],
             )
         )
         ton.highlight_str_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How strongly the highlight hue is mixed in"),
+                tr("How much color is added to the highlights."),
                 ["highlight_strength_inc", "highlight_strength_dec"],
             )
         )
 
         fin.vignette_burn_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Edge exposure in stops: positive = burn in the edges (darken); negative = hold back (lighten). 0 = off"),
+                tr("Darkens (positive) or lightens (negative) the edges of the print. 0 is off."),
                 ["vignette_str_inc", "vignette_str_dec"],
             )
         )
         fin.vignette_size_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Falloff radius: smaller = tight corner effect; larger = burn spreads well into the frame"),
+                tr("How far the effect reaches into the picture."),
                 ["vignette_size_inc", "vignette_size_dec"],
             )
         )
-        fin.vignette_roundness_slider.setToolTip(
-            tr("Falloff shape: 0 = radial (lens-like), 1 = rectangular card burn following the print edges")
-        )
+        fin.vignette_roundness_slider.setToolTip(tr("Shape: 0 is round, like a lens; 1 follows the edges of the print."))
         fin.border_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Border thickness as a fraction of the image dimensions. Zero = no border"),
+                tr("Border width. 0 is no border."),
                 ["border_size_inc", "border_size_dec"],
             )
         )

@@ -18,16 +18,13 @@ class ColorSidebar(BaseSidebar):
 
         self.region_btn = SegmentedChoice(
             (("fa5s.globe", tr("Global")), ("fa5s.moon", tr("Shadows")), ("fa5s.sun", tr("Highlights"))),
-            tr(
-                "Region for Temperature, CMY and Pick WB: Global applies to the entire tonal range; "
-                "Shadows and Highlights bias toward shadow (low-density) or highlight (high-density) areas"
-            ),
+            tr("Apply the color controls to the whole picture, or mostly to its dark or bright parts."),
         )
         self.pick_wb_btn = self._tool_toggle(
             "fa5s.eye-dropper",
             "",
             tooltip_with_shortcut(
-                tr("Pick a neutral gray from the canvas — solves the selected region's CMY so the patch prints neutral"),
+                tr("Click something in the picture that should be gray, and the color is corrected to make it gray."),
                 "pick_wb",
             ),
         )
@@ -60,15 +57,7 @@ class ColorSidebar(BaseSidebar):
         # Balances each dye layer against the frame's own grays; no region scopes it.
         self.cast_removal_slider = CompactSlider(tr("Cast Removal"), 0.0, 1.0, conf.cast_removal_strength)
         self.cast_removal_slider.setToolTip(
-            tr(
-                "Cast Removal: removes an overall color cast by balancing each color layer against the "
-                "frame's own grays, so neutrals stay neutral from deep shadows through highlights. "
-                "0 = off, 1 = full."
-                "<br><br>On a color negative it starts at 1, and leaves, sky and water never count as "
-                "gray. On a slide it starts at 0 and corrects a faded original's crossover — a slide's cast can be the "
-                "photograph, so ask for it rather than getting it. Hidden for B&W Negative, which "
-                "collapses to one density and has no layers to balance."
-            )
+            tr("Cast Removal: removes a color cast that differs between the dark and bright parts of the picture. 0 is off.")
         )
         self.layout.addWidget(self.cast_removal_slider)
 
@@ -123,13 +112,7 @@ class ColorSidebar(BaseSidebar):
         if printing:
             return tr("Printing the color ring-around…")
         return tooltip_with_shortcut(
-            tr(
-                "Color Ring-Around: print the frame as a 5×5 mosaic — the center patch neutral, the "
-                "ring stepping 2cc at a time out to ±4cc on the magenta and yellow axes. Click the patch "
-                "that looks neutral to keep its filtration. The 90° rotate controls turn the ladder while "
-                "it is up. With Cast Removal on the patches separate less, since it corrects toward "
-                "neutral underneath."
-            ),
+            tr("Ring-around: show the picture as a grid of color variations. Click the one that looks right."),
             "toggle_ring_around",
         )
 

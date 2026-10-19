@@ -36,10 +36,7 @@ class PaperSidebar(BaseSidebar):
         conf = self.state.config.exposure
 
         self.ch_btn = channel_selector(
-            tr(
-                "Global edits the paper's shared H&D curve (all layers). Red, Green and Blue edit per-layer "
-                "Snap/Toe/Shoulder/Width/Dye Separation trims for the cyan-, magenta- and yellow-dye emulsions"
-            )
+            tr("Global changes all colors. R, G or B changes one color, for a cast that differs in shadows and highlights.")
         )
         self._channel_fields = tuple(
             (
@@ -56,18 +53,13 @@ class PaperSidebar(BaseSidebar):
             "fa5s.circle",
             "",
             conf.paper_black,
-            tr(
-                "Paper Black — show the paper's real Dmax as a slightly lifted, milky black instead of "
-                "compensating it to pure display black. Off (default) applies black point compensation, "
-                "like an ICC relative-colorimetric soft-proof, so the adapted eye reads paper black as "
-                "black; on preserves the paper's true maximum density."
-            ),
+            tr("Paper Black: show the black of real paper, a little lighter than pure black."),
         )
         self.paper_dmin_btn = self._small_toggle(
             "fa5s.file",
             "",
             conf.paper_dmin,
-            tr("Paper White: simulate paper base density (Dmin 0.06) — whites print at ~0.93 instead of pure white, like a real print"),
+            tr("Paper White: show the white of real paper, a little darker than pure white."),
         )
         self.paper_black_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         self.paper_dmin_btn.setFixedWidth(ICON_BUTTON_WIDTH)
@@ -81,15 +73,7 @@ class PaperSidebar(BaseSidebar):
         self.layout.addLayout(ch_row)
 
         self.paper_combo = StepCombo()
-        self.paper_combo.setToolTip(
-            tr(
-                "Print stock: the paper or print film the negative is printed on. It sets the H&D curve and, "
-                "on color stock, the colors its dyes make, from the datasheet or the paper's measured "
-                "Frontier profile; Grade, Density, Toe and "
-                "Shoulder still trim on top. Digital (Adobe RGB) is an idealized print: NegPy's own curve "
-                "and perfect dyes. Digital (Pakon Minilab) is that curve with a Pakon minilab's colors."
-            )
-        )
+        self.paper_combo.setToolTip(tr("The paper the picture prints on. It sets the contrast curve and, on color paper, the colors."))
         self._populate_paper_combo(self.state.config.process.process_mode)
         idx = self.paper_combo.findData(conf.paper_profile)
         if idx >= 0:
@@ -106,12 +90,7 @@ class PaperSidebar(BaseSidebar):
         # Density-domain saturation on the dye amounts, before the stock's dyes, not a Lab a*/b* step.
         self.dye_separation_slider = CompactSlider(tr("Dye Separation"), 0.5, 1.5, conf.dye_separation, has_neutral=True)
         self.dye_separation_trim_slider = CompactSlider(tr("Dye Separation"), -0.4, 0.4, 0.0, has_neutral=True)
-        self.dye_separation_trim_slider.setToolTip(
-            tr(
-                "This layer's Dye Separation trim on top of the global value — pushes/pulls this "
-                "channel's density separation independently. Neutrals stay flat at any trim value."
-            )
-        )
+        self.dye_separation_trim_slider.setToolTip(tr("Dye Separation of this color layer only."))
         self.dye_separation_trim_slider.setVisible(False)
         # Redistributes the slider above by each pixel's own chroma. Inert at 1.0 separation, so
         # it shows only once separation moves.
@@ -125,24 +104,14 @@ class PaperSidebar(BaseSidebar):
 
         self.toe_w_slider = CompactSlider(tr("Toe Width"), 0.1, 5.0, conf.toe_width)
         self.toe_w_trim_slider = CompactSlider(tr("Toe Width"), -2.0, 2.0, 0.0)
-        self.toe_w_trim_slider.setToolTip(
-            tr(
-                "This layer's toe width trim on top of the global Toe Width — per-layer roll-off extent "
-                "(sharpness crossover): how far this layer's shadow knee reaches up the tonal scale."
-            )
-        )
+        self.toe_w_trim_slider.setToolTip(tr("Toe Width of this color layer only."))
         self.toe_w_trim_slider.setVisible(False)
         self.toe_slider = CompactSlider(tr("Toe"), -1.0, 1.0, conf.toe)
 
         self.sh_slider = CompactSlider(tr("Shoulder"), -1.0, 1.0, conf.shoulder)
         self.sh_w_slider = CompactSlider(tr("Shoulder Width"), 0.1, 5.0, conf.shoulder_width)
         self.sh_w_trim_slider = CompactSlider(tr("Shoulder Width"), -2.0, 2.0, 0.0)
-        self.sh_w_trim_slider.setToolTip(
-            tr(
-                "This layer's shoulder width trim on top of the global Width — per-layer roll-off extent "
-                "(sharpness crossover): how far this layer's highlight knee reaches down the tonal scale."
-            )
-        )
+        self.sh_w_trim_slider.setToolTip(tr("Shoulder Width of this color layer only."))
         self.sh_w_trim_slider.setVisible(False)
         curve_header, curve_fold = group_fold(
             "paper_curve_shape",
@@ -171,11 +140,7 @@ class PaperSidebar(BaseSidebar):
         if printing:
             return tr("Printing the paper test strip…")
         return tooltip_with_shortcut(
-            tr(
-                "Paper Test Strip: print the frame on every print stock, as a band each or as a grid of "
-                "small frames. Click a paper to see it on the whole frame, step to the next paper, and keep "
-                "the one you like. The 90° rotate controls turn the bands while the strip is up."
-            ),
+            tr("Paper Test Strip: print the frame on every paper side by side, then keep the one you like."),
             "toggle_paper_strip",
         )
 

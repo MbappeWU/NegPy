@@ -18,19 +18,8 @@ from negpy.services.view.printing_notes import tone_limit_label
 _MASK_ROW_H = 30
 _TONE_TIPS = {
     MaskKey.OFF: tr("The mask acts on every tone inside its shape."),
-    MaskKey.HIGHLIGHTS: (
-        tr(
-            "The mask acts only on tones lighter than Tone Zone, read on the print before any mask, "
-            "like a lith mask made from the negative and registered with it. Burn a sky and the burn "
-            "stops at the skyline instead of darkening a band of it."
-        )
-    ),
-    MaskKey.SHADOWS: (
-        tr(
-            "The mask acts only on tones darker than Tone Zone, read on the print before any mask. "
-            "Dodge the ground under a sky without lightening the sky above it."
-        )
-    ),
+    MaskKey.HIGHLIGHTS: (tr("The mask acts only on tones lighter than Tone Zone. A sky burn then stops at the skyline.")),
+    MaskKey.SHADOWS: (tr("The mask acts only on tones darker than Tone Zone. Lighten the ground and leave the sky as it is.")),
 }
 _TONE_FULL_TIP = f"{MAX_KEYED_MASKS} masks already carry a tone limit, the most one frame prints. Set one of them to All to limit this one."
 
@@ -61,29 +50,17 @@ class LocalSidebar(BaseSidebar):
         self.draw_btn = self._tool_toggle(
             "fa5s.draw-polygon",
             tr("Draw"),
-            tr(
-                "Draw Mask: draw a new mask: click to place vertices; double-click, Enter, or a click near "
-                "the start closes; Esc cancels. Select a mask from the list to edit it (no need to "
-                "re-enter this tool): drag a vertex to move it, click an edge '+' dot to add a point, "
-                "right-click a vertex to delete it."
-            ),
+            tr("Draw Mask: click to place points; double-click or Enter closes the shape. Select a mask in the list to edit it."),
         )
         self.oval_btn = self._tool_toggle(
             "fa5s.circle",
             tr("Oval"),
-            tr(
-                "Oval: burn through a hole in the card, or dodge with a wand: drag out an oval. Its three "
-                "handles move it (center) and set each axis, so it can be stretched and tilted."
-            ),
+            tr("Oval: drag out an oval. Its handles move, stretch and turn it."),
         )
         self.gradient_btn = self._tool_toggle(
             "fa5s.grip-lines",
             tr("Card"),
-            tr(
-                "Card Edge: the graduated burn a printer makes by moving a card across the paper: drag from the "
-                "full-exposure edge (solid line) to where it fades out (dashed). The distance between "
-                "the two handles is the softness, so Feather does nothing here."
-            ),
+            tr("Card Edge: a burn that fades out. Drag from the full-strength edge to where it ends."),
         )
         self.masks_header = section_subheader(tr("MASKS · 0"))
         self.layout.addWidget(self.masks_header)
@@ -92,19 +69,12 @@ class LocalSidebar(BaseSidebar):
             tool_row.addWidget(btn, 1)
         self.layout.addLayout(tool_row)
         self.slide_hint = hint_label(tr("Not applied to slides."))
-        self.slide_hint.setToolTip(
-            wrap_tooltip(tr("A slide prints through its transfer curve, which takes no dodge/burn map. The frame keeps its masks."))
-        )
+        self.slide_hint.setToolTip(wrap_tooltip(tr("A slide does not use dodge and burn. The frame keeps its masks.")))
         self.slide_hint.setVisible(False)
         self.layout.addWidget(self.slide_hint)
 
         self.mask_list = QListWidget()
-        self.mask_list.setToolTip(
-            tr(
-                "Click a mask to select it. Click its shape icon to enable or disable its effect, "
-                "the eye to show/hide its outline, and the trash icon to delete it."
-            )
-        )
+        self.mask_list.setToolTip(tr("Click a mask to select it. Its icons turn it on or off, show its outline or delete it."))
         self.mask_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.mask_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # The row is a custom widget, so drop the app-wide item padding, margin and border that
@@ -117,12 +87,7 @@ class LocalSidebar(BaseSidebar):
         # Exposure-signed like the frame's Print Density and the Finishing edge burn: positive is
         # more light on the paper, so darker.
         self.burn_slider = CompactSlider(tr("Burn"), -2.0, 2.0, 0.0, step=0.05, precision=100, has_neutral=True, unit=" st")
-        self.burn_slider.setToolTip(
-            tr(
-                "Print exposure for the selected mask, in stops — positive burns (longer exposure, "
-                "darker paper), negative dodges (held back, brighter paper)"
-            )
-        )
+        self.burn_slider.setToolTip(tr("Darkens (positive) or lightens (negative) the area in the mask, in stops."))
 
         self.feather_slider = CompactSlider(tr("Feather"), 0.0, 0.15, 0.04, step=0.005, precision=1000)
         self.feather_slider.setToolTip(tr("Edge softness for the selected mask"))
@@ -130,22 +95,10 @@ class LocalSidebar(BaseSidebar):
         # Inverted like every other grade slider (Tone's ISO-R Grade, split grade, layer trims):
         # dragging right is harder paper, even though R falls.
         self.grade_slider = CompactSlider(tr("Grade"), -40.0, 40.0, 0.0, step=5.0, precision=1, has_neutral=True, unit=" R", inverted=True)
-        self.grade_slider.setToolTip(
-            tr(
-                "Print the selected mask at its own grade, in ISO-R points off the frame's Grade — "
-                "negative is harder, the darkroom's burn-in through the hard filter. The region's own "
-                "midtone holds, so this changes its contrast without moving its overall density."
-            )
-        )
+        self.grade_slider.setToolTip(tr("Contrast inside the mask. Negative gives more contrast."))
 
         self.flash_slider = CompactSlider(tr("Flash"), 0.0, 1.0, 0.0)
-        self.flash_slider.setToolTip(
-            tr(
-                "Pre-expose the paper under the selected mask, as a fraction of the threshold exposure like "
-                "the Tone card's Preflash. It compresses the region's highlights without the density a burn adds. "
-                "Off on a tone-limited mask."
-            )
-        )
+        self.flash_slider.setToolTip(tr("Brings back detail in bright areas inside the mask, like Preflash."))
 
         self._tone_keys = (MaskKey.OFF, MaskKey.HIGHLIGHTS, MaskKey.SHADOWS)
         self.tone_btn = SegmentedChoice(
@@ -155,15 +108,9 @@ class LocalSidebar(BaseSidebar):
 
         # Print zones in thirds, the zone strip's and zone placement's own step.
         self.key_zone_slider = CompactSlider(tr("Tone Zone"), 0.0, 10.0, 6.0, step=1.0 / 3.0, precision=3)
-        self.key_zone_slider.setToolTip(
-            tr("The zone the tone limit starts at, on the print before any mask: 0 is paper black, V is 18% gray, X is paper white")
-        )
+        self.key_zone_slider.setToolTip(tr("Where the tone limit starts: 0 is black, V is middle gray, X is white."))
         self.key_softness_slider = CompactSlider(tr("Tone Softness"), 1.0 / 3.0, 3.0, 1.0, step=1.0 / 3.0, precision=3)
-        self.key_softness_slider.setToolTip(
-            tr(
-                "How many zones the tone limit takes to go from no effect to full effect. Raise it when tones near the zone show a ragged edge."
-            )
-        )
+        self.key_softness_slider.setToolTip(tr("How gradually the tone limit takes effect. Raise it if edges look rough."))
 
         self.layout.addWidget(section_subheader(tr("SELECTED MASK")))
         self.layout.addWidget(self.burn_slider)
@@ -258,9 +205,7 @@ class LocalSidebar(BaseSidebar):
         invert = self._row_icon_btn("fa5s.yin-yang", checkable=True)
         invert.setIcon(qta.icon("fa5s.yin-yang", color=THEME.accent_primary if mask.invert else THEME.text_primary))
         invert.setChecked(mask.invert)
-        invert.setToolTip(
-            wrap_tooltip(tr("Invert: act everywhere except inside this mask. Burn the surround and hold the face, in one mask"))
-        )
+        invert.setToolTip(wrap_tooltip(tr("Invert: act everywhere except inside this mask.")))
 
         visible = i not in self.state.local_hidden_masks
         eye = self._row_icon_btn("fa5s.eye" if visible else "fa5s.eye-slash", checkable=True)

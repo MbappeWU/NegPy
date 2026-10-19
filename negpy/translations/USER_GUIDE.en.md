@@ -390,195 +390,164 @@ Rows that measure the scan, not your edit; hover for details.
 <!-- panel:geometry -->
 ### 4.1 Geometry: crop and straighten
 
+Crop the picture and make it level.
+
 **Crop:**
 
-*   **Auto** (magic wand on the CROP header): the Crop card's Auto Crop ([§10.5](#105-crop)), for this frame.
-*   **Ratio**: the roll's crop ratio, the same field as on the Crop card. **1:1.4142** is the ISO A paper shape (A4, A6).
-*   **Crop** tool: draw a crop rectangle; with **Ratio** at **Free**, an edge midpoint resizes one axis. A manual crop turns **Auto Crop** off for this frame. **Reset** clears the crop and turns auto-crop off.
-*   **Guide**: *Thirds*, *Phi Grid*, *Diagonals*, *Golden Triangles*, *Golden Spiral*, *Armature*, *Diagonal Method*, *Grid* or *Off*. The redo button rotates the guide.
+*   **Crop** tool: drag a rectangle on the picture. Drag a corner to resize it, the inside to move it, or outside the box to rotate. Drawing a crop turns Auto Crop off.
+*   **Auto Crop** (the wand): finds the edges of the picture and crops to them. It is the same setting as on the Roll tab's Crop card ([§10.5](#105-crop)).
+*   **Ratio**: the shape of the crop, for the whole roll. With **Free**, you can drag one side at a time.
+*   **Guide**: composition lines, such as thirds. The rotate button turns them. **Reset** removes the crop.
 
 **Alignment:**
 
-*   **Crop by Default**: crops the wedge that Fine Rotation, Tilt and Swing leave, while no manual or auto crop is set.
-*   **Fine Rotation** (±45°): sub-degree rotation, positive clockwise. Applied after auto-crop.
-*   **Auto Skew**: squares the frame to its film and frame edges, never to the picture, so a deliberately tilted photo stays tilted. It sets **Fine Rotation**, and **Tilt** or **Swing** where both edges of that pair show.
-*   **Straighten** tool: draw a line along a horizon or vertical edge to level or plumb it.
-*   **Tilt and swing with reference lines** tool: drag a line along each rebate edge; with all four marked, Tilt and Swing solve to make them parallel and square.
-*   **Tilt** (±15%): tips the easel about a horizontal axis to correct converging verticals. Positive stretches the top edge. The unit is percent of the frame, not an angle.
-*   **Swing** (±15%): the same about a vertical axis, for converging horizontals. Positive stretches the left edge.
+*   **Straighten** tool: draw a line along the horizon or a vertical edge, and the picture turns to make it level.
+*   **Fine Rotation**: turns the picture by small amounts. Positive is clockwise.
+*   **Auto Skew**: lines the picture up with the edges of the film. It ignores what is in the picture, so a photo taken at a tilt stays tilted.
+*   **Tilt** and **Swing**: straighten a building shot from below (Tilt) or a wall shot from one side (Swing). The reference-lines tool sets both from lines along the four film edges.
+*   **Crop by Default**: crops away the empty corners that rotation, Tilt and Swing leave.
 
-    Both leave a wedge along the squeezed edge: crop it or use **Crop by Default**. Crop first: on an uncropped scan a large correction pulls the rebate into the metering and darkens the print.
-
-Lens distortion, chromatic aberration and flat field are in **Optics** on the Roll tab ([§10.8](#108-optics)).
+Crop before a large Tilt or Swing, or the film border can come into view and darken the print. Lens distortion is fixed in **Optics** ([§10.8](#108-optics)).
 
 ---
 
 ## 5. Exposure tab
 
-Four panels set light, color and contrast in the print stage of the pipeline.
+These four cards set the brightness, contrast and color of the print.
 
 <!-- panel:color -->
-### 5.1 Filtration: white balance
+### 5.1 Filtration: color balance
 
-Color timing, like enlarger dichroic filters. The **Global / Shadows / Highlights** selector applies the controls to the whole image, or biases them to low- or high-density tones.
+Corrects the color of the print, as the color filters of a darkroom enlarger do. **Global / Shadows / Highlights** applies the color controls to the whole picture, or mostly to its dark or bright parts.
 
-*   **Pick WB** (eyedropper): click a pixel that should be neutral gray, and NegPy solves the CMY filtration for the selected region.
-*   **Temperature**: warm-to-cool control on the magenta/yellow pair; cyan does not change.
-*   **Cyan / Magenta / Yellow** (-1 to 1): Cyan↔Red, Magenta↔Green, Yellow↔Blue.
-*   **Ring-around** (`Shift+F`): a 5×5 mosaic in 2cc steps to ±4cc on magenta and yellow, centered on neutral. Click a patch to keep its filtration; `Escape` clears it.
-*   **Cast Removal** (0.0 to 1.0, on the whole frame): removes an overall color cast by balancing each layer against the frame's own grays, so neutrals stay neutral from shadows to highlights. On a negative, leaves, sky and water never count as gray, so a forest keeps its greens and a clear sky stays blue. It starts at 1.0 on Color Negative and at 0 on Transparency, for a faded slide's crossover.
+*   **Pick WB**: click something in the picture that should be gray, and NegPy corrects the color to make it gray.
+*   **Temperature**: makes the picture warmer or cooler.
+*   **Cyan / Magenta / Yellow**: shift the color between cyan and red, magenta and green, or yellow and blue.
+*   **Ring-around** (`Shift+F`): shows the picture as a grid of slightly different colors. Click the one that looks right. `Esc` closes it.
+*   **Cast Removal**: removes a color cast that differs between the dark and bright parts of the picture. It starts at 1 (full) on color negatives and at 0 on slides. Leaves, sky and water do not count as gray, so they keep their color.
 
 <!-- panel:tone -->
-### 5.2 Tone: density and contrast
+### 5.2 Tone: brightness and contrast
 
-**Global / R / G / B** applies Grade and Split Grade to the shared curve, or as per-dye-layer trims for **crossover correction** (casts that differ between shadows and highlights).
+How light or dark the print is, and how much contrast it has.
 
-**Automatic helpers**, in the **Auto** menu, are on by default:
+*   **Print Density**: how light or dark the print is (the darkroom's exposure time). Lower is lighter.
+*   **ISO-R Grade**: contrast (the darkroom's paper grade). A lower number gives more contrast; about 110 is normal.
+*   **Auto**: **Auto Density** and **Auto Grade** set brightness and contrast for each frame, so a roll prints evenly. A slider then shows the automatic value: move it to adjust, double-click it to go back. The Auto menu also has:
+    *   **Set Targets…**: the brightness and contrast Auto aims for.
+    *   **Bake Auto Density/Grade**: keeps this frame's automatic values and turns Auto off for it.
+    *   **Hold Black**: when you lighten the shadows, the deepest blacks stay black.
+*   **Test Strip** (`Shift+T`): a grid of versions at different brightness and contrast. Click the one you like. `Esc` closes it.
+*   **Shadows Density** / **Highlights Density** (fold under Print Density): darken or lighten only the shadows or the highlights.
+*   **Shadows Grade** / **Highlights Grade** (fold under ISO-R Grade): contrast in the shadows or the highlights only.
+*   **Printing Aids** (fold):
+    *   **Preflash**: brings back detail in the brightest areas.
+    *   **Diffusion**: a soft glow; dark areas spread into bright ones.
+    *   **Contrast Mask**: lowers overall contrast and keeps fine detail. Negative values add contrast. **Mask Spacer** sets how soft the mask is.
+*   **Global / R / G / B**: R, G or B applies the grades to one color only, for a cast that differs between shadows and highlights.
 
-*   **Auto Density**: meters each frame's midtone and anchors print brightness there.
-*   **Auto Grade**: sets the grade partly from the frame's textured density range, harder when textured shadows need it to reach black (Shadow Reach). It opens the shadows of a contrasty frame (Shadow Hold) and holds textured highlights off paper white (Highlight Hold).
-*   **Auto Density and Grade**: turns both helpers on or off together.
-*   **Hold Black** (off, hidden on slides): a negative Shadows Density fades out toward paper black, so the shadows open and the black point barely moves.
-*    **Set Targets…**: the brightness and contrast the helpers aim for, for all frames. Confirming a changed target warns that it moves every frame, including ones not yet baked, and that baking a frame first keeps it fixed; a **Don't show again** box stops the warning.
-*    **Bake Auto Density/Grade**: writes the metered Auto Density and Auto Grade into the frame's settings and turns both helpers off, so the frame keeps the look the helpers chose without them and does not move when the targets change.
-*   With a helper on, its sliders show what prints: **Print Density** the metered density, **ISO-R Grade** the grade the frame prints at, **Highlights Density** with the automatic burn. Moving one trims the helper; a double-click returns to the helper's choice.
-
-**Test strip** (`Shift+T`): a 5×5 grid, Print Density rising left to right, ISO-R Grade softening top to bottom. Click a patch to keep it; `Escape` clears it. While a proof shows, the 90° **rotate** buttons and `[` / `]` turn the ladder, not the image.
-
-**White Point** and **Black Point** are on the **Metering** card ([§10.4](#104-metering-negative--positive)).
-
-**Exposure:**
-
-*   **Print Density** (0.0 to 2.0): overall brightness (enlarger time). Lower is brighter.
-*   **ISO-R Grade** (50 to 180): contrast as paper ISO-R. R110 is about grade 2; lower R is harder. In R/G/B mode a **Grade** trim rotates one layer's slope about the midtone.
-*   **Shadows Density** / **Highlights Density** (±1.0 ΔD): brighten or darken only the shadows or highlights, within paper black and white. With Auto Grade on, each shows its automatic share. They also work on slides.
-*   **Shadows Grade** / **Highlights Grade** (split grade, ±50 ISO-R): local contrast in the deep shadows or highlights.
-
-**Printing Aids:**
-
-*   **Preflash** (0 to 1): an even flash over the sheet, as a fraction of the paper's threshold exposure. It pulls highlight detail off paper white and softens the print slightly. Hidden on slides.
-*   **Diffusion** (0 to 1, hidden in Transparency): a diffuser under the enlarger lens (a Softar, a stocking). Shadows bleed into highlights and edges soften; flat areas print as before. Grays out in R/G/B mode.
-*   **Contrast Mask** (±0.5, hidden in Transparency): a blurred mask sandwiched with the negative. Positive compresses the range so a harder grade fits and fine detail stays; negative expands a negative too flat for Grade (past about −0.4, highlights clip). Past about ±0.2, strong edges get a halo.
-*   **Mask Spacer** (2 to 6%, default 4%, shown once Contrast Mask is not 0): the gap between mask and negative. Thicker masks only broad masses; thinner reaches into detail and hazes shadows next to bright areas. Both mask controls gray out in R/G/B mode.
+**White Point** and **Black Point** are on the Roll tab's **Metering** card ([§10.4](#104-metering-negative--positive)).
 
 <!-- panel:paper -->
-### 5.3 Paper Response: the print curve
+### 5.3 Paper Response: the paper
 
-The paper's characteristic curve. Its own **Global / R / G / B** selector applies the curve controls to all layers or as per-dye-layer trims.
+The paper the picture prints on, and how it turns light into tones from black to white.
 
-*   **Print stock**: a bundled paper or print film (RA4 papers and the Kodak 2383 and 2393 print films in Color Negative, B&W papers in B&W Negative) that sets the curve and, on color stock, the colors its dyes make, from the datasheet or, for the two Fujicolor Crystal Archive stocks (standard and HD), from Fujifilm's measured Frontier profiles: less saturated than *Digital*, with reds leaning orange and cyans leaning blue, and grays that drift slightly as the real dyes do. The other controls trim on top. *Digital (Adobe RGB)*, the default, is an idealized print: NegPy's own curve and perfect dyes. *Digital (Pakon Minilab)* is that curve with a Pakon minilab's colors. Each B&W paper has its own lith color (§6.2).
-*   **Dye Separation** (0.5 to 1.5, hidden in B&W Negative): saturation through the paper's dyes, easing off at toe and shoulder. 1.0 is off; lower values pull toward neutral. **Chroma** (Look tab) scales color evenly instead.
-    *   **Separation Damping** (0 to 1, shown once Dye Separation is not 1.0): higher keeps the push on muted color and eases it on saturated color.
-*   **Paper White**: simulates paper base density, so whites print at about 0.93.
-*   **Paper Black**: shows the paper's slightly milky Dmax. Off (default) applies black-point compensation.
-*   **Paper Test Strip** (the striped button beside Print stock): prints the frame on every print stock, in the list's order: as one band per stock (**Strip**) or as a grid of small whole frames (**Grid**), chosen in the toolbar. Click a paper to see it on the whole frame; **‹** and **›** in the toolbar, or the arrow keys, step to the neighbor paper. **Keep** (or Enter) makes the paper shown the Print stock; the back button (or Esc) returns to every paper.
-
-**Curve Shape:**
-
-*   **Snap** (-0.5 to 0.5): midtone gamma; paper white and black stay put.
-*   **Toe** (-1 to 1) + **Toe Width** (0.1 to 5): shadow roll-off. Positive lifts shadows; negative deepens them and, with Paper Black off, reaches exact black. Width sets how far the knee reaches.
-*   **Shoulder** (-1 to 1) + **Shoulder Width** (0.1 to 5): highlight roll-off. Positive compresses highlights; negative extends them and can clip.
-
-In R/G/B mode these become per-layer trims: **Toe** / **Shoulder** (±1), **Toe Width** / **Shoulder Width** (±2), **Snap** (±0.5), **Dye Separation** (±0.4).
+*   **Print stock**: the paper. A real paper sets the contrast curve and the colors from its maker's data. **Digital (Adobe RGB)**, the default, is an ideal paper. **Digital (Pakon Minilab)** has the colors of a Pakon lab scanner.
+*   **Paper Test Strip** (the striped button): prints the frame on every paper. Click a paper to see it large, step with the arrow keys, and press **Keep** to use it.
+*   **Dye Separation**: color strength in the print. 1 is unchanged. **Separation Damping** puts more of the change on dull colors and less on strong ones. **Chroma** on the Look tab changes all colors evenly instead.
+*   **Paper White**: shows the white of real paper, a little darker than pure white.
+*   **Paper Black**: shows the black of real paper, a little lighter than pure black.
+*   **Curve Shape** (fold):
+    *   **Snap**: midtone contrast. Black and white do not move.
+    *   **Toe**: shapes the shadows. Positive lifts them, negative makes them deeper. **Toe Width** sets how far into the midtones it reaches.
+    *   **Shoulder**: shapes the highlights. Positive softens them, negative brightens them and can lose detail. **Shoulder Width** sets how far it reaches.
+*   **Global / R / G / B**: R, G or B applies the curve controls to one color layer.
 
 <!-- panel:local -->
-### 5.4 Dodge & Burn: local exposure
+### 5.4 Dodge & Burn: lighten or darken areas
 
-Draw masks to lighten or darken only those areas. On a **Slide** the panel grays out; the frame keeps its masks.
+Draw a shape, then make only that area lighter (dodge) or darker (burn). A slide does not use this card, but its masks stay.
 
-*   **Draw** (Draw Mask): click to place vertices; double-click, Enter or a click near the start closes; Esc cancels. To edit, drag a vertex, click an edge "+" to add a point, or right-click a vertex to delete it.
-*   **Oval**: drag out an oval. The handles move, stretch and tilt it.
-*   **Card** (Card Edge, the graduated burn): drag from the full-exposure edge (solid line) to where it fades out (dashed). The gap is the softness, so Feather does nothing on this shape. A tilted Card Edge usually must start past the corner it burns.
+*   **Draw**: click to place points. Double-click, press Enter or click near the start to close the shape. Drag a point to move it, click a "+" on an edge to add one, and right-click a point to delete it.
+*   **Oval**: drag out an oval. Its handles move, stretch and turn it.
+*   **Card**: a burn that fades out, like a card moved over the paper. Drag from the full-strength edge (solid line) to where it ends (dashed line).
+*   **Mask list**: click a mask to select it. Its icons turn it on or off, invert it (act everywhere except inside it), show its outline or delete it. The sliders below change the selected mask.
+*   **Burn**: positive darkens the area, negative lightens it. The unit is stops: +1 doubles the light.
+*   **Feather**: how soft the edge is.
+*   **Grade**: contrast inside the mask. Negative gives more contrast.
+*   **Flash**: brings back detail in bright areas inside the mask, like Preflash.
+*   **Tone Limit**: **Highlights** or **Shadows** makes the mask act only on tones lighter or darker than **Tone Zone** (0 is black, V middle gray, X white). A sky burn then stops at the skyline. **Tone Softness** sets how gradually it starts.
 
-*   **Mask list**: each mask's shape, Dodge, Burn, Grade or Flash, and values. Its icons enable, invert (act outside the shape), show the outline of, or delete the mask.
-*   **SELECTED MASK**: the controls below act on the mask selected in the list.
-*   **Burn** (-2 to 2 stops, default 0): positive burns (darker), negative dodges (brighter).
-*   **Feather** (0.0 to 0.15): edge softness, as a fraction of the frame's short side.
-*   **Grade** (-40 to 40 R): the mask's own contrast, in ISO-R points off the frame's Grade, negative harder (burn a sky at −20 R). Overlapping grades add, within R50…R180.
-*   **Flash** (0 to 1, default 0): pre-exposes the paper under the mask, like the Tone card's Preflash: the region's highlights compress without the density a burn adds. Overlapping flashes add. Off on a tone-limited mask.
-*   **Tone Limit** (*All*, *Highlights*, *Shadows*) with **Tone Zone** (0 to 10, in thirds, default 6) and **Tone Softness** (⅓ to 3 zones), shown once the limit is not *All*: limits the mask to tones lighter or darker than a print zone, so a sky burn on *Highlights* at VI stops at the skyline. Up to four tone-limited masks per frame.
-
-**Printing Notes** (Export tab, or **Shift+N**) makes a marked-up work print: each mask outlined with its number and value in stops, and a card with the paper, exposure, grade, filtration, curve and dodge/burn list. Burns are hatched. Numbers are exposure, not brightness: +1.00 st is `Burn +1`, and values snap to ⅓, ½ and ¼ when close. A local **Grade** shows as `Burn +1 @ R95`, a tone limit as `Burn +1 on ≥VI`. Hidden outlines still show; disabled masks do not.
+**Printing Notes** (`Shift+N`) marks the masks on the picture with their numbers and values, as a printer's notes do.
 
 ---
 
 ## 6. Look tab
 
 <!-- panel:lab -->
-### 6.1 Lab: polish and detail
+### 6.1 Lab: color and detail
 
-What a lab scanner (Frontier or Noritsu) does automatically.
+The adjustments a lab scanner makes after the print.
 
-**Color** (hidden in B&W Negative):
-
-*   **Chroma** (0.0 to 2.0): even color scale after decode; 1.0 is unchanged, 0 grayscale. For print-like saturation use **Dye Separation**.
-*   **Skin Protection** (0.0 to 1.0, default 0.5): caps skin-hued chroma; 1.0 leaves skin matte, 0 is off. Red coats, sunsets and brick stay out; wood, tan leather and sand soften with it.
-*   **Chroma Denoise** (0.0 to 5.0): removes color speckle finer than this radius (px of the full-size scan) and keeps sharp color edges; luminance grain stays.
-
-**Detail:**
-
-*   **Sharpening** (0.0 to 1.0): amount, on lightness only, so no color halos.
-    *   **Method**: *Unsharp Mask* (edge contrast) or *Deconvolution* (Richardson-Lucy, reverses the scanner's blur).
-    *   **Radius** (0.5 to 3.0 px): blur width in full-size pixels; judge it at 100% zoom. For a resized export, add the Export panel's **Sharpening**.
-    *   **Masking** (0.0 to 1.0): limits sharpening to edges to protect sky, skin and grain.
-*   **CLAHE** (0.0 to 1.0): local contrast without blown highlights or crushed shadows. Near 1.0 it can look cartoonish.
-
-**Effects:**
-
-*   **Glow** (0.0 to 1.0): lens bloom across all channels.
-*   **Halation** (0.0 to 1.0): red glow from light that scatters back through the film base, highlights only.
+*   **Chroma**: color strength. 1 is unchanged, 0 is black and white.
+*   **Skin Protection**: keeps skin tones from getting too strong in color.
+*   **Chroma Denoise**: removes colored speckles. Film grain stays.
+*   **Sharpening**: sharpens detail without colored edges. Its fold holds **Method** (Unsharp Mask makes edges crisper; Deconvolution undoes the scanner's blur), **Radius** (the size of the detail, in pixels; judge it at 100% zoom) and **Masking** (sharpen only edges, so sky and skin stay smooth).
+*   **CLAHE**: local contrast, to bring out detail. Strong values can look unnatural.
+*   **Glow**: a soft glow around bright areas, like an old lens.
+*   **Halation**: a red glow around bright areas, as some films give.
 
 <!-- panel:altproc -->
 ### 6.2 Alternative Processes
 
-Pick **None / Lith / Cyanotype / Sabattier**; only that process's controls show. B&W Negative only, off by default.
+Historic print processes for B&W negatives. Pick **None**, **Lith**, **Cyanotype** or **Sabattier**, and only that process's controls show.
 
 #### Lith
 
-Heavily over-exposed lith paper in dilute developer, snatched part-way: creamy warm highlights and an abrupt drop into sooty blacks. The Exposure tab's print stock sets the color: *Digital*, the Ilford and the Kodak papers are almost colorless, Fomatone gives peach and olive. In Toning only Selenium and Gold stay (§6.3).
+Creamy, warm highlights and hard, deep blacks. The print stock on Paper Response sets the color. Only the Selenium and Gold toners work on a lith print.
 
-*   **Exposure** (0 to 5 stops, default 2): over-exposure; real lith uses two to four stops. More gives warmer, more colorful highlights and softer gradation.
-*   **Snatch Point** (0.0 to 1.0, default 0.55): time in the developer. Higher gives deeper, colder blacks; lower stays high-key and warm with weak blacks.
-*   **Abruptness** (0.0 to 1.0, default 0.6): how suddenly shadows go black. High blocks up the next zone down; low rolls off gently.
+*   **Exposure**: more gives warmer, more colorful highlights and softer tones.
+*   **Snatch Point**: when the print leaves the developer. Higher gives deeper, colder blacks.
+*   **Abruptness**: how suddenly the shadows turn black.
 
 #### Cyanotype
 
-UV contact print on iron-salt paper: Prussian blue instead of black, with green highlights. Its short density range clips a normal negative at both ends. Chemical toners gray out; use Bleach and Tannin. Split toning still works.
+A blue print with green highlights. Toners do not work on it; use Bleach and Tannin.
 
-*   **Sensitizer** (Classic or New, default Classic): *Classic (Herschel)* tops out at a light blue with a green highlight stain; *New (Ware)* goes deeper and cleaner.
-*   **Exposure** (-2 to 4 stops, default 0): UV time. More moves more of the scale into blue.
-*   **Exposure Scale** (0.8 to 2.8 log D, default 1.4): the printable density range and so the contrast; shorter is more contrasty. Traditional cyanotype is about 1.0 to 1.2, Ware's new about 2.4.
-*   **Bleach** (0.0 to 0.5, default 0): washing soda; removes blue, highlights first.
-*   **Tannin** (0.0 to 0.5, default 0): tea or tannic acid; turns bleached iron brown. Bleach first for full brown; Tannin alone for split blue-brown.
+*   **Sensitizer**: **Classic** gives a light blue with green highlights. **New** gives deeper, cleaner blues.
+*   **Exposure**: more makes the print bluer.
+*   **Exposure Scale**: contrast. A shorter scale gives more contrast.
+*   **Bleach**: removes blue, highlights first.
+*   **Tannin**: turns bleached areas brown. Use Bleach first for a full brown.
 
 #### Sabattier
 
-A white-light flash part-way through development: the light tones reverse and fold back toward gray, the dense ones hold, and a light Mackie line runs along every dark-light edge. Every toner works on it.
+A flash of light during development. The light tones reverse toward gray, and thin light lines (Mackie lines) appear along edges between dark and light.
 
-*   **Strength** (0 to 2, default 1.3): the second exposure's length. Below 1 the light tones flatten toward the fold; above 1 they reverse.
-*   **Re-exposure** (0.1 to 0.9, default 0.45): where the fold sits, as a fraction of the paper's Dmax. Tones denser than it hold.
-*   **Agitation** (0 to 1, default 0.7): rocking the tray after the flash. A still bath (0) draws wide Mackie lines; constant agitation (1) draws none.
+*   **Strength**: the length of the flash. Above 1 the light tones reverse.
+*   **Re-exposure**: where the reversal starts. Darker tones stay as they are.
+*   **Agitation**: less agitation gives wider Mackie lines.
 
 ---
 
 <!-- panel:toning -->
 ### 6.3 Toning
 
-Chemical toners (B&W Negative only) and a split tint (any mode). On a lith print only Selenium and Gold stay enabled, and they bite harder. With Cyanotype all six gray out.
+Toners are chemical baths that change the color of a B&W print. Split Toning adds color to any print.
 
-**Chemical Toning**: sequential baths in the order shown, each 0.0 to 2.0.
+**Chemical Toning** (B&W negatives) acts in the order shown:
 
-*   **Selenium**: deeper blacks, cool eggplant shadows. On lith: green-black shadows to magenta, with a strong Dmax lift.
-*   **Sepia**: warms highlights first, reaching further into the mids with strength; the deepest shadows stay black.
-*   **Gold**: blue-black on untoned silver; over sepia, orange-red highlights. On lith: all densities toward blue-violet.
-*   **Iron Blue**: Prussian-blue shadows to navy blacks.
-*   **Copper**: pink to brick-red, with the classic Dmax loss.
-*   **Vanadium**: greens mids and highlights; deep shadows stay black.
+*   **Selenium**: deeper, cooler blacks.
+*   **Sepia**: warm brown, from the highlights down.
+*   **Gold**: blue-black. Over sepia, it gives orange-red highlights.
+*   **Iron Blue**: blue shadows and navy blacks.
+*   **Copper**: pink to brick red. Blacks get weaker.
+*   **Vanadium**: green midtones and highlights. Blacks stay black.
 
-**Split Toning** (all modes): an additive Lab tint that keeps grain and detail.
+On a lith print only Selenium and Gold work. On a cyanotype no toner works.
 
-*   **Shadow Strength** (0.0 to 1.0), with **Shadow Hue** (0 to 360°) under it once the strength is above 0.
-*   **Highlight Strength** (0.0 to 1.0), with **Highlight Hue** (0 to 360°) under it once the strength is above 0.
+**Split Toning** (all prints): **Shadow Strength** and **Highlight Strength** add color to the shadows and the highlights. **Shadow Hue** and **Highlight Hue** pick the color, and show once the strength is above 0.
 
 ---
 
@@ -587,69 +556,26 @@ Chemical toners (B&W Negative only) and a split tint (any mode). On a lith print
 <!-- panel:retouch -->
 ### 7.1 Retouch: dust, hairs, scratches
 
-Spotting, as with a brush on a finished print. Marks are found by local contrast, by the scanner's IR channel or by hand, and the three stack. Each mark is rebuilt from the clean film around it, grain included.
+Removes dust, hairs and scratches. Each repair is rebuilt from the clean film around it.
 
-**Overlay** (Off / Marked / IR): shows detections. IR needs an IR plane.
-
-**Optical Removal** finds specks and hairs on the visible scan, without IR. Its settings show while it is on:
-
-*   **Spot Threshold** (0.01 to 1.0): the bar for specks, against the film's grain. Lower catches more, with more false positives; 1.0 turns speck detection off.
-*   **Hair Threshold** (0.01 to 1.0): the same for hairs and long thin marks. Lower it if a hair across busy detail is missed; 1.0 turns hair detection off.
-*   **Size** (2 to 8 px): max spot radius.
-*   To protect detail, right-drag on the canvas to paint an exclusion band, or right-click → **Exclude from Optical Removal** for one spot. Toggling **Optical Removal** clears every band.
-*   The cursor button beside **Optical Removal** makes a plain right-click exclude the spot; the canvas menu is then out of reach while removal is on.
-
-**IR Removal** uses the scanner's infrared channel, and shows only when the scan has one. Its settings show while it is on.
-
-*   **IR Threshold** (0.05 to 0.95): lower catches more.
-*   **Method**: how the film under a defect is rebuilt.
-    *   **NegPy** (default): divides semi-transparent dust back out and fills opaque cores from the clean film around them.
-    *   **OpenICE**: keeps picture detail under a speck and gives solid defects synthetic grain. Better on fine detail but less proven across scanners: compare both on a frame you know.
-*   IR is read from 4-channel TIFFs and DNGs (VueScan, NegPy's scans), SilverFast iSRD TIFFs, 64-bit **HDRi RAW DNGs** and `_IR.tif` sidecars. B&W and Kodachrome frames are skipped, as they block infrared like dust.
-
-**Manual Heal**. The brush marks a search area, not a stamp: only pixels that stand out from the film around them are rewritten, so paint generously.
-
-*   **Heal**: click dust spots to paint them out, or drag over a run of them.
-*   **Scratch**: click points along a scratch or hair, then double-click or press Enter. Esc cancels, Backspace removes the last point.
-*   **Line** (Transport Line): for long straight transport scratches. Click once on the scratch to trace and repair the whole line.
-*   **Line Sensitivity** (0.05 to 0.95, shown with the Line tool): lower catches fainter lines with a wider band; raise it if a line picks up film on either side. Applies to placed lines too.
-*   **Brush Size** (2 to 64 px, shown while a brush tool is armed or Optical Removal is on): diameter of the heal, scratch and exclusion brushes, for new strokes. `Alt`+scroll on the canvas or pinch sets it.
-*   **Undo Last** / **Clear All**: remove the last or all manual heals and traced lines; auto-detected dust stays.
-
-Right-click a stroke, scratch or line on the canvas to delete it.
-
-**Clone** copies film from another area over a defect the heal cannot rebuild.
-
-*   **Clone**: the first click picks the area to copy from; then click or paint over the defect. The source follows the brush at a fixed offset. Uses **Brush Size**.
-*   **Set Source**: the next click picks a new area to copy from (or `Alt`-click with the Clone tool).
-*   **Match Tone** (default on): keeps the source's grain but takes the destination's brightness and color.
-*   **Strength** (0 to 100%, default 100%, shown while Clone is armed, as is Feather): how much of the source covers the destination.
-*   **Feather** (0 to 100%, default 50%): the soft edge, as a share of the brush radius; 0 is hard.
-*   **Undo Last** / **Clear All** on the CLONE header remove the last or all strokes. Each stroke keeps the settings it was painted with.
+*   **Overlay**: **Marked** shows what dust removal found, **IR** the scan's infrared channel.
+*   **Optical Removal**: finds dust and hairs by itself. **Spot Threshold** and **Hair Threshold**: lower finds more but can remove real detail; 1 is off. **Size**: the largest dust to remove. To protect an area, right-drag over it or right-click a mark; the cursor button skips the right-click menu.
+*   **IR Removal** (scans with an infrared channel): finds dust in infrared, where the picture does not show. **IR Threshold**: lower finds more. **Method**: **OpenICE** keeps more fine detail than **NegPy** but is less tested. B&W and Kodachrome are skipped: their picture shows in infrared too. The channel comes from 4-channel TIFF and DNG scans or an `_IR.tif` file beside the scan.
+*   **Heal**: click or paint over dust. Only marks that stand out are repaired, so paint generously.
+*   **Scratch**: click points along a scratch or hair, then press Enter.
+*   **Line**: click once on a long straight scratch, and NegPy finds and repairs the whole line. **Line Sensitivity**: lower finds fainter lines.
+*   **Brush Size**: also `Alt`+scroll on the picture.
+*   **Clone**: copies film from another area over a defect Heal cannot fix. The first click (or `Alt`-click) picks the source; then paint. **Set Source** picks a new one. **Match Tone** takes the brightness and color around the defect. **Strength** sets how much it covers, **Feather** how soft its edge is.
+*   **Undo Last** and **Clear All** remove manual repairs; right-click one on the picture to delete it.
 
 <!-- panel:finish -->
 ### 7.2 Finishing: vignette, carrier, border
 
-How the print is presented, at the end of the pipeline. Each effect's shape controls show once its first slider is not 0.
+How the print is presented. The other sliders of each effect show once its first slider is not 0.
 
-**Vignette** (printer's edge burn):
-
-*   **Burn** (-2.0 to 2.0 stops): positive darkens the edges, negative lightens them. 0 is off.
-*   **Size** (0.0 to 1.0): falloff radius, from tight in the corners to spread into the frame.
-*   **Roundness** (0.0 to 1.0): 0 is radial (lens-like), 1 is a rectangular card burn along the print edges.
-
-**Filed Carrier**: the clear rebate of a filed-out carrier prints black, framed by unexposed paper, through the frame's own curve and filtration.
-
-*   **Width** (0.0 to 5.0 mm): black frame thickness. 0 is off.
-*   **Roughness** (0.0 to 1.0): how raggedly the outer edge was filed.
-*   **Flare** (0.0 to 1.0): light off the filed bevel fogs the paper just outside the edge. 0 is off.
-*   **Corners** (0.0 to 1.0): how far the filed corners round off.
-
-**Border:**
-
-*   **Width** (0.0 to 2.5): thickness as a fraction of the image. 0 is no border.
-*   **Bottom Weight** (1.0 to 2.0): thickens the bottom, for window-mat proportions.
-*   **Color** (*Paper White* or *Custom*): *Paper White* tints the mat with the toned paper white; *Custom* uses the swatch color.
+*   **Vignette**: **Burn** darkens (positive) or lightens (negative) the edges. **Size** sets how far it reaches. **Roundness** goes from round (0) to the shape of the print (1).
+*   **Filed Carrier**: **Width** draws a rough black frame around the picture, as a darkroom negative carrier that was filed wider does. **Roughness**, **Flare** (a gray glow outside the frame) and **Corners** shape it.
+*   **Border**: **Width** puts a mat around the print. **Bottom Weight** makes the bottom wider, as on a framing mat. **Color**: **Paper White** matches the paper, **Custom** uses a color you pick.
 
 ---
 
