@@ -43,7 +43,6 @@ class ThemeConfig:
     bg_indicator_hover: str = "#202020"
     bg_indicator_disabled: str = "#141414"
     slider_disabled: str = "#555555"
-    slider_fill_disabled: str = "#2A2A2A"
     text_on_accent: str = "#FFFFFF"
     text_primary: str = "#E4E4E4"
     text_secondary: str = "#B4B4B4"

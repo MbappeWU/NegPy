@@ -138,12 +138,16 @@ QToolButton:checked:hover {
     border: 1px solid @accent_secondary;
 }
 
+QSlider {
+    background: transparent;
+}
+
 QSlider::groove:horizontal {
     border: none;
-    height: 6px;
+    height: 4px;
     background: @border_primary;
-    margin: 2px 0;
-    border-radius: 3px;
+    margin: 0;
+    border-radius: 2px;
 }
 
 QSlider#neutral_slider::groove:horizontal,
@@ -154,29 +158,24 @@ QSlider#yellow_slider::groove:horizontal {
 }
 
 QSlider#cyan_slider::handle:horizontal { background: @filter_cyan; }
-QSlider#cyan_slider::sub-page:horizontal { background: @border_hover; }
-
 QSlider#magenta_slider::handle:horizontal { background: @filter_magenta; }
-QSlider#magenta_slider::sub-page:horizontal { background: @border_hover; }
-
 QSlider#yellow_slider::handle:horizontal { background: @filter_yellow; }
-QSlider#yellow_slider::sub-page:horizontal { background: @border_hover; }
 
 QSlider::handle:horizontal {
     background: @text_secondary;
     border: none;
     width: 12px;
     height: 12px;
-    margin: -3px 0;
+    margin: -4px 0;
     border-radius: 6px;
 }
 
 QSlider::handle:horizontal:hover { background: @text_primary; }
 QSlider::handle:horizontal:pressed { background: @accent_primary; }
 
+/* An even track: the handle and the value say where it is. */
 QSlider::sub-page:horizontal {
-    background: @border_hover;
-    border-radius: 3px;
+    background: transparent;
 }
 
 /* Disabled state — grey out locked/overridden controls. Relies entirely on
@@ -184,7 +183,6 @@ QSlider::sub-page:horizontal {
    widget.setEnabled(False); no per-callsite changes needed. */
 QSlider::handle:horizontal:disabled { background: @slider_disabled; }
 QSlider::groove:horizontal:disabled { background: @border_input; }
-QSlider::sub-page:horizontal:disabled { background: @slider_fill_disabled; }
 
 QSlider#cyan_slider::handle:horizontal:disabled,
 QSlider#magenta_slider::handle:horizontal:disabled,
@@ -393,7 +391,7 @@ QFrame#collapsible_content {
     background-color: @bg_card;
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
-    border: 1px solid @border_input;
+    border: 1px solid @border_primary;
     border-top: none;
 }
 

@@ -194,13 +194,11 @@ class ToggleMenuButton(_MenuButton):
 
 
 class SegmentedChoice(QWidget):
-    """One choice out of two to four, all in view: a recessed track with a raised chip on the
-    current one. Same choices and API as ChoiceButton; an icon_only segment shows its label as
+    """One choice out of two to four, all in view: a track whose current segment is filled. Same choices and API as ChoiceButton; an icon_only segment shows its label as
     a tooltip. The colored icon of a choice dims while another one is current."""
 
     currentChanged = pyqtSignal(int)
 
-    _PAD = 2
     _ICON = 14
     _DOT = 5
     _SLIDE_MS = 120
@@ -289,10 +287,10 @@ class SegmentedChoice(QWidget):
         return 2 * THEME.space_lg + icon + QFontMetrics(self._font(True)).horizontalAdvance(label)
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(sum(self._natural(i, True) for i in range(len(self._choices))) + 2 * self._PAD, default_button_height())
+        return QSize(sum(self._natural(i, True) for i in range(len(self._choices))), default_button_height())
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802
-        return QSize(sum(self._natural(i, False) for i in range(len(self._choices))) + 2 * self._PAD, default_button_height())
+        return QSize(sum(self._natural(i, False) for i in range(len(self._choices))), default_button_height())
 
     def _show_icons(self) -> bool:
         return self.width() >= self.sizeHint().width()
@@ -303,15 +301,15 @@ class SegmentedChoice(QWidget):
         icons = self._show_icons()
         natural = [self._natural(i, icons) for i in range(len(self._choices))]
         labeled = [i for i in range(len(self._choices)) if i not in self._icon_only]
-        room = self.width() - 2 * self._PAD - sum(natural[i] for i in self._icon_only)
+        room = self.width() - sum(natural[i] for i in self._icon_only)
         if labeled and max(natural[i] for i in labeled) * len(labeled) <= room:
             widths = [natural[i] if i in self._icon_only else room / len(labeled) for i in range(len(natural))]
         else:
             share = max(0.0, room - sum(natural[i] for i in labeled)) / max(1, len(labeled))
             widths = [natural[i] + (0 if i in self._icon_only else share) for i in range(len(natural))]
-        x, out = float(self._PAD), []
+        x, out = 0.0, []
         for w in widths:
-            out.append(QRectF(x, self._PAD, w, self.height() - 2 * self._PAD))
+            out.append(QRectF(x, 0, w, self.height()))
             x += w
         return out
 
@@ -383,14 +381,14 @@ class SegmentedChoice(QWidget):
         if live and 0 <= self._hover != self._index and self._enabled[self._hover]:
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(255, 255, 255, 12))
-            p.drawRoundedRect(segments[self._hover], THEME.radius_md, THEME.radius_md)
+            p.drawRoundedRect(segments[self._hover], THEME.radius_lg, THEME.radius_lg)
 
         chip = QRectF(segments[self._index])
         if self._slide.state() == QVariantAnimation.State.Running:
             chip.moveLeft(self._chip_x)
-        p.setPen(QPen(QColor(THEME.border_hover if live else THEME.border_primary), 1))
+        p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(THEME.bg_selected))
-        p.drawRoundedRect(chip.adjusted(0.5, 0.5, -0.5, -0.5), THEME.radius_md, THEME.radius_md)
+        p.drawRoundedRect(chip, THEME.radius_lg, THEME.radius_lg)
 
         p.setPen(QPen(QColor(THEME.border_primary), 1))
         inset = THEME.space_md + 1

@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QLayout,
     QSizePolicy,
     QSpacerItem,
+    QStyle,
     QVBoxLayout,
 )
 from PyQt6.QtGui import QPainter, QColor, QPen
@@ -88,11 +89,17 @@ class _NoScrollSlider(QSlider):
         super().paintEvent(event)
         if self._default_pos is None:
             return
-        p = QPainter(self)
         groove_y = self.height() // 2
         handle_w = 12
         usable = self.width() - handle_w
         x = handle_w // 2 + int(self._default_pos * usable)
+        handle_x = handle_w // 2 + QStyle.sliderPositionFromValue(
+            self.minimum(), self.maximum(), self.value(), usable, self.invertedAppearance()
+        )
+        # Over the handle the tick would read as a notch in it.
+        if abs(handle_x - x) <= handle_w // 2 + 1:
+            return
+        p = QPainter(self)
         pen = QPen(QColor(THEME.text_unit), 1)
         p.setPen(pen)
         p.drawLine(x, groove_y - 1, x, groove_y + 2)
