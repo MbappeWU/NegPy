@@ -513,33 +513,10 @@ QPushButton[primary="true"]:disabled, QToolButton[primary="true"]:disabled {
     color: @text_muted;
 }
 
-/* Right-panel tabs (see sidebar/right_panel.py). */
-QPushButton#right_tab_btn, QPushButton#sub_tab_btn {
-    background-color: transparent;
-    color: @text_secondary;
-    border: none;
+/* The right panel's main tab strip (see widgets/panel_tab.py). */
+OverflowBar#main_tabs {
+    background-color: @bg_header;
     border-bottom: 1px solid @border_primary;
-    border-radius: 0;
-    padding: 0px;
-}
-
-QPushButton#sub_tab_btn {
-    font-size: @font_size_smallpx;
-}
-
-QPushButton#right_tab_btn:hover, QPushButton#sub_tab_btn:hover {
-    color: @text_primary;
-}
-
-QPushButton#right_tab_btn:pressed, QPushButton#sub_tab_btn:pressed {
-    background-color: transparent;
-}
-
-QPushButton#right_tab_btn:checked, QPushButton#sub_tab_btn:checked {
-    background-color: transparent;
-    color: @text_primary;
-    border-bottom: 2px solid @accent_primary;
-    font-weight: 600;
 }
 
 /* Collapsible section header (see widgets/collapsible.py). [overlay="true"] =

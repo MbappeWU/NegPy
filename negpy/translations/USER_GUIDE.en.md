@@ -58,7 +58,7 @@ Drag the film strip's top edge to change its height, which sets the size of its 
 |-----|--------|---------------|
 | **Roll** | Scanning Setup · Film Mode · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics | The scanning rig, film type, capture color, crop shape, roll baselines, metering |
 
-**Frame** tabs follow the pipeline order:
+**Frame** tabs follow the pipeline order. Favorites (star) and History (clock) are the two icon tabs at the end:
 
 | Tab | Panels | What it is for |
 |-----|--------|---------------|

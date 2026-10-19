@@ -70,6 +70,21 @@ def test_pinned_button_is_never_spilled(qapp, tabs):
     assert 9 in visible and visible[-1] == 9
 
 
+def test_a_fixed_width_tile_keeps_its_width_and_the_rest_share_the_room(qapp):
+    bar = OverflowBar(tile=True, height=38, min_item=80)
+    for i in range(4):
+        bar.add_button(QPushButton(), f"Tab {i}")
+    for i in range(2):
+        icon = QPushButton()
+        icon.setFixedWidth(38)
+        bar.add_button(icon, f"Icon {i}")
+    bar.show()
+
+    assert len(_resize(qapp, bar, 4 * 100 + 2 * 38)) == 6
+    assert [b.width() for b in bar.buttons] == [100, 100, 100, 100, 38, 38]
+    assert _resize(qapp, bar, 4 * 80 + 2 * 38 - 1) == [0, 1, 2, 3, 4] and bar.overflow_btn.isVisible()
+
+
 def test_tiled_buttons_fill_the_strip_without_gaps(qapp, tabs):
     visible = _resize(qapp, tabs, 240)
     edges = [(tabs.buttons[i].geometry().x(), tabs.buttons[i].geometry().right() + 1) for i in visible]

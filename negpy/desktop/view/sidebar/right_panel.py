@@ -3,11 +3,9 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 from PyQt6.QtCore import QPoint, Qt, QTimer
-from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QPushButton,
     QScrollArea,
     QSplitter,
     QStackedWidget,
@@ -24,8 +22,7 @@ from negpy.desktop.view.sidebar.history import HistoryPanel
 from negpy.desktop.view.sidebar.library_tree import LibraryTree
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
 from negpy.desktop.view.styles.color_vision import palette_for
-from negpy.desktop.view.styles.fonts import ui_font_family
-from negpy.desktop.view.styles.templates import CLIPPING_SWEEP, EditedDot, gradient_icon, tool_toggle
+from negpy.desktop.view.styles.templates import CLIPPING_SWEEP, gradient_icon, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
@@ -39,6 +36,7 @@ from negpy.features.process.models import ProcessMode
 from negpy.services.assets.rolls import card_fields
 from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
+from negpy.desktop.view.widgets.panel_tab import PanelTab
 
 _SCAN_BASE_TIP = tr(
     "Base Relative: each channel's density above its clear film base (the Film Base set on the roll, "
@@ -73,6 +71,24 @@ _ROLL_SECTION_ATTRS = frozenset(
 )
 
 
+_TAB_ICONS = {
+    "library": "mdi6.bookshelf",
+    "roll": "mdi6.filmstrip",
+    "frame": "mdi6.image-outline",
+    "metadata": "mdi6.tag-outline",
+    "export": "mdi6.export-variant",
+    "scan": "mdi6.scanner",
+    "geometry": "mdi6.crop",
+    "tone": "mdi6.brightness-6",
+    "color": "mdi6.palette-outline",
+    "finish": "mdi6.auto-fix",
+    "favourites": "mdi6.star-outline",
+    "history": "mdi6.history",
+}
+
+# Frame tabs that show only their icon, after the workflow tabs.
+_ICON_TABS = ("favourites", "history")
+
 # A tab saved as an index, in this tab order.
 _INDEXED_GROUPS = ("roll", "frame", "metadata", "gear", "export", "scan")
 
@@ -90,14 +106,6 @@ def default_analysis_split(screen) -> list[int]:
     height = screen.availableGeometry().height() if screen is not None else 1080
     top = min(320, height * 3 // 10)
     return [top, max(600, height - top)]
-
-
-def _tab_width(labels: list[str], pixel_size: int) -> int:
-    """Widest label at the checked weight, so a tab spills into » before its text clips."""
-    font = QFont(ui_font_family())
-    font.setPixelSize(pixel_size)
-    font.setWeight(QFont.Weight.DemiBold)
-    return max(QFontMetrics(font).horizontalAdvance(label) for label in labels) + 2 * THEME.space_md
 
 
 class RightPanel(QWidget):
@@ -159,23 +167,23 @@ class RightPanel(QWidget):
 
         # Spills into a » menu when the panel is narrowed
         self.group_switcher = OverflowBar(
-            tile=True, height=38, min_item=_tab_width([spec[1] for spec in group_specs], THEME.font_size_base)
+            tile=True, height=58, min_item=PanelTab.min_width([spec[1] for spec in group_specs], stacked=True)
         )
+        # The » button sits on the strip, not on the panel.
+        self.group_switcher.setObjectName("main_tabs")
+        self.group_switcher.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.group_stack = QStackedWidget()
         self.group_stack.setContentsMargins(0, 0, 0, 0)
 
-        self._group_buttons: list[QPushButton] = []
+        self._group_buttons: list[PanelTab] = []
         self._group_keys: list[str] = []
         self._group_tooltips: list[str] = []
         self._active_group = 0
         self._scan_group_index = -1
 
         for i, (key, tooltip, content) in enumerate(group_specs):
-            btn = QPushButton(tooltip)
-            btn.setObjectName("right_tab_btn")
+            btn = PanelTab(_TAB_ICONS[key], tooltip, stacked=True)
             btn.setToolTip(tooltip)
-            btn.setCheckable(True)
-            btn.setFixedHeight(38)
             btn.clicked.connect(lambda _checked=False, idx=i: self._switch_group(idx))
             self.group_switcher.add_button(btn, tooltip)
 
@@ -356,12 +364,13 @@ class RightPanel(QWidget):
         ]
 
         # Spills into a » menu when the panel is narrowed
-        self.switcher = OverflowBar(tile=True, height=30, min_item=_tab_width([spec[1] for spec in tab_specs], THEME.font_size_small))
+        labels = [spec[1] for spec in tab_specs if spec[0] not in _ICON_TABS]
+        self.switcher = OverflowBar(tile=True, height=38, min_item=PanelTab.min_width(labels, stacked=False))
 
         self.stack = QStackedWidget()
         self.stack.setContentsMargins(0, 8, 0, 0)
 
-        self._tab_buttons: list[QPushButton] = []
+        self._tab_buttons: list[PanelTab] = []
         self._tab_keys: list[str] = []
         self._tab_tooltips: list[str] = []
         self._section_tab_index: dict[str, int] = {}
@@ -370,12 +379,8 @@ class RightPanel(QWidget):
         self._active_index = 0
 
         for i, (key, label, tooltip, content, section_attrs) in enumerate(tab_specs):
-            btn = QPushButton(label)
-            btn.setObjectName("sub_tab_btn")
+            btn = PanelTab(_TAB_ICONS[key], label, icon_only=key in _ICON_TABS, divider=key == _ICON_TABS[0])
             btn.setToolTip(tooltip)
-            btn.setCheckable(True)
-            btn.setFixedHeight(30)
-            btn.edited_dot = EditedDot(btn)
             btn.clicked.connect(lambda _checked=False, idx=i: self._switch_tab(idx))
             self.switcher.add_button(btn, tooltip)
 
@@ -777,7 +782,7 @@ class RightPanel(QWidget):
 
     def _refresh_tab_dots(self) -> None:
         for i, btn in enumerate(self._tab_buttons):
-            btn.edited_dot.set_active(self._tab_edited[i])
+            btn.set_marked(self._tab_edited[i])
 
     def _switch_tab(self, index: int) -> None:
         self._active_index = index

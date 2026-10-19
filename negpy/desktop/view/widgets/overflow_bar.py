@@ -17,7 +17,7 @@ class OverflowBar(QWidget):
     popup cannot host, leaving the » button with an empty menu.
 
     Two shapes, per `tile`:
-      tile=True  — equal-width tabs filling the bar (the right panel's tab strip)
+      tile=True  — equal-width tabs filling the bar (the right panel's tab strip); a fixed-width item keeps its width
       tile=False — natural widths packed left, separators allowed (the file browser toolbar)
     """
 
@@ -91,12 +91,20 @@ class OverflowBar(QWidget):
         """
         return min(max(widget.sizeHint().width(), widget.minimumWidth()), widget.maximumWidth())
 
+    @staticmethod
+    def _own_width(widget) -> int:
+        """A fixed-width item's width in a tiled bar; 0 for an item that shares the room."""
+        return widget.maximumWidth() if widget.maximumWidth() == widget.minimumWidth() else 0
+
+    def _tile_room(self, items) -> int:
+        return sum(self._own_width(self._items[i][0]) or self._min_item for i in items)
+
     def minimumSizeHint(self) -> QSize:
         return QSize(self._min_item + self.OVERFLOW_W, self._height)
 
     def sizeHint(self) -> QSize:
         if self._tile:
-            return QSize(max(1, len(self._items)) * self._min_item, self._height)
+            return QSize(self._tile_room(range(len(self._items))) or self._min_item, self._height)
         widths = [self._item_width(w) for i, (w, _label) in enumerate(self._items) if i not in self._suppressed]
         return QSize(sum(widths) + self._spacing * max(0, len(widths) - 1), self._height)
 
@@ -107,9 +115,11 @@ class OverflowBar(QWidget):
     def _visible_items(self, avail: int) -> list[int]:
         count = len(self._items)
         if self._tile:
-            if avail >= count * self._min_item:
+            if avail >= self._tile_room(range(count)):
                 return list(range(count))
-            fits = max(1, (avail - self.OVERFLOW_W) // self._min_item)
+            fits = 1
+            while fits < count and self._tile_room(range(fits + 1)) <= avail - self.OVERFLOW_W:
+                fits += 1
             if 0 <= self._pinned_item and self._pinned_item >= fits:
                 return list(range(fits - 1)) + [self._pinned_item]
             return list(range(fits))
@@ -150,11 +160,15 @@ class OverflowBar(QWidget):
         self._hidden = [i for i in range(len(self._items)) if i not in visible and i not in self._suppressed]
 
         if self._tile:
-            strip = avail - (self.OVERFLOW_W if self._hidden else 0)
-            share = max(1, len(visible))
+            own = [self._own_width(self._items[i][0]) for i in visible]
+            room = avail - (self.OVERFLOW_W if self._hidden else 0) - sum(own)
+            share = max(1, own.count(0))
             x = 0
-            for slot, i in enumerate(visible):
-                width = strip // share + (1 if slot < strip % share else 0)
+            slot = 0
+            for i, width in zip(visible, own):
+                if not width:
+                    width = room // share + (1 if slot < room % share else 0)
+                    slot += 1
                 self._items[i][0].setGeometry(x, 0, width, self._height)
                 x += width
         else:
