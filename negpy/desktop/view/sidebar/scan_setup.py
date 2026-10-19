@@ -1,5 +1,7 @@
 from negpy.kernel.system.i18n import tr
 
+from PyQt6.QtCore import pyqtSignal
+
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
@@ -33,7 +35,9 @@ def resolved_rig(repo, state) -> tuple[str, str]:
 class ScanSetupSidebar(BaseSidebar):
     """How the roll was scanned: it sets the RAW decode and the print stock, and decides which
     Roll-tab controls show. One setting for the app, as the rig is. Camera or Film Scanner is
-    read from the open frame until the user picks one."""
+    read from the open frame until the user picks one; a pick also picks the Scan tab's scanner."""
+
+    capture_picked = pyqtSignal(str)
 
     def _init_ui(self) -> None:
         self.capture_btn = SegmentedChoice(
@@ -56,6 +60,7 @@ class ScanSetupSidebar(BaseSidebar):
 
     def _connect_signals(self) -> None:
         self.capture_btn.currentChanged.connect(lambda _i: self._apply(self.capture_btn.currentData()))
+        self.capture_btn.currentChanged.connect(lambda _i: self.capture_picked.emit(self.capture_btn.currentData()))
         # A light change keeps a capture still read from the file.
         self.light_btn.currentChanged.connect(lambda _i: self._apply(self._saved()[0]))
 

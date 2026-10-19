@@ -519,6 +519,7 @@ class RightPanel(QWidget):
             page_layout.addWidget(footer)
 
         self.scan_source_btn.currentChanged.connect(self._on_scan_source_changed)
+        self.controls_panel.scan_setup_sidebar.capture_picked.connect(self._follow_scan_setup)
         scan.cards_changed.connect(self._sync_scan_cards)
         cam.cards_changed.connect(self._sync_scan_cards)
         self._sync_scan_cards()
@@ -529,6 +530,9 @@ class RightPanel(QWidget):
 
     def _active_scan_sidebar(self):
         return self.scan_sidebar if self._scan_film() else self.scanlight_sidebar
+
+    def _follow_scan_setup(self, capture: str) -> None:
+        self.show_scan_source("camera" if capture == "camera" else "film")
 
     def show_scan_source(self, source: str) -> None:
         """Switch the Scan tab to "film" or "camera"."""
