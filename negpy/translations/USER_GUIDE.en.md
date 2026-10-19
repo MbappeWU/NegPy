@@ -361,13 +361,13 @@ The result is a preview until **Place zones** (or **Enter**) commits it as one e
 
 Pins are proofs, not edits: any other edit or a frame change removes them. Zone placement is off on an as-captured slide or a Positive frame.
 
+#### Probe at Cursor
+
+**Probe at Cursor** (**Overlays**, or `Shift+I`) is a spot densitometer in a chip beside the pointer: the print density, its zone and ΔD per channel. ΔD is density above the thin end of the normalization window. On a negative that end is the detected thin bound plus the Black Point offset, or the roll's bound under Roll Analysis; the rebate reads below zero. On a slide it is decoder white plus the White Point offset.
+
 #### Readouts
 
-The **Readouts** fold under the zone strip holds the Probe and the negative stats; click its chevron or its name. It starts closed and keeps the state you leave it in. While it is closed, an amber dot marks a stat that warns.
-
-#### Probe
-
-A spot densitometer. Hover the image to read the print density, its zone and ΔD per channel. ΔD is density above the thin end of the normalization window. On a negative that end is the detected thin bound plus the Black Point offset, or the roll's bound under Roll Analysis; the rebate reads below zero. On a slide it is decoder white plus the White Point offset. **Probe at Cursor** (**Overlays**, or `Shift+I`) shows the same reading in a chip beside the pointer.
+The **Readouts** fold under the zone strip holds the negative stats; click its chevron or its name. It starts closed and keeps the state you leave it in. While it is closed, an amber dot marks a stat that warns.
 
 #### Negative stats
 

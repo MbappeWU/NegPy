@@ -34,7 +34,7 @@ from negpy.desktop.view.widgets.tab_header import TabHeader
 from negpy.desktop.settings_catalog import rows_for_fields
 from negpy.features.process.models import ProcessMode
 from negpy.services.assets.rolls import card_fields
-from negpy.desktop.view.widgets.stats import DensitometerRow, NegativeStatsWidget, ZonePlacementRows
+from negpy.desktop.view.widgets.stats import NegativeStatsWidget, ZonePlacementRows
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
 from negpy.desktop.view.widgets.panel_tab import PanelTab
 
@@ -247,7 +247,6 @@ class RightPanel(QWidget):
         self.vectorscope_widget = VectorscopeWidget()
         self.step_wedge = StepWedgeWidget()
         self.zone_strip = ZoneStripWidget()
-        self.probe_row = DensitometerRow()
         self.zone_placement = ZonePlacementRows()
         self.stats_widget = NegativeStatsWidget()
         self._clip_fracs: tuple = (None, None)
@@ -325,7 +324,7 @@ class RightPanel(QWidget):
         analysis_layout.addWidget(self.step_wedge, 0)
         analysis_layout.addWidget(self.zone_strip, 0)
         analysis_layout.addWidget(self.zone_placement, 0)
-        readouts_header, self.readouts_fold = group_fold("analysis_readouts", tr("Readouts"), self.probe_row, self.stats_widget)
+        readouts_header, self.readouts_fold = group_fold("analysis_readouts", tr("Readouts"), self.stats_widget)
         self.stats_widget.warning_changed.connect(self.readouts_fold.set_warning)
         analysis_layout.addLayout(readouts_header)
         analysis_layout.addWidget(self.readouts_fold, 0)
@@ -906,7 +905,6 @@ class RightPanel(QWidget):
             parent = parent.parent()
 
     def _on_densitometer(self, reading: Any) -> None:
-        self.probe_row.set_reading(reading)
         self.curve_widget.set_tracking_point(None if reading is None else reading.val_luma)
         if self.controller.state.negative_peek:
             from negpy.features.exposure.analysis import scan_density_axis, scan_density_of_val

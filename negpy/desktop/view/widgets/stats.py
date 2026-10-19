@@ -54,9 +54,6 @@ _TOOLTIPS = {
 }
 
 
-_PROBE_EMPTY = "—"
-_PROBE_SAMPLE = "ΔD -0.00·0.00·0.00 · D 0.00 · VIII⅔"
-
 # One per zone-placement pin, in pin order. The canvas overlay draws its rings in these
 # same colors, so the sidebar row and the pin on the photo match by eye.
 PIN_COLORS = (THEME.accent_primary, THEME.text_on_accent, THEME.channel_blue)
@@ -70,42 +67,6 @@ def _lock_height(label: QLabel, sample: str) -> None:
     label.ensurePolished()
     label.setFixedHeight(label.sizeHint().height())
     label.setText(text)
-
-
-class DensitometerRow(QWidget):
-    """Hover spot-densitometer read-out shown between the H&D curve and the stats."""
-
-    _TOOLTIP = tr(
-        "Spot densitometer — hover the image to read the pixel: ΔD per channel, the displayed tone's reflection "
-        "print density, and its print zone (0 = paper black, V = 18% mid-gray, X = paper white). ΔD is density "
-        "above the thin end of the normalization window. On a negative that end is the detected thin bound plus "
-        "the Black Point offset, or the roll's bound under Roll Analysis; the rebate reads below zero. On a slide "
-        "it is decoder white plus the White Point offset. "
-        "In B&W Negative mode the ΔD channels read the pre-conversion color record."
-    )
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        grid = QGridLayout(self)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(THEME.space_lg)
-        grid.setColumnStretch(1, 1)
-        name = QLabel(tr("Probe"))
-        name.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
-        self._value = QLabel(_PROBE_EMPTY)
-        self._value.setStyleSheet(f"color: {THEME.text_primary}; font-size: {THEME.font_size_small}px;")
-        self._value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        grid.addWidget(name, 0, 0)
-        grid.addWidget(self._value, 0, 1)
-        _lock_height(name, "Probe")
-        _lock_height(self._value, _PROBE_SAMPLE)
-        name.setToolTip(self._TOOLTIP)
-        self._value.setToolTip(self._TOOLTIP)
-
-    def set_reading(self, reading) -> None:
-        from negpy.features.exposure.densitometer import format_reading
-
-        self._value.setText(_PROBE_EMPTY if reading is None else format_reading(reading))
 
 
 class ZonePlacementRows(QWidget):
