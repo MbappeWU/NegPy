@@ -1201,7 +1201,7 @@ class MetadataSidebar(BaseSidebar):
         mono = f"font-family: {mono_font_family()}; font-size: {THEME.font_size_small}px;"
 
         for title, rows in sections:
-            header = QLabel(title)
+            header = QLabel(tr(title))
             header.setStyleSheet(
                 f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px; font-weight: {THEME.weight_semibold};"
             )
@@ -1211,7 +1211,7 @@ class MetadataSidebar(BaseSidebar):
                 row_layout = QHBoxLayout(row)
                 row_layout.setContentsMargins(0, 0, 0, 0)
                 row_layout.setSpacing(6)
-                lbl = QLabel(label)
+                lbl = QLabel(tr(label))
                 lbl.setStyleSheet(f"color: {THEME.text_hint}; {mono}")
                 lbl.setFixedWidth(110)
                 val = QLabel(value)

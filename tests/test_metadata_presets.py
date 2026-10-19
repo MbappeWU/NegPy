@@ -404,7 +404,7 @@ class TestDevelopmentTime:
         assert payload.development_temperature == "20 °C"
         rows = dict(next(rows for title, rows in payload.to_preview_sections() if title == "Process"))
         assert rows["Development time"] == "9:30"
-        assert rows["Temperature"] == "20 °C"
+        assert rows["Development temperature"] == "20 °C"
         assert rows["Dilution"] == "1+1"
 
     def test_dilution_joins_the_developer_in_the_image_description(self):
