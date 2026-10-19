@@ -13,44 +13,15 @@ CLIPPING_TOOLTIP = tr("Share of the picture that prints pure black (shadows) or 
 
 _TOOLTIPS = {
     "Negative": (
-        tr(
-            "The negative itself: its development character vs a nominal frame (lo = flat, ≈N−1; nrm = normal; "
-            "hi = contrasty, ≈N+1), then Dmin · Dmed · Dmax above the clear base and Δ, the density range "
-            "of the normalization window (luminance). Relative scale, comparable across a roll; a heuristic "
-            "from this scan's normalized bounds, not a calibrated densitometer reading."
-        )
+        tr("How contrasty the negative is (lo, nrm, hi), and its thinnest, middle and densest density above the film base. An estimate.")
     ),
-    "Exposure": (
-        tr(
-            "Where the frame's midtone sits, in stops from neutral: positive = brighter (high-key), "
-            "negative = darker (low-key). Approximate — read off the metered midtone, not a precise meter."
-        )
-    ),
+    "Exposure": (tr("Where the midtones sit, in stops: positive is bright (high-key), negative is dark (low-key).")),
     mark("Clipping"): CLIPPING_TOOLTIP,
     mark("Scan clip"): (
-        tr(
-            "Share of source-scan pixels at/above sensor white, per channel. In a negative scan the film base and "
-            "scene shadows sit near sensor white — clipping there destroys base/shadow separation. Fix at capture: "
-            "expose the scan lower. Turns amber above 1%."
-        )
+        tr("Share of the scan at the scanner's maximum. Expose the scan lower; no edit can bring it back. Amber above 1%.")
     ),
-    mark("Gamut"): (
-        tr(
-            "Share of the frame the soft-proofed output profile cannot print. The Clipping row says a "
-            "tone ran off the end of the paper; this says a color is outside what the profile can make, "
-            "so it will be pulled to the nearest one it can. Blank unless soft proofing to an "
-            "output profile. Quantized to a 32-step color grid, so it answers how much of the frame, not "
-            "which pixel. Turns amber above 2%."
-        )
-    ),
-    mark("Repair"): (
-        tr(
-            "Share of the scan each repair route rewrote: IR Restore, detected dust, and painted heals "
-            "(strokes, scratches and routed hairs). Measured over the whole scan, border included. "
-            "Reads none until a route fires; turns amber above 5%, where a route is repairing the "
-            "picture rather than the dust on it."
-        )
-    ),
+    mark("Gamut"): (tr("Share of the picture the proof printer or paper cannot print. Shown only while soft proofing. Amber above 2%.")),
+    mark("Repair"): (tr("Share of the scan that dust removal rewrote. Above 5% it may be changing the picture itself.")),
 }
 
 
@@ -79,12 +50,7 @@ class ZonePlacementRows(QWidget):
     apply_clicked = pyqtSignal()
     remove_clicked = pyqtSignal(int)
 
-    _TOOLTIP = tr(
-        "Zone placement — pick a zone on the strip above, then click the photo: that spot is asked "
-        "to print there. The steppers trim a pin by thirds, and Place zones solves Print Density "
-        "(one pin), Print Density + Grade (two pins), or those plus one knee control for the middle "
-        "tone (three pins) so the pinned tones land. Applying turns the matching autos off for this frame."
-    )
+    _TOOLTIP = tr("Zone placement: pick a zone on the strip, then click the picture, and that spot prints in that zone.")
 
     def __init__(self, parent=None):
         super().__init__(parent)

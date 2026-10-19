@@ -161,7 +161,7 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
         "fa5s.film",
         tr("Negative"),
         "toggle_negative_peek",
-        tr("The source as it was loaded, un-inverted and unedited, at your crop and rotation (no color management)"),
+        tr("The scan as loaded, before inversion and edits."),
     ),
     (
         "flat_peek",
@@ -175,16 +175,14 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
         "fa5s.camera",
         tr("Embedded"),
         "toggle_embedded_peek",
-        tr("Embedded preview: the camera's own JPEG of this capture, as a reference for what the scan looks like"),
+        tr("The camera's own JPEG of this shot, for comparison."),
     ),
     (
         "flatfield_peek",
         "fa5s.lightbulb",
         tr("Flat Field"),
         "toggle_flatfield_peek",
-        tr(
-            "Flat Field check: how well the Flat Field profile corrects its own reference. Choose a profile in the Flat Field card to use it."
-        ),
+        tr("Flat Field check: how evenly the Flat Field profile corrects the light. Pick a profile in Optics first."),
     ),
 )
 
@@ -399,9 +397,7 @@ class ActionToolbar(QWidget):
         self.position_label.setToolTip(tr("This frame's place in the Film Strip's order and filter"))
 
         # 3. Zoom: the readout opens the presets, since users zoom directly on the canvas.
-        self.btn_zoom = MenuButton(
-            tr("Zoom — the true pixel zoom, 100% being one scan pixel per screen pixel. Pick a preset or HQ Preview.")
-        )
+        self.btn_zoom = MenuButton(tr("Zoom. 100% shows one scan pixel per screen pixel."))
         zoom_menu = self.btn_zoom.choice_menu
         self._zoom_fit_action = zoom_menu.addAction(tr("Fit to Window"))
         self._zoom_fit_action.triggered.connect(self._on_fit_clicked)
@@ -412,7 +408,7 @@ class ActionToolbar(QWidget):
             action.triggered.connect(lambda _checked=False, p=percent: self._on_zoom_preset(p))
             if percent == 100:
                 self._label(action, "100%", "zoom_100")
-                action.setToolTip(tr("Below HQ the preview is scaled up to it, so the framing is right and the detail is not."))
+                action.setToolTip(tr("Below HQ the preview is enlarged: the framing is right, but fine detail is not."))
         zoom_menu.addSeparator()
         self._zoom_hq_action = zoom_menu.addAction(tr("HQ Preview"))
         self._zoom_hq_action.setCheckable(True)
@@ -427,7 +423,7 @@ class ActionToolbar(QWidget):
         # Every source here takes the whole canvas, and the controller keeps them exclusive.
         self.source_choice = ChoiceButton(
             tuple((icon, label) for _flag, icon, label, _key, _tip in _VIEW_SOURCES),
-            tr("What the canvas shows: the print, a before/after split, or a peek that leaves your edit alone"),
+            tr("What the canvas shows: the print, a before/after split, or a peek."),
         )
         for i, (_flag, icon, label, key, tip) in enumerate(_VIEW_SOURCES):
             self.source_choice.choice_action(i).setIcon(_checkable_menu_icon(icon))
@@ -469,9 +465,7 @@ class ActionToolbar(QWidget):
                 "fa5s.search-plus",
                 "Grain Focuser",
                 "toggle_grain_focuser",
-                tr(
-                    "A loupe at the cursor showing the frame's own pixels, with an acutance figure for comparing sharpness across the frame (reads true on HQ)"
-                ),
+                tr("Grain loupe: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
                 self.controller.toggle_grain_focuser,
             ),
             (
@@ -479,7 +473,7 @@ class ActionToolbar(QWidget):
                 "fa5s.crosshairs",
                 "Probe at Cursor",
                 "toggle_cursor_probe",
-                tr("Zone, print density and ΔD of the pixel under the pointer, in a chip beside it"),
+                tr("Shows the zone and density under the pointer."),
                 self.controller.toggle_cursor_probe,
             ),
         ):
@@ -552,7 +546,7 @@ class ActionToolbar(QWidget):
         )
         self.btn_reset_to_roll = self._action_button(
             roll_revert_icon(icon_color),
-            tr("Reset to Roll Settings — return every card that differs from the roll to the roll's settings"),
+            tr("Reset to Roll Settings: put the roll's settings back on every card that differs."),
             "reset_to_roll",
             self.controller.revert_frame_to_roll,
         )
@@ -614,10 +608,7 @@ class ActionToolbar(QWidget):
         self._ov_original_action.setCheckable(True)
         self._menu_tip(
             self._ov_original_action,
-            tr(
-                "Original size (100%) — one scan pixel per screen pixel. Below HQ the preview is scaled up to it, "
-                "so the framing is right and the detail is not."
-            ),
+            tr("Original size (100%): one scan pixel per screen pixel. Below HQ, fine detail is not exact."),
             "zoom_100",
         )
         reference_action = overflow_menu.addAction(tr("Reference View"), self._toggle_reference)
@@ -638,16 +629,14 @@ class ActionToolbar(QWidget):
         self._ov_negative_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_negative_peek_action,
-            tr(
-                "Peek negative — show the source as it was loaded, un-inverted and unedited, at your crop and rotation (no color management)"
-            ),
+            tr("Peek Negative: the scan as loaded, before inversion and edits."),
             "toggle_negative_peek",
         )
         self._ov_embedded_peek_action = overflow_menu.addAction(tr("Peek Embedded Preview"))
         self._ov_embedded_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_embedded_peek_action,
-            tr("Peek embedded preview — the camera's own JPEG of this capture, as a reference for what the scan looks like"),
+            tr("Peek Embedded Preview: the camera's own JPEG of this shot, for comparison."),
             "toggle_embedded_peek",
         )
         self._ov_zones_action = overflow_menu.addAction(tr("Zone Overlay"))
@@ -657,10 +646,7 @@ class ActionToolbar(QWidget):
         self._ov_loupe_action.setCheckable(True)
         self._menu_tip(
             self._ov_loupe_action,
-            tr(
-                "Grain focuser — a loupe at the cursor showing the frame's own pixels, with an "
-                "acutance figure for comparing sharpness across the frame (reads true on HQ)"
-            ),
+            tr("Grain focuser: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
             "toggle_grain_focuser",
         )
         self._ov_clipping_action = overflow_menu.addAction(tr("Clipping Overlay"))
@@ -901,7 +887,7 @@ class ActionToolbar(QWidget):
         layout.setSpacing(6)
         self.paper_layout = SegmentedChoice(
             (("mdi.view-column-outline", tr("Strip")), ("mdi.view-grid-outline", tr("Grid"))),
-            tr("Strip cuts one frame into a band per paper, like a darkroom test strip; Grid shows every paper on the whole frame, small"),
+            tr("Strip shows a band of the frame per paper; Grid shows every paper on the whole frame, small."),
             data=("bands", "grid"),
         )
         self.paper_layout.currentChanged.connect(lambda _i: self.controller.set_paper_strip_layout(self.paper_layout.currentData()))
@@ -974,7 +960,7 @@ class ActionToolbar(QWidget):
         layout.setSpacing(6)
         self.zone_style = SegmentedChoice(
             tuple(zip(("fa5s.palette", "mdi6.gradient-horizontal", "mdi.grid"), ZONE_STYLES.values())),
-            tr("Zone Overlay look: a color per zone over the photo, the print in eleven gray steps, or a grid of zone numerals"),
+            tr("Zone Overlay look: a color per zone, eleven gray steps, or zone numbers on a grid."),
             data=tuple(ZONE_STYLES),
         )
         self.zone_style.currentChanged.connect(lambda _i: self.controller.set_zones_style(self.zone_style.currentData()))

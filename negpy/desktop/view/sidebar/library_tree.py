@@ -233,9 +233,7 @@ class LibraryTree(QWidget):
         more_menu = QMenu(self.more_btn)
         more_menu.setToolTipsVisible(True)
         self.refresh_action = more_menu.addAction(tr("Refresh"))
-        self.refresh_action.setToolTip(
-            tr("Find new rolls in folders imported as subfolders, and re-read every roll's frame count from disk")
-        )
+        self.refresh_action.setToolTip(tr("Find new rolls in imported folders, and recount the frames of each roll."))
         self.refresh_action.triggered.connect(self.refresh)
         self.filters_action = more_menu.addAction(tr("Discovery Filters…"))
         self.filters_action.setToolTip(tr("Discovery Filters — folder names that importing subfolders and Refresh skip"))
@@ -244,7 +242,7 @@ class LibraryTree(QWidget):
         # under library_roots once, so search by meaning can rank the whole library,
         # not just the open roll -- an explicit action, never automatic.
         self.index_action = more_menu.addAction(tr("Index Library"))
-        self.index_action.setToolTip(tr("Index the library so search by meaning can rank every roll, not just the loaded one"))
+        self.index_action.setToolTip(tr("Index the library, so search by meaning covers every roll."))
         self.index_action.triggered.connect(self.controller.index_library)
         self.index_action.setVisible(False)
         self.more_btn.setMenu(more_menu)
@@ -658,10 +656,7 @@ class LibraryTree(QWidget):
                 QMessageBox.warning(
                     self,
                     tr("Rename Roll"),
-                    tr(
-                        "Could not rename the folder on disk — check that no other folder already has that name, "
-                        "and that you have permission to rename it here."
-                    ),
+                    tr("Could not rename the folder on disk. Check that no other folder has that name and that you may rename it."),
                 )
                 return
         rolls.rename_roll(self.repo, roll_id, f"{prefix}{rolls.ROLL_PATH_SEP}{name}" if prefix else name)

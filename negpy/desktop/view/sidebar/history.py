@@ -31,11 +31,7 @@ _TAG_ROLE = Qt.ItemDataRole.UserRole + 3
 
 _ROW_HEIGHT = 30
 
-_WORK_PRINT_TOOLTIP = tr(
-    "Named versions of this frame — the printer's work prints. Unlike the edit history they "
-    "are never pruned and never dropped by a later edit. Click one to make it live (undoable); "
-    "right-click to export, rename or delete it."
-)
+_WORK_PRINT_TOOLTIP = tr("Named versions of this frame. Click one to use it; right-click to export, rename or delete it.")
 
 
 class _RowDelegate(QStyledItemDelegate):
@@ -104,9 +100,7 @@ class HistoryPanel(BaseSidebar):
 
         self.work_prints = RowList(_RowDelegate, _ROW_HEIGHT)
         self.work_prints.setToolTip(_WORK_PRINT_TOOLTIP)
-        self.work_prints_hint = hint_label(
-            tr("Keep this edit as a named version. Work prints are never pruned, and a click brings one back.")
-        )
+        self.work_prints_hint = hint_label(tr("Keep this edit as a named version."))
         self.save_btn = labeled_action(
             "mdi6.bookmark-plus-outline",
             tr("Save Work Print…"),
@@ -117,7 +111,7 @@ class HistoryPanel(BaseSidebar):
             "",
             tr("Load Metadata"),
             self.controller.session.work_print_apply_metadata(),
-            tr("When a work print loads, restore its saved metadata. Off (the default) keeps the metadata on screen now."),
+            tr("Also restore the metadata saved with a work print when it loads."),
         )
         foot = QHBoxLayout()
         foot.setContentsMargins(0, 0, 0, 0)
@@ -258,6 +252,6 @@ class HistoryPanel(BaseSidebar):
                 self,
                 tr("Work Print"),
                 name,
-                informative=tr("Work prints are never pruned by later edits — this is the only way one goes away."),
+                informative=tr("Later edits never delete a work print; this is the only way to delete one."),
             ):
                 self.controller.session.delete_work_print(name)

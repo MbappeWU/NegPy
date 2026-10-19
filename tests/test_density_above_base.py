@@ -186,7 +186,7 @@ def test_the_hover_shows_the_detail_under_the_fixed_text(qapp):
     widget.update_stats([StatRow("Negative", "1.26 · normal", detail="Above the clear base: Dmax 1.42 · Dmed 0.71 · Dmin 0.22.")])
 
     tip = widget._values[0].toolTip()
-    assert tip.index("development character") < tip.index("Dmax 1.42")
+    assert tip.index("How contrasty the negative is") < tip.index("Dmax 1.42")
 
 
 def test_both_engines_record_the_same_densities():

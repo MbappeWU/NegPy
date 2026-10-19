@@ -1185,12 +1185,7 @@ class FileBrowser(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(tr("Filter — name, film:portra, iso:>=400…"))
         self.search_input.setToolTip(
-            tr(
-                "Filter the sheet. A bare word matches the filename; terms are combined with AND.\n"
-                "Fields: film, camera, lens, developer, format, scanning, roll, frame, iso, push,\n"
-                "shot, place, scene, name, path, ext, date, keeper, rejected, edited.\n"
-                'Examples:  film:portra iso:>=400   ·   camera:"Nikon F3" -rejected:   ·   shot:>=1998-07   ·   place:tokyo'
-            )
+            tr("Filter the frames. A word matches the file name; terms such as film:portra iso:>=400 -rejected: match frame data.")
         )
         self.search_input.setClearButtonEnabled(True)
         self.search_input.addAction(
@@ -1205,9 +1200,7 @@ class FileBrowser(QWidget):
         # against every library folder and opens what it finds.
         self.library_search_action = QAction(qta.icon("mdi.folder-search-outline", color=THEME.text_hint), "", self)
         self.search_input.addAction(self.library_search_action, QLineEdit.ActionPosition.TrailingPosition)
-        self.library_search_action.setToolTip(
-            tr("Search the whole library — runs this search across your library folders and loads the matches")
-        )
+        self.library_search_action.setToolTip(tr("Search the whole library and load the matches."))
         self.regex_action = self._box_toggle("mdi6.regex", tr("Regex mode"))
         # Opt-in (Preferences); hidden until then. Mutually exclusive with regex/the
         # structured query language -- ranks this session's frames by meaning instead.
@@ -1272,7 +1265,7 @@ class FileBrowser(QWidget):
         self.save_roll_btn = QToolButton()
         self.save_roll_btn.setIcon(qta.icon("fa5s.save", color=THEME.text_primary))
         self.save_roll_btn.setText(tr("Save as Roll…"))
-        self.save_roll_btn.setToolTip(wrap_tooltip(tr("Save these frames as a roll — a named, reopenable group, not tied to a folder")))
+        self.save_roll_btn.setToolTip(wrap_tooltip(tr("Save these frames as a roll you can open again.")))
         self.save_roll_btn.clicked.connect(self._on_save_roll_clicked)
 
         self.hot_folder_action = QAction(tr("Hot Folder"), self)
@@ -1310,7 +1303,7 @@ class FileBrowser(QWidget):
         self.save_roll_action.triggered.connect(self._on_save_roll_clicked)
         self.roll_settings_action = roll_menu.addAction(label_with_shortcut(tr("Roll Settings…"), "roll_settings"))
         self.roll_settings_action.setToolTip(
-            tr("Roll Settings — tag gear, capture and process metadata across the current frame, a selection or the whole roll")
+            tr("Roll Settings: tag gear, film and process details on this frame, the selection or the whole roll.")
         )
         self.roll_settings_action.triggered.connect(self._open_roll_settings_dialog)
         self.update_thumbnails_action = roll_menu.addAction("")
@@ -1745,11 +1738,7 @@ class FileBrowser(QWidget):
         self.roll_name_label.setText(roll_name or tr("No roll"))
         self.tally_label.setText(text)
         self.roll_title.setToolTip(
-            ""
-            if roll_name
-            else wrap_tooltip(
-                tr("These frames are not one roll. An edit changes the photo itself, so it also shows in the roll the frame came from.")
-            )
+            "" if roll_name else wrap_tooltip(tr("These frames are not one roll. An edit here also shows in the roll the frame came from."))
         )
         self.roll_title.setVisible(True)
         self._title_separator.setVisible(True)

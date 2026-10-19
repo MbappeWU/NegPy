@@ -38,11 +38,7 @@ from negpy.desktop.view.widgets.stats import NegativeStatsWidget, ZonePlacementR
 from negpy.desktop.view.widgets.overflow_bar import OverflowBar
 from negpy.desktop.view.widgets.panel_tab import PanelTab
 
-_SCAN_BASE_TIP = tr(
-    "Base Relative: each channel's density above its clear film base (the Film Base set on the roll, "
-    "else the base read from the rebate, else the stretch's thin end), so the mask's offset is gone "
-    "and the channels compare at one height"
-)
+_SCAN_BASE_TIP = tr("Base Relative: line up each channel at its film base, so the channels compare at one height.")
 
 # The Roll tab's cards that own settings, for its header's Apply picker.
 _ROLL_TAB_CARDS = (
@@ -257,11 +253,7 @@ class RightPanel(QWidget):
         repo = self.controller.session.repo
         self.scale_btn = SegmentedChoice(
             (("", tr("Lin")), ("", tr("Log"))),
-            tr(
-                "Histogram, waveform and parade count scale: Log lifts small counts so thin tails and clipped ends "
-                "read. The scan parade in Peek Negative keeps its own, Log at first. On the Vectorscope it is the "
-                "chroma scale, kept apart for B&W and color frames: Log opens up the near-neutral center, where a toner lives."
-            ),
+            tr("Log shows small areas, such as clipped ends; Lin shows the bulk of the frame."),
         )
         self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
         self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
@@ -285,10 +277,7 @@ class RightPanel(QWidget):
         self.view_btn.set_choice_tooltip(1, tr("The print's tones across the frame, column by column, on the zone scale"))
         self.view_btn.set_choice_tooltip(
             2,
-            tr(
-                "The print's R, G and B side by side across the frame: a neutral sits at one height in all three, and a "
-                "channel that drifts across the frame is uneven light or Flat Field. In Peek Negative, the scan's density per channel"
-            ),
+            tr("Red, green and blue side by side. A gray subject sits at one height in all three; a drifting channel means uneven light."),
         )
         self.view_btn.set_choice_tooltip(3, tr("The print's colors on the a*b* plane: a cast, a toner, a split tone"))
         # Restored before the handler connects: it reaches widgets built further down.
@@ -672,7 +661,7 @@ class RightPanel(QWidget):
         if not standard:
             tip = tr("{tip}. Off under this Color vision: its fringes tell the channels apart by hue alone", tip=tip)
         elif apart:
-            tip = tr("{tip}. On the scan, turn on Base Relative first: the film's mask keeps the channels apart", tip=tip)
+            tip = tr("{tip}. On the scan, turn on Base Relative first.", tip=tip)
         self.parade_overlay_btn.setToolTip(tooltip_with_shortcut(tip, "toggle_parade_overlay"))
         self.parade_widget.set_overlay(standard and self.parade_overlay_btn.isChecked())
 
@@ -735,7 +724,7 @@ class RightPanel(QWidget):
         self.zone_strip.set_overlay_hint(tooltip_with_shortcut(tr("Double-click: Zone Overlay on or off"), "toggle_zones"))
         self.clipping_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Clipping Overlay: mark the pixels that print as paper black or paper white, in the Color vision pair (Preferences)"),
+                tr("Clipping Overlay: mark the parts of the picture that print pure black or pure white."),
                 "toggle_clipping_overlay",
             )
         )

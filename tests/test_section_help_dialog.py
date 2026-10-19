@@ -75,7 +75,7 @@ def test_a_slice_stops_at_the_next_section() -> None:
     bleeding in -- "Presets", its actual next-heading neighbour, is the boundary to check."""
     assert "Presets" not in guide_markdown("process")
     assert "Setup tab" not in guide_markdown("analysis")
-    assert "Step wedge" in guide_markdown("analysis")
+    assert "step wedge" in guide_markdown("analysis")
 
 
 def test_cross_doc_links_are_flattened_to_their_text() -> None:
@@ -95,7 +95,7 @@ def test_the_analysis_guide_still_covers_every_read_out() -> None:
     part of the panel unexplained with nothing else in the UI to explain it."""
     text = guide_markdown("analysis")
 
-    for topic in ("Photometric curve", "histograms", "Lin / Log", "Clipping", "Step wedge", "Zone strip", "Probe", "Negative stats"):
+    for topic in ("Curve", "histogram", "Lin / Log", "Clipping", "step wedge", "zone strip", "Readouts"):
         assert topic in text, f"the guide never mentions {topic!r}"
 
 
