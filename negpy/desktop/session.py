@@ -466,9 +466,11 @@ class AssetListModel(QAbstractListModel):
         # from `uploaded_files`, so `_apply_reindex` can look up an old row's file even after a
         # row was removed from (or inserted into) that list before it runs.
         self._sorted_keys: list[tuple] = []
+        self._thumbnail_rows: Optional[dict[str, list[int]]] = None
         self._rebuild_indices()
 
     def _rebuild_indices(self) -> None:
+        self._thumbnail_rows = None
         files = self._state.uploaded_files
         indices = list(range(len(files)))
 
@@ -697,11 +699,25 @@ class AssetListModel(QAbstractListModel):
 
     def refresh_thumbnails(self, keys: Collection[str]) -> None:
         """Repaints the rows showing *keys*. A thumbnail never moves a row, so no reindex."""
+        for row in sorted(row for key in set(keys) for row in self.rows_showing(key)):
+            index = self.index(row, 0)
+            self.dataChanged.emit(index, index)
+
+    def rows_showing(self, key: str) -> list[int]:
+        """The display rows whose thumbnail is *key*. A reindex rebuilds the map, as one follows a frame's new
+        hash; a found row that no longer shows *key* rebuilds it too."""
         files = self._state.uploaded_files
-        for row, i in enumerate(self._sorted_indices):
-            if i < len(files) and asset_thumbnail_key(files[i]) in keys:
-                index = self.index(row, 0)
-                self.dataChanged.emit(index, index)
+        rows = self._thumbnail_rows.get(key) if self._thumbnail_rows is not None else None
+        if self._thumbnail_rows is None or (
+            rows
+            and any(self._sorted_indices[row] >= len(files) or asset_thumbnail_key(files[self._sorted_indices[row]]) != key for row in rows)
+        ):
+            self._thumbnail_rows = {}
+            for row, i in enumerate(self._sorted_indices):
+                if i < len(files):
+                    self._thumbnail_rows.setdefault(asset_thumbnail_key(files[i]), []).append(row)
+            rows = self._thumbnail_rows.get(key)
+        return rows or []
 
 
 def _source_effective_bounds(process) -> Optional[tuple]:

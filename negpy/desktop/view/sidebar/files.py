@@ -179,14 +179,8 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         if not isinstance(view, QListView) or not self._activity_key:
             return QPersistentModelIndex()
         model = view.model()
-        if model is None:
-            return QPersistentModelIndex()
-        for row in range(model.rowCount()):
-            index = model.index(row, 0)
-            file_info = index.data(Qt.ItemDataRole.UserRole) or {}
-            if file_info.get("hash") and asset_thumbnail_key(file_info) == self._activity_key:
-                return QPersistentModelIndex(index)
-        return QPersistentModelIndex()
+        rows = model.rows_showing(self._activity_key) if model is not None else []
+        return QPersistentModelIndex(model.index(rows[0], 0)) if rows else QPersistentModelIndex()
 
     def _index_matches_activity(self, index: QPersistentModelIndex) -> bool:
         if not index.isValid() or not self._activity_key:
