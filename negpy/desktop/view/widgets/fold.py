@@ -47,7 +47,8 @@ class FoldButton(QAbstractButton):
         return self._marked
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        text = QFontMetrics(self._font).horizontalAdvance(self.text()) + THEME.space_sm if self.text() else 0
+        # A sub-header's dot follows its name.
+        text = QFontMetrics(self._font).horizontalAdvance(self.text()) + THEME.space_md + _DOT if self.text() else 0
         return QSize(self.GUTTER + text, max(QFontMetrics(self._font).height(), _CHEVRON + 2 * THEME.space_xs))
 
     def enterEvent(self, event) -> None:
@@ -72,7 +73,11 @@ class FoldButton(QAbstractButton):
         if self._marked:
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(self._mark_color))
-            p.drawEllipse(QPointF(_CHEVRON, top), _DOT / 2, _DOT / 2)
+            if self.text():
+                x = self.GUTTER + QFontMetrics(self._font).horizontalAdvance(self.text()) + THEME.space_md + _DOT / 2
+                p.drawEllipse(QPointF(x, self.height() / 2), _DOT / 2, _DOT / 2)
+            else:
+                p.drawEllipse(QPointF(_CHEVRON, top), _DOT / 2, _DOT / 2)
 
 
 def _names(content: QWidget) -> str:
