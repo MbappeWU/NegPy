@@ -198,10 +198,10 @@ def test_reveal_section_switches_to_roll_for_a_roll_section():
     panel._switch_tab.assert_not_called()
 
 
-def test_reveal_section_switches_to_roll_for_the_geometry_and_flat_field_cards():
-    """Crop, Optics and Frame Assembly are Roll-tab cards, so the ⓘ
-    and the search must not look for them among Frame's sub-tabs."""
-    for attr in ("autocrop_section", "optics_section", "assembly_section"):
+def test_reveal_section_switches_to_roll_for_the_optics_and_assembly_cards():
+    """Optics and Frame Assembly are Roll-tab cards, so the ⓘ and the search must not
+    look for them among Frame's sub-tabs."""
+    for attr in ("optics_section", "assembly_section"):
         panel = _group_panel_stub()
         panel._section_tab_index = {}
 
@@ -293,13 +293,13 @@ def test_roll_tab_apply_offers_every_card_of_its_sections():
             assert set(cards) <= set(_ROLL_TAB_CARDS), section
 
 
-def test_roll_tab_apply_offers_auto_crop():
+def test_roll_tab_apply_leaves_the_crop_to_the_frame():
     from negpy.desktop.settings_catalog import rows_for_fields
     from negpy.desktop.view.sidebar.right_panel import _ROLL_TAB_CARDS
     from negpy.services.assets.rolls import card_fields
 
     rows = rows_for_fields(f for card in _ROLL_TAB_CARDS for f in card_fields(card))
-    assert "Auto Crop" in {r.label for r in rows}
+    assert not {"Auto Crop", "Crop Ratio", "Crop"} & {r.label for r in rows}
 
 
 @pytest.mark.parametrize(

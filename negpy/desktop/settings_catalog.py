@@ -438,9 +438,17 @@ GEOMETRY_FIELDS = (
     "converge_v",
     "converge_h",
     "crop_to_valid",
+)
+
+CROP_FIELDS = (
     "crop_rect",
     "crop_from_auto",
     "crop_detect_key",
+    "autocrop_mode",
+    "autocrop_offset",
+    "autocrop_rebate_trim",
+    "autocrop_ratio",
+    "autocrop_square",
 )
 
 TONE_FIELDS = (
@@ -503,6 +511,7 @@ PAPER_FIELDS = (
 # card keyed by its own config section needs no tuple. Roll-tab cards drive roll defaults
 # instead, and Dodge & Burn has no catalog row: a mask means nothing on the next frame.
 FRAME_CARD_FIELDS: dict[str, tuple | None] = {
+    "autocrop": CROP_FIELDS,
     "geometry": GEOMETRY_FIELDS,
     "color": COLOR_FIELDS,
     "tone": TONE_FIELDS,

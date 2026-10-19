@@ -1869,7 +1869,7 @@ class DesktopSessionManager(QObject):
     def relock_diverged_cards(self) -> None:
         """Lock each roll card on which the restored config differs from the roll's: history, a work
         print and a paste restore no locks, and an unlocked card takes the roll's values on load.
-        Never unlocks, except Auto Crop on a hand-drawn frame (rolls.holds_own_crop)."""
+        Never unlocks."""
         idx = self.state.selected_file_idx
         if not self.state.current_file_hash or not (0 <= idx < len(self.state.uploaded_files)):
             return
@@ -1884,10 +1884,6 @@ class DesktopSessionManager(QObject):
         locked = rolls.frame_override_cards(self.repo, roll_id, base)
         for card_key, (section, names) in rolls.ROLL_DEFAULT_FIELDS.items():
             values = getattr(config, section)
-            if rolls.holds_own_crop(card_key, config):
-                if card_key in locked:
-                    rolls.set_frame_override(self.repo, roll_id, base, card_key, False)
-                continue
             if card_key not in locked and any(n in defaults and not rolls.same_value(getattr(values, n), defaults[n]) for n in names):
                 rolls.set_frame_override(self.repo, roll_id, base, card_key, True)
 

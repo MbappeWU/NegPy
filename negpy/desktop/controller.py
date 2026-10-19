@@ -326,11 +326,6 @@ def _component_paths(files: List[Dict]) -> List[str]:
     return list(dict.fromkeys(paths))
 
 
-_CROP_CARDS = ("autocrop", "auto_crop")
-# Fields a frame card's recorded apply can carry that move a frame's crop.
-_CROP_FIELDS = frozenset({"crop_rect", "crop_from_auto", "crop_detect_key"})
-
-
 def _autocrop_fingerprint(config: WorkspaceConfig, workspace_color_space: str) -> tuple:
     """Identity of every setting that changes detection pixels or crop coordinates."""
     geometry = config.geometry
@@ -689,8 +684,6 @@ class AppController(QObject):
         self._autocrop_batch_token: Optional[int] = None
         self._autocrop_dispatched = 0
         self._autocrop_preflight_skipped = 0
-        # Per frame hash: the roll it resolved through when the run started (rolls.frame_roll).
-        self._autocrop_frame_rolls: Dict[str, Optional[str]] = {}
         # Per frame hash: its resolved Auto Crop when the run started.
         self._autocrop_started_auto: Dict[str, bool] = {}
         self._autocrop_cancel_requested = False
@@ -4033,7 +4026,6 @@ class AppController(QObject):
         self._render_debounce.stop()
         self.session.update_config(replace(self.state.config, geometry=new_geo), persist=persist, render=persist)
         if persist:
-            self._lock_roll_card("auto_crop")
             self.reset_all_peeks()
             self.request_render()
 
@@ -4189,10 +4181,7 @@ class AppController(QObject):
         return replace(config, geometry=new_geo)
 
     def set_crop_ratio(self, ratio: str) -> None:
-        """Sets the Crop card's target ratio, locking the card away from the roll
-        the instant it changes and was not already, like any other roll card. If a
-        manual crop box is
-        already drawn, reshapes it to the new ratio in place — same center, shrunk
+        """Sets the Crop card's target ratio. If a manual crop box is already drawn, reshapes it to the new ratio in place — same center, shrunk
         to fit within its current footprint (enforce_roi_aspect_ratio, the same
         centered-reshape auto-crop uses) — instead of leaving the box visually
         stale until the user redrags it.
@@ -4211,7 +4200,6 @@ class AppController(QObject):
         if self.refuse_crop_edit():
             return
         self.session.update_config(self._with_crop_ratio(self.state.config, ratio), persist=True)
-        self._lock_roll_card("autocrop")
         self._render_crop_change()
 
     def handle_analysis_rect_changed(self, nx1: float, ny1: float, nx2: float, ny2: float, persist: bool) -> None:
@@ -4295,7 +4283,6 @@ class AppController(QObject):
         before = self.state.config
         self.session.update_config(with_auto_crop(self.state.config, on), persist=True)
         self._carry_peek(before)
-        self._lock_roll_card("auto_crop")
         self._render_crop_change()
 
     def _config_for_batch_asset(self, asset: dict) -> WorkspaceConfig:
@@ -4306,7 +4293,7 @@ class AppController(QObject):
 
     def request_batch_auto_crop(self) -> None:
         """Analyze the Film Strip's frames together, filtered out or not, and persist the
-        crops. In a roll, a frame locked with Auto Crop off keeps its own."""
+        crops. A hand-drawn crop stays."""
         if self._batch_busy(tr("Auto-crop all frames")):
             return
         if not self.state.uploaded_files:
@@ -4314,17 +4301,10 @@ class AppController(QObject):
             return
 
         frames: list[BatchAutoCropInput] = []
-        frame_rolls: Dict[str, Optional[str]] = {}
         preflight_skipped = 0
         for asset in self.state.uploaded_files:
             config = self._config_for_batch_asset(asset)
-            roll_id = frame_rolls[asset["hash"]] = rolls.frame_roll(self.session.repo, self.state.active_roll_id, asset)
-            turned_off = (
-                roll_id is not None
-                and not config.geometry.crop_from_auto
-                and "auto_crop" in rolls.frame_override_cards(self.session.repo, roll_id, rolls.unforked_hash(asset["hash"]))
-            )
-            if turned_off or has_manual_crop(config.geometry) or config.geometry.autocrop_mode != AutocropMode.IMAGE:
+            if has_manual_crop(config.geometry) or config.geometry.autocrop_mode != AutocropMode.IMAGE:
                 preflight_skipped += 1
                 continue
             frames.append(
@@ -4345,7 +4325,6 @@ class AppController(QObject):
         self._autocrop_batch_token = token
         if self.state.active_tool == ToolMode.CROP_MANUAL:
             self.set_active_tool(ToolMode.NONE)
-        self._autocrop_frame_rolls = frame_rolls
         self._autocrop_started_auto = {frame.file_info["hash"]: frame.config.geometry.crop_from_auto for frame in frames}
         self._autocrop_dispatched = len(frames)
         self._autocrop_preflight_skipped = preflight_skipped
@@ -4377,8 +4356,6 @@ class AppController(QObject):
         failed = 0
         active_changed = False
         changed_hashes: list[str] = []
-        # The roll each frame resolved through when the run started: another may be open by now.
-        roll_autos: Dict[str, Any] = {}
         try:
             for result in results:
                 asset = result.file_info
@@ -4431,13 +4408,6 @@ class AppController(QObject):
                         self.session.repo.save_file_settings(asset["hash"], updated, file_path=asset["path"])
                         self.session.push_external_history(asset["hash"], latest, updated)
                         changed_hashes.append(asset["hash"])
-                    roll_id = self._autocrop_frame_rolls.get(asset["hash"])
-                    if roll_id is not None:
-                        if roll_id not in roll_autos:
-                            roll_autos[roll_id] = rolls.roll_defaults(self.session.repo, roll_id).get("crop_from_auto")
-                        if roll_autos[roll_id] is not None and not roll_autos[roll_id]:
-                            # The roll's Auto Crop off would clear this crop on the next open.
-                            rolls.set_frame_override(self.session.repo, roll_id, rolls.unforked_hash(asset["hash"]), "auto_crop", True)
                     saved += 1
                 except Exception:
                     failed += 1
@@ -4777,7 +4747,6 @@ class AppController(QObject):
             render=False,
         )
         self._carry_peek(before)
-        self._lock_roll_card("autocrop")
         # Emit manually so UI syncs (combo dropdown updates), but without triggering
         # a render via the state_changed debounce.
         self.config_updated.emit()
@@ -5585,8 +5554,6 @@ class AppController(QObject):
         "film",
         "sensor",
         "process",
-        "autocrop",
-        "auto_crop",
         "baseline",
         "demosaic",
         "lens",
@@ -5603,8 +5570,6 @@ class AppController(QObject):
         "demosaic": "Raw Decode",
         "baseline": tr("Roll Analysis"),
         "process": "Metering",
-        "autocrop": "Crop",
-        "auto_crop": "Crop",
         "lens": "Optics",
         "flatfield": "Optics",
         "metadata_gear": "Analog Gear",
@@ -5613,10 +5578,9 @@ class AppController(QObject):
         "metadata_scanning": tr("Scanning"),
         "metadata_exposure": "Exposure",
     }
-    # The Crop section's two cards push and reset separately, so the status names whichever went.
-    _STATUS_LABELS = {**_ROLL_CARD_LABELS, "autocrop": "Crop shape", "auto_crop": "Auto Crop"}
     METADATA_CARDS = ("metadata_gear", "metadata_capture", "metadata_process", "metadata_scanning", "metadata_exposure")
     _FRAME_CARD_LABELS = {
+        "autocrop": "Crop",
         "geometry": "Geometry",
         "color": "Filtration",
         "tone": "Tone",
@@ -5635,15 +5599,12 @@ class AppController(QObject):
         return {name: getattr(getattr(config, section), name) for name in fields}
 
     @staticmethod
-    def _with_card_values(config, card_key: str, values: dict, remeter: bool = True, force_remeter: bool = False):
+    def _with_card_values(config, card_key: str, values: dict):
         """*config* with *card_key*'s section carrying *values*. A real change to a meter input drops
-        the cached bounds; re-freezing a card on its own values must not. ``force_remeter`` is a
-        commit after preview ticks, which already wrote the value it compares with."""
+        the cached bounds; re-freezing a card on its own values must not."""
         section, _fields = rolls.ROLL_DEFAULT_FIELDS[card_key]
         current = getattr(config, section)
-        remeter = remeter and (
-            force_remeter or any(name in BOUNDS_INPUT_FIELDS and value != getattr(current, name) for name, value in values.items())
-        )
+        remeter = any(name in BOUNDS_INPUT_FIELDS and value != getattr(current, name) for name, value in values.items())
         config = replace(config, **{section: replace(current, **values)})
         if remeter:
             config = replace(config, process=replace(config.process, **invalidate_local_bounds(config.process)))
@@ -5657,36 +5618,7 @@ class AppController(QObject):
         roll_id = self.state.active_roll_id
         if roll_id is None or not self.state.current_file_hash:
             return set()
-        cards = rolls.frame_override_cards(self.session.repo, roll_id, rolls.unforked_hash(self.state.current_file_hash))
-        # A stored Auto Crop lock on a hand-drawn frame is stale (a copied crop, an old lock).
-        return {k for k in cards if not rolls.holds_own_crop(k, self.state.config)}
-
-    def auto_crop_push_effect(self) -> Optional[Tuple[bool, int]]:
-        """What the Crop section's Roll would do to the roll's Auto Crop: (the new value, how
-        many other frames that follow the roll change), or None when it changes none. Those
-        frames gain or lose an auto crop, so the panel asks before the push."""
-        roll_id = self.state.active_roll_id
-        if roll_id is None or not self.roll_card_locked("auto_crop"):
-            return None
-        new = self.state.config.geometry.crop_from_auto
-        changed = 0
-        for asset in self.state.uploaded_files:
-            if asset["hash"] == self.state.current_file_hash:
-                continue
-            if "auto_crop" in rolls.frame_override_cards(self.session.repo, roll_id, rolls.unforked_hash(asset["hash"])):
-                continue
-            config = self.session.config_for_asset(asset)
-            if not rolls.holds_own_crop("auto_crop", config) and config.geometry.crop_from_auto != new:
-                changed += 1
-        return (new, changed) if changed else None
-
-    def hand_drawn_crop_departs_from_roll(self) -> bool:
-        """A hand-drawn crop on a frame of a roll with Auto Crop on. It differs from the roll
-        without a lock (rolls.holds_own_crop), so no lock reports it."""
-        roll_id = self.state.active_roll_id
-        if roll_id is None or not self.state.current_file_hash or not rolls.holds_own_crop("auto_crop", self.state.config):
-            return False
-        return bool(rolls.roll_defaults(self.session.repo, roll_id).get("crop_from_auto"))
+        return set(rolls.frame_override_cards(self.session.repo, roll_id, rolls.unforked_hash(self.state.current_file_hash)))
 
     def roll_card_locked(self, card_key: str) -> bool:
         return card_key in self.locked_roll_cards()
@@ -5712,9 +5644,8 @@ class AppController(QObject):
         # edit from Apply until every one of its fields happened to get a roll default.
         current = self._card_values(self.state.config, card_key)
         matches_roll = all(name in defaults and rolls.same_value(value, defaults[name]) for name, value in current.items())
-        diverged = not matches_roll and not rolls.holds_own_crop(card_key, self.state.config)
+        diverged = not matches_roll
         file_hash = rolls.unforked_hash(self.state.current_file_hash)
-        # The stored lock, not locked_roll_cards: that read hides a stale hand-drawn Auto Crop lock.
         if diverged == (card_key in rolls.frame_override_cards(self.session.repo, roll_id, file_hash)):
             return
         rolls.set_frame_override(self.session.repo, roll_id, file_hash, card_key, diverged)
@@ -5753,19 +5684,31 @@ class AppController(QObject):
         any other live preview -- the lock only follows the settled value, not every
         intermediate tick.
         """
-        if card_key in _CROP_CARDS and self.refuse_crop_edit():
+        self._edit_card(card_key, rolls.ROLL_DEFAULT_FIELDS[card_key][0], persist, readback_metrics, changes)
+        if persist:
+            self._lock_roll_card(card_key)
+
+    def set_crop_settings(self, persist: bool = True, readback_metrics: bool = True, **changes) -> None:
+        """Auto Crop's detection settings on the active frame. A change re-detects the crop
+        through its detection key."""
+        if self.refuse_crop_edit():
             return
-        section = getattr(self.state.config, rolls.ROLL_DEFAULT_FIELDS[card_key][0])
+        self._edit_card("autocrop", "geometry", persist, readback_metrics, changes)
+
+    def _edit_card(self, card_key: str, section_name: str, persist: bool, readback_metrics: bool, changes: dict) -> None:
+        """A card edit on the active frame. Preview ticks (persist=False) keep the cached
+        bounds; the settled value drops them once if any tick moved a meter input."""
+        section = getattr(self.state.config, section_name)
         moves_meter = any(name in BOUNDS_INPUT_FIELDS and value != getattr(section, name) for name, value in changes.items())
         previewed = card_key in self._previewed_meter_cards
         if not persist and moves_meter:
             self._previewed_meter_cards.add(card_key)
         elif persist:
             self._previewed_meter_cards.discard(card_key)
-        new_config = self._with_card_values(self.state.config, card_key, changes, remeter=persist, force_remeter=persist and previewed)
+        new_config = replace(self.state.config, **{section_name: replace(section, **changes)})
+        if persist and (moves_meter or previewed):
+            new_config = replace(new_config, process=replace(new_config.process, **invalidate_local_bounds(new_config.process)))
         self.apply_config(new_config, persist=persist, readback_metrics=readback_metrics)
-        if persist:
-            self._lock_roll_card(card_key)
 
     def apply_roll_card(self, card_key: str) -> int:
         """One card's Roll button: pushes just that card, leaving every other diverged
@@ -5775,10 +5718,6 @@ class AppController(QObject):
     def _push_cards_to_roll(self, pushed: List[str]) -> int:
         roll_id = self.state.active_roll_id
         if roll_id is None or not pushed:
-            self.set_status(_NOTHING_TO_APPLY, 2500)
-            return 0
-        pushed = [k for k in pushed if not rolls.holds_own_crop(k, self.state.config)]
-        if not pushed:
             self.set_status(_NOTHING_TO_APPLY, 2500)
             return 0
         repo = self.session.repo
@@ -5816,7 +5755,7 @@ class AppController(QObject):
         self.set_status(tr("Undid Apply to Roll: {value}", value=self._roll_card_names(pushed)), 3000)
 
     def _roll_card_names(self, cards) -> str:
-        return ", ".join(dict.fromkeys(self._STATUS_LABELS[k] for k in self._ROLL_CARDS if k in cards))
+        return ", ".join(dict.fromkeys(self._ROLL_CARD_LABELS[k] for k in self._ROLL_CARDS if k in cards))
 
     def _roll_defaults_changed(self, roll_id: str, touched: set) -> None:
         """Every other frame that follows the roll on a touched card shows a new look."""
@@ -5843,17 +5782,11 @@ class AppController(QObject):
         card, Frame pins the card here. The one click each button performs. A tuple is
         one section driving several cards (Optics), pushed in one go."""
         keys = (card_key,) if isinstance(card_key, str) else card_key
-        if scope == "roll" and any(k in _CROP_CARDS and self.roll_card_locked(k) for k in keys) and self.refuse_crop_edit():
-            return
         if scope == "roll":
             self._push_cards_to_roll([k for k in keys if self.roll_card_locked(k)])
         else:
             for key in keys:
                 self.set_roll_card_locked(key, True)
-
-    def sync_auto_crop_lock(self) -> None:
-        """_lock_roll_card after a write outside the controller cleared a hand-drawn crop."""
-        self._lock_roll_card("auto_crop")
 
     def sync_metadata_card_locks(self) -> None:
         """Re-reads every Metadata card's lock after a write that touched several at once.
@@ -5908,11 +5841,7 @@ class AppController(QObject):
         available = set()
         for key in card_keys:
             if key in rolls.ROLL_DEFAULT_FIELDS:
-                if (
-                    key in locked
-                    and any(f in defaults for f in rolls.card_fields(key))
-                    and not rolls.holds_own_crop(key, self.state.config)
-                ):
+                if key in locked and any(f in defaults for f in rolls.card_fields(key)):
                     available.add(key)
             elif pushes.get(key) and not self._matches_push(pushes[key]):
                 available.add(key)
@@ -5926,12 +5855,9 @@ class AppController(QObject):
         available = self.roll_revert_cards(card_keys)
         cards = [k for k in dict.fromkeys(card_keys) if k in available]
         pushes = self._section_pushes()
-        moves_crop = [
-            k for k in cards if k in _CROP_CARDS or (k not in rolls.ROLL_DEFAULT_FIELDS and _CROP_FIELDS & set(pushes.get(k, {})))
-        ]
-        crop_held = self.crop_edits_blocked() and bool(moves_crop)
+        crop_held = self.crop_edits_blocked() and "autocrop" in cards
         if crop_held:
-            cards = [k for k in cards if k not in moves_crop]
+            cards = [k for k in cards if k != "autocrop"]
             if not cards:
                 self.refuse_crop_edit()
                 return 0
@@ -5952,10 +5878,8 @@ class AppController(QObject):
             self.session.update_config(config, persist=True, render=False)
         else:
             self.apply_config(config, persist=True)
-        if any(_CROP_FIELDS & set(pushes.get(k, {})) for k in cards if k not in rolls.ROLL_DEFAULT_FIELDS):
-            self._lock_roll_card("auto_crop")
         self.config_updated.emit()
-        labels = {**self._STATUS_LABELS, **self._FRAME_CARD_LABELS}
+        labels = {**self._ROLL_CARD_LABELS, **self._FRAME_CARD_LABELS}
         held = "; Crop waits for Auto-crop all frames" if crop_held else ""
         self.set_status(tr("Reset to the roll: {value}{held}", value=", ".join(dict.fromkeys(labels[k] for k in cards)), held=held), 3000)
         return len(cards)
@@ -5973,11 +5897,6 @@ class AppController(QObject):
         values = {f: rolls.config_value(defaults[f]) for f in rolls.card_fields(card_key) if f in defaults}
         if card_key == "film":
             return with_film_fields(config, values)
-        if card_key == "auto_crop":
-            return config if rolls.holds_own_crop(card_key, config) else with_auto_crop_field(config, values)
-        ratio = values.pop("autocrop_ratio", config.geometry.autocrop_ratio)
-        if ratio != config.geometry.autocrop_ratio:
-            config = self._with_crop_ratio(config, ratio)
         config = self._with_card_values(config, card_key, values)
         if card_key == "baseline":
             file_hash = rolls.unforked_hash(self.state.current_file_hash)
@@ -6016,8 +5935,6 @@ class AppController(QObject):
         current value takes over immediately. No-op with no active roll."""
         roll_id = self.state.active_roll_id
         if roll_id is None or not self.state.current_file_hash:
-            return
-        if locked and rolls.holds_own_crop(card_key, self.state.config):
             return
         if locked:
             frozen = self._card_values(self.state.config, card_key)

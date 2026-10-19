@@ -40,17 +40,16 @@ def test_rebate_trim_commit_stores_a_fraction_not_a_percentage(qapp):
 
     sidebar.rebate_trim_slider.valueCommitted.emit(150.0)
 
-    controller.set_roll_default.assert_called_with("autocrop", autocrop_rebate_trim=1.5)
+    controller.set_crop_settings.assert_called_with(autocrop_rebate_trim=1.5)
 
 
-def test_the_card_edits_the_roll_default_not_the_frame(qapp):
-    """Auto Crop is a roll card: every control goes through set_roll_default, which
-    locks the frame away from the roll only once the value actually diverges."""
+def test_the_card_edits_go_through_set_crop_settings(qapp):
+    """It refuses a crop edit while Auto-crop all frames runs, and re-meters once on release."""
     sidebar, controller = _sidebar()
 
     sidebar.offset_slider.valueCommitted.emit(12.0)
 
-    controller.set_roll_default.assert_called_with("autocrop", autocrop_offset=12)
+    controller.set_crop_settings.assert_called_with(autocrop_offset=12)
     controller.session.update_config.assert_not_called()
 
 

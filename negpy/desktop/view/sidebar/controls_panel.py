@@ -16,12 +16,21 @@ from negpy.features.lab.models import LabConfig
 from negpy.features.altprocess.models import AltProcessConfig
 from negpy.features.toning.models import ToningConfig
 from negpy.features.geometry.logic import has_manual_crop
-from negpy.features.process.models import auto_meter_for_mode, cast_removal_for_mode, invalidate_local_bounds
+from negpy.features.geometry.models import with_auto_crop
+from negpy.features.process.models import auto_meter_for_mode, cast_removal_for_mode
 from negpy.features.finish.models import FinishConfig
 from negpy.features.flatfield.models import FlatFieldConfig
 from negpy.kernel.system.config import DEFAULT_WORKSPACE_CONFIG
 from negpy.services.assets.rolls import ROLL_DEFAULT_FIELDS
-from negpy.desktop.settings_catalog import COLOR_FIELDS, FRAME_CARD_FIELDS, GEOMETRY_FIELDS, PAPER_FIELDS, TONE_FIELDS, frame_card_rows
+from negpy.desktop.settings_catalog import (
+    COLOR_FIELDS,
+    CROP_FIELDS,
+    FRAME_CARD_FIELDS,
+    GEOMETRY_FIELDS,
+    PAPER_FIELDS,
+    TONE_FIELDS,
+    frame_card_rows,
+)
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
 from negpy.desktop.view.widgets.tab_header import TabHeader
 
@@ -37,7 +46,6 @@ from negpy.desktop.view.sidebar.color import ColorSidebar
 from negpy.desktop.view.sidebar.tone import ToneSidebar
 from negpy.desktop.view.sidebar.paper import PaperSidebar
 from negpy.desktop.view.sidebar.geometry import GeometrySidebar
-from negpy.desktop.view.confirm import confirm_roll_auto_crop
 from negpy.desktop.view.sidebar.autocrop import AutocropSidebar
 from negpy.desktop.view.sidebar.trichrome import TrichromeSidebar
 from negpy.desktop.view.sidebar.half_frame import HalfFrameSidebar
@@ -50,16 +58,8 @@ from negpy.desktop.view.sidebar.local import LocalSidebar
 from negpy.desktop.view.sidebar.finish import FinishSidebar
 
 _DEMOSAIC_FIELDS = ("highlight_reconstruction",)
-# GeometryConfig is split across three cards. The rect auto crop resolves, the rotation
-# and the easel movements are this frame's own placement and stay on Geometry; what the
-# detector looks for and how the scanning lens bends are the roll's.
-_AUTOCROP_FIELDS = (
-    "autocrop_mode",
-    "autocrop_offset",
-    "autocrop_rebate_trim",
-    "autocrop_ratio",
-    "autocrop_square",
-)
+# GeometryConfig is split across three cards: Crop and Geometry are this frame's own,
+# and how the scanning lens bends is the roll's (Optics).
 _LENS_FIELDS = (
     "distortion_k1",
     "lens_distortion_from_metadata",
@@ -123,7 +123,6 @@ _AUTO_METER_FIELDS = ("auto_exposure", "auto_normalize_contrast")
 # Roll-tab sections that drive more than one roll card, keyed by section key.
 _SECTION_CARDS: dict[str, tuple[str, ...]] = {
     "optics": ("lens", "flatfield"),
-    "autocrop": ("autocrop", "auto_crop"),
 }
 
 
@@ -382,8 +381,8 @@ class ControlsPanel(QWidget):
                 "geometry",
                 tr("Geometry"),
                 tr("Geometry"),
-                [self.geometry_section],
-                ["geometry_section"],
+                [self.autocrop_section, self.geometry_section],
+                ["autocrop_section", "geometry_section"],
             ),
             (
                 "tone",
@@ -1012,7 +1011,6 @@ class ControlsPanel(QWidget):
             ("film", self.film_section),
             ("sensor", self.sensor_section),
             ("process", self.process_section),
-            ("autocrop", self.autocrop_section),
             ("baseline", self.baseline_section),
             ("demosaic", self.demosaic_section),
             ("optics", self.optics_section),
@@ -1049,10 +1047,6 @@ class ControlsPanel(QWidget):
             if locked:
                 overridden.append(label)
 
-        crop_label = self._ROLL_CARD_LABELS["auto_crop"]
-        if crop_label not in overridden and self.controller.hand_drawn_crop_departs_from_roll():
-            overridden.append(f"{crop_label} (hand-drawn)")
-
         scopes = self.controller.frame_section_scopes(tuple(key for key, _ in frame_sections))
         for key, section in frame_sections:
             section.set_scope_buttons(
@@ -1084,12 +1078,6 @@ class ControlsPanel(QWidget):
         picker over that card's own settings. Frame on a Roll-tab card locks it here;
         a frame card is already there, so the pair's own click guard swallows it."""
         if key in dict(self._roll_sections()):
-            effect = None
-            if key == "autocrop" and scope == "roll" and not self.controller.crop_edits_blocked():
-                effect = self.controller.auto_crop_push_effect()
-            if effect is not None and not confirm_roll_auto_crop(self, *effect):
-                self._sync_scope_buttons()
-                return
             self.controller.set_card_scope(_SECTION_CARDS.get(key, key), scope)
             self._sync_scope_buttons()
             return
@@ -1159,40 +1147,27 @@ class ControlsPanel(QWidget):
         take Crop and Lens Correction with it."""
         from dataclasses import replace
 
-        if self.controller.refuse_crop_edit():
-            return
-
         cfg = self.controller.state.config
-        # Auto Crop and its rect belong to the Crop card; only a hand-drawn rect resets here.
-        own = ("crop_rect", "crop_detect_key") if cfg.geometry.crop_from_auto else ()
-        fields = [f for f in GEOMETRY_FIELDS if f != "crop_from_auto" and f not in own]
-        new_geo = replace(cfg.geometry, **{f: getattr(_DEFAULT_GEOMETRY, f) for f in fields})
-        new_proc = cfg.process
-        if new_geo.crop_rect != cfg.geometry.crop_rect:
-            new_proc = replace(new_proc, **invalidate_local_bounds(new_proc))
-        with self.controller.session.carried_crop_kept():
-            self.controller.apply_config(replace(cfg, geometry=new_geo, process=new_proc), persist=True)
-        if new_geo.crop_rect != cfg.geometry.crop_rect:
-            self.controller.sync_auto_crop_lock()
+        new_geo = replace(cfg.geometry, **{f: getattr(_DEFAULT_GEOMETRY, f) for f in GEOMETRY_FIELDS})
+        self.controller.apply_config(replace(cfg, geometry=new_geo), persist=True)
 
     def _reset_crop_card(self) -> None:
-        """The Crop card's two roll cards. Auto Crop turns off through reset_crop, which
-        clears the auto rect; a hand-drawn crop belongs to Geometry and stays."""
+        """Crop's own fields, and the crop itself through with_auto_crop."""
+        from dataclasses import replace
+
         if self.controller.refuse_crop_edit():
             return
-        self._reset_card_fields("autocrop")
-        if self.controller.state.config.geometry.crop_from_auto:
-            self.controller.reset_crop()
+        cfg = self.controller.state.config
+        settings = {f: getattr(_DEFAULT_GEOMETRY, f) for f in CROP_FIELDS if f.startswith("autocrop_")}
+        new = replace(cfg, geometry=replace(cfg.geometry, **settings))
+        self.controller.apply_config(with_auto_crop(new, _DEFAULT_GEOMETRY.crop_from_auto), persist=True)
 
     def _reset_card_fields(self, card_key: str) -> None:
         """Reset one roll card through set_roll_default, so the reset follows the roll
-        or locks away from it exactly as an edit by hand would. Ratio keeps its own
-        entry point, which reshapes a drawn crop rather than leaving it stale."""
+        or locks away from it exactly as an edit by hand would."""
         section, fields = ROLL_DEFAULT_FIELDS[card_key]
         default = getattr(_DEFAULT_CONFIG, section)
-        if "autocrop_ratio" in fields:
-            self.controller.set_crop_ratio(default.autocrop_ratio)
-        self.controller.set_roll_default(card_key, **{f: getattr(default, f) for f in fields if f != "autocrop_ratio"})
+        self.controller.set_roll_default(card_key, **{f: getattr(default, f) for f in fields})
 
     def _reset_exposure_fields(self, fields) -> None:
         """Reset only the given ExposureConfig fields to defaults (scoped section reset).
@@ -1270,11 +1245,10 @@ class ControlsPanel(QWidget):
         )
 
         geo = cfg.geometry
-        # Geometry counts a hand-drawn crop; an auto crop and its rect are the Crop card's.
-        crop_fields = ("crop_rect", "crop_from_auto", "crop_detect_key")
-        geometry_count = sum(getattr(geo, f) != getattr(_geo, f) for f in GEOMETRY_FIELDS if f not in crop_fields)
-        geometry_count += has_manual_crop(geo)
-        autocrop_count = sum(getattr(geo, f) != getattr(_geo, f) for f in (*_AUTOCROP_FIELDS, "crop_from_auto"))
+        geometry_count = sum(getattr(geo, f) != getattr(_geo, f) for f in GEOMETRY_FIELDS)
+        # A rect counts once, as a hand-drawn crop; an auto rect is Auto Crop's result.
+        autocrop_count = sum(getattr(geo, f) != getattr(_geo, f) for f in CROP_FIELDS if f not in ("crop_rect", "crop_detect_key"))
+        autocrop_count += has_manual_crop(geo)
         lens_count = sum(getattr(geo, f) != getattr(_geo, f) for f in _LENS_FIELDS)
 
         proc = cfg.process

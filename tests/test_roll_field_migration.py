@@ -141,3 +141,51 @@ def test_auto_crop_locks_only_a_frame_saved_with_it_on(repo):
     assert rolls.frame_override_cards(repo, roll, "a") == {"auto_crop"}
     assert rolls.frame_override_cards(repo, roll, "b") == set()
     assert rolls.frame_override_cards(repo, roll, "c") == set()
+
+
+def _crop(rect=None, auto=False, **geometry):
+    base = WorkspaceConfig()
+    return replace(base, geometry=replace(base.geometry, crop_rect=rect, crop_from_auto=auto, **geometry))
+
+
+def test_each_frame_keeps_the_crop_its_roll_gave_it(repo):
+    from negpy.services.assets.migrations.roll_fields import migrate_crop_to_frames
+
+    rect = (0.1, 0.1, 0.9, 0.9)
+    roll = rolls.create_virtual_roll(repo, "Roll", [f"/r/{n}.tif" for n in "abcde"])
+    repo.save_file_settings("a", _crop(), file_path="/r/a.tif")
+    repo.save_file_settings("b", _crop(rect), file_path="/r/b.tif")
+    repo.save_file_settings("c", _crop(autocrop_ratio="5:4"), file_path="/r/c.tif")
+    repo.save_file_settings("d", _crop(rect, True), file_path="/r/d.tif")
+    rolls.set_roll_defaults(repo, roll, crop_from_auto=True, autocrop_ratio="3:2", autocrop_offset=8, hue_trim=2.0)
+    rolls.set_frame_override(repo, roll, "c", "autocrop", True)
+    rolls.set_frame_override(repo, roll, "d", "auto_crop", True)
+    rolls.set_frame_override(repo, roll, "d", "sensor", True)
+    rolls.set_section_push(repo, roll, "geometry", {"crop_rect": rect, "crop_from_auto": False, "fine_rotation": 1.0})
+
+    migrate_crop_to_frames(repo)
+
+    a, b, c, d = (repo.load_file_settings(n).geometry for n in "abcd")
+    assert (a.crop_from_auto, a.crop_rect, a.autocrop_ratio, a.autocrop_offset) == (True, None, "3:2", 8)
+    assert (b.crop_from_auto, b.crop_rect, b.autocrop_ratio) == (False, rect, "3:2"), "a hand-drawn crop stays"
+    assert (c.crop_from_auto, c.autocrop_ratio, c.autocrop_offset) == (True, "5:4", 0), "a locked shape stays"
+    assert (d.crop_from_auto, d.crop_rect) == (True, rect)
+    assert repo.load_file_settings("e") is None
+    assert rolls.roll_defaults(repo, roll) == {"hue_trim": 2.0}
+    assert rolls.frame_override_cards(repo, roll, "c") == set()
+    assert rolls.frame_override_cards(repo, roll, "d") == {"sensor"}
+    assert rolls.section_push(repo, roll, "geometry") == {"fine_rotation": 1.0}
+    assert rolls.section_push(repo, roll, "autocrop") == {"crop_rect": list(rect), "crop_from_auto": False}
+
+
+def test_the_crop_migration_runs_once(repo):
+    from negpy.services.assets.migrations.roll_fields import migrate_crop_to_frames
+
+    roll = rolls.create_virtual_roll(repo, "Roll", ["/r/a.tif"])
+    repo.save_file_settings("a", _crop(), file_path="/r/a.tif")
+    migrate_crop_to_frames(repo)
+    rolls.set_roll_defaults(repo, roll, autocrop_ratio="4:3")
+
+    migrate_crop_to_frames(repo)
+
+    assert repo.load_file_settings("a").geometry.autocrop_ratio == "Free"

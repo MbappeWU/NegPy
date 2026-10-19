@@ -44,8 +44,6 @@ _SCAN_BASE_TIP = tr("Base Relative: line up each channel at its film base, so th
 _ROLL_TAB_CARDS = (
     "film",
     "sensor",
-    "autocrop",
-    "auto_crop",
     "baseline",
     "process",
     "demosaic",
@@ -61,7 +59,6 @@ _ROLL_SECTION_ATTRS = frozenset(
         "demosaic_section",
         "baseline_section",
         "process_section",
-        "autocrop_section",
         "optics_section",
     }
 )
@@ -408,7 +405,6 @@ class RightPanel(QWidget):
                 cp.film_section,
                 cp.sensor_section,
                 cp.process_section,
-                cp.autocrop_section,
                 cp.baseline_section,
                 cp.demosaic_section,
                 cp.optics_section,
@@ -425,7 +421,6 @@ class RightPanel(QWidget):
             cp.assembly_section,
             cp.sensor_section,
             cp.process_section,
-            cp.autocrop_section,
             cp.baseline_section,
             cp.demosaic_section,
             cp.optics_section,

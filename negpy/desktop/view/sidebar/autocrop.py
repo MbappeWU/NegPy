@@ -12,10 +12,7 @@ from negpy.features.geometry.models import AutocropMode
 
 
 class AutocropSidebar(BaseSidebar):
-    """
-    Roll-wide auto crop: whether frames auto-crop and what the frame detector looks for.
-    The rect it finds stays each frame's own.
-    """
+    """Auto Crop on this frame: whether it crops and what the frame detector looks for."""
 
     @staticmethod
     def _field_label(text: str) -> QLabel:
@@ -97,19 +94,17 @@ class AutocropSidebar(BaseSidebar):
         self.detect_ratio_btn.clicked.connect(self.controller.detect_aspect_ratio)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         self.auto_frame_btn.toggled.connect(self._on_auto_frame_toggled)
-        self.square_btn.toggled.connect(lambda on: self.controller.set_roll_default("autocrop", autocrop_square=bool(on)))
+        self.square_btn.toggled.connect(lambda on: self.controller.set_crop_settings(autocrop_square=bool(on)))
         self.auto_crop_all_btn.clicked.connect(self.controller.request_batch_auto_crop)
 
         self.offset_slider.valueChanged.connect(
-            lambda v: self.controller.set_roll_default("autocrop", persist=False, readback_metrics=False, autocrop_offset=int(v))
+            lambda v: self.controller.set_crop_settings(persist=False, readback_metrics=False, autocrop_offset=int(v))
         )
-        self.offset_slider.valueCommitted.connect(lambda v: self.controller.set_roll_default("autocrop", autocrop_offset=int(v)))
+        self.offset_slider.valueCommitted.connect(lambda v: self.controller.set_crop_settings(autocrop_offset=int(v)))
         self.rebate_trim_slider.valueChanged.connect(
-            lambda v: self.controller.set_roll_default("autocrop", persist=False, readback_metrics=False, autocrop_rebate_trim=v / 100.0)
+            lambda v: self.controller.set_crop_settings(persist=False, readback_metrics=False, autocrop_rebate_trim=v / 100.0)
         )
-        self.rebate_trim_slider.valueCommitted.connect(
-            lambda v: self.controller.set_roll_default("autocrop", autocrop_rebate_trim=v / 100.0)
-        )
+        self.rebate_trim_slider.valueCommitted.connect(lambda v: self.controller.set_crop_settings(autocrop_rebate_trim=v / 100.0))
 
     def _on_auto_frame_toggled(self, checked: bool) -> None:
         if checked:
@@ -120,7 +115,7 @@ class AutocropSidebar(BaseSidebar):
     def _on_mode_changed(self, idx: int) -> None:
         mode = self.mode_combo.itemData(idx)
         self._sync_mode_enabled(mode)
-        self.controller.set_roll_default("autocrop", autocrop_mode=mode)
+        self.controller.set_crop_settings(autocrop_mode=mode)
 
     def _select_mode(self, mode) -> None:
         """findData matches on the stored str, and a config that has never been edited
