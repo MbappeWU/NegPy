@@ -5,9 +5,16 @@ from PyQt6.QtWidgets import QHBoxLayout
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.sidebar.tone import _CH_LABEL, _CH_SUFFIX, channel_selector
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
-from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, PAPER_STRIP_SWEEP, field_row, gradient_icon, wrap_tooltip
+from negpy.desktop.view.styles.templates import (
+    ICON_BUTTON_WIDTH,
+    PAPER_STRIP_SWEEP,
+    field_row,
+    gradient_icon,
+    section_subheader,
+    wrap_tooltip,
+)
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.fold import group_fold
+from negpy.desktop.view.widgets.fold import rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.exposure.logic import per_channel_dye_separation
@@ -138,17 +145,12 @@ class PaperSidebar(BaseSidebar):
             )
         )
         self.sh_w_trim_slider.setVisible(False)
-        curve_header, self.curve_fold = group_fold(
-            "paper_curve",
-            tr("Curve Shape"),
-            self.midtone_gamma_slider,
-            self.toe_slider,
-            SliderGroup(self.toe_w_slider, self.toe_w_trim_slider),
-            self.sh_slider,
-            SliderGroup(self.sh_w_slider, self.sh_w_trim_slider),
-        )
-        self.layout.addLayout(curve_header)
-        self.layout.addWidget(self.curve_fold)
+        self.layout.addWidget(section_subheader(tr("Curve Shape")))
+        self.layout.addWidget(self.midtone_gamma_slider)
+        self.layout.addWidget(self.toe_slider)
+        self.layout.addWidget(rail_fold("paper_toe", self.toe_slider, self.toe_w_slider, self.toe_w_trim_slider))
+        self.layout.addWidget(self.sh_slider)
+        self.layout.addWidget(rail_fold("paper_shoulder", self.sh_slider, self.sh_w_slider, self.sh_w_trim_slider))
 
         self.layout.addStretch()
 
