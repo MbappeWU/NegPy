@@ -152,7 +152,7 @@ class RightPanel(QWidget):
         self.scan_page = self._build_scan_page()
 
         library_page = make_section(
-            self.controller.session.repo, tr("Rolls"), "library", self.library_tree, "fa5s.folder-open", collapsible=False
+            self.controller.session.repo, tr("Library"), "library", self.library_tree, "mdi6.bookshelf", collapsible=False
         )
 
         # (key, label, content_widget)

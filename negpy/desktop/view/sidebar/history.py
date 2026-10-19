@@ -1,6 +1,6 @@
 from negpy.kernel.system.i18n import tr
 import qtawesome as qta
-from PyQt6.QtCore import QPoint, QRect, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -21,6 +21,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import make_section
+from negpy.desktop.view.widgets.flat_rows import ICON, more_press, more_rect, paint_fill, paint_more, paint_pill
 from negpy.kernel.system.config import APP_CONFIG
 
 _INDEX_ROLE = Qt.ItemDataRole.UserRole
@@ -30,18 +31,12 @@ _NUMBER_ROLE = Qt.ItemDataRole.UserRole + 2
 _TAG_ROLE = Qt.ItemDataRole.UserRole + 3
 
 _ROW_HEIGHT = 30
-_ICON = 16
 
 _WORK_PRINT_TOOLTIP = tr(
     "Named versions of this frame — the printer's work prints. Unlike the edit history they "
     "are never pruned and never dropped by a later edit. Click one to make it live (undoable); "
     "right-click to export, rename or delete it."
 )
-
-
-def _more_rect(row: QRect) -> QRect:
-    """Where a row draws its ⋮."""
-    return QRect(row.right() - THEME.space_lg - _ICON, row.center().y() - _ICON // 2, _ICON, _ICON)
 
 
 class _RowDelegate(QStyledItemDelegate):
@@ -57,13 +52,7 @@ class _RowDelegate(QStyledItemDelegate):
         rect = option.rect.adjusted(0, 1, 0, -1)
         tag = index.data(_TAG_ROLE) or ""
         hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
-        p.setPen(Qt.PenStyle.NoPen)
-        if tag == "now" or hover:
-            p.setBrush(QColor(THEME.bg_selected if tag == "now" else THEME.bg_hover))
-            p.drawRoundedRect(QRectF(rect), THEME.radius_md, THEME.radius_md)
-        if tag == "now":
-            p.setBrush(QColor(THEME.accent_secondary))
-            p.drawRoundedRect(QRectF(rect.left(), rect.top() + THEME.space_md, 3, rect.height() - 2 * THEME.space_md), 1.5, 1.5)
+        paint_fill(p, rect, current=tag == "now", hover=hover)
 
         font = QFont(option.font)
         font.setPixelSize(THEME.font_size_base)
@@ -79,24 +68,14 @@ class _RowDelegate(QStyledItemDelegate):
             x += width + THEME.space_lg
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         if icon is not None:
-            icon.paint(p, QRect(x, rect.center().y() - _ICON // 2, _ICON, _ICON))
-            x += _ICON + THEME.space_lg
+            icon.paint(p, QRect(x, rect.center().y() - ICON // 2, ICON, ICON))
+            x += ICON + THEME.space_lg
 
         # The ⋮ slot stays reserved, so a pill does not move when the row is hovered.
-        right = _more_rect(option.rect).left() - THEME.space_md
+        right = more_rect(option.rect).left() - THEME.space_md
         if tag:
             text = tr("Now") if tag == "now" else tr("Undone")
-            metrics = QFontMetrics(small)
-            pill = QRectF(right - metrics.horizontalAdvance(text) - 2 * THEME.space_md, rect.center().y() - metrics.height() / 2 - 1, 0, 0)
-            pill.setRight(right)
-            pill.setHeight(metrics.height() + 2)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.setPen(QColor(THEME.accent_primary if tag == "now" else THEME.border_color))
-            p.drawRoundedRect(pill, pill.height() / 2, pill.height() / 2)
-            p.setFont(small)
-            p.setPen(QColor(THEME.text_primary if tag == "now" else THEME.text_hint))
-            p.drawText(pill, Qt.AlignmentFlag.AlignCenter, text)
-            right = int(pill.left()) - THEME.space_md
+            right = paint_pill(p, right, rect.center().y(), text, small, accent=tag == "now") - THEME.space_md
 
         name_font = QFont(font)
         name_font.setWeight(QFont.Weight(THEME.weight_semibold if tag == "now" else THEME.weight_regular))
@@ -114,7 +93,7 @@ class _RowDelegate(QStyledItemDelegate):
             text = QFontMetrics(font).elidedText(f" · {detail}", Qt.TextElideMode.ElideRight, right - x)
             p.drawText(QRect(x, rect.top(), right - x, rect.height()), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, text)
         if hover:
-            qta.icon("mdi6.dots-vertical", color=THEME.text_hint).paint(p, _more_rect(option.rect))
+            paint_more(p, option.rect)
         p.restore()
 
 
@@ -136,9 +115,8 @@ class _RowList(QListWidget):
         self.customContextMenuRequested.connect(self.menu_requested)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
-        pos = event.position().toPoint()
-        item = self.itemAt(pos)
-        if item is not None and _more_rect(self.visualItemRect(item)).contains(pos):
+        pos = more_press(self, event)
+        if pos is not None:
             self.menu_requested.emit(pos)
             return
         super().mousePressEvent(event)

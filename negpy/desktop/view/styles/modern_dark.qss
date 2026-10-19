@@ -567,6 +567,17 @@ QPushButton#collapsible_header[overlay="true"]:checked {
 }
 
 /* Preset lists: Export Presets dialog and the Presets sidebar. */
+/* The Library's roll rows (see sidebar/library_tree.py): the delegate paints them. */
+QTreeWidget#roll_tree {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+QTreeWidget#roll_tree::item:selected, QTreeWidget#roll_tree::branch:selected, QTreeWidget#roll_tree::item:hover {
+    background: transparent;
+}
+
 /* History's flat rows (see sidebar/history.py): the delegate paints them. */
 QListWidget#history_rows {
     background: transparent;

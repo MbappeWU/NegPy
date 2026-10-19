@@ -588,7 +588,7 @@ class ShortcutManager:
             "contact_sheet": lambda: right.export_sidebar.contact_sheet_btn.click(),
             "save_as_roll": lambda: self.window.file_browser.save_roll_action.trigger(),
             "import_roll": lambda: self.window.right_panel.library_tree.prompt_import_folder(),
-            "index_library": lambda: self.window.right_panel.library_tree.index_btn.click(),
+            "index_library": lambda: self.window.right_panel.library_tree.index_action.trigger(),
             "metadata_infer_gear": lambda: right.metadata_sidebar.gear_infer_btn.click(),
             "toggle_gear_catalog": lambda: right.gear_panel.items.show_catalog_btn.click(),
             "toggle_semantic_search": lambda: self.window.file_browser.semantic_action.trigger(),

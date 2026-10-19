@@ -125,12 +125,15 @@ The **Film Strip** under the canvas shows the open frames as strips of film, wit
 
 The **Library** tab, first on the right panel, lists every **roll** you imported: a named group of frames, not a live view of a folder. **Ctrl+L** opens it.
 
-*   **+**: import a roll (below).
-*   **↻**: finds new roll folders under each parent imported with **Import Subfolders as Rolls…** and recounts each roll's frames.
-*   **Discovery Filters…**: folder names that importing and **↻** skip, with all their contents, one per line (default `export`). A line matches any part of a name, ignoring case; a line with `*` must match the whole name (`raw_*`).
-*   **Sort**: Name or Date, ascending or descending.
+Each roll shows its name over a line with its photo count, film mode (the Film Strip's mode dot), film stock when Roll Settings set one, scenes and import date. The open roll is marked **Open** with a red bar. Double-click or **Enter** opens a roll; **⋮** on a row, or a right-click, offers **Open**, **Close Roll…**, **Roll Analysis**, **Rename…** and **Delete…**.
 
-A Trichrome triplet, stitch or HDR merge counts as one photo. A roll whose folder is gone shows **folder missing**. Importing only records the folder; nothing decodes until you open the roll.
+*   **Filter rolls…**: shows only the rolls whose name or line holds the text; the count under the list says how many show.
+*   **Sort**: Name or Date, ascending or descending.
+*   **Import**: **Import Folder as a Roll…** or **Import Subfolders as Rolls…** (below).
+*   **⋮** → **Refresh**: finds new roll folders under each parent imported with **Import Subfolders as Rolls…** and recounts each roll's frames.
+*   **⋮** → **Discovery Filters…**: folder names that importing and **Refresh** skip, with all their contents, one per line (default `export`). A line matches any part of a name, ignoring case; a line with `*` must match the whole name (`raw_*`).
+
+A Trichrome triplet, stitch or HDR merge counts as one photo. A roll whose folder is gone shows **folder missing** in amber. Importing only records the folder; nothing decodes until you open the roll.
 
 #### Importing
 
@@ -139,7 +142,7 @@ A Trichrome triplet, stitch or HDR merge counts as one photo. A roll whose folde
 *   **Import Folder as a Roll…**: the folder becomes one roll and opens. A folder with no images of its own imports its subfolders instead. If its name matches a camera or film stock in your Gear library ("penf" finds "Pen F"), Roll Settings opens pre-filled.
 *   **Import Subfolders as Rolls…**: every folder below the chosen one that holds images becomes a roll, without opening, except subfolders of a roll folder (export output). A roll is named by its path ("20260901/kentmere_400_1") under a folder row. Right-click a folder row for **Delete…**, which forgets every roll in it.
 
-Importing never changes the folder. Reorganize on disk, then import again (or **↻**). Edits follow image content, so a moved file keeps its edit and marks.
+Importing never changes the folder. Reorganize on disk, then import again (or **Refresh**). Edits follow image content, so a moved file keeps its edit and marks.
 
 #### Opening, renaming, deleting
 

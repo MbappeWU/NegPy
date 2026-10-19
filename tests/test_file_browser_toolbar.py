@@ -31,7 +31,7 @@ def test_each_section_toolbar_has_its_own_sort(panel):
     tree = panel.library_tree
 
     assert browser.roll_row.isAncestorOf(browser.sort_btn)
-    assert tree.sort_btn in tree.toolbar.buttons
+    assert tree.isAncestorOf(tree.sort_btn)
     assert browser.sort_btn is not tree.sort_btn
     assert (browser.sort_btn.height(), tree.sort_btn.height()) == (BAR_BUTTON_HEIGHT, TOOLBAR_BUTTON_HEIGHT)
 
@@ -141,28 +141,6 @@ def test_save_as_roll_leaves_the_row_before_the_names_do(panel, qapp):
 def test_the_roll_row_shrinks_below_its_natural_width(panel):
     row = panel.file_browser.roll_row
     assert row.minimumSizeHint().width() < row.sizeHint().width()
-
-
-def test_a_switched_off_toolbar_button_stays_off_across_a_resize(panel):
-    """_relayout shows whatever fits, so an opt-in button hidden with a bare
-    setVisible would come back on the next resize."""
-    tree = panel.library_tree
-
-    assert not tree.index_btn.isVisible()
-
-    tree.toolbar.resize(600, tree.toolbar.height())
-
-    assert not tree.index_btn.isVisible()
-    assert [a.text() for a in tree.toolbar.build_overflow_menu().actions()] == []
-
-
-def test_turning_an_opt_in_button_on_places_it(panel):
-    tree = panel.library_tree
-
-    tree.toolbar.set_button_visible(tree.index_btn, True)
-    tree.toolbar.resize(600, tree.toolbar.height())
-
-    assert tree.index_btn.isVisible()
 
 
 def test_the_sheet_and_the_roll_list_sort_independently(panel):

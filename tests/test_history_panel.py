@@ -169,7 +169,7 @@ def test_a_press_on_a_rows_more_button_opens_its_menu_and_leaves_the_step(qapp):
     from PyQt6.QtCore import QEvent, QPointF, Qt
     from PyQt6.QtGui import QMouseEvent
 
-    from negpy.desktop.view.sidebar.history import _more_rect
+    from negpy.desktop.view.widgets.flat_rows import more_rect
 
     controller, panel = _history_panel()
     panel.resize(420, 600)
@@ -178,7 +178,7 @@ def test_a_press_on_a_rows_more_button_opens_its_menu_and_leaves_the_step(qapp):
     asked = []
     panel.list.menu_requested.disconnect()
     panel.list.menu_requested.connect(asked.append)
-    point = QPointF(_more_rect(panel.list.visualItemRect(panel.list.item(0))).center())
+    point = QPointF(more_rect(panel.list.visualItemRect(panel.list.item(0))).center())
     for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
         event = QMouseEvent(
             kind,
