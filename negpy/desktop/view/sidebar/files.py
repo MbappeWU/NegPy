@@ -737,6 +737,8 @@ def table_color(index: int) -> str:
 _RIM_LIFT = 5
 # Share of a print's darkest pixels whose mean color is its D-max.
 _DMAX_SHARE = 0.01
+# Frames spread over the roll that stand for its D-max; measuring every frame stalls a long roll.
+_DMAX_SAMPLES = 5
 
 
 def roll_film(
@@ -849,6 +851,8 @@ class _FilmDelegate(_ThumbnailDelegate):
     around it, and a scene colors the top border of its frames."""
 
     _CACHE_LIMIT = 512
+    # Every layout reads the picture bounds of every frame, so their small cache holds a long roll.
+    _BOUNDS_LIMIT = 1 << 16
     _IDLE_OPACITY = 1.0
     _BORDER = THEME.space_sm
 
@@ -861,23 +865,36 @@ class _FilmDelegate(_ThumbnailDelegate):
         self._edges = True
         self._rebates: dict[tuple[int, int, int], QImage] = {}
         self._pictures: dict[int, QPixmap] = {}
+        self._bounds: dict[int, QRect] = {}
 
     def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette, edges: bool = True) -> None:
+        # An upright picture depends on the film's shape and edges, not on its colors.
+        if self._film is None or self._film[0] != geometry or self._edges != edges:
+            self._pictures.clear()
         self._film = (geometry, style, palette)
         self._edges = edges
         self._rebates.clear()
-        self._pictures.clear()
 
     @property
     def slim(self) -> bool:
         return self._film is not None and not self._edges
 
     def picture_aspect(self, index: QModelIndex) -> float:
+        """The upright picture's shape without film edges, which never turn it."""
         icon = index.data(Qt.ItemDataRole.DecorationRole)
-        picture = self._thumbnail(icon, index) if isinstance(icon, QIcon) and not icon.isNull() else None
-        if picture is None or picture.isNull() or not picture.height():
+        base = super()._thumbnail(icon, index) if isinstance(icon, QIcon) and not icon.isNull() else None
+        bounds = self._picture_bounds(base) if base is not None and not base.isNull() else QRect()
+        if not bounds.height():
             return self._film[0].window_aspect if self._film is not None else 1.5
-        return picture.width() / picture.height()
+        return bounds.width() / bounds.height()
+
+    def _picture_bounds(self, base: QPixmap) -> QRect:
+        bounds = self._bounds.get(base.cacheKey())
+        if bounds is None:
+            if len(self._bounds) > self._BOUNDS_LIMIT:
+                self._bounds.clear()
+            bounds = self._bounds[base.cacheKey()] = picture_in_thumbnail(base.toImage())
+        return bounds
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         view = self.parent()
@@ -910,7 +927,7 @@ class _FilmDelegate(_ThumbnailDelegate):
             # A turned or re-rendered thumbnail is a new pixmap, so the cache only grows until cleared.
             if len(self._pictures) > self._CACHE_LIMIT:
                 self._pictures.clear()
-            picture = base.copy(picture_in_thumbnail(base.toImage()))
+            picture = base.copy(self._picture_bounds(base))
             if self._edges and self._frame_geometry is not None and picture.height() > 0:
                 geo = self._frame_geometry(index.data(Qt.ItemDataRole.UserRole) or {})
                 turns = frame_turns(picture.width() / picture.height(), film[0], geo.rotation, geo.flip_horizontal, geo.flip_vertical)
@@ -1017,7 +1034,10 @@ class _FilmGridView(ThumbnailGridView):
         self.set_table_color(table_color(AppState.canvas_bg_index))
 
     def set_table_color(self, color: str) -> None:
-        self.setStyleSheet(self._table_qss(color))
+        # A new stylesheet lays every cell out again, even when it is the same.
+        qss = self._table_qss(color)
+        if qss != self.styleSheet():
+            self.setStyleSheet(qss)
 
     def _table_qss(self, color: str) -> str:
         return f"QListView {{ background-color: {color}; border: none; }}"
@@ -1652,7 +1672,8 @@ class FileBrowser(QWidget):
     def _measure_rebate(self) -> None:
         model = self.session.asset_model
         tones = []
-        for row in range(model.rowCount()):
+        last = model.rowCount() - 1
+        for row in sorted({round(i * last / (_DMAX_SAMPLES - 1)) for i in range(_DMAX_SAMPLES)} if last >= 0 else ()):
             icon = model.data(model.index(row, 0), Qt.ItemDataRole.DecorationRole)
             pixmap = icon.pixmap(QSize(4096, 4096)) if isinstance(icon, QIcon) else None
             if pixmap is None or pixmap.isNull():

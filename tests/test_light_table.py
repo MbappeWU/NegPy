@@ -19,8 +19,9 @@ from negpy.desktop.view.sidebar.files import (
     _FilmStripDelegate,
     justified_rows,
     print_dmax,
-    roll_film,
     picture_in_thumbnail,
+    roll_film,
+    table_color,
 )
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import WorkspaceConfig
@@ -677,3 +678,55 @@ def test_the_strip_dims_an_idle_picture_but_not_its_film(qapp, hover):
     assert picture.lightness() <= QColor(40, 160, 220).lightness()
     film = canvas.pixelColor(window.center().x(), window.top() - 2 * delegate._SELECTION_OUTSET)
     assert max(film.red(), film.green(), film.blue()) < 40, "the rebate is not dimmed"
+
+
+def _long_roll(browser, count: int) -> None:
+    state = browser.session.state
+    state.uploaded_files = [{"name": f"{i}.tif", "path": f"/r/{i}.tif", "hash": f"h{i}"} for i in range(count)]
+    browser.session.asset_model.refresh()
+    _thumbs(browser, [(300, 200), (200, 300)] * (count // 2))
+
+
+def test_the_roll_dmax_reads_a_few_frames_spread_over_the_roll(browser, monkeypatch):
+    from negpy.desktop.view.sidebar import files
+
+    _long_roll(browser, 20)
+    measured = []
+    monkeypatch.setattr(files, "print_dmax", lambda image: measured.append(image) or (20, 20, 20))
+    browser._dmax_by_pixmap.clear()
+
+    browser._measure_rebate()
+
+    assert len(measured) == files._DMAX_SAMPLES
+    assert browser._rebate_tone == (20, 20, 20)
+
+
+def test_a_long_roll_measures_each_picture_once(browser, qapp, monkeypatch):
+    from negpy.desktop.view.sidebar import files
+
+    monkeypatch.setattr(_FilmDelegate, "_CACHE_LIMIT", 2)
+    _long_roll(browser, 8)
+    view, _vw = _shown_table(browser, qapp)
+    view._slim_cells = None
+    view._slim_layout()
+    calls = []
+    measure = files.picture_in_thumbnail
+    monkeypatch.setattr(files, "picture_in_thumbnail", lambda image: calls.append(1) or measure(image))
+
+    browser._rebate_tone = (30, 20, 10)
+    browser._sync_film()
+    view._slim_cells = None
+    view._slim_layout()
+
+    assert calls == [], "a new rebate tone and a layout keep each picture's bounds"
+    view.hide()
+
+
+def test_the_same_table_color_leaves_the_stylesheet(browser, monkeypatch):
+    view = browser.light_table_view
+    styled = []
+    monkeypatch.setattr(view, "setStyleSheet", styled.append)
+
+    view.set_table_color(table_color(browser.session.state.canvas_bg_index))
+
+    assert styled == []
