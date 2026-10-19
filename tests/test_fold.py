@@ -134,3 +134,49 @@ def test_reveal_opens_the_fold_that_holds_a_control():
 
     assert fold.is_open()
     assert isinstance(fold, Fold)
+
+
+def _mouse(widget, kind, x, buttons=None):
+    from PyQt6.QtCore import QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    from PyQt6.QtWidgets import QApplication
+
+    left = Qt.MouseButton.LeftButton
+    held = left if buttons is None else buttons
+    pos = QPointF(x, 5)
+    QApplication.sendEvent(widget, QMouseEvent(kind, pos, widget.mapToGlobal(pos), left, held, Qt.KeyboardModifier.NoModifier))
+
+
+def test_a_click_on_the_parents_name_toggles_and_a_drag_still_scrubs():
+    from PyQt6.QtCore import QEvent
+
+    repo, _ = _repo()
+    section, grade, _shadows, fold = _grade_card(repo)
+    section.show()
+    before = grade.value()
+
+    _mouse(grade.label, QEvent.Type.MouseButtonPress, 10)
+    _mouse(grade.label, QEvent.Type.MouseMove, 12)
+    _mouse(grade.label, QEvent.Type.MouseButtonRelease, 12)
+    assert fold.is_open() and grade.value() == before, "a click within the drag distance is a click"
+
+    _mouse(grade.label, QEvent.Type.MouseButtonPress, 10)
+    _mouse(grade.label, QEvent.Type.MouseMove, 60)
+    _mouse(grade.label, QEvent.Type.MouseButtonRelease, 60)
+    assert fold.is_open() and grade.value() != before, "a drag scrubs and leaves the fold alone"
+
+
+def test_a_click_on_a_field_rows_name_toggles():
+    from PyQt6.QtCore import QEvent
+
+    repo, _ = _repo()
+    row = field_row("Mode", StepCombo())
+    fold = rail_fold("crop_offset", row, CompactSlider("Crop Offset", -5, 100, 0))
+    body = QWidget()
+    layout = QVBoxLayout(body)
+    layout.addLayout(row)
+    layout.addWidget(fold)
+    make_section(repo, "Crop", "autocrop", body, "fa5s.crop", default_expanded=True)
+
+    _mouse(row.itemAt(1).widget(), QEvent.Type.MouseButtonRelease, 5)
+    assert fold.is_open()

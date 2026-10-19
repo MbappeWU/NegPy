@@ -88,6 +88,7 @@ class Fold(QWidget):
         self.content = content
         self.button = button
         self.buttons: list[FoldButton] = []
+        self._labels: list[QWidget] = []
         self._open = False
         self._repo = None
         layout = QVBoxLayout(self)
@@ -109,6 +110,18 @@ class Fold(QWidget):
     def attach(self, parent: CompactSlider | QHBoxLayout) -> None:
         """A second chevron, for a parent row that stands in for the first (a channel trim)."""
         self._add(_gutter_button(parent))
+        self.click_name(parent)
+
+    def click_name(self, parent: CompactSlider | QHBoxLayout) -> None:
+        """A click on the parent's name toggles the fold, as the chevron does; a drag on a
+        slider's name still scrubs it."""
+        if isinstance(parent, CompactSlider):
+            parent.label_clicked.connect(lambda: self.set_open(not self._open))
+            return
+        label = parent.itemAt(1).widget()
+        label.setCursor(Qt.CursorShape.PointingHandCursor)
+        label.installEventFilter(self)
+        self._labels.append(label)
 
     def bind(self, repo) -> None:
         """Restore the saved state, then save each change."""
@@ -143,6 +156,9 @@ class Fold(QWidget):
             button.set_marked(edited)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if obj in self._labels and event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            self.set_open(not self._open)
+            return True
         if event.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
             if obj is self.content:
                 for button in self.buttons:
@@ -166,8 +182,10 @@ def _gutter_button(parent: CompactSlider | QHBoxLayout) -> FoldButton:
 
 def rail_fold(key: str, parent: CompactSlider | QHBoxLayout, *items: QWidget | QLayout) -> Fold:
     """The rail of items under parent, folded behind a chevron in the gutter of parent's row.
-    parent is a CompactSlider or a field_row."""
-    return Fold(key, SliderGroup(*items), _gutter_button(parent))
+    parent is a CompactSlider or a field_row; a click on its name toggles the fold too."""
+    fold = Fold(key, SliderGroup(*items), _gutter_button(parent))
+    fold.click_name(parent)
+    return fold
 
 
 def group_fold(key: str, title: str, *items: QWidget | QLayout, buttons: tuple[QWidget, ...] = ()) -> tuple[QHBoxLayout, Fold]:

@@ -77,7 +77,7 @@ Tabs that do not change the render:
 | **Metadata** | Archival metadata · My Gear · Presets | Camera, lens, film; your gear library and metadata presets |
 | **Scan** | Scanner · the scanner's cards · Output | Direct capture from a film scanner or camera |
 
-On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. A chevron beside a control or a sub-header folds the fine-tune controls under it; each fold stays as you leave it, and a dot on a closed one marks an edited control inside. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
+On a slider, click the value to type one, drag the name to scrub (**Shift** for finer steps), and double-click or **Ctrl**+click the track to reset. A chevron beside a control or a sub-header folds the fine-tune controls under it; click the chevron or the name. Each fold stays as you leave it, and a dot on a closed one marks an edited control inside. On a dropdown, **‹** and **›** step to the previous or next choice; click the name for the full list. A **dot** on a panel header or tab marks a non-default value. Each panel header has a **reset** action and an **ⓘ** that opens this guide there.
 
 ### What carries to the next frame
 

@@ -2,6 +2,7 @@ import math
 from typing import Optional
 
 from PyQt6.QtWidgets import (
+    QApplication,
     QWidget,
     QHBoxLayout,
     QSlider,
@@ -324,7 +325,10 @@ class BaseSlider(QWidget):
 
 
 class CompactSlider(BaseSlider):
-    """One row: label, track, value; click the value to type one."""
+    """One row: label, track, value; click the value to type one. A drag on the label scrubs the
+    value; a click on it emits label_clicked."""
+
+    label_clicked = pyqtSignal()
 
     def __init__(
         self,
@@ -379,6 +383,7 @@ class CompactSlider(BaseSlider):
         self.label.setCursor(Qt.CursorShape.SizeHorCursor)
         self.label.installEventFilter(self)
         self._scrub_active = False
+        self._scrubbing = False
         self._scrub_start_x = 0.0
         self._scrub_start_val = 0.0
         self._band_drag = False
@@ -480,11 +485,16 @@ class CompactSlider(BaseSlider):
                 if not self.isEnabled():
                     return True
                 self._scrub_active = True
+                self._scrubbing = False
                 self._scrub_start_x = event.position().x()
                 self._scrub_start_val = self.spin.value()
                 return True
             if et == QEvent.Type.MouseMove and self._scrub_active and self.isEnabled():
                 dx = event.position().x() - self._scrub_start_x
+                # Within the drag distance it is still a click, so a shaky click never nudges the value.
+                if not self._scrubbing and abs(dx) < QApplication.startDragDistance():
+                    return True
+                self._scrubbing = True
                 span = self._max - self._min
                 sensitivity = span / 400.0
                 mods = event.modifiers()
@@ -499,7 +509,10 @@ class CompactSlider(BaseSlider):
                 return True
             if et == QEvent.Type.MouseButtonRelease and self._scrub_active:
                 self._scrub_active = False
-                self._on_committed()
+                if self._scrubbing:
+                    self._on_committed()
+                else:
+                    self.label_clicked.emit()
                 return True
         return super().eventFilter(obj, event)
 
