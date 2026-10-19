@@ -103,7 +103,7 @@ Every feature lives in `negpy/features/<name>/`:
   - `CollapsibleSection`: a panel section, and the only reset affordance.
   - `CompactSlider`: one slider per row, never two side by side.
   - `SliderGroup`: a rail under the control its members depend on (Toe Width under Toe, or the settings a toggle above turns on). The main control stays outside the rail; peers of equal rank get no rail.
-  - Folds (`widgets/fold.py`) keep fine-tune controls out of the first view: `rail_fold` puts a rail behind a chevron on its parent's row, `group_fold` a group behind its sub-header. A fold starts closed and remembers the user's state per key. Gate the fold's `content`, never the fold. A rail whose members do nothing while the parent is off (Vignette Size at Burn 0) shows only while the parent acts (`show_while`).
+  - Folds (`widgets/fold.py`) keep fine-tune controls out of the first view: `rail_fold` puts a rail behind a chevron on its parent's row, `group_fold` a group behind its sub-header. A fold starts closed (`default_open` for the few that start open) and remembers the user's state per key. Gate the fold's `content`, never the fold. A rail whose members do nothing while the parent is off (Vignette Size at Burn 0) shows only while the parent acts (`show_while`).
   - `SegmentedChoice` (two to four short, fixed choices in view) and `ChoiceButton` (a longer list, a device-decided list, or a setting that need not stay in view) for every mutually exclusive choice, never a row of exclusive toggles and never radio buttons (`tests/test_no_radio_buttons.py`).
   - `StepCombo` for every dropdown, never a bare `QComboBox`; an editable combo stays a `QComboBox`.
   - Booleans in a panel are toggle buttons; `QCheckBox` is for a list of options in a form.

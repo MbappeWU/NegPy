@@ -82,7 +82,7 @@ class Fold(QWidget):
     """Holds content behind FoldButtons. Open or closed is the user's choice, saved per key
     once bound; mode gating hides the content, never the fold, so the buttons hide with it."""
 
-    def __init__(self, key: str, content: QWidget, button: FoldButton, parent=None) -> None:
+    def __init__(self, key: str, content: QWidget, button: FoldButton, parent=None, *, default_open: bool = False) -> None:
         super().__init__(parent)
         self.key = key
         self.content = content
@@ -90,6 +90,7 @@ class Fold(QWidget):
         self.buttons: list[FoldButton] = []
         self._labels: list[QWidget] = []
         self._open = False
+        self._default_open = default_open
         self._repo = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -100,6 +101,7 @@ class Fold(QWidget):
             dot.installEventFilter(self)
         self.setVisible(False)
         self._add(button)
+        self.set_open(default_open)
 
     def _add(self, button: FoldButton) -> None:
         self.buttons.append(button)
@@ -125,7 +127,8 @@ class Fold(QWidget):
 
     def bind(self, repo) -> None:
         """Restore the saved state, then save each change."""
-        self.set_open(bool(repo.get_global_setting(f"fold_{self.key}") or False))
+        saved = repo.get_global_setting(f"fold_{self.key}")
+        self.set_open(self._default_open if saved is None else bool(saved))
         self._repo = repo
         self._sync_tooltip()
 
@@ -188,7 +191,9 @@ def rail_fold(key: str, parent: CompactSlider | QHBoxLayout, *items: QWidget | Q
     return fold
 
 
-def group_fold(key: str, title: str, *items: QWidget | QLayout, buttons: tuple[QWidget, ...] = ()) -> tuple[QHBoxLayout, Fold]:
+def group_fold(
+    key: str, title: str, *items: QWidget | QLayout, buttons: tuple[QWidget, ...] = (), default_open: bool = False
+) -> tuple[QHBoxLayout, Fold]:
     """A sub-header that folds the items under it: (header row, fold). buttons sit at the row's
     right end, as in header_row."""
     button = FoldButton(tr(title))
@@ -207,7 +212,7 @@ def group_fold(key: str, title: str, *items: QWidget | QLayout, buttons: tuple[Q
             layout.addLayout(item)
         else:
             layout.addWidget(item)
-    return row, Fold(key, body, button)
+    return row, Fold(key, body, button, default_open=default_open)
 
 
 def show_while(parent: CompactSlider, rail: QWidget, active: Callable[[float], bool] = lambda v: v != 0.0) -> Callable[[], None]:

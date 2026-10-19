@@ -180,3 +180,21 @@ def test_a_click_on_a_field_rows_name_toggles():
 
     _mouse(row.itemAt(1).widget(), QEvent.Type.MouseButtonRelease, 5)
     assert fold.is_open()
+
+
+def test_a_fold_can_start_open_until_the_user_closes_it():
+    repo, store = _repo()
+    glow = CompactSlider("Glow", 0, 1, 0)
+    header, fold = group_fold("paper_curve_shape", "Curve Shape", glow, default_open=True)
+    body = QWidget()
+    layout = QVBoxLayout(body)
+    layout.addLayout(header)
+    layout.addWidget(fold)
+    make_section(repo, "Paper", "paper", body, "fa5s.scroll", default_expanded=True)
+    assert fold.is_open()
+
+    fold.button.click()
+    repo2, _ = _repo(store)
+    _header, again = group_fold("paper_curve_shape", "Curve Shape", CompactSlider("Glow", 0, 1, 0), default_open=True)
+    again.bind(repo2)
+    assert not again.is_open()
