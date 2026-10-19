@@ -48,7 +48,7 @@ def _sidebar(linear_raw=True, profile=_NAME, sensor_matrix=_MATRIX):
 
 def test_sidebar_builds_with_all_controls():
     w = _sidebar()
-    for attr in ("sensor_combo", "calibrate_sensor_btn", "sensor_hint", "capture_hint"):
+    for attr in ("sensor_combo", "calibrate_sensor_btn", "sensor_hint"):
         assert hasattr(w, attr), attr
 
 
@@ -163,73 +163,6 @@ def _to_rgbscan(w, **rgbscan):
     w.sync_ui()
 
 
-def test_capture_row_stays_visible_and_greys_out_per_reason():
-    """A hidden sticky setting follows a frame into Transparency unseen, so the row stays
-    visible and greys out instead."""
-    w = _sidebar(linear_raw=True)
-    w.sync_ui()
-    assert w.linear_raw_btn.currentData() is True
-    for widget in (w.capture_header, w.linear_raw_btn, w.scan_setup_btn):
-        assert not widget.isHidden()
-        assert widget.isEnabled()
-    assert w.capture_hint.isHidden()
-
-    # Transparency transfer: Linear RAW is inert here, and the scanning setup describes a negative rig.
-    _to_mode(w, process_mode=ProcessMode.E6)
-    for widget in (w.capture_header, w.linear_raw_btn, w.scan_setup_btn):
-        assert not widget.isHidden()
-    assert not w.linear_raw_btn.isEnabled()
-    assert not w.scan_setup_btn.isEnabled()
-    assert not w.capture_hint.isHidden()
-
-    # Positive decodes on the source's own profile, so Linear RAW decides the decode once more.
-    _to_mode(w, positive_source=True)
-    assert w.linear_raw_btn.isEnabled()
-    assert not w.scan_setup_btn.isEnabled()
-    assert not w.capture_hint.isHidden()
-
-    _to_mode(w, process_mode=ProcessMode.C41)
-    assert w.linear_raw_btn.isEnabled()
-    assert w.scan_setup_btn.isEnabled()
-    assert w.capture_hint.isHidden()
-
-
-def test_linear_raw_unlocks_on_the_transfer_with_positive_source_on():
-    """Positive on the transfer makes effective_linear_raw read the stored flag again
-    (see effective_linear_raw), so a stale Linear RAW left on from a real scan would
-    silently defeat Positive's own decode. Must be live, not greyed, so the user can see
-    and clear it — the old \"inert either way\" reasoning stopped being true."""
-    w = _sidebar(linear_raw=True)
-    _to_mode(w, process_mode=ProcessMode.E6)
-    assert not w.linear_raw_btn.isEnabled()
-
-    _to_mode(w, positive_source=True)
-    assert w.linear_raw_btn.isEnabled()
-    assert w.linear_raw_btn.currentData() is True
-
-    _to_mode(w, positive_source=False)
-    assert not w.linear_raw_btn.isEnabled()
-
-
-def test_linear_raw_locks_for_an_rgb_scan_triplet():
-    """Every triplet exposure decodes neutral regardless of this choice (see
-    tests/test_rgbscan_white_balance.py), so it locks rather than sitting live with no effect."""
-    w = _sidebar(linear_raw=True)
-    w.sync_ui()
-    assert w.linear_raw_btn.isEnabled()
-    assert w.capture_hint.isHidden()
-
-    _to_rgbscan(w, enabled=True, green_path="/x/g.arw", blue_path="/x/b.arw")
-    assert w.linear_raw_btn.isEnabled() is False
-    assert w.linear_raw_btn.currentData() is True  # the sticky value is still shown, just not editable
-    assert w.scan_setup_btn.isEnabled()
-    assert not w.capture_hint.isHidden()
-
-    _to_rgbscan(w, enabled=False)
-    assert w.linear_raw_btn.isEnabled()
-    assert w.capture_hint.isHidden()
-
-
 def test_unmix_is_refused_on_a_transparency_whatever_linear_raw_says():
     """A sticky profile from a negative rig must not stay live when the frame is a slide."""
     w = _sidebar(linear_raw=True)
@@ -252,23 +185,6 @@ def test_the_profile_comes_back_on_a_negative():
     assert w.sensor_combo.currentText() == _NAME
     assert w.sensor_combo.isEnabled()
     assert w.sensor_hint.isHidden()
-
-
-def test_the_capture_choice_reaches_the_controller():
-    """A Calibration-card, roll-eligible field -- set_roll_default, not a bare
-    apply_config, so a roll (if any) and its other frames pick the change up too."""
-    w = _sidebar(linear_raw=False)
-    w.sync_ui()
-    assert w.linear_raw_btn.currentData() is False
-
-    w.linear_raw_btn.setCurrentIndex(w.linear_raw_btn.findData(True))
-    args, kwargs = w.controller.set_roll_default.call_args
-    assert args[0] == "sensor"
-    assert kwargs["linear_raw"] is True
-
-    w.linear_raw_btn.setCurrentIndex(w.linear_raw_btn.findData(False))
-    _args, kwargs = w.controller.set_roll_default.call_args
-    assert kwargs["linear_raw"] is False
 
 
 def test_a_triplet_names_its_own_reason_even_under_camera_wb():

@@ -3,10 +3,12 @@ from PyQt6.QtWidgets import QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, field_label, hint_label, section_subheader, wrap_tooltip
+from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.hdr.models import hdr_active
 from negpy.features.process.logic import VALID_HIGHLIGHT_LEVELS
-from negpy.features.process.models import DemosaicMode, ProcessMode
+from negpy.features.process.models import DemosaicMode, ProcessMode, invalidate_local_bounds
+from negpy.features.rgbscan.models import is_rgb_triplet
 from negpy.infrastructure.loaders.helpers import supported_demosaic_modes
 
 _TIP = (
@@ -63,8 +65,8 @@ def _highlight_bucket(level: int) -> int:
 
 
 class DemosaicSidebar(BaseSidebar):
-    """How a camera RAW decodes: CFA interpolation, chosen separately for what you see
-    and what you get, and a slide's highlight reconstruction."""
+    """How a camera RAW decodes: its white balance, CFA interpolation chosen separately for
+    what you see and what you get, and a slide's highlight reconstruction."""
 
     def _init_ui(self) -> None:
         conf = self.state.config.process
@@ -76,6 +78,27 @@ class DemosaicSidebar(BaseSidebar):
         self.export_combo = StepCombo()
         self.export_combo.addItems(modes)
         self.export_combo.setToolTip(_TIP)
+
+        self.capture_header = section_subheader(tr("White Balance"))
+
+        self.linear_raw_btn = SegmentedChoice(
+            (("fa5s.palette", tr("Camera WB")), ("fa5s.sliders-h", tr("Linear RAW"))),
+            tr(
+                "How a RAW file decodes. Camera WB applies the camera's as-shot white balance. Linear RAW "
+                "decodes with neutral multipliers (1,1,1,1), a clean starting point for narrowband light, "
+                "and the one Single-Shot Narrowband Calibration needs"
+            ),
+            data=(False, True),
+        )
+        self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
+        self.layout.addWidget(self.capture_header)
+        self.layout.addWidget(self.linear_raw_btn)
+
+        # Greyed rather than hidden: the capture setting is sticky, and a hidden sticky setting
+        # follows a frame into Transparency unseen.
+        self.capture_hint = hint_label("")
+        self.capture_hint.setVisible(False)  # text and tooltip are set per film process in sync_ui
+        self.layout.addWidget(self.capture_hint)
 
         self.layout.addWidget(section_subheader(tr("DEMOSAIC")))
         for label, combo in (("Preview", self.preview_combo), ("Export", self.export_combo)):
@@ -124,6 +147,16 @@ class DemosaicSidebar(BaseSidebar):
         self.preview_combo.currentTextChanged.connect(lambda name: self._on_changed("demosaic_preview", name))
         self.export_combo.currentTextChanged.connect(lambda name: self._on_changed("demosaic_export", name))
         self.highlight_combo.currentIndexChanged.connect(self._on_highlight_reconstruction_changed)
+        self.linear_raw_btn.currentChanged.connect(self._on_linear_raw_changed)
+
+    def _on_linear_raw_changed(self, _index: int) -> None:
+        # linear_raw switches use_camera_wb, so it is a source change: set_roll_default's
+        # apply_config re-decodes and suppresses the bounds analysis over the stale buffer.
+        self.controller.set_roll_default(
+            "demosaic",
+            linear_raw=bool(self.linear_raw_btn.currentData()),
+            **invalidate_local_bounds(self.state.config.process),
+        )
 
     def _on_changed(self, field: str, name: str) -> None:
         # apply_config (inside set_roll_default): source_token carries the preview
@@ -140,6 +173,56 @@ class DemosaicSidebar(BaseSidebar):
         try:
             # Through the enum: an unrecognised stored value reads back as Auto rather than
             # leaving the combo on whatever it showed.
+            self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
+            # Linear RAW is inert on the *transfer*, where the camera matrix folds the as-shot
+            # multipliers back in (with Positive on it decides the decode again, so it stays live
+            # there), and on an RGB-scan triplet, where a narrowband exposure has no full-spectrum
+            # scene for a WB gain to describe in the first place — every exposure decodes neutral
+            # regardless. Scanning setup describes a negative rig.
+            from negpy.features.process.path import RenderPath, render_path
+
+            e6 = conf.process_mode == ProcessMode.E6
+            triplet = is_rgb_triplet(self.state.config.rgbscan)
+            self.linear_raw_btn.setEnabled(render_path(conf) is not RenderPath.TRANSFER and not triplet)
+            self.capture_hint.setVisible(e6 or triplet)
+            if e6:
+                self.capture_hint.setText(
+                    tr("Scanning setup is not used for slides.")
+                    if conf.positive_source
+                    else tr("Not applied to an as-captured transparency.")
+                )
+                self.capture_hint.setToolTip(
+                    wrap_tooltip(
+                        tr("Scanning setup describes a negative rig.")
+                        + (
+                            tr(
+                                " Linear RAW is live here: with Positive on, it decides the decode once more, so "
+                                "Linear RAW reads the file as literal linear data and defeats Positive's own read of it."
+                            )
+                            if conf.positive_source
+                            else tr(
+                                " Linear RAW is inert here: the camera matrix folds the as-shot multipliers back in, "
+                                "so the render is the same either way."
+                            )
+                        )
+                        + (tr(" A triplet locks Linear RAW as well, for the same reason as on a plain frame.") if triplet else "")
+                        + tr(" The setting is remembered, and applies again on a negative.")
+                    )
+                )
+            elif triplet:
+                self.capture_hint.setText(tr("Linear RAW is locked for a Trichrome triplet."))
+                self.capture_hint.setToolTip(
+                    wrap_tooltip(
+                        tr(
+                            "A triplet exposure is a single narrowband channel: only one raw channel carries "
+                            "real signal, so a white-balance gain corrects nothing — there is no full-spectrum "
+                            "scene for it to describe. Every exposure decodes neutral regardless of this "
+                            "toggle, so it is locked rather than left live with no effect. Remembered, and "
+                            "applies again once the frame is no longer a triplet."
+                        )
+                    )
+                )
+
             self.preview_combo.setCurrentText(str(DemosaicMode(conf.demosaic_preview)))
             self.export_combo.setCurrentText(str(DemosaicMode(conf.demosaic_export)))
 
@@ -161,5 +244,5 @@ class DemosaicSidebar(BaseSidebar):
             self.block_signals(False)
 
     def block_signals(self, blocked: bool) -> None:
-        for w in (self.preview_combo, self.export_combo, self.highlight_combo):
+        for w in (self.linear_raw_btn, self.preview_combo, self.export_combo, self.highlight_combo):
             w.blockSignals(blocked)

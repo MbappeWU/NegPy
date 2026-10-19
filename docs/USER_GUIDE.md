@@ -56,7 +56,7 @@ Drag the film strip's top edge to change its height, which sets the size of its 
 
 | Tab | Panels | What it is for |
 |-----|--------|---------------|
-| **Roll** | Film Mode · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics | Film type, capture color, crop shape, roll baselines, metering, the scanning rig |
+| **Roll** | Scanning Setup · Film Mode · Frame Assembly · Calibration · Metering · Crop · Roll Analysis · Raw Decode · Optics | The scanning rig, film type, capture color, crop shape, roll baselines, metering |
 
 **Frame** tabs follow the pipeline order:
 
@@ -85,7 +85,7 @@ An unedited frame gets the rig and roll settings: film process, crop ratio, flip
 
 **Preferences → Session & Storage → Persistent Settings…** sets which settings carry. **Carry settings between frames** is the master switch; off, new frames get bare defaults.
 
-An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Camera WB / Linear RAW, demosaic); **Scanning setup** sets those, and a camera Scan sets the decode and the print stock per frame from its light.
+An edited frame keeps its look; only export and metadata settings reach it. **Reset Settings** returns bare defaults and, in a roll, sets every Roll-tab card back to **Roll**. No reset changes the scanning setup (Linear RAW, demosaic); the **Scanning Setup** card sets those, and a camera Scan sets the decode and the print stock per frame from its light.
 
 ### Frame or roll: the scope pair
 
@@ -684,7 +684,26 @@ Every edit step, newest on top; NegPy keeps the last 100.
 
 ## 10. Roll tab
 
-Every card here is shared by the roll, with the scope pair of [§1](#frame-or-roll-the-scope-pair): an edit makes the card **Frame** until it matches the roll again, and a push to the roll skips frames that locked the card. The line above the cards names every card this frame overrides.
+Scanning Setup leads the tab; every card below it is shared by the roll, with the scope pair of [§1](#frame-or-roll-the-scope-pair): an edit makes the card **Frame** until it matches the roll again, and a push to the roll skips frames that locked the card. The line above the cards names every card this frame overrides.
+
+<!-- panel:setup -->
+### Scanning Setup
+
+How you scan, for the whole app. It sets the RAW decode and the print stock, and the Roll tab shows only the controls that setup uses.
+
+*   **Auto / Camera / Film Scanner** (default Auto): Auto reads each frame: a camera RAW is a camera, a TIFF or JPEG a film scanner. Pick one to override it.
+*   **White Light / Narrowband RGB** (default White Light): the light behind the negative.
+
+| Capture | Light | Decode | Print stock | Rig cards |
+| --- | --- | --- | --- | --- |
+| Camera | White light (lightbox, CRI LED panel) | Camera WB | Digital (Adobe RGB) | Raw Decode, Optics |
+| Camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW | Digital (Pakon Minilab) | Also Trichrome, Single-Shot Narrowband Calibration, Hue Trim |
+| Film scanner | White light (Plustek, Epson) | Linear RAW | Digital (Adobe RGB) | None |
+| Film scanner | Narrowband RGB (Coolscan, Pakon) | Linear RAW | Digital (Pakon Minilab) | None |
+
+A change sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks. A hidden control keeps its value, and one that holds a setting stays in view.
+
+A camera Scan sets the decode and the print stock per frame from its light instead: white light keeps Camera WB, Trichrome and Single Capture decode Linear RAW, and a Digital print stock follows the same table.
 
 <!-- panel:film -->
 ### 10.1 Film Mode
@@ -700,7 +719,7 @@ How the files become frames. Neither toggle has a scope pair; each roll remember
 
 #### Trichrome
 
-*   **Trichrome Mode** (three-exposure narrowband capture): assembles each frame from a red, green and blue exposure, grouped by capture time (else filename order), so shoot each frame's three back to back. Shots that do not group stay separate, for pairing by hand.
+*   **Trichrome Mode** (three-exposure narrowband capture; shown for a camera under Narrowband RGB light, or while on): assembles each frame from a red, green and blue exposure, grouped by capture time (else filename order), so shoot each frame's three back to back. Shots that do not group stay separate, for pairing by hand.
 *   **Edit Triplet…**: the **Edit RGB Triplet…** dialog for the current frame. **Align channels (sub-pixel)** registers green and blue to red, removing color fringes.
 *   **Merge Frame to TIFF Negative…** / **Merge Selected to TIFF Negative…** (right-click): replaces each triplet or stitch with one 16-bit linear TIFF negative beside its first source (`<red name>_RGB.tif`, `<first part name>_STITCH.tif`). It renders the same and keeps the edit, marks and scene. A merged stitch has flat field and sensor correction baked in and cannot be unstitched. **Move each merged frame's source files to the Trash** (on by default) trashes the sources once the file is verified. Brackets, slides and LinearRaw DNG sources are skipped.
 
@@ -725,21 +744,7 @@ Half Frame never splits a frame assembled from several files.
 
 These controls correct the capture, not the look.
 
-**Capture**:
-
-*   **Scanning setup**: a wizard (*how do you scan?*, *what light source?*) that sets Camera WB or Linear RAW and the print stock, and picks the Scan tab's scanner. A camera Scan sets the decode and the print stock per frame from its light instead: white light keeps Camera WB, Trichrome and Single Capture decode Linear RAW, and a Digital print stock follows the same table. It runs once after the first-launch tour; open it again when your rig changes.
-*   **Camera WB / Linear RAW** (default Camera WB): how a RAW file decodes. *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
-
-What the wizard sets:
-
-| Capture | Light source | Decode | Print stock |
-| --- | --- | --- | --- |
-| Digital camera | White light (lightbox, CRI LED panel) | Camera WB | Digital (Adobe RGB) |
-| Digital camera | Narrowband RGB (Scanlight, RGB LED) | Linear RAW | Digital (Pakon Minilab) |
-| Film scanner | White light (Plustek, Epson) | Linear RAW | Digital (Adobe RGB) |
-| Film scanner | Narrowband RGB (Coolscan, Pakon) | Linear RAW | Digital (Pakon Minilab) |
-
-Applying it sets the defaults for new files and rewrites every edited frame in the session (Ctrl+Z per frame). The print stock changes only on a Color Negative frame on one of the two Digital stocks; a frame on another stock keeps it. The light page suggests other stocks to try in **Paper Response**.
+Single-Shot Narrowband Calibration and Hue Trim show for a camera under Narrowband RGB light (Scanning Setup), or while they hold a setting.
 
 **Single-Shot Narrowband Calibration**: for single-shot camera scans under narrowband light, where each color leaks into the others through the sensor's filters. Needs **Linear RAW**; grayed out on a Trichrome triplet. **Re-run Roll Analysis** after changing it.
 
@@ -833,7 +838,9 @@ Meters the roll once and shares the result, so frames of one film match.
 <!-- panel:demosaic -->
 ### 10.7 Raw Decode: turning the sensor mosaic into pixels
 
-The demosaic fills in the two colors each photosite misses, which affects sharpness and grain. Bayer and X-Trans RAW only; only algorithms in your LibRaw build are listed.
+How a camera RAW decodes; shown for a camera (Scanning Setup). The demosaic fills in the two colors each photosite misses, which affects sharpness and grain. Bayer and X-Trans RAW only; only algorithms in your LibRaw build are listed.
+
+*   **White Balance: Camera WB / Linear RAW** (set by Scanning Setup): *Camera WB* applies the camera's as-shot white balance; *Linear RAW* decodes with neutral multipliers. Locked for a Trichrome triplet.
 
 **Demosaic**:
 
@@ -844,7 +851,7 @@ The demosaic fills in the two colors each photosite misses, which affects sharpn
 <!-- panel:optics -->
 ### 10.8 Optics
 
-The scanning optics: one lens correction and one light correction for every frame of the rig.
+The scanning optics: one lens correction and one light correction for every frame of the rig. Shown for a camera (Scanning Setup), or while it holds a correction.
 
 #### Lens Correction
 

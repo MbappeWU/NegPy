@@ -572,7 +572,6 @@ ROLL_DEFAULT_FIELDS: Dict[str, tuple] = {
     "sensor": (
         "process",
         (
-            "linear_raw",
             "sensor_profile",
             "sensor_matrix",
             "sensor_unmix",
@@ -586,7 +585,8 @@ ROLL_DEFAULT_FIELDS: Dict[str, tuple] = {
             "hue_trim",
         ),
     ),
-    "demosaic": ("process", ("demosaic_preview", "demosaic_export", "highlight_reconstruction")),
+    # How the roll's camera RAWs decode: white balance, demosaic and highlight recovery.
+    "demosaic": ("process", ("linear_raw", "demosaic_preview", "demosaic_export", "highlight_reconstruction")),
     "process": (
         "process",
         (

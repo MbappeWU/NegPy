@@ -22,6 +22,7 @@ _BASELINE_SPLIT_FLAG = "baseline_card_split_v1"
 _CAST_REMOVAL_FLAG = "cast_removal_to_frames_v1"
 _PAPER_SPLIT_FLAG = "paper_card_split_v1"
 _AUTO_CROP_FLAG = "auto_crop_roll_card_v1"
+_RAW_DECODE_SPLIT_FLAG = "raw_decode_linear_raw_v1"
 
 # The Paper Response card's fields, which left the Tone card (settings_catalog.PAPER_FIELDS).
 _PAPER_FIELDS = (
@@ -154,6 +155,21 @@ def migrate_cast_removal_to_frames(repo) -> None:
     except Exception:
         logger.exception("Cast Removal move to Filtration failed; continuing without it")
     repo.save_global_setting(_CAST_REMOVAL_FLAG, True)
+
+
+def migrate_linear_raw_card_split(repo) -> None:
+    """Linear RAW left the Calibration (``sensor``) card for Raw Decode (``demosaic``). A
+    frame locked on the old card keeps both halves of that lock, so nothing it renders changes."""
+    if repo.get_global_setting(_RAW_DECODE_SPLIT_FLAG):
+        return
+    try:
+        for roll_id, entry in rolls.saved_rolls(repo).items():
+            for file_hash, cards in entry.get("frame_overrides", {}).items():
+                if "sensor" in cards:
+                    rolls.set_frame_override(repo, roll_id, file_hash, "demosaic", True)
+    except Exception:
+        logger.exception("Raw Decode card split migration failed; continuing without it")
+    repo.save_global_setting(_RAW_DECODE_SPLIT_FLAG, True)
 
 
 def migrate_paper_card_split(repo) -> None:

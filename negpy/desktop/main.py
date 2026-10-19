@@ -25,6 +25,7 @@ from negpy.services.assets.migrations.roll_fields import (
     migrate_auto_crop_roll_locks,
     migrate_baseline_card_split,
     migrate_cast_removal_to_frames,
+    migrate_linear_raw_card_split,
     migrate_new_roll_field_locks,
     migrate_paper_card_split,
 )
@@ -312,6 +313,7 @@ def main() -> None:
         migrate_legacy_slide_cast_removal(repo)
         migrate_baseline_card_split(repo)
         migrate_paper_card_split(repo)
+        migrate_linear_raw_card_split(repo)
         migrate_new_roll_field_locks(repo)
         migrate_cast_removal_to_frames(repo)
         migrate_auto_crop_roll_locks(repo)

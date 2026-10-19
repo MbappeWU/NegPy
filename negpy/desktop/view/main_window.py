@@ -8,7 +8,6 @@ from PyQt6.QtCore import QByteArray, Qt, QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
-    QDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -250,9 +249,7 @@ class MainWindow(QMainWindow):
         """Runs after the restore question, so the first-run tour never opens under a message box."""
         repo = self.controller.session.repo
         if not repo.get_global_setting("tutorial_seen", False):
-            QTimer.singleShot(600, self.show_tutorial)  # the scan-setup wizard follows the tour
-        elif repo.get_global_setting("scan_setup") is None:
-            QTimer.singleShot(600, self.show_scan_setup)
+            QTimer.singleShot(600, self.show_tutorial)
 
     def _refresh_monitor_profile(self, force: bool = False) -> None:
         """Detect the active screen's ICC profile and hand it to the controller, which
@@ -426,10 +423,6 @@ class MainWindow(QMainWindow):
         repo = self.controller.session.repo
         repo.save_global_setting("tutorial_seen", True)
         repo.save_global_setting("tutorial_resume", 0 if completed else self.tutorial_overlay.index)
-        # Unset only until the wizard is answered once, so replaying the tour later from the
-        # menu does not ask again.
-        if repo.get_global_setting("scan_setup") is None:
-            QTimer.singleShot(0, self.show_scan_setup)
 
     def show_about(self) -> None:
         from negpy.kernel.system.version import GITHUB_REPO, get_app_version
@@ -455,17 +448,6 @@ class MainWindow(QMainWindow):
 
     def show_command_palette(self) -> None:
         CommandPalette(self).exec()
-
-    def show_scan_setup(self) -> None:
-        from negpy.desktop.view.widgets.scan_setup_dialog import ScanSetupDialog
-
-        repo = self.controller.session.repo
-        dlg = ScanSetupDialog(self, repo.get_global_setting("scan_setup"), repo=repo)
-        # Cancel leaves scan_setup unset: an unanswered wizard is not an answer, so it asks again.
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            choice = dlg.choice()
-            self.controller.apply_scan_setup(**choice)
-            self.right_panel.show_scan_source("camera" if choice["capture"] == "camera" else "film")
 
     def _restore_default_dock_state(self) -> None:
         """Restore the controls dock to the snapshot taken at startup (home edge + width)."""

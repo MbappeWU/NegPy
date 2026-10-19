@@ -429,6 +429,7 @@ class RightPanel(QWidget):
 
         page_layout.addWidget(cp.roll_override_summary)
         for section in (
+            cp.setup_section,
             cp.film_section,
             cp.assembly_section,
             cp.sensor_section,

@@ -192,6 +192,17 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         ),
         step(
             ROLL,
+            tr("Scanning Setup"),
+            tr(
+                "Tell NegPy how you scan: <b>Camera</b> or <b>Film Scanner</b> (<b>Auto</b> reads it from the "
+                "file), and <b>White Light</b> or <b>Narrowband RGB</b>. It sets the decode and the print stock, "
+                "and the Roll tab shows only the controls your setup uses."
+            ),
+            lambda w: cp(w).setup_section,
+            guide=("setup", "Scanning Setup"),
+        ),
+        step(
+            ROLL,
             tr("Film Mode"),
             tr(
                 "The first choice: <b>Color</b> negative, <b>B&amp;W</b> negative or <b>Slide</b>. The wand "
@@ -219,12 +230,10 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             ROLL,
             tr("Calibration"),
             tr(
-                "This card corrects the capture, not the look. The <b>bulb</b> asks how you scan, then sets "
-                "<b>Camera WB</b> or <b>Linear RAW</b>. <b>Single-Shot Narrowband Calibration</b> "
+                "This card corrects the capture, not the look. <b>Single-Shot Narrowband Calibration</b> "
                 "removes sensor leak between bands. <b>Hue Trim</b> rotates hues for an unusual lamp."
             ),
             lambda w: cp(w).sensor_section,
-            focus=lambda w: cp(w).sensor_sidebar.scan_setup_btn,
             guide=("sensor", "Calibration"),
         ),
         step(

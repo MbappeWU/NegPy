@@ -2,9 +2,10 @@ from negpy.kernel.system.i18n import tr
 from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
-from negpy.desktop.view.styles.templates import field_label, header_row, hint_label, section_subheader, wrap_tooltip
-from negpy.desktop.view.widgets.choice_button import ChoiceButton, SegmentedChoice
+from negpy.desktop.view.styles.templates import field_label, hint_label, wrap_tooltip
+from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.file_dialogs import last_open_folder
+from negpy.desktop.view.sidebar.scan_setup import resolved_rig
 from negpy.desktop.view.widgets.fold import group_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
@@ -54,31 +55,6 @@ class SensorSidebar(BaseSidebar):
     def _init_ui(self) -> None:
         conf = self.state.config.process
 
-        self.capture_header = section_subheader(tr("CAPTURE"))
-
-        self.linear_raw_btn = SegmentedChoice(
-            (("fa5s.palette", tr("Camera WB")), ("fa5s.sliders-h", tr("Linear RAW"))),
-            tr(
-                "How a RAW file decodes. Camera WB applies the camera's as-shot white balance. Linear RAW "
-                "decodes with neutral multipliers (1,1,1,1), a clean starting point for narrowband light, "
-                "and the one Single-Shot Narrowband Calibration needs"
-            ),
-            data=(False, True),
-        )
-        self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
-        self.scan_setup_btn = self._icon_action(
-            "mdi6.lightbulb-on-outline",
-            tr("Scanning setup — set Camera WB or Linear RAW and the print stock from your camera/scanner and its light source"),
-        )
-        self.layout.addLayout(header_row(self.capture_header, self.scan_setup_btn))
-        self.layout.addWidget(self.linear_raw_btn)
-
-        # Greyed rather than hidden: the capture setting is sticky, and a hidden sticky setting
-        # follows a frame into Transparency unseen.
-        self.capture_hint = hint_label("")
-        self.capture_hint.setVisible(False)  # text and tooltip are set per film process in sync_ui
-        self.layout.addWidget(self.capture_hint)
-
         row = QHBoxLayout()
         self.sensor_label = field_label(tr("Profile"))
         self.sensor_combo = StepCombo()
@@ -122,7 +98,7 @@ class SensorSidebar(BaseSidebar):
         # explains the greyed controls rather than flagging a problem. Text and tooltip are set
         # per reason in _apply_gate.
         self.sensor_hint = hint_label(tr("Requires Linear RAW."))
-        narrowband_header, narrowband_fold = group_fold(
+        narrowband_header, self.narrowband_fold = group_fold(
             "sensor_narrowband",
             tr("Single-Shot Narrowband Calibration"),
             row,
@@ -131,7 +107,7 @@ class SensorSidebar(BaseSidebar):
             buttons=(self.calibrate_sensor_btn,),
         )
         self.layout.addLayout(narrowband_header)
-        self.layout.addWidget(narrowband_fold)
+        self.layout.addWidget(self.narrowband_fold)
 
         matrix_row = QHBoxLayout()
         self.crosstalk_label = field_label(tr("Matrix"))
@@ -211,9 +187,9 @@ class SensorSidebar(BaseSidebar):
                 "</td></tr></table>"
             )
         )
-        light_header, light_fold = group_fold("sensor_light", tr("Light Source"), self.hue_trim_slider)
+        light_header, self.light_fold = group_fold("sensor_light", tr("Light Source"), self.hue_trim_slider)
         self.layout.addLayout(light_header)
-        self.layout.addWidget(light_fold)
+        self.layout.addWidget(self.light_fold)
 
         self._apply_gate(conf)
 
@@ -306,9 +282,6 @@ class SensorSidebar(BaseSidebar):
             self.sensor_hint.setToolTip(wrap_tooltip(tip))
 
     def _connect_signals(self) -> None:
-        self.linear_raw_btn.currentChanged.connect(self._on_linear_raw_changed)
-        self.scan_setup_btn.clicked.connect(self._open_scan_setup)
-
         self.sensor_combo.currentTextChanged.connect(self._on_sensor_profile_changed)
         self.unmix_btn.currentChanged.connect(self._on_unmix_changed)
         self.calibrate_sensor_btn.clicked.connect(self._open_sensor_calibration)
@@ -321,22 +294,6 @@ class SensorSidebar(BaseSidebar):
 
         self.hue_trim_slider.valueChanged.connect(lambda v: self._on_hue_trim_changed(v, persist=False))
         self.hue_trim_slider.valueCommitted.connect(lambda v: self._on_hue_trim_changed(v, persist=True))
-
-    def _on_linear_raw_changed(self, _index: int) -> None:
-        # linear_raw switches use_camera_wb, so it is a source change: set_roll_default's
-        # apply_config re-decodes and suppresses the bounds analysis over the stale buffer.
-        self.controller.set_roll_default(
-            "sensor",
-            linear_raw=bool(self.linear_raw_btn.currentData()),
-            **invalidate_local_bounds(self.state.config.process),
-        )
-
-    def _open_scan_setup(self) -> None:
-        from negpy.desktop.view.main_window import MainWindow
-
-        win = self.window()
-        if isinstance(win, MainWindow):
-            win.show_scan_setup()
 
     def _on_sensor_profile_changed(self, name: str) -> None:
         # Bake the matrix like crosstalk does. The per-frame bounds were analyzed under the
@@ -474,57 +431,6 @@ class SensorSidebar(BaseSidebar):
         conf = self.state.config.process
         self.block_signals(True)
         try:
-            self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
-            # Linear RAW is inert on the *transfer*, where the camera matrix folds the as-shot
-            # multipliers back in (with Positive on it decides the decode again, so it stays live
-            # there), and on an RGB-scan triplet, where a narrowband exposure has no full-spectrum
-            # scene for a WB gain to describe in the first place — every exposure decodes neutral
-            # regardless. Scanning setup describes a negative rig.
-            from negpy.features.process.path import RenderPath, render_path
-
-            e6 = conf.process_mode == ProcessMode.E6
-            triplet = is_rgb_triplet(self.state.config.rgbscan)
-            self.linear_raw_btn.setEnabled(render_path(conf) is not RenderPath.TRANSFER and not triplet)
-            self.scan_setup_btn.setEnabled(not e6)
-            self.capture_hint.setVisible(e6 or triplet)
-            if e6:
-                self.capture_hint.setText(
-                    tr("Scanning setup is not used for slides.")
-                    if conf.positive_source
-                    else tr("Not applied to an as-captured transparency.")
-                )
-                self.capture_hint.setToolTip(
-                    wrap_tooltip(
-                        tr("Scanning setup describes a negative rig.")
-                        + (
-                            tr(
-                                " Linear RAW is live here: with Positive on, it decides the decode once more, so "
-                                "Linear RAW reads the file as literal linear data and defeats Positive's own read of it."
-                            )
-                            if conf.positive_source
-                            else tr(
-                                " Linear RAW is inert here: the camera matrix folds the as-shot multipliers back in, "
-                                "so the render is the same either way."
-                            )
-                        )
-                        + (tr(" A triplet locks Linear RAW as well, for the same reason as on a plain frame.") if triplet else "")
-                        + tr(" The setting is remembered, and applies again on a negative.")
-                    )
-                )
-            elif triplet:
-                self.capture_hint.setText(tr("Linear RAW is locked for a Trichrome triplet."))
-                self.capture_hint.setToolTip(
-                    wrap_tooltip(
-                        tr(
-                            "A triplet exposure is a single narrowband channel: only one raw channel carries "
-                            "real signal, so a white-balance gain corrects nothing — there is no full-spectrum "
-                            "scene for it to describe. Every exposure decodes neutral regardless of this "
-                            "toggle, so it is locked rather than left live with no effect. Remembered, and "
-                            "applies again once the frame is no longer a triplet."
-                        )
-                    )
-                )
-
             profiles = SensorProfiles.list_profiles()
             if profiles != [self.sensor_combo.itemText(i) for i in range(self.sensor_combo.count())]:
                 self.sensor_combo.clear()
@@ -555,12 +461,23 @@ class SensorSidebar(BaseSidebar):
             self.crosstalk_strength_slider.setEnabled(has_profiles)
 
             self.hue_trim_slider.setValue(conf.hue_trim)
+
+            # Only a single-shot narrowband camera rig leaks between bands or turns hues; a group
+            # that holds a setting stays in view whatever the rig.
+            camera_narrowband = resolved_rig(self.controller.session.repo, self.state) == ("camera", "narrowband")
+            narrowband = camera_narrowband or conf.sensor_matrix is not None
+            self.narrowband_fold.content.setVisible(narrowband)
+            self.calibrate_sensor_btn.setVisible(narrowband)
+            self.light_fold.content.setVisible(camera_narrowband or conf.hue_trim != 0)
         finally:
             self.block_signals(False)
 
+    def has_controls(self) -> bool:
+        """Whether any group shows, so the card can hide when the rig and film leave it empty."""
+        return any(not w.isHidden() for w in (self.narrowband_fold.content, self.light_fold.content, self.crosstalk_header))
+
     def block_signals(self, blocked: bool) -> None:
         for w in (
-            self.linear_raw_btn,
             self.sensor_combo,
             self.unmix_btn,
             self.crosstalk_combo,

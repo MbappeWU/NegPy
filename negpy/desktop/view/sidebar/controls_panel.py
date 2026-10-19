@@ -32,6 +32,7 @@ from negpy.desktop.view.sidebar.flatfield import FlatFieldSidebar
 from negpy.desktop.view.sidebar.process import ProcessSidebar
 from negpy.desktop.view.sidebar.roll import RollAnalysisSidebar
 from negpy.desktop.view.sidebar.demosaic import DemosaicSidebar
+from negpy.desktop.view.sidebar.scan_setup import ScanSetupSidebar, resolved_rig
 from negpy.desktop.view.sidebar.sensor import SensorSidebar
 from negpy.desktop.view.sidebar.color import ColorSidebar
 from negpy.desktop.view.sidebar.tone import ToneSidebar
@@ -200,6 +201,15 @@ class ControlsPanel(QWidget):
             "optics",
             optics_body,
             icon_name="fa5s.circle-notch",
+        )
+
+        self.scan_setup_sidebar = ScanSetupSidebar(self.controller)
+        self.setup_section = self._make_section(
+            tr("Scanning Setup"),
+            "setup",
+            self.scan_setup_sidebar,
+            icon_name="mdi6.scanner",
+            collapsible=False,
         )
 
         self.process_sidebar = ProcessSidebar(self.controller)
@@ -1092,10 +1102,27 @@ class ControlsPanel(QWidget):
         self.half_frame_sidebar.sync_ui()
         self.sensor_sidebar.sync_ui()
         self.demosaic_sidebar.sync_ui()
+        self.scan_setup_sidebar.sync_ui()
+        self._sync_scan_setup()
         # Scope first: the tab headers refresh at the end of the modified pass and read
         # each card's Reset to Roll state.
         self._sync_scope_buttons()
         self._sync_modified_dots()
+
+    def _sync_scan_setup(self) -> None:
+        """The scanning setup decides which rig cards show: Raw Decode and Optics are a camera's,
+        Trichrome a narrowband camera's. A card or row that holds a setting stays in view."""
+        state = self.controller.state
+        capture, light = resolved_rig(self.controller.session.repo, state)
+        camera = capture == "camera"
+        cfg = state.config
+        self.trichrome_sidebar.setVisible(
+            (camera and light == "narrowband") or bool(self.controller.rgb_scan_mode_for_roll(state.active_roll_id))
+        )
+        self.sensor_section.setVisible(self.sensor_sidebar.has_controls())
+        self.demosaic_section.setVisible(camera or cfg.process.highlight_reconstruction != _DEFAULT_PROCESS.highlight_reconstruction)
+        optics_edited = any(getattr(cfg.geometry, f) != getattr(_DEFAULT_GEOMETRY, f) for f in _LENS_FIELDS) or cfg.flatfield.apply
+        self.optics_section.setVisible(camera or optics_edited)
 
     _ROLL_CARD_LABELS = AppController._ROLL_CARD_LABELS
 

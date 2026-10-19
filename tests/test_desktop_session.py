@@ -282,7 +282,7 @@ class TestDesktopSessionSync(unittest.TestCase):
                 "kind": "virtual",
                 "name": "Portra",
                 "defaults": {"linear_raw": True},
-                "frame_overrides": {"a-hash": ["sensor"]},
+                "frame_overrides": {"a-hash": ["demosaic"]},
             }
         }
         globals_ = {"rolls_by_id": rolls_store}
@@ -307,7 +307,7 @@ class TestDesktopSessionSync(unittest.TestCase):
                 "kind": "virtual",
                 "name": "Portra",
                 "defaults": {"linear_raw": True},
-                "frame_overrides": {"a-hash": ["sensor"]},
+                "frame_overrides": {"a-hash": ["demosaic"]},
             }
         }
         globals_ = {"rolls_by_id": rolls_store}
@@ -2310,7 +2310,7 @@ class ResetKeepsScanSetup(unittest.TestCase):
         roll_id = rolls.create_virtual_roll(self.repo, "Pakon", [f["path"] for f in self.session.state.uploaded_files])
         rolls.set_roll_defaults(self.repo, roll_id, linear_raw=True)
         for h in ("hash1", "hash2"):
-            rolls.set_frame_override(self.repo, roll_id, h, "sensor", locked=True)
+            rolls.set_frame_override(self.repo, roll_id, h, "demosaic", locked=True)
         self.repo.save_global_settings({"last_linear_raw": False})
         self.session.state.active_roll_id = roll_id
         return roll_id
@@ -2346,7 +2346,7 @@ class ResetKeepsScanSetup(unittest.TestCase):
         self.session.undo()
 
         self.assertFalse(self.session.state.config.process.linear_raw)
-        self.assertIn("sensor", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
+        self.assertIn("demosaic", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
         self.session.repo.save_file_settings("hash1", self.session.state.config, file_path=self.session.state.uploaded_files[0]["path"])
         self.assertFalse(self.session.config_for_asset(self.session.state.uploaded_files[0]).process.linear_raw)
 
@@ -2380,7 +2380,7 @@ class ResetKeepsScanSetup(unittest.TestCase):
         self.session.jump_to_step(self.session.state.undo_index - 1)
 
         self.assertFalse(self.session.state.config.process.linear_raw)
-        self.assertIn("sensor", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
+        self.assertIn("demosaic", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
 
     def test_loading_a_work_print_locks_a_card_that_differs_from_the_roll(self):
         from negpy.services.assets import rolls
@@ -2390,7 +2390,7 @@ class ResetKeepsScanSetup(unittest.TestCase):
         self.session.load_work_print("own")
 
         self.assertFalse(self.session.state.config.process.linear_raw)
-        self.assertIn("sensor", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
+        self.assertIn("demosaic", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
 
     def test_loading_a_sidecar_replaces_the_edit_as_one_undo_step(self):
         import tempfile
@@ -2411,7 +2411,7 @@ class ResetKeepsScanSetup(unittest.TestCase):
 
         self.assertEqual(self.session.state.config.exposure.density, 0.77)
         self.assertEqual(self.repo.load_file_settings("hash1").exposure.density, 0.77)
-        self.assertIn("sensor", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
+        self.assertIn("demosaic", rolls.frame_override_cards(self.repo, roll_id, "hash1"))
         self.assertEqual(self.session.state.undo_index, before + 1)
 
     def test_a_paste_locks_a_card_that_differs_from_the_roll(self):

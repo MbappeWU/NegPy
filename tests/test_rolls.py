@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from negpy.domain.models import ProcessConfig, WorkspaceConfig
-from negpy.features.process.models import DemosaicMode, ProcessMode
+from negpy.features.process.models import ProcessMode
 from negpy.infrastructure.storage.repository import StorageRepository
 from negpy.services.assets.rolls import (
     add_to_scene,
@@ -550,15 +550,15 @@ class TestRollDefaults:
     def test_locking_a_card_keeps_that_frames_own_value(self):
         repo = _repo()
         roll_id = create_virtual_roll(repo, "Portra", [])
-        set_roll_defaults(repo, roll_id, linear_raw=True, demosaic_preview=DemosaicMode.VNG)
-        set_frame_override(repo, roll_id, "h1", "sensor", locked=True)
+        set_roll_defaults(repo, roll_id, linear_raw=True, hue_trim=4.0)
+        set_frame_override(repo, roll_id, "h1", "demosaic", locked=True)
 
         resolved = resolve_roll_config(repo, roll_id, "h1", WorkspaceConfig(process=ProcessConfig(linear_raw=False)))
 
-        # sensor (Calibration) is locked, so linear_raw keeps the frame's own value...
+        # demosaic (Raw Decode) is locked, so linear_raw keeps the frame's own value...
         assert resolved.process.linear_raw is False
-        # ...but demosaic (a different card) is not locked, so it still takes the roll default.
-        assert resolved.process.demosaic_preview == DemosaicMode.VNG
+        # ...but sensor (a different card) is not locked, so it still takes the roll default.
+        assert resolved.process.hue_trim == 4.0
 
     def test_locking_does_not_affect_a_different_frame_in_the_same_roll(self):
         repo = _repo()
