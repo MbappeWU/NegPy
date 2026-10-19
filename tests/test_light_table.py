@@ -339,12 +339,12 @@ def test_without_film_edges_each_strip_frame_is_as_wide_as_its_upright_picture(b
     qapp.processEvents()
 
     landscape, portrait = (strip.visualRect(strip.model().index(row, 0)) for row in (0, 1))
-    picture = landscape.height() - 2 * _FilmDelegate._BORDER
+    picture = landscape.height() - strip.STRIP_GAP - 2 * _FilmDelegate._BORDER
     assert landscape.height() == strip.viewport().height()
     assert landscape.width() == round(picture * 1.5) + _FilmDelegate._BORDER
     assert portrait.width() == round(picture / 1.5) + _FilmDelegate._BORDER
     assert portrait.left() == landscape.right() + 1
-    assert strip.viewport().geometry().top() == strip.SLIM_MARGIN
+    assert strip.STRIP_GAP == 2 * strip.SLIM_MARGIN and strip.viewport().geometry().top() == 0
     browser.hide()
 
 
@@ -366,8 +366,14 @@ def test_without_film_edges_the_light_table_rows_fill_its_width(browser, qapp):
         assert cells[0].left() == 0 and cells[-1].right() == vw - 1
         assert len({cell.height() for cell in cells}) == 1
     assert last[0].left() == 0 and last[-1].right() < vw - 1
-    assert last[0].height() == view._slim_height() + 2 * _FilmDelegate._BORDER
+    assert last[0].height() == view._slim_height() + 2 * _FilmDelegate._BORDER + view.STRIP_GAP
     view.hide()
+
+
+def _no_pointer(view, qapp) -> None:
+    """The offscreen pointer rests on the first frame; a test of marks takes it off just before the grab."""
+    qapp.processEvents()
+    view._hover_row = -1
 
 
 def _near(c: QColor, color: QColor) -> bool:
@@ -382,12 +388,14 @@ def test_without_film_edges_a_scene_colors_the_border_of_its_frames(browser, qap
     strip = browser.list_view
     browser.resize(1400, 200)
     browser.show()
-    qapp.processEvents()
+    strip.selectionModel().clearSelection()
+    _no_pointer(strip, qapp)
     image = strip.viewport().grab().toImage()
     color = QColor(scene_color(2))
     cells = [strip.visualRect(strip.model().index(row, 0)) for row in range(4)]
+    tops = [strip.itemDelegate().band(cell).top() + 1 for cell in cells]
 
-    assert [_near(image.pixelColor(cell.center().x(), cell.top() + 1), color) for cell in cells] == [False, True, True, False]
+    assert [_near(image.pixelColor(cell.center().x(), top), color) for cell, top in zip(cells, tops)] == [False, True, True, False]
     middle = cells[1].center().y()
     assert _near(image.pixelColor(cells[1].left(), middle), color), "the run's first frame closes its left side"
     assert not _near(image.pixelColor(cells[1].right(), middle), color), "frames of one run join"
@@ -575,13 +583,40 @@ def _paint_cell(delegate: _FilmDelegate, hover: bool, edges: bool = True) -> tup
 
 
 @pytest.mark.parametrize("hover", [False, True])
-def test_a_light_table_frame_is_never_dimmed_and_hover_rings_it_red(qapp, hover):
+def test_a_light_table_frame_is_never_dimmed_and_its_cell_draws_no_ring(qapp, hover):
     delegate = _FilmDelegate()
     canvas, window = _paint_cell(delegate, hover)
 
     assert canvas.pixelColor(window.center()) == QColor(40, 160, 220)
-    ring = canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1)
-    assert (ring == QColor(THEME.accent_primary)) == hover
+    assert canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1) != QColor(THEME.accent_primary)
+
+
+def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser, qapp):
+    from PyQt6.QtCore import QItemSelectionModel
+
+    _thumbs(browser, [(300, 200)] * 3)
+    browser.session.state.current_file_path = "/r/1.tif"
+    strip = browser.list_view
+    browser.resize(1400, 200)
+    browser.show()
+    qapp.processEvents()
+    model, select = strip.model(), QItemSelectionModel.SelectionFlag.Select
+    strip.selectionModel().select(model.index(1, 0), select)
+    strip.selectionModel().select(model.index(2, 0), select)
+    _no_pointer(strip, qapp)
+    image = strip.viewport().grab().toImage()
+    bands = [strip.itemDelegate().band(strip.visualRect(model.index(row, 0))) for row in range(3)]
+
+    def light(row: int, above: int) -> int:
+        color = image.pixelColor(bands[row].center().x(), bands[row].top() - above)
+        return color.red() - color.green()
+
+    table = light(0, 2)
+    assert not light(0, 1) > table, "an unselected frame has no ring"
+    assert light(1, 2) > light(2, 2) > table + 40, "the ring lies outside the border, the active frame's the strongest"
+    assert light(1, 6) > light(2, 6) > table, "the glow fades out past the ring"
+    assert light(1, strip.SLIM_MARGIN) <= table + 2, "the glow is gone at the strip's edge"
+    browser.hide()
 
 
 @pytest.mark.parametrize("edges", [True, False])

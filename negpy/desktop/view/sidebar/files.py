@@ -2,6 +2,7 @@ from negpy.kernel.system.i18n import tr
 import math
 import os
 from dataclasses import replace
+from functools import lru_cache
 from typing import Any, Callable, List, Optional
 
 import numpy as np
@@ -819,6 +820,29 @@ def justified_rows(aspects: list[float], width: int, height: int, gap: int) -> l
     return rows
 
 
+# The selection ring's corner radius, and how far its glow fades out past the ring: inside the strip's space.
+_RING_RADIUS = 3
+_GLOW_REACH = THEME.space_xl - 2
+
+
+@lru_cache(maxsize=64)
+def _selection_glow(width: int, height: int) -> QImage:
+    """Accent light fading out from the outer edge of a ring around a `width` x `height` frame, the
+    frame itself left clear; the image's corner lies `2 + _GLOW_REACH` up and left of the frame's."""
+    pad = 2 + _GLOW_REACH
+    ys, xs = np.mgrid[0 : height + 2 * pad, 0 : width + 2 * pad].astype(np.float32) + 0.5
+    corner = _RING_RADIUS + 1
+    qx = np.abs(xs - (width / 2 + pad)) - (width / 2 + 2 - corner)
+    qy = np.abs(ys - (height / 2 + pad)) - (height / 2 + 2 - corner)
+    outside = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - corner
+    alpha = np.where(outside > 0, 0.9 * np.exp(-((outside / (_GLOW_REACH / 2.4)) ** 2)), 0.0)
+    color = QColor(THEME.accent_primary)
+    rgba = np.empty((*alpha.shape, 4), np.uint8)
+    for channel, value in enumerate((color.red(), color.green(), color.blue(), 255)):
+        rgba[..., channel] = np.round(alpha * value)
+    return QImage(rgba.data, rgba.shape[1], rgba.shape[0], rgba.strides[0], QImage.Format.Format_RGBA8888_Premultiplied).copy()
+
+
 class _FilmDelegate(_ThumbnailDelegate):
     """Cells as film: the rebate at the frame's slot, the thumbnail in its window as it lies on the film.
     Without film edges, each frame stands upright in a cell as wide as its picture, a thin rebate border
@@ -841,8 +865,6 @@ class _FilmDelegate(_ThumbnailDelegate):
     def set_film(self, geometry: FilmGeometry, style: EdgeStyle, palette: Palette, edges: bool = True) -> None:
         self._film = (geometry, style, palette)
         self._edges = edges
-        # Slim frames lie half a border apart; a wider ring would spill into the next cell.
-        self._SELECTION_OUTSET = _ThumbnailDelegate._SELECTION_OUTSET if edges else self._BORDER // 2
         self._rebates.clear()
         self._pictures.clear()
 
@@ -864,7 +886,13 @@ class _FilmDelegate(_ThumbnailDelegate):
         return super().sizeHint(option, index)
 
     def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
-        super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
+        # On film the view rings the whole frame, past its cell.
+        if self._film is None:
+            super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
+
+    def is_active(self, file_info: dict) -> bool:
+        state = self._state
+        return bool(state and state.current_file_path and file_info.get("path") == state.current_file_path)
 
     def _border_pen(self, hover: bool) -> QPen:
         # On film the rebate frames the picture.
@@ -914,11 +942,22 @@ class _FilmDelegate(_ThumbnailDelegate):
         along, across = geometry.frame_along * s, geometry.frame_across * s
         return top, QRect(int(round(left)), int(round(top + geometry.image_top * s)), int(round(along)), int(round(across)))
 
+    def band(self, cell: QRect) -> QRect:
+        """The film across a cell, without the view's space above and below it."""
+        if self._edges and self._film is not None:
+            geometry = self._film[0]
+            return QRect(
+                cell.left(), self._layout(geometry, cell)[0], cell.width(), int(round(geometry.width * cell.width() / geometry.pitch))
+            )
+        view = self.parent()
+        gap = view.STRIP_GAP if isinstance(view, _FilmGridView) else 0
+        return cell.adjusted(0, gap // 2, 0, -(gap - gap // 2))
+
     def _window(self, cell: QRect) -> QRect:
         if self._edges and self._film is not None:
             return self._layout(self._film[0], cell)[1]
         b = self._BORDER
-        return cell.adjusted(b // 2, b, -(b - b // 2), -b)
+        return self.band(cell).adjusted(b // 2, b, -(b - b // 2), -b)
 
     def picture_rect(self, cell: QRect, index: QModelIndex) -> QRect:
         if self._film is None:
@@ -938,13 +977,13 @@ class _FilmDelegate(_ThumbnailDelegate):
         scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
         if not scene:
             return
-        color, b = QColor(scene_color(scene[0])), self._BORDER
-        painter.fillRect(cell.left(), cell.top(), cell.width(), b, color)
-        painter.fillRect(cell.left(), cell.bottom() - b + 1, cell.width(), b, color)
+        color, b, band = QColor(scene_color(scene[0])), self._BORDER, self.band(cell)
+        painter.fillRect(band.left(), band.top(), band.width(), b, color)
+        painter.fillRect(band.left(), band.bottom() - b + 1, band.width(), b, color)
         if self._run_ends(index, -1, scene, cell.top()):
-            painter.fillRect(cell.left(), cell.top(), b // 2, cell.height(), color)
+            painter.fillRect(band.left(), band.top(), b // 2, band.height(), color)
         if self._run_ends(index, 1, scene, cell.top()):
-            painter.fillRect(cell.right() - (b - b // 2) + 1, cell.top(), b - b // 2, cell.height(), color)
+            painter.fillRect(band.right() - (b - b // 2) + 1, band.top(), b - b // 2, band.height(), color)
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         film = self._film
@@ -957,7 +996,7 @@ class _FilmDelegate(_ThumbnailDelegate):
             painter.drawImage(cell.left(), top, self._rebate(film, index.row(), cell.width(), index.model().rowCount()))
         else:
             window = self._window(cell)
-            painter.fillRect(cell, QColor(*film[2].rebate))
+            painter.fillRect(self.band(cell), QColor(*film[2].rebate))
             self._paint_scene_border(painter, cell, index)
         framed = QStyleOptionViewItem(option)
         m = self._MARGIN
@@ -979,9 +1018,12 @@ class _FilmGridView(ThumbnailGridView):
     STRIP_GAP = THEME.space_xl
     _aspect = 1.0
     cell_zoomed = pyqtSignal(int)
+    # (ring, glow) strength of the active frame, the other selected frames and the frame under the pointer.
+    _MARKS = {"active": (1.0, 1.0), "selected": (0.6, 0.5), "hover": (0.35, 0.0)}
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         self._slim_cells: Optional[dict[int, QRect]] = None
+        self._hover_row = -1
         super().__init__(parent, target_cell)
         self._zoom_angle = 0
         # Margins, not QSS padding, which would inset the scroll bar too; the film runs off the top and bottom.
@@ -1024,18 +1066,19 @@ class _FilmGridView(ThumbnailGridView):
         return self._slim_layout().get(index.row(), QRect()).size()
 
     def _slim_layout(self) -> dict[int, QRect]:
-        """Each frame's cell in justified rows; a scene sort starts each scene's block on a new row."""
+        """Each frame's cell in justified rows, the gap between rows split above and below its film; a
+        scene sort starts each scene's block on a new row."""
         if self._slim_cells is None:
             model, delegate = self.model(), self.itemDelegate()
             runs = model.scene_runs() if hasattr(model, "scene_runs") else []
             blocks = [(first, last) for _ordinal, first, last in runs] or [(0, model.rowCount() - 1)]
-            border, cells, y = delegate._BORDER, {}, self.STRIP_GAP // 2
+            border, cells, y = delegate._BORDER, {}, 0
             for first, last in blocks:
                 aspects = [delegate.picture_aspect(model.index(row, 0)) for row in range(first, last + 1)]
                 row = first
                 for height, frames in justified_rows(aspects, self.viewport().width(), self._slim_height(), border):
                     for x, width in frames:
-                        cells[row] = QRect(x, y, width, height + 2 * border)
+                        cells[row] = QRect(x, y, width, height + 2 * border + self.STRIP_GAP)
                         row += 1
                     y += height + 2 * border + self.STRIP_GAP
                 y += self.SCENE_GAP
@@ -1121,20 +1164,60 @@ class _FilmGridView(ThumbnailGridView):
                 current = None
         return runs
 
+    def selectionChanged(self, selected, deselected) -> None:  # noqa: N802
+        super().selectionChanged(selected, deselected)
+        # A mark reaches past its cell, where Qt repaints nothing.
+        self.viewport().update()
+
+    def viewportEvent(self, event) -> bool:  # noqa: N802
+        kind = event.type()
+        if kind in (QEvent.Type.HoverEnter, QEvent.Type.HoverMove, QEvent.Type.HoverLeave):
+            row = -1 if kind == QEvent.Type.HoverLeave else self.indexAt(event.position().toPoint()).row()
+            if row != self._hover_row:
+                self._hover_row = row
+                self.viewport().update()
+        return super().viewportEvent(event)
+
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
         delegate = self.itemDelegate()
-        # Slim frames color their own border.
-        if not isinstance(delegate, _FilmDelegate) or delegate._film is None or delegate.slim:
+        if not isinstance(delegate, _FilmDelegate) or delegate._film is None:
             return
-        runs = self.scene_runs_on_rows()
-        if not runs:
-            return
-        geometry = delegate._film[0]
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for scene, _index, first, last in runs:
+        # Slim frames color their own border.
+        if not delegate.slim:
+            self._paint_scene_outlines(painter, delegate, delegate._film[0])
+        self._paint_marks(painter, delegate)
+        painter.end()
+
+    def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate) -> None:
+        """An accent ring around each selected frame and its film, the glows under the rings."""
+        model, selection = self.model(), self.selectionModel()
+        rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
+        marks = []
+        for row in sorted(rows | ({self._hover_row} if self._hover_row >= 0 else set())):
+            index = model.index(row, 0)
+            if row not in rows:
+                level = "hover"
+            else:
+                level = "active" if delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}) else "selected"
+            marks.append((delegate.band(self.visualRect(index)), *self._MARKS[level]))
+        reach = 2 + _GLOW_REACH
+        for band, _ring, glow in marks:
+            if glow:
+                painter.setOpacity(glow)
+                painter.drawImage(band.left() - reach, band.top() - reach, _selection_glow(band.width(), band.height()))
+        painter.setOpacity(1.0)
+        for band, ring, _glow in marks:
+            color = QColor(THEME.accent_primary)
+            color.setAlphaF(ring)
+            painter.setPen(QPen(color, 2))
+            painter.drawRoundedRect(QRectF(band.x() - 1, band.y() - 1, band.width() + 2, band.height() + 2), _RING_RADIUS, _RING_RADIUS)
+
+    def _paint_scene_outlines(self, painter: QPainter, delegate: _FilmDelegate, geometry: FilmGeometry) -> None:
+        for scene, _index, first, last in self.scene_runs_on_rows():
             s = first.width() / geometry.pitch
             width = max(2.0, min(4.0, 0.7 * s))
             top = delegate._layout(geometry, first)[0]
@@ -1148,7 +1231,6 @@ class _FilmGridView(ThumbnailGridView):
             pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
             painter.setPen(pen)
             painter.drawRect(rect)
-        painter.end()
 
 
 class _FilmStripView(_FilmGridView):
@@ -1157,10 +1239,12 @@ class _FilmStripView(_FilmGridView):
     STRIP_GAP = 0
     # Share of the strip's height kept clear above and below the film, so a short strip keeps its proportions.
     MARGIN_SHARE = 0.06
-    SLIM_MARGIN = THEME.space_lg
+    SLIM_MARGIN = THEME.space_xl
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        # The film runs off the left and right edges.
+        self.setViewportMargins(0, 0, 0, 0)
         self._fit_margins(self.height())
         self.setFlow(QListView.Flow.LeftToRight)
         self.setWrapping(False)
@@ -1178,9 +1262,12 @@ class _FilmStripView(_FilmGridView):
         )
 
     def _fit_margins(self, height: int) -> None:
-        # The film runs off the left and right edges.
+        """The space above and below the film lies inside the cells, as the Light Table's row gap does,
+        so the selection's glow can reach into it."""
         margin = self.SLIM_MARGIN if self._slim() else round(height * self.MARGIN_SHARE)
-        self.setViewportMargins(0, margin, 0, margin)
+        if self.STRIP_GAP != 2 * margin:
+            self.STRIP_GAP = 2 * margin
+            self._last_cell = -1
 
     def set_film_aspect(self, aspect: float) -> None:
         self._fit_margins(self.height())
@@ -1193,10 +1280,10 @@ class _FilmStripView(_FilmGridView):
 
     def slim_cell(self, index: QModelIndex) -> QSize:
         height, border = self.viewport().height(), _FilmDelegate._BORDER
-        return QSize(round((height - 2 * border) * self.itemDelegate().picture_aspect(index)) + border, height)
+        return QSize(round((height - self.STRIP_GAP - 2 * border) * self.itemDelegate().picture_aspect(index)) + border, height)
 
     def cell_for_width(self, vw: int) -> int:
-        return max(1, int((self.viewport().height() - 1) / self._aspect))
+        return max(1, int((self.viewport().height() - self.STRIP_GAP - 1) / self._aspect))
 
     def _apply_cell(self, cell: int) -> None:
         super()._apply_cell(cell)
