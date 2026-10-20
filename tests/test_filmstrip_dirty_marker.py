@@ -11,11 +11,11 @@ from negpy.desktop.view.sidebar.files import _ThumbnailDelegate
 from negpy.desktop.view.styles.theme import THEME
 
 
-def _paint(delegate, path: str) -> QPixmap:
+def _paint(delegate, path: str, file_hash: str = "") -> QPixmap:
     thumb = QPixmap(60, 40)
     thumb.fill(QColor(120, 120, 120))
     index = MagicMock()
-    index.data.side_effect = lambda role: {"path": path} if role == Qt.ItemDataRole.UserRole else QIcon(thumb)
+    index.data.side_effect = lambda role: {"path": path, "hash": file_hash or path} if role == Qt.ItemDataRole.UserRole else QIcon(thumb)
     option = QStyleOptionViewItem()
     option.rect = QRect(0, 0, 66, 46)
     target = QPixmap(66, 46)
@@ -33,15 +33,24 @@ def _bottom_edge_colour(pix: QPixmap) -> QColor:
 
 
 def test_active_dirty_frame_gets_an_edited_mark_line(qapp):
-    state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", stale_thumbnails=set())
+    state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", current_file_hash="/a.nef", stale_thumbnails=set())
     dirty = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=state), "/a.nef"))
     assert dirty.name().upper() == THEME.mark_edited.upper()
 
 
 def test_other_frames_and_clean_frames_do_not(qapp):
-    state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", stale_thumbnails=set())
+    state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", current_file_hash="/a.nef", stale_thumbnails=set())
     other = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=state), "/b.nef"))
     assert other.name().upper() != THEME.mark_edited.upper()
-    clean = SimpleNamespace(is_dirty=False, current_file_path="/a.nef", stale_thumbnails=set())
+    clean = SimpleNamespace(is_dirty=False, current_file_path="/a.nef", current_file_hash="/a.nef", stale_thumbnails=set())
     same = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=clean), "/a.nef"))
     assert same.name().upper() != THEME.mark_edited.upper()
+
+
+def test_only_the_open_half_of_a_half_frame_scan_is_the_active_frame(qapp):
+    state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", current_file_hash="ha#1", stale_thumbnails=set())
+    delegate = _ThumbnailDelegate(state=state)
+
+    assert delegate.is_active({"path": "/a.nef", "hash": "ha#1"})
+    assert not delegate.is_active({"path": "/a.nef", "hash": "ha#2"})
+    assert _bottom_edge_colour(_paint(delegate, "/a.nef", "ha#2")).name().upper() != THEME.mark_edited.upper()

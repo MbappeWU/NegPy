@@ -187,10 +187,14 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         if isinstance(view, QListView) and view.isVisible() and index.isValid():
             view.viewport().update(view.visualRect(QModelIndex(index)))
 
+    def is_active(self, file_info: dict) -> bool:
+        """The open frame, by hash: the two halves of a half-frame scan share one path."""
+        state = self._state
+        return bool(state and state.current_file_hash and file_info.get("hash") == state.current_file_hash)
+
     def _is_dirty(self, file_info: dict) -> bool:
         """Only the active file can carry unsaved edits; every other frame is on disk."""
-        state = self._state
-        return bool(state and state.is_dirty and state.current_file_path and file_info.get("path") == state.current_file_path)
+        return bool(self._state and self._state.is_dirty and self.is_active(file_info))
 
     def _is_stale_thumbnail(self, file_info: dict) -> bool:
         """True while the cached bitmap predates a settings write a render hasn't caught up to."""
@@ -856,10 +860,6 @@ class _FilmDelegate(_ThumbnailDelegate):
         # On film the view rings the whole frame, past its cell.
         if self._film is None:
             super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
-
-    def is_active(self, file_info: dict) -> bool:
-        state = self._state
-        return bool(state and state.current_file_path and file_info.get("path") == state.current_file_path)
 
     def _border_pen(self, hover: bool) -> QPen:
         # On film the rebate frames the picture.

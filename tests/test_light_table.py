@@ -568,7 +568,7 @@ def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser,
 
     browser.session.set_canvas_bg(bg)
     _thumbs(browser, [(300, 200)] * 3)
-    browser.session.state.current_file_path = "/r/1.tif"
+    browser.session.state.current_file_path, browser.session.state.current_file_hash = "/r/1.tif", "h1"
     strip = browser.list_view
     _show_strip(browser)
     qapp.processEvents()
