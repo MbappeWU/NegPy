@@ -1832,6 +1832,9 @@ class FileBrowser(QWidget):
         self.sort_btn.setText(self.sort_btn.order_action(order).text())
 
     def _apply_sheet_filter(self, mode: str, save: bool = True) -> None:
+        model = self.session.asset_model
+        model.set_sheet_filter(mode)
+        mode = model.sheet_filter
         self.act_sheet_all.setChecked(mode == "all")
         self.act_sheet_keepers.setChecked(mode == "keepers")
         self.act_sheet_unrejected.setChecked(mode == "unrejected")
@@ -1839,7 +1842,6 @@ class FileBrowser(QWidget):
         icon_color = "white" if mode != "all" else THEME.text_primary
         self.sheet_btn.setIcon(qta.icon("fa5s.filter", color=icon_color))
         self.sheet_btn.setText(next(a.text() for a in self._sheet_group.actions() if a.isChecked()))
-        self.session.asset_model.set_sheet_filter(mode)
         if save:
             self.session.repo.save_global_setting("sheet_filter", mode)
         self._prune_selection_to_visible()

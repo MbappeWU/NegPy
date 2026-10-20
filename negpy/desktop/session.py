@@ -567,6 +567,8 @@ class AssetListModel(QAbstractListModel):
         return self._filter_text
 
     def set_sort_order(self, order: str) -> None:
+        if order not in ("name", "date", "scene"):
+            order = "name"
         self._sort_order = order
         self._apply_reindex()
 

@@ -56,6 +56,14 @@ def test_the_tally_names_the_filter_that_emptied_the_strip(qapp):
     assert browser.tally_label.text() == "0 of 36 frames · Keepers filter"
 
 
+def test_an_unknown_saved_filter_and_sort_fall_back_to_all_and_name(qapp):
+    browser = _browser(qapp, repo=_Repo(sheet_filter="rejected", file_sort_order="size"))
+    assert browser.session.asset_model.sheet_filter == "all"
+    assert browser.act_sheet_all.isChecked()
+    assert browser.session.asset_model.effective_sort_order == "name"
+    assert browser.act_sort_name.isChecked()
+
+
 def test_the_strip_gives_way_to_a_message_when_a_filter_hides_everything(qapp):
     browser = _browser(qapp, repo=_Repo(sheet_filter="keepers"))
     assert browser.empty_label.isVisible()
