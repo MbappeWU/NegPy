@@ -280,7 +280,7 @@ class SegmentedChoice(QWidget):
         segments = self._segments()
         live = self.isEnabled()
 
-        border = THEME.accent_secondary if self.hasFocus() and self._tab_focus else THEME.border_primary
+        border = THEME.border_focus if self.hasFocus() and self._tab_focus else THEME.border_primary
         p.setPen(QPen(QColor(border), 1))
         p.setBrush(QColor(THEME.bg_input))
         p.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), THEME.radius_lg, THEME.radius_lg)

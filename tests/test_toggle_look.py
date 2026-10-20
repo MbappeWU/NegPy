@@ -263,3 +263,18 @@ def test_a_running_scan_takes_the_chip_of_a_toggle_that_is_on(qapp):
     _host, image = _on_card(stop)
 
     assert image.pixelColor(stop.geometry().left() + 4, stop.geometry().center().y()).name() == QColor(THEME.bg_checked).name()
+
+
+def test_keyboard_focus_is_a_neutral_gray_edge(qapp):
+    from negpy.desktop.view.widgets.step_combo import StepCombo
+
+    for widget in (labeled_action("fa5s.undo", "Reset", ""), StepCombo.of(["Print", "Flat"], "")):
+        host, _image = _on_card(widget)
+        host.activateWindow()
+        widget.setFocus(Qt.FocusReason.TabFocusReason)
+        QTest.qWait(20)
+        image = host.grab().toImage()
+        edge = {
+            image.pixelColor(widget.geometry().left(), y).name() for y in range(widget.geometry().top() + 4, widget.geometry().bottom() - 4)
+        }
+        assert QColor(THEME.border_focus).name() in edge, type(widget).__name__

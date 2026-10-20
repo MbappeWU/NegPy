@@ -112,5 +112,5 @@ class PanelTab(QAbstractButton):
             p.drawEllipse(QPointF(anchor.right() + THEME.space_xs, anchor.top() + THEME.space_xs), _DOT / 2, _DOT / 2)
         if self.hasFocus():
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.setPen(QColor(THEME.accent_secondary))
+            p.setPen(QColor(THEME.border_focus))
             p.drawRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5))

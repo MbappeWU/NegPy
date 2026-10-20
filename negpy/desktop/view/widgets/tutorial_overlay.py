@@ -506,7 +506,7 @@ class TutorialOverlay(QWidget):
         hole = QPainterPath()
         hole.addRoundedRect(hi, 6, 6)
         painter.fillPath(full.subtracted(hole), scrim)
-        painter.setPen(QPen(QColor(THEME.accent_primary), 2))
+        painter.setPen(QPen(QColor(THEME.border_focus), 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(hi, 6, 6)
 

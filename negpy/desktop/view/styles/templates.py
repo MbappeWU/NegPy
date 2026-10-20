@@ -631,7 +631,7 @@ def slider_value_qss() -> str:
         f"QDoubleSpinBox {{font-size: {THEME.font_size_base}px; color: {THEME.text_primary}; background: transparent;"
         " border: none; border-bottom: 1px solid transparent; padding: 0px;}"
         f"QDoubleSpinBox:hover {{border-bottom: 1px solid {THEME.border_hover};}}"
-        f"QDoubleSpinBox:focus {{border-bottom: 1px solid {THEME.accent_primary};}}"
+        f"QDoubleSpinBox:focus {{border-bottom: 1px solid {THEME.border_focus};}}"
         f"QDoubleSpinBox:disabled {{color: {THEME.text_muted};}}"
     )
 

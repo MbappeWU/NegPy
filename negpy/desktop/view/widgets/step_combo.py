@@ -215,7 +215,7 @@ class StepCombo(QComboBox):
             p.fillRect(cells[hover], QColor(THEME.border_primary))
         p.restore()
 
-        border = THEME.accent_secondary if self.hasFocus() else (THEME.border_hover if hover else THEME.border_primary)
+        border = THEME.border_focus if self.hasFocus() else (THEME.border_hover if hover else THEME.border_primary)
         p.setPen(QPen(QColor(border), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(outline, THEME.radius_md, THEME.radius_md)

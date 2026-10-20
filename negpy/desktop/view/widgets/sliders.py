@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 from PyQt6.QtGui import QPainter, QColor, QPen
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QRect, QRectF, QEvent, QLocale
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QRectF, QEvent, QLocale
 from negpy.desktop.view.styles.theme import THEME
 from negpy.kernel.system.i18n import tr
 from negpy.desktop.view.styles.templates import EditedDot, FieldLabel, slider_handle_qss, slider_label_qss, slider_value_qss, wrap_tooltip
@@ -693,116 +693,6 @@ def clone_slider(src: CompactSlider) -> CompactSlider:
         clone.spin.setDecimals(src.spin.decimals())
         return clone
     raise TypeError(f"clone_slider: unhandled slider class {cls.__name__}")
-
-
-class RangeSlider(QWidget):
-    """
-    Dual-handle slider for selecting a range (0.0 to 1.0).
-    """
-
-    rangeChanged = pyqtSignal(float, float)
-    rangeCommitted = pyqtSignal(float, float)
-
-    def __init__(self, label: str, parent=None):
-        super().__init__(parent)
-        self.setMinimumHeight(50)
-        self._label = label
-        self._min_val = 0.0
-        self._max_val = 1.0
-        self._last_min = 0.0
-        self._last_max = 1.0
-        self._active_handle = None
-
-        self._margin = 10
-        self._handle_r = 6
-
-        # Debounce
-        self.timer = QTimer()
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(33)
-        self.timer.timeout.connect(lambda: self.rangeChanged.emit(self._min_val, self._max_val))
-
-    def setRange(self, low: float, high: float) -> None:
-        self._min_val = low
-        self._max_val = high
-        self._last_min = low
-        self._last_max = high
-        self.update()
-
-    def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Draw Label
-        painter.setPen(QColor(THEME.text_secondary))
-        painter.setFont(painter.font())
-        painter.drawText(QRect(0, 0, self.width(), 15), Qt.AlignmentFlag.AlignLeft, self._label)
-
-        # Track math
-        w = self.width() - 2 * self._margin
-        y = 35
-
-        # Draw Groove
-        painter.setPen(QPen(QColor(THEME.border_color), 4))
-        painter.drawLine(self._margin, y, self.width() - self._margin, y)
-
-        # Draw Active Part
-        x1 = self._margin + int(self._min_val * w)
-        x2 = self._margin + int(self._max_val * w)
-        painter.setPen(QPen(QColor(THEME.accent_primary), 4))
-        painter.drawLine(x1, y, x2, y)
-
-        # Draw the handles: filled with the accent, plus a 1px dark stroke ring for visibility
-        r = self._handle_r
-        for cx in (x1, x2):
-            painter.setBrush(QColor(THEME.accent_primary))
-            painter.setPen(QPen(QColor(THEME.canvas_bg_black), 1))
-            painter.drawEllipse(cx - r, y - r, r * 2, r * 2)
-
-    def _get_val(self, x: int) -> float:
-        w = self.width() - 2 * self._margin
-        val = (x - self._margin) / max(1, w)
-        return float(max(0.0, min(1.0, val)))
-
-    def mousePressEvent(self, event) -> None:
-        x = int(event.position().x())
-        w = self.width() - 2 * self._margin
-        x1 = self._margin + int(self._min_val * w)
-        x2 = self._margin + int(self._max_val * w)
-
-        if abs(x - x1) < 15:
-            self._active_handle = "min"
-        elif abs(x - x2) < 15:
-            self._active_handle = "max"
-        else:
-            self._active_handle = None
-
-    def mouseMoveEvent(self, event) -> None:
-        if not self._active_handle:
-            return
-
-        val = self._get_val(int(event.position().x()))
-        if self._active_handle == "min":
-            self._min_val = min(val, self._max_val - 0.05)
-        else:
-            self._max_val = max(val, self._min_val + 0.05)
-
-        self.update()
-        self.timer.start()
-
-    def mouseReleaseEvent(self, event) -> None:
-        if self._active_handle:
-            if self._min_val != self._last_min or self._max_val != self._last_max:
-                self._last_min = self._min_val
-                self._last_max = self._max_val
-                self.rangeCommitted.emit(self._min_val, self._max_val)
-        self._active_handle = None
-
-    def mouseDoubleClickEvent(self, event) -> None:
-        """Reset for the entire range."""
-        self.setRange(0.0, 1.0)
-        self.rangeChanged.emit(0.0, 1.0)
-        self.rangeCommitted.emit(0.0, 1.0)
 
 
 class SliderGroup(QWidget):

@@ -47,6 +47,8 @@ class ThemeConfig:
     border_primary: str = "#262626"
     border_color: str = "#333333"
     border_hover: str = "#3A3A3A"
+    # Keyboard focus: a neutral edge, as hover and the arrow-key row are neutral.
+    border_focus: str = "#949494"
     border_indicator: str = "#5A5A5A"
     border_indicator_hover: str = "#8A8A8A"
     bg_indicator: str = "#1A1A1A"
