@@ -81,7 +81,7 @@ class PanelTab(QAbstractButton):
             p.drawRoundedRect(chip, radius, radius)
         elif hover:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(255, 255, 255, 12))
+            p.setBrush(QColor(THEME.surface_hover_faint))
             p.drawRoundedRect(chip, radius, radius)
 
         font = _font(checked)

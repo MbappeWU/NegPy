@@ -87,7 +87,7 @@ class ThemeConfig:
     # Surface overlay tokens (rgba). Integer alpha where a widget sheet reads it.
     surface_scrim: str = "rgba(5, 5, 5, 115)"
     surface_pill: str = "rgba(0, 0, 0, 140)"
-    surface_hover_faint: str = "rgba(255, 255, 255, 12)"
+    surface_hover_faint: str = "#0CFFFFFF"  # #AARRGGBB: QColor reads it, not rgba()
     surface_overlay: str = "rgba(13,13,13,0.88)"
     surface_overlay_strong: str = "rgba(26,26,26,0.82)"
     surface_overlay_hover: str = "rgba(34,34,34,0.88)"
