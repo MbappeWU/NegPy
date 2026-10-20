@@ -784,9 +784,48 @@ def test_a_portrait_thumbnail_moves_the_strip_frames_after_it(browser, qapp):
 
 def test_a_roll_without_scenes_finds_no_runs_without_reading_its_frames(browser, monkeypatch):
     view = browser.light_table_view
-    monkeypatch.setattr(view, "visualRect", lambda index: pytest.fail("read a frame's rect"))
+    monkeypatch.setattr(view, "rectForIndex", lambda index: pytest.fail("read a frame's rect"))
 
     assert view.scene_runs_on_rows() == []
+
+
+def test_a_paint_reads_the_scene_runs_once_until_the_next_layout(browser, qapp, monkeypatch):
+    _scene_roll(browser, [NIGHT] * 40)
+    _thumbs(browser, [(300, 200)] * 40)
+    view, _vw = _shown_table(browser, qapp)
+    runs = view.scene_runs_on_rows()
+    monkeypatch.setattr(view, "rectForIndex", lambda index: pytest.fail("read a frame's rect"))
+
+    view.verticalScrollBar().setValue(50)
+    scrolled = view.scene_runs_on_rows()
+
+    assert [first.top() for _s, _i, first, _l in scrolled] == [first.top() - 50 for _s, _i, first, _l in runs]
+    monkeypatch.undo()
+    view.set_film_aspect(view._aspect)
+    view.updateGeometries()
+    assert view._scene_runs is None
+    view.hide()
+
+
+def test_a_paint_builds_marks_only_for_the_frames_it_repaints(browser, qapp, monkeypatch):
+    _long_roll(browser, 40)
+    view, _vw = _shown_table(browser, qapp)
+    view.selectAll()
+    qapp.processEvents()
+    delegate = view.itemDelegate()
+    first = view.visualRect(view.model().index(0, 0))
+    windows = []
+    window = delegate._window
+    monkeypatch.setattr(delegate, "_window", lambda cell: windows.append(cell) or window(cell))
+    image = QImage(view.viewport().size(), QImage.Format.Format_ARGB32)
+    painter = QPainter(image)
+    try:
+        view._paint_marks(painter, delegate, first.adjusted(4, 4, -4, -4))
+    finally:
+        painter.end()
+
+    assert windows == [first]
+    view.hide()
 
 
 def test_the_strip_and_the_light_table_measure_a_picture_once(qapp, monkeypatch):

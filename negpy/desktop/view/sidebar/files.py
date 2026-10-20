@@ -930,6 +930,8 @@ class _FilmGridView(ThumbnailGridView):
         self._slim_cells: Optional[dict[int, QRect]] = None
         # Each row's picture shape as the layout read it, kept until the frames take new shapes.
         self._shown_aspects: dict[int, float] = {}
+        # scene_runs_on_rows in content coordinates, kept until the next layout or data change.
+        self._scene_runs: Optional[list[tuple[tuple, QModelIndex, QRect, QRect]]] = None
         super().__init__(parent, target_cell)
         # Thumbnails arrive faster than a layout of every frame; new shapes in one burst share one layout.
         self._reshape_timer = QTimer(self)
@@ -970,12 +972,14 @@ class _FilmGridView(ThumbnailGridView):
     def _invalidate_slim(self) -> None:
         self._slim_cells = None
         self._shown_aspects = {}
+        self._scene_runs = None
         if self._slim():
             self.scheduleDelayedItemsLayout()
 
     def _on_data_changed(self, top_left: QModelIndex, bottom_right: QModelIndex, *_roles) -> None:
         # Qt does not move the frames after one whose width a new thumbnail changed. A layout of every frame
         # per thumbnail stalls a long roll, so a thumbnail within _SHAPE_TOLERANCE of the shape it replaces keeps it.
+        self._scene_runs = None
         if not self._slim():
             return
         # A row no layout has read yet takes its new shape from the pending one.
@@ -1099,17 +1103,28 @@ class _FilmGridView(ThumbnailGridView):
         for row, cell in self._slim_layout().items():
             self.setPositionForIndex(cell.topLeft(), model.index(row, 0))
 
+    def updateGeometries(self) -> None:
+        self._scene_runs = None
+        super().updateGeometries()
+
     def scene_runs_on_rows(self) -> list[tuple[tuple, QModelIndex, QRect, QRect]]:
         """(scene, first index, first cell, last cell) per run of one scene's consecutive frames on one row."""
         model = self.model()
-        runs: list[tuple[tuple, QModelIndex, QRect, QRect]] = []
         if model is None or not getattr(model, "has_scenes", True):
-            return runs
+            return []
+        if self._scene_runs is None:
+            self._scene_runs = self._find_scene_runs()
+        dx, dy = -self.horizontalOffset(), -self.verticalOffset()
+        return [(scene, index, first.translated(dx, dy), last.translated(dx, dy)) for scene, index, first, last in self._scene_runs]
+
+    def _find_scene_runs(self) -> list[tuple[tuple, QModelIndex, QRect, QRect]]:
+        model = self.model()
+        runs: list[tuple[tuple, QModelIndex, QRect, QRect]] = []
         current = None
         for row in range(model.rowCount()):
             index = model.index(row, 0)
             scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
-            rect = self.visualRect(index)
+            rect = self.rectForIndex(index)
             if scene and current and current[0] == scene and current[3].top() == rect.top():
                 current = (scene, current[1], current[2], rect)
                 runs[-1] = current
@@ -1133,11 +1148,11 @@ class _FilmGridView(ThumbnailGridView):
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        self._paint_scene_names(painter, delegate)
-        self._paint_marks(painter, delegate)
+        self._paint_scene_names(painter, delegate, event.rect())
+        self._paint_marks(painter, delegate, event.rect())
         painter.end()
 
-    def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate) -> None:
+    def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate, area: QRect) -> None:
         """A light mat in place of the active frame's border, a light gray one on the other selected frames."""
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
@@ -1145,6 +1160,8 @@ class _FilmGridView(ThumbnailGridView):
         for row in sorted(rows):
             index = model.index(row, 0)
             cell = self.visualRect(index)
+            if not cell.adjusted(-1, -1, 1, 1).intersects(area):
+                continue
             # One pixel past the border, over the scene's line and the neighbors' edges.
             mat = QPainterPath()
             mat.addRoundedRect(QRectF(delegate.band(cell)).adjusted(-1, -1, 1, 1), _RING_RADIUS + 0.5, _RING_RADIUS + 0.5)
@@ -1153,7 +1170,7 @@ class _FilmGridView(ThumbnailGridView):
             active = delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {})
             painter.fillPath(mat.subtracted(picture), QColor(THEME.text_primary) if active else others)
 
-    def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate) -> None:
+    def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate, area: QRect) -> None:
         """A chip with the scene's name on its line, at the start of each run of its frames on one row."""
         font = painter.font()
         font.setPixelSize(THEME.font_size_small)
@@ -1162,6 +1179,8 @@ class _FilmGridView(ThumbnailGridView):
         metrics = painter.fontMetrics()
         height, pad = metrics.height(), THEME.space_sm
         for scene, _index, first, last in self.scene_runs_on_rows():
+            if not first.united(last).adjusted(0, -height, 0, 0).intersects(area):
+                continue
             band = delegate.band(first)
             name = metrics.elidedText(scene[2], Qt.TextElideMode.ElideRight, last.right() - first.left() - 2 * pad)
             chip = QRectF(band.left(), band.top() - height / 2, metrics.horizontalAdvance(name) + 2 * pad, height)
