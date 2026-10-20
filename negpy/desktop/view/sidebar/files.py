@@ -1132,10 +1132,10 @@ class _FilmGridView(ThumbnailGridView):
         painter.end()
 
     def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate) -> None:
-        """A light mat in place of the active frame's border, a gray one on the other selected frames."""
+        """A light mat in place of the active frame's border, a light gray one on the other selected frames."""
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
-        others = QColor(THEME.text_hint if self._pale_table else THEME.border_indicator)
+        others = QColor(THEME.text_hint if self._pale_table else THEME.text_secondary)
         for row in sorted(rows):
             index = model.index(row, 0)
             cell = self.visualRect(index)

@@ -388,7 +388,7 @@ def test_a_scene_draws_a_line_over_its_frames_that_starts_with_its_name(browser,
 
     assert [_near(image.pixelColor(band.center().x(), band.top() + 1), color) for band in bands] == [False, True, False, False]
     selected = image.pixelColor(bands[2].center().x(), bands[2].top() + 1)
-    assert selected == QColor(THEME.border_indicator), "the selection mat covers the line"
+    assert selected == QColor(THEME.text_secondary), "the selection mat covers the line"
     assert not _near(image.pixelColor(bands[1].center().x(), bands[1].bottom() - 1), color), "only the top border"
     assert _near(image.pixelColor(bands[1].left() + 3, bands[1].top() - 3), color), "the name sits on the line at the run's start"
     assert not _near(image.pixelColor(bands[2].center().x(), bands[2].top() - 3), color)
@@ -562,7 +562,7 @@ def _paint_cell(delegate: _FilmDelegate, hover: bool) -> tuple[QImage, QRect]:
     return canvas, delegate._window(option.rect)
 
 
-@pytest.mark.parametrize(("bg", "others"), [(2, THEME.border_indicator), (3, THEME.text_hint)])
+@pytest.mark.parametrize(("bg", "others"), [(2, THEME.text_secondary), (3, THEME.text_hint)])
 def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser, qapp, bg, others):
     from PyQt6.QtCore import QItemSelectionModel
 
