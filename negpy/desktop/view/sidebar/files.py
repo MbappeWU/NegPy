@@ -107,8 +107,7 @@ from negpy.services.film_edge.geometry import FilmGeometry, film_geometry
 
 class _ThumbnailDelegate(QStyledItemDelegate):
     """Scales each cached thumbnail into its cell; a frame not selected or under the pointer is
-    dimmed. A dirty active file gets an edited-mark line along the image's bottom edge.
-    Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
+    dimmed. Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
     rejected; the bottom-left badge says the frame was built from several files
     (stitch, HDR merge, RGB triplet, half-frame split). Top-left holds the
     decode-failure badge, else a small dot saying the bitmap shown predates a settings
@@ -120,7 +119,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     _COMPOSITE_CHIP = QColor(20, 20, 20, 190)
     _COMPOSITE_RING = QColor(255, 255, 255, 90)
     _COMPOSITE_GLYPH = QColor(255, 255, 255, 235)
-    _DIRTY_PX = 2
     _IDLE_OPACITY = 0.5
     _STALE_DOT_RADIUS = 4
     _ACTIVITY_INTERVAL_MS = 40
@@ -186,10 +184,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         """The open frame, by hash: the two halves of a half-frame scan share one path."""
         state = self._state
         return bool(state and state.current_file_hash and file_info.get("hash") == state.current_file_hash)
-
-    def _is_dirty(self, file_info: dict) -> bool:
-        """Only the active file can carry unsaved edits; every other frame is on disk."""
-        return bool(self._state and self._state.is_dirty and self.is_active(file_info))
 
     def _is_stale_thumbnail(self, file_info: dict) -> bool:
         """True while the cached bitmap predates a settings write a render hasn't caught up to."""
@@ -391,14 +385,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         if not failed and self._is_stale_thumbnail(file_info):
             self._draw_stale_dot(painter, img_rect)
         painter.setClipping(False)
-
-        if self._is_dirty(file_info):
-            painter.setClipPath(clip)
-            painter.fillRect(
-                QRect(img_rect.left(), img_rect.bottom() - self._DIRTY_PX + 1, img_rect.width(), self._DIRTY_PX),
-                QColor(THEME.mark_edited),
-            )
-            painter.setClipping(False)
 
         if failed:
             self._draw_failed_badge(painter, img_rect)
@@ -1659,7 +1645,7 @@ class FileBrowser(QWidget):
         }
         target_actual = set(self.session.state.selected_indices)
 
-        # Repaint for dirty underline
+        # The open frame's mat follows the session, not the selection.
         self.list_view.viewport().update()
         self._sync_film()
         self.light_table_view.viewport().update()
