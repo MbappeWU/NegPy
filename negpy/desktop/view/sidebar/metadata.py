@@ -8,9 +8,9 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSplitter,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -22,7 +22,7 @@ from negpy.desktop.settings_catalog import (
 )
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.base import BaseSidebar
-from negpy.desktop.view.styles.templates import field_label, hint_label, set_hint_kind, wrap_tooltip
+from negpy.desktop.view.styles.templates import field_label, hint_label, set_hint_kind, tool_toggle, wrap_tooltip
 from negpy.desktop.view.styles.fonts import mono_font_family
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.controller import AppController
@@ -533,9 +533,7 @@ class MetadataSidebar(BaseSidebar):
         edit.setPlaceholderText(tr("—"))
         self._apply_lock_style(edit, locked=True)
 
-        lock_btn = QToolButton()
-        lock_btn.setCheckable(True)
-        lock_btn.setToolTip(tr("Unlock to edit"))
+        lock_btn = tool_toggle("", "", tr("Unlock to edit"))
         self._update_lock_icon(lock_btn, locked=True)
         lock_btn.toggled.connect(lambda checked, k=key, e=edit, b=lock_btn: self._toggle_exif_lock(k, e, b, checked))
 
@@ -560,12 +558,12 @@ class MetadataSidebar(BaseSidebar):
             edit.setStyleSheet(f"color: {THEME.text_primary};")
             edit.setReadOnly(False)
 
-    def _update_lock_icon(self, btn: QToolButton, locked: bool) -> None:
+    def _update_lock_icon(self, btn: QPushButton, locked: bool) -> None:
         icon_name = "fa5s.lock" if locked else "fa5s.lock-open"
-        color = THEME.text_muted if locked else THEME.text_primary
+        color = THEME.text_hint if locked else THEME.text_primary
         btn.setIcon(qta.icon(icon_name, color=color))
 
-    def _toggle_exif_lock(self, key: str, edit: QLineEdit, btn: QToolButton, checked: bool) -> None:
+    def _toggle_exif_lock(self, key: str, edit: QLineEdit, btn: QPushButton, checked: bool) -> None:
         locked = not checked
         self._exif_locked[key] = locked
         self._apply_lock_style(edit, locked=locked)

@@ -130,21 +130,25 @@ def test_a_progress_bar_fills_with_the_chip(qapp):
     assert image.pixelColor(150, 10).name() == QColor(THEME.bg_input).name()
 
 
-def test_a_button_sits_on_the_track_surface_and_a_flat_one_on_nothing(qapp):
+def test_a_button_sits_on_the_track_surface_in_a_subheader_too_and_a_flat_one_on_nothing(qapp):
     host = QWidget()
     host.setObjectName("host")
     host.setStyleSheet(load_stylesheet() + f"#host {{ background: {THEME.bg_card}; }}")
     boxed = labeled_action("fa5s.undo", "Reset", "")
-    flat = icon_button("fa5s.trash-alt", "Clear")
-    header_row(section_subheader("Clone"), flat)
+    subheader = icon_button("fa5s.trash-alt", "Clear")
+    header_row(section_subheader("Clone"), subheader)
+    flat = icon_button("fa5s.undo", "Undo")
+    flat.setFlat(True)
     layout = QHBoxLayout(host)
-    layout.addWidget(boxed)
-    layout.addWidget(flat)
-    host.resize(300, 60)
+    for w in (boxed, subheader, flat):
+        layout.addWidget(w)
+    host.resize(400, 60)
     image = host.grab().toImage()
 
     def at(w, x):
         return image.pixelColor(w.geometry().left() + x, w.geometry().center().y()).name()
 
-    assert (at(boxed, 0), at(boxed, 4)) == (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
-    assert flat.isFlat() and at(flat, 0) == QColor(THEME.bg_card).name()
+    track = (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
+    assert (at(boxed, 0), at(boxed, 4)) == track
+    assert (at(subheader, 0), at(subheader, 4)) == track
+    assert at(flat, 0) == QColor(THEME.bg_card).name()

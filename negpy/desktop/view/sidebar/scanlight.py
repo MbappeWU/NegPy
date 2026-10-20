@@ -18,7 +18,6 @@ import numpy as np
 import qtawesome as qta
 from PyQt6.QtCore import QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QAction, QImage, QPixmap, QStandardItemModel
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
@@ -26,7 +25,6 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -40,7 +38,6 @@ from negpy.desktop.view.styles.templates import (
     header_row,
     hint_label,
     ICON_BUTTON_WIDTH,
-    default_button_height,
     icon_button,
     labeled_action,
     labeled_toggle,
@@ -376,12 +373,8 @@ class ScanlightSidebar(QWidget):
         self.preset_combo.setToolTip(wrap_tooltip(tr("Pick a preset: one of your own, or a built-in one added under +.")))
         self.preset_combo.setPlaceholderText(tr("Hand-set recipe (unsaved)"))
         # One "+" with a menu, like the Library's import: the two ways to add a preset.
-        self.preset_new_btn = QToolButton()
-        self.preset_new_btn.setIcon(qta.icon("fa5s.plus", color=THEME.text_primary, color_disabled=THEME.text_muted))
-        self.preset_new_btn.setToolTip(wrap_tooltip(tr("Add a preset: calibrate on the film base, set one by hand, or pick a built-in")))
-        self.preset_new_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.preset_new_btn.setFixedHeight(default_button_height())
-        self.preset_new_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.preset_new_btn = icon_button("fa5s.plus", tr("Add a preset: calibrate on the film base, set one by hand, or pick a built-in"))
+        self.preset_new_btn.setObjectName("icon_menu_btn")
         add_menu = QMenu(self.preset_new_btn)
         add_menu.setToolTipsVisible(True)
         self.preset_calibrate_action = add_menu.addAction(tr("Calibrate on the Film Base…"))
