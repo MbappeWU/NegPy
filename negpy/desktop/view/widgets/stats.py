@@ -12,17 +12,23 @@ from negpy.features.exposure.stats import StatRow
 CLIPPING_TOOLTIP = tr("Share of the picture that prints pure black (shadows) or pure white (highlights). Amber above 1%.")
 
 _TOOLTIPS = {
-    "Negative": (
-        tr("How contrasty the negative is (lo, nrm, hi), and its thinnest, middle and densest density above the film base. An estimate.")
-    ),
+    "Negative": (tr("How contrasty the negative is: its density range (Δ), read as flat, normal or contrasty. An estimate.")),
     "Exposure": (tr("Where the midtones sit, in stops: positive is bright (high-key), negative is dark (low-key).")),
     mark("Clipping"): CLIPPING_TOOLTIP,
     mark("Scan clip"): (
-        tr("Share of the scan at the scanner's maximum. Expose the scan lower; no edit can bring it back. Amber above 1%.")
+        tr(
+            "Share of each channel (red, green, blue) at the scanner's maximum. Expose the scan lower; no edit brings it back. Amber above 1%."
+        )
     ),
     mark("Gamut"): (tr("Share of the picture the proof printer or paper cannot print. Shown only while soft proofing. Amber above 2%.")),
     mark("Repair"): (tr("Share of the scan that dust removal rewrote. Above 5% it may be changing the picture itself.")),
 }
+
+
+def _channel_markup(value: str) -> str:
+    """R · G · B in the channel colors; a warning stays all amber, so the amber reads."""
+    colors = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
+    return " · ".join(f'<span style="color:{color}">{part}</span>' for color, part in zip(colors, value.split(" · ")))
 
 
 # One per zone-placement pin, in pin order. The canvas overlay draws its rings in these
@@ -228,7 +234,7 @@ class NegativeStatsWidget(QWidget):
             if row.detail:
                 tip = f"{tip}\n\n{row.detail}" if tip else row.detail
             self._names[i].setText(tr(row.name))
-            self._values[i].setText(row.value)
+            self._values[i].setText(_channel_markup(row.value) if row.per_channel and not row.warn else row.value)
             self._values[i].setStyleSheet(self._warn_css if row.warn else self._value_css)
             # Tooltip per stat (hover its name or value), not merged across the pair.
             self._names[i].setToolTip(tip)

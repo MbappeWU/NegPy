@@ -203,10 +203,10 @@ Click a zone on the strip, then a spot on the picture, and NegPy sets the print 
 
 The **Readouts** fold holds numbers about the scan. An amber value is a warning; hover a row for details.
 
-*   **Negative**: how contrasty the negative is (lo, nrm, hi), and its thinnest, middle and densest density (Dmin · Dmed · Dmax).
+*   **Negative**: the negative's density range (Δ). The hover names it flat, normal or contrasty and gives its densities.
 *   **Exposure**: bright (positive) or dark (negative) frame, in stops.
-*   **Clipping**: share of the print that is pure black or white.
-*   **Scan clip**: share of the scan at the scanner's maximum. No edit fixes it; expose the scan lower.
+*   **Clipping**: share of the print that is pure black, then pure white.
+*   **Scan clip**: share of each channel, red, green and blue, at the scanner's maximum. No edit fixes it; expose the scan lower.
 *   **Repair**: share of the picture that dust removal rewrote.
 *   **Gamut**: share the proof printer cannot print, while proofing.
 
