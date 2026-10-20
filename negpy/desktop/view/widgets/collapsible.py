@@ -284,9 +284,9 @@ class CollapsibleSection(QWidget):
         self, visible: bool, scope: str, roll_tooltip: str = "", frame_tooltip: str = "", roll_enabled: bool = True
     ) -> None:
         """The header's Frame/Roll pair: which scope this card's values live at, and the
-        one click that moves them to the other. The active half is bright and checked,
-        the other is the affordance; clicking the active one does nothing. A Roll-tab card
-        reads its lock here, a frame card is always Frame and uses Roll as a one-shot
+        one click that moves them to the other. The active half is checked and takes its scope
+        stripe's color; the other is the affordance, and clicking the active one does nothing. A
+        Roll-tab card reads its lock here, a frame card is always Frame and uses Roll as a one-shot
         push.
 
         `roll_enabled=False` keeps the pair readable where there is no roll to move values
@@ -296,11 +296,11 @@ class CollapsibleSection(QWidget):
             self.frame_btn = self._build_scope_button("fa5s.image", "frame")
             self.roll_btn = self._build_scope_button("fa5s.film", "roll")
         self._scope = scope
-        for btn, key in ((self.frame_btn, "frame"), (self.roll_btn, "roll")):
+        for btn, key, color in ((self.frame_btn, "frame", THEME.border_scope_frame), (self.roll_btn, "roll", THEME.border_checked_hover)):
             active = key == scope
             btn.setVisible(visible)
             btn.setChecked(active)
-            btn.setIcon(qta.icon(btn.property("scope_icon"), color=THEME.text_primary if active else THEME.text_muted))
+            btn.setIcon(qta.icon(btn.property("scope_icon"), color=color if active else THEME.text_muted))
         self.roll_btn.setEnabled(roll_enabled)
         self.frame_btn.setToolTip(frame_tooltip or f"{self._title_text} is this frame's own")
         self.roll_btn.setToolTip(roll_tooltip or f"Give the roll this frame's {self._title_text}…")

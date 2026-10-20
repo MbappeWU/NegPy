@@ -428,8 +428,8 @@ QFrame#collapsible_content {
 }
 
 /* A card's scope (widgets/collapsible.py set_scope_buttons), as a dim stripe on the header
-   alone: amber for a frame card, red for a roll card, so the card says its scope without the
-   Frame/Roll buttons being read. */
+   alone: amber for a frame card, red for a roll card, the colors of the lit Frame/Roll button,
+   so the card says its scope without the buttons being read. */
 QPushButton#collapsible_header[scope="frame"] {
     border-left: 3px solid @border_scope_frame;
 }

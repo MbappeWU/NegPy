@@ -10,9 +10,11 @@ import sys
 
 import pytest
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QApplication, QSplitter, QWidget
 
 from conftest import FakeRepo
+from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, fit_pane, make_section
 
 if not QApplication.instance():
@@ -85,6 +87,19 @@ class TestScopeButtons:
         assert (section.roll_btn.isChecked(), section.frame_btn.isChecked()) == (True, False)
         section.set_scope_buttons(visible=True, scope="frame")
         assert (section.roll_btn.isChecked(), section.frame_btn.isChecked()) == (False, True)
+
+    @pytest.mark.parametrize(("scope", "color"), [("frame", THEME.border_scope_frame), ("roll", THEME.border_checked_hover)])
+    def test_the_active_half_takes_its_scope_stripes_color(self, scope, color) -> None:
+        section = CollapsibleSection("Calibration")
+        section.set_scope_buttons(visible=True, scope=scope)
+
+        def glyph(btn) -> set:
+            image = btn.icon().pixmap(32, 32).toImage()
+            return {image.pixelColor(x, y).name() for x in range(32) for y in range(32) if image.pixelColor(x, y).alpha() == 255}
+
+        active, other = (section.frame_btn, section.roll_btn) if scope == "frame" else (section.roll_btn, section.frame_btn)
+        assert glyph(active) == {QColor(color).name()}
+        assert glyph(other) == {QColor(THEME.text_muted).name()}
 
     def test_roll_can_be_shown_disabled_rather_than_hidden(self) -> None:
         """Frames that are not one roll have no roll to move values to. The pair still
