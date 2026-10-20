@@ -386,9 +386,11 @@ class SegmentedChoice(QWidget):
         chip = QRectF(segments[self._index])
         if self._slide.state() == QVariantAnimation.State.Running:
             chip.moveLeft(self._chip_x)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(THEME.bg_selected))
-        p.drawRoundedRect(chip, THEME.radius_lg, THEME.radius_lg)
+        # A disabled track keeps a gray chip, so the warm chip always means a live choice.
+        p.setPen(QPen(QColor(THEME.border_checked), 1) if live else Qt.PenStyle.NoPen)
+        p.setBrush(QColor(THEME.bg_checked if live else THEME.bg_selected))
+        pad = THEME.space_xs + 0.5
+        p.drawRoundedRect(chip.adjusted(pad, pad, -pad, -pad), THEME.radius_lg - pad / 2, THEME.radius_lg - pad / 2)
 
         p.setPen(QPen(QColor(THEME.border_primary), 1))
         inset = THEME.space_md + 1

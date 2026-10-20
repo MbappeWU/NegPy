@@ -29,8 +29,12 @@ class ThemeConfig:
     bg_selected: str = "#222222"
     bg_hover: str = "#262626"
     bg_menu_selected: str = "#2E2E2E"
-    # The Scan button's warm tint while it cannot start or while it reads Stop.
+    # A checked toggle and a segmented control's current choice; also the Scan button's tint
+    # while it cannot start or while it reads Stop.
     bg_checked: str = "#2A1D1D"
+    bg_checked_hover: str = "#351F1F"
+    border_checked: str = "#4A2424"
+    border_checked_hover: str = "#5E2A2A"
     bg_accent_muted: str = "#1A1414"
     border_input: str = "#1A1A1A"
     border_primary: str = "#262626"

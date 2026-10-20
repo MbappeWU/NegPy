@@ -66,13 +66,14 @@ QPushButton:pressed {
 /* A checked toggle takes the chip of a segmented control's current choice; its icon
    brightens from text_hint to text_primary (templates._button_icon). */
 QPushButton:checked {
-    background-color: @bg_selected;
-    border: 1px solid transparent;
+    background-color: @bg_checked;
+    border: 1px solid @border_checked;
     font-weight: 600;
 }
 
 QPushButton:checked:hover {
-    background-color: @bg_menu_selected;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
 }
 
 /* The fill means checked, so hover on a toggle that is off draws only the border. */
@@ -131,12 +132,13 @@ QToolButton:hover {
 }
 
 QToolButton:checked {
-    background-color: @bg_selected;
-    border: 1px solid transparent;
+    background-color: @bg_checked;
+    border: 1px solid @border_checked;
 }
 
 QToolButton:checked:hover {
-    background-color: @bg_menu_selected;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
 }
 
 QSlider {

@@ -1,3 +1,4 @@
+from PyQt6.QtCore import QPoint
 from PyQt6.QtWidgets import QApplication
 
 from negpy.desktop.view.widgets.choice_button import ChoiceButton
@@ -259,3 +260,17 @@ def test_segmented_segments_tile_the_track_and_shrink_without_overlap(qapp):
         rects = seg._segments()
         assert all(a.right() <= b.left() + 1e-6 for a, b in zip(rects, rects[1:]))
         assert rects[-1].right() <= width
+
+
+def test_segmented_chip_is_warm_while_live_and_gray_while_disabled(qapp):
+    from PyQt6.QtGui import QColor
+
+    from negpy.desktop.view.styles.theme import THEME
+
+    seg = _segmented()
+    probe = seg._segments()[0].topLeft().toPoint() + QPoint(6, seg.height() // 2)
+    live = seg.grab().toImage().pixelColor(probe).name()
+    seg.setEnabled(False)
+    disabled = seg.grab().toImage().pixelColor(probe).name()
+
+    assert (live, disabled) == (QColor(THEME.bg_checked).name(), QColor(THEME.bg_selected).name())
