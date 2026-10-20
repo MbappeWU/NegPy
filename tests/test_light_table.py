@@ -408,7 +408,7 @@ def test_a_scene_draws_a_line_over_its_frames_that_starts_with_its_name(browser,
 
     assert [_near(image.pixelColor(band.center().x(), band.top() + 1), color) for band in bands] == [False, True, False, False]
     selected = image.pixelColor(bands[2].center().x(), bands[2].top() + 1)
-    assert selected == QColor(THEME.text_secondary), "the selection mat covers the line"
+    assert selected == QColor(THEME.border_checked), "the selection mat covers the line"
     assert not _near(image.pixelColor(bands[1].center().x(), bands[1].bottom() - 1), color), "only the top border"
     assert _near(image.pixelColor(bands[1].left() + 3, bands[1].top() - 3), color), "the name sits on the line at the run's start"
     assert not _near(image.pixelColor(bands[2].center().x(), bands[2].top() - 3), color)
@@ -582,8 +582,8 @@ def _paint_cell(delegate: _FilmDelegate, hover: bool) -> tuple[QImage, QRect]:
     return canvas, delegate._window(option.rect)
 
 
-@pytest.mark.parametrize(("bg", "others"), [(2, THEME.text_secondary), (3, THEME.text_hint)])
-def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser, qapp, bg, others):
+@pytest.mark.parametrize("bg", [2, 3])
+def test_a_selected_frame_takes_a_red_mat_and_the_open_frame_the_lighter_red(browser, qapp, bg):
     from PyQt6.QtCore import QItemSelectionModel
 
     browser.session.set_canvas_bg(bg)
@@ -603,23 +603,20 @@ def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser,
     def at(row: int, below_top: int) -> QColor:
         return image.pixelColor(bands[row].center().x(), bands[row].top() + below_top)
 
-    table = QColor(table_color(bg))
+    table, open_red = QColor(table_color(bg)), QColor(THEME.border_checked_hover)
     assert max(at(0, border - 1).getRgb()[:3]) < 40, "an unselected frame keeps its rebate"
-    assert at(1, border - 1) == QColor(THEME.text_primary), "the mat fills the border"
-    assert at(2, border - 1) == QColor(others)
+    assert at(1, border - 1) == open_red, "the mat fills the border"
+    assert at(2, border - 1) == QColor(THEME.border_checked)
     window = strip.itemDelegate()._window(strip.visualRect(model.index(1, 0)))
     picture = image.pixelColor(window.center().x(), window.top())
     assert picture.red() < picture.green(), "the picture stays clear"
+    for below_top, alpha in ((-1, 0.9), (-2, 0.8)):
+        faded = [round(alpha * a + (1 - alpha) * b) for a, b in zip(open_red.getRgb()[:3], table.getRgb()[:3])]
+        assert at(1, below_top).getRgb()[:3] == pytest.approx(faded, abs=2), "two pixels past the border fade"
     assert at(1, -3) == table, "nothing past the mat"
-    x, y, white = window.center().x(), window.center().y(), QColor(THEME.text_primary)
-    sides = [
-        (window.left() - border, y, -1, 0),
-        (window.right() + border, y, 1, 0),
-        (x, window.top() - border, 0, -1),
-        (x, window.bottom() + border, 0, 1),
-    ]
-    assert [image.pixelColor(px, py) for px, py, _dx, _dy in sides] == [white] * 4, "as wide on every side, over the selected neighbor's"
-    assert white not in [image.pixelColor(px + dx, py + dy) for px, py, dx, dy in sides]
+    x, y = window.center().x(), window.center().y()
+    sides = [(window.left() - border, y), (window.right() + border, y), (x, window.top() - border), (x, window.bottom() + border)]
+    assert [image.pixelColor(px, py) for px, py in sides] == [open_red] * 4, "as wide on every side, over the selected neighbor's"
     browser.hide()
 
 
@@ -632,7 +629,7 @@ def test_a_selected_frame_whose_thumbnail_is_still_loading_takes_its_mat(browser
     qapp.processEvents()
     band = strip.itemDelegate().band(strip.visualRect(strip.model().index(1, 0)))
 
-    assert strip.viewport().grab().toImage().pixelColor(band.center().x(), band.top() + 1) == QColor(THEME.text_secondary)
+    assert strip.viewport().grab().toImage().pixelColor(band.center().x(), band.top() + 1) == QColor(THEME.border_checked)
     browser.hide()
 
 
@@ -875,7 +872,7 @@ def test_a_paint_builds_marks_only_for_the_frames_it_repaints(browser, qapp, mon
     image = QImage(view.viewport().size(), QImage.Format.Format_ARGB32)
     painter = QPainter(image)
     try:
-        view._paint_marks(painter, delegate, first.adjusted(4, 4, -4, -4))
+        view._paint_marks(painter, delegate, first.adjusted(8, 8, -8, -8))
     finally:
         painter.end()
 

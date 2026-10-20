@@ -865,7 +865,6 @@ class _FilmGridView(ThumbnailGridView):
         self.set_table_color(table_color(AppState.canvas_bg_index))
 
     def set_table_color(self, color: str) -> None:
-        self._pale_table = QColor(color).lightness() >= 128
         # A new stylesheet lays every cell out again, even when it is the same.
         qss = self._table_qss(color)
         if qss != self.styleSheet():
@@ -1071,27 +1070,31 @@ class _FilmGridView(ThumbnailGridView):
         painter.end()
 
     def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate, area: QRect) -> None:
-        """A light mat in place of the active frame's border, a light gray one on the other selected frames."""
+        """A muted red mat over a selected frame's border, the lighter red on the open frame."""
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
-        others = QColor(THEME.text_hint if self._pale_table else THEME.text_secondary)
-        b = delegate._BORDER
+        # As wide on every side: the border around the picture, then one pixel at 90% and one at 80%; on
+        # the left and right it reaches over the neighbors' border.
+        rings = ((delegate._BORDER, 1.0), (delegate._BORDER + 1, 0.9), (delegate._BORDER + 2, 0.8))
+        reach = rings[-1][0]
         marks = []
         for row in sorted(rows):
             index = model.index(row, 0)
             cell = self.visualRect(index)
-            # As wide on every side as the border above and below the picture; on the left and right
-            # that reaches over the neighbors' border.
-            if cell.adjusted(-b, 0, b, 0).intersects(area):
-                window = delegate._window(cell)
-                marks.append((delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}), window.adjusted(-b, -b, b, b), window))
+            if cell.adjusted(-reach, 0, reach, 0).intersects(area):
+                marks.append((delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}), delegate._window(cell)))
         # The open frame's mat goes over a selected neighbor's.
-        for active, outer, window in sorted(marks, key=lambda mark: mark[0]):
-            mat = QPainterPath()
-            mat.addRoundedRect(QRectF(outer), _CHIP_RADIUS + 0.5, _CHIP_RADIUS + 0.5)
-            picture = QPainterPath()
-            picture.addRect(QRectF(window))
-            painter.fillPath(mat.subtracted(picture), QColor(THEME.text_primary) if active else others)
+        for active, window in sorted(marks, key=lambda mark: mark[0]):
+            color = QColor(THEME.border_checked_hover if active else THEME.border_checked)
+            inside = QPainterPath()
+            inside.addRect(QRectF(window))
+            for grow, alpha in rings:
+                edge = QPainterPath()
+                radius = _CHIP_RADIUS + 0.5 + grow - delegate._BORDER
+                edge.addRoundedRect(QRectF(window).adjusted(-grow, -grow, grow, grow), radius, radius)
+                color.setAlphaF(alpha)
+                painter.fillPath(edge.subtracted(inside), color)
+                inside = edge
 
     def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate, area: QRect) -> None:
         """A chip with the scene's name on its line, at the start of each run of its frames on one row."""
