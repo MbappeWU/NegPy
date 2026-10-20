@@ -27,7 +27,7 @@ from negpy.desktop.view.canvas.zone_legend import ZoneLegend
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
-from negpy.desktop.view.widgets.choice_button import ChoiceButton, MenuButton, SegmentedChoice, ToggleMenuButton
+from negpy.desktop.view.widgets.choice_button import MenuButton, SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating, roll_revert_icon
 from negpy.desktop.view.styles.templates import (
     BAR_BUTTON_HEIGHT,
@@ -427,15 +427,13 @@ class ActionToolbar(QWidget):
         self.btn_zoom.setMinimumWidth(self._zoom_min_width)
 
         # Every source here takes the whole canvas, and the controller keeps them exclusive.
-        self.source_choice = ChoiceButton(
-            tuple((icon, label) for _flag, icon, label, _key, _tip in _VIEW_SOURCES),
+        self.source_choice = StepCombo.of(
+            [label for _flag, _icon, label, _key, _tip in _VIEW_SOURCES],
             tr("What the canvas shows: the print, a before/after split, or a peek."),
         )
-        for i, (_flag, icon, label, key, tip) in enumerate(_VIEW_SOURCES):
-            self.source_choice.choice_action(i).setIcon(_checkable_menu_icon(icon))
-            if key:
-                self._label(self.source_choice.choice_action(i), label, key)
-            self.source_choice.set_choice_tooltip(i, tip)
+        for i, (_flag, icon, _label, _key, _tip) in enumerate(_VIEW_SOURCES):
+            self.source_choice.setItemIcon(i, qta.icon(icon, color=icon_color, color_disabled=THEME.text_muted))
+        self._sync_source_tips()
 
         self.overlays_menu = ToggleMenuButton(
             "fa5s.layer-group", "", tr("Overlays: marks drawn over the frame. None of them changes the edit.")
@@ -1311,7 +1309,7 @@ class ActionToolbar(QWidget):
         self.source_choice.blockSignals(True)
         self.source_choice.setCurrentIndex(active)
         self.source_choice.blockSignals(False)
-        self.source_choice.set_choice_enabled(_SOURCE_INDEX["flatfield_peek"], bool(state.config.flatfield.profile_id))
+        self.source_choice.set_item_enabled(_SOURCE_INDEX["flatfield_peek"], bool(state.config.flatfield.profile_id))
         for flag, action in self._overlay_actions.items():
             action.setChecked(bool(getattr(state, flag)))
         for flag, action in self._ov_view_actions.items():
@@ -1366,7 +1364,7 @@ class ActionToolbar(QWidget):
             "printing_notes": self._ov_notes_action,
             "cursor_probe": self._ov_probe_action,
         }
-        self.source_choice.currentChanged.connect(self._on_source_chosen)
+        self.source_choice.currentIndexChanged.connect(self._on_source_chosen)
         for signal in (
             controller.compare_changed,
             controller.flat_peek_changed,
@@ -1649,7 +1647,13 @@ class ActionToolbar(QWidget):
         self._label(action, action.text(), action_id)
         action.setToolTip(text)
 
+    def _sync_source_tips(self) -> None:
+        """Each view's tooltip in the list carries its key chip."""
+        for i, (_flag, _icon, _label, key, tip) in enumerate(_VIEW_SOURCES):
+            self.source_choice.set_item_tooltip(i, wrap_tooltip(tooltip_with_shortcut(tip, key or None)))
+
     def apply_shortcut_tooltips(self) -> None:
+        self._sync_source_tips()
         for target, text, ids in self._shortcut_tips:
             target.setToolTip(wrap_tooltip(tooltip_with_shortcut(text, ids)))
         for action, text, action_id in self._shortcut_labels:

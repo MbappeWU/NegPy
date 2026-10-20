@@ -17,7 +17,6 @@ _TOOLTIP_ARGS = {
     "icon_button": (1,),
     "header_button": (1,),
     "SegmentedChoice": (1,),
-    "ChoiceButton": (1,),
 }
 _TIP_NAME = re.compile(r"(?i)tip(s)?$|tooltip(s)?$")
 

@@ -618,7 +618,7 @@ class TestFrameCounter(unittest.TestCase):
 
 class TestViewChooser(unittest.TestCase):
     def _choose(self, tb: ActionToolbar, label: str) -> None:
-        index = next(i for i in range(tb.source_choice.count()) if tb.source_choice.choice_action(i).text().startswith(label))
+        index = next(i for i in range(tb.source_choice.count()) if tb.source_choice.itemText(i).startswith(label))
         tb.source_choice.setCurrentIndex(index)
 
     def test_a_peek_drives_the_controller(self):
@@ -648,22 +648,22 @@ class TestViewChooser(unittest.TestCase):
         tb = _make_toolbar()
         tb.session.state.embedded_peek = True
         tb._sync_view_state()
-        self.assertEqual(tb.source_choice.text().strip(), "Embedded")
+        self.assertEqual(tb.source_choice.currentText(), "Embedded")
         tb.controller.toggle_embedded_peek.assert_not_called()
 
     def test_a_refused_peek_falls_back_to_print(self):
         """A file with no embedded preview leaves the state off; the chooser must not claim it is on."""
         tb = _make_toolbar()
         self._choose(tb, "Embedded")
-        self.assertEqual(tb.source_choice.text().strip(), "Print")
+        self.assertEqual(tb.source_choice.currentText(), "Print")
 
     def test_flat_scan_needs_no_flat_output(self):
         """The peek renders the flat master from any frame, like its key."""
         tb = _make_toolbar()
         tb.session.state.flat_output = False
         tb._sync_view_state()
-        flat = next(i for i in range(tb.source_choice.count()) if tb.source_choice.choice_action(i).text().startswith("Flat Scan"))
-        self.assertTrue(tb.source_choice.is_choice_enabled(flat))
+        flat = next(i for i in range(tb.source_choice.count()) if tb.source_choice.itemText(i).startswith("Flat Scan"))
+        self.assertTrue(tb.source_choice.is_item_enabled(flat))
         self.assertTrue(tb._ov_flat_peek_action.isEnabled())
 
 
@@ -1063,7 +1063,7 @@ def test_each_run_of_buttons_sits_flat_in_one_track():
     buttons = [b for b in tb._view_row.findChildren(QAbstractButton) if b.isVisible()]
     assert buttons and all(any(t.contains(rect(b)) for t in tracks) for b in buttons)
     assert not any(t.intersects(rect(tb.mode_switch)) for t in tracks)
-    assert tb.btn_tools.isFlat() and tb.source_choice.isFlat() and not tb.btn_tool_done.isFlat()
+    assert tb.btn_tools.isFlat() and not tb.btn_tool_done.isFlat()
     tb.close()
 
 

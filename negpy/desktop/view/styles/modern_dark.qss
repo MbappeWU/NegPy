@@ -540,7 +540,7 @@ QToolButton#toolbar_overflow::menu-indicator {
     width: 0px;
 }
 
-/* A dropdown in the canvas bar's Roll row: a chevron after the icon, as on a ChoiceButton. */
+/* A dropdown in the canvas bar's Roll row: a chevron after the icon, as on a MenuButton. */
 QToolButton[dropdown="true"] {
     padding-right: 22px;
 }

@@ -1,6 +1,6 @@
 import qtawesome as qta
 from PyQt6.QtCore import QEvent, QPoint, QRectF, QSize, Qt, QVariantAnimation, pyqtSignal
-from PyQt6.QtGui import QAction, QActionGroup, QColor, QCursor, QFont, QFontMetrics, QPainter, QPen
+from PyQt6.QtGui import QAction, QColor, QCursor, QFont, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import QApplication, QMenu, QPushButton, QToolTip, QWidget
 
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, EditedDot, default_button_height, tool_toggle_qss, wrap_tooltip
@@ -44,7 +44,7 @@ class _MenuButton(QPushButton):
 
 
 class MenuButton(_MenuButton):
-    """The ChoiceButton look for a menu of actions: the owner sets the text and fills
+    """A button with a chevron that opens a menu of actions: the owner sets the text and fills
     `choice_menu`."""
 
     def __init__(self, tooltip: str, parent=None):
@@ -67,104 +67,10 @@ class MenuButton(_MenuButton):
         QPainter(self).drawPixmap(QPoint(self.width() - self._chevron_inset - s, (self.height() - s) // 2), pix)
 
 
-class ChoiceButton(MenuButton):
-    """One choice out of a few, as a button that opens a menu of them. A choice is
-    (icon, label) or (icon, label, icon color); an empty icon name shows none. The button's dot marks the current choice as
-    edited; the menu marks every edited choice."""
-
-    currentChanged = pyqtSignal(int)
-
-    def __init__(self, choices: tuple[tuple[str, ...], ...], tooltip: str, parent=None, data: tuple | None = None):
-        super().__init__(tooltip, parent)
-        self._group = QActionGroup(self)
-        self._group.setExclusive(True)
-        self._choices: tuple[tuple[str, ...], ...] = ()
-        self._data: tuple = ()
-        self._edited: list[bool] = []
-        self._actions: list[QAction] = []
-        self._index = -1
-        self.set_choices(choices, data)
-
-    def set_choices(self, choices: tuple[tuple[str, ...], ...], data: tuple | None = None) -> None:
-        """Replace the choices, without emitting; the first becomes current."""
-        for action in self._actions:
-            self._group.removeAction(action)
-            self.choice_menu.removeAction(action)
-        self._choices = tuple(choices)
-        self._data = tuple(data) if data is not None else tuple(range(len(self._choices)))
-        self._edited = [False] * len(self._choices)
-        self._actions = []
-        # No icons on the items: a checkable item with an icon draws no check mark.
-        for i, (_icon, label, *_color) in enumerate(self._choices):
-            action = self.choice_menu.addAction(label)
-            action.setCheckable(True)
-            self._group.addAction(action)
-            action.triggered.connect(lambda _checked=False, i=i: self.setCurrentIndex(i))
-            self._actions.append(action)
-        if not self._choices:
-            self._index = -1
-            self.setText("")
-            return
-        # Sized for the longest choice, so switching never moves the row around it.
-        self.ensurePolished()
-        widths = []
-        for i in range(len(self._choices)):
-            self._show(i)
-            widths.append(super().sizeHint().width())
-        self._show(0)
-        self.setMinimumWidth(max(widths))
-
-    def count(self) -> int:
-        return len(self._choices)
-
-    def currentData(self):  # noqa: N802
-        return self._data[self._index] if 0 <= self._index < len(self._data) else None
-
-    def findData(self, value) -> int:  # noqa: N802
-        return self._data.index(value) if value in self._data else -1
-
-    def set_choice_enabled(self, index: int, enabled: bool) -> None:
-        self._actions[index].setEnabled(enabled)
-
-    def is_choice_enabled(self, index: int) -> bool:
-        return self._actions[index].isEnabled()
-
-    def set_choice_tooltip(self, index: int, tooltip: str) -> None:
-        self._actions[index].setToolTip(tooltip)
-
-    def currentIndex(self) -> int:  # noqa: N802
-        return self._index
-
-    def setCurrentIndex(self, index: int) -> None:  # noqa: N802
-        if index == self._index or not 0 <= index < len(self._choices):
-            return
-        self._show(index)
-        self.currentChanged.emit(index)
-
-    def set_edited(self, index: int, edited: bool) -> None:
-        self._edited[index] = edited
-        label = self._choices[index][1]
-        # Text after a tab lands in the menu's right-aligned shortcut column.
-        self._actions[index].setText(f"{label}\t•" if edited else label)
-        self.edited_dot.set_active(self._edited[self._index])
-
-    def choice_action(self, index: int) -> QAction:
-        return self._actions[index]
-
-    def _show(self, index: int) -> None:
-        self._index = index
-        icon_name, label, *color = self._choices[index]
-        if icon_name:
-            self.setIcon(qta.icon(icon_name, color=color[0] if color else THEME.text_primary, color_disabled=THEME.text_muted))
-        self.setText(f" {label}" if icon_name else label)
-        self._actions[index].setChecked(True)
-        self.edited_dot.set_active(self._edited[index])
-
-
 class ToggleMenuButton(_MenuButton):
-    """Several independent on/off options behind one button: the multi-select twin of
-    ChoiceButton, in the tool-toggle look with no chevron. The button takes the checked look
-    while any option is on; an empty label leaves it icon-only."""
+    """Several independent on/off options behind one button, in the tool-toggle look with no
+    chevron. The button takes the checked look while any option is on; an empty label leaves
+    it icon-only."""
 
     def __init__(self, icon_name: str, label: str, tooltip: str, parent=None):
         super().__init__(tooltip, parent)
@@ -194,8 +100,9 @@ class ToggleMenuButton(_MenuButton):
 
 
 class SegmentedChoice(QWidget):
-    """One choice out of two to four, all in view: a track whose current segment is filled. Same choices and API as ChoiceButton; an icon_only segment shows its label as
-    a tooltip. The colored icon of a choice dims while another one is current."""
+    """One choice out of two to four, all in view: a track whose current segment is filled. A choice
+    is (icon, label) or (icon, label, icon color); an icon_only segment shows its label as a
+    tooltip. The colored icon of a choice dims while another one is current."""
 
     currentChanged = pyqtSignal(int)
 

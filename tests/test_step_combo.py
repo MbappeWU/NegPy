@@ -184,17 +184,3 @@ def test_set_choices_replaces_the_list_quietly_and_a_grayed_choice_is_stepped_pa
     assert combo.itemData(1, Qt.ItemDataRole.ToolTipRole) == "Over the pixel budget"
     _click(combo, "next")
     assert combo.currentIndex() == 2 and activated == [2]
-
-
-def test_panels_and_dialogs_use_the_step_combo_not_a_menu_dropdown():
-    from pathlib import Path
-
-    import negpy.desktop.view as view
-
-    root = Path(view.__file__).parent
-    users = sorted(
-        path.relative_to(root).as_posix()
-        for path in root.rglob("*.py")
-        if path.name != "choice_button.py" and "ChoiceButton(" in path.read_text(encoding="utf-8")
-    )
-    assert users == ["canvas/toolbar.py"], "a choice in a panel or dialog is a StepCombo.of(...)"
