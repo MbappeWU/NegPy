@@ -1,11 +1,11 @@
 from negpy.kernel.system.i18n import tr
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
-from PyQt6.QtWidgets import QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QHBoxLayout
 
 from negpy.desktop.session import ToolMode
 from negpy.desktop.view.sidebar.base import BaseSidebar
-from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, field_label, field_label_qss
+from negpy.desktop.view.styles.templates import header_row, section_subheader
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.fold import rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider
@@ -50,27 +50,19 @@ class GeometrySidebar(BaseSidebar):
         self.rot_r_btn = self._icon_action("mdi6.file-rotate-right", tr("Rotate CW"))
         self.flip_h_btn = self._icon_action("fa5s.arrows-alt-h", tr("Flip Horizontal"))
         self.flip_v_btn = self._icon_action("fa5s.arrows-alt-v", tr("Flip Vertical"))
-        turn_row = QHBoxLayout()
-        turn_row.addWidget(field_label(tr("Rotate"), FIELD_LABEL_WIDTH))
-        turn_row.addWidget(self.rot_l_btn)
-        turn_row.addWidget(self.rot_r_btn)
-        turn_row.addSpacing(THEME.space_xl)
-        # A plain QLabel: align_slider_columns gives every FieldLabel the label column.
-        flip_label = QLabel(tr("Flip"))
-        flip_label.setStyleSheet(field_label_qss())
-        turn_row.addWidget(flip_label)
-        turn_row.addWidget(self.flip_h_btn)
-        turn_row.addWidget(self.flip_v_btn)
-        turn_row.addStretch(1)
-        self.layout.addLayout(turn_row)
+        self.layout.addLayout(
+            header_row(section_subheader(tr("ROTATE AND FLIP")), self.rot_l_btn, self.rot_r_btn, self.flip_h_btn, self.flip_v_btn)
+        )
 
         self.straighten_btn = self._tool_toggle("fa5s.ruler", tr("Level"), tr("Draw a line along a horizon or edge to level the frame"))
         self.auto_skew_btn = self._labeled_action(
             "fa5s.ruler-combined", tr("Square to Film"), tr("Square to Film: line the picture up with the edges of the film.")
         )
+        self.keystone_lines_btn = self._tool_toggle("", tr("Draw Lines"), tr("Tilt and swing with reference lines"))
+        self.keystone_lines_btn.setIcon(_keystone_reference_icon())
         tool_row = QHBoxLayout()
-        tool_row.addWidget(self.straighten_btn, 1)
-        tool_row.addWidget(self.auto_skew_btn, 1)
+        for btn in (self.straighten_btn, self.auto_skew_btn, self.keystone_lines_btn):
+            tool_row.addWidget(btn, 1)
         self.layout.addLayout(tool_row)
 
         # The slider shows the photographer's convention, where positive is clockwise on screen.
@@ -88,12 +80,7 @@ class GeometrySidebar(BaseSidebar):
         )
         self.converge_h_slider = CompactSlider(tr("Swing"), -15.0, 15.0, conf.converge_h, step=0.1, unit="%")
         self.converge_h_slider.setToolTip(tr("Swing: straighten a wall that narrows to one side. Positive stretches the left side."))
-        self.keystone_lines_btn = self._tool_toggle("", tr("Draw Lines"), tr("Tilt and swing with reference lines"), align_left=True)
-        self.keystone_lines_btn.setIcon(_keystone_reference_icon())
-        lines_row = QHBoxLayout()
-        lines_row.addWidget(self.keystone_lines_btn)
-        lines_row.addStretch(1)
-        self.layout.addWidget(rail_fold("geometry_easel", self.fine_rot_slider, self.converge_v_slider, self.converge_h_slider, lines_row))
+        self.layout.addWidget(rail_fold("geometry_easel", self.fine_rot_slider, self.converge_v_slider, self.converge_h_slider))
 
         self.crop_to_valid_btn = self._small_toggle(
             "fa5s.crop",
@@ -102,10 +89,7 @@ class GeometrySidebar(BaseSidebar):
             tr("Crop Empty Corners: crop away the empty corners that rotation, Tilt and Swing leave."),
             align_left=True,
         )
-        corners_row = QHBoxLayout()
-        corners_row.addWidget(self.crop_to_valid_btn)
-        corners_row.addStretch(1)
-        self.layout.addLayout(corners_row)
+        self.layout.addWidget(self.crop_to_valid_btn)
 
     def _connect_signals(self) -> None:
         self.auto_skew_btn.clicked.connect(self.controller.auto_skew_frame)
