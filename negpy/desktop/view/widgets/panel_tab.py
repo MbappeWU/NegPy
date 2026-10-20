@@ -1,7 +1,7 @@
 """The right panel's tabs."""
 
 from PyQt6.QtCore import QPointF, QRect, QRectF, Qt
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPen
 from PyQt6.QtWidgets import QAbstractButton
 import qtawesome as qta
 
@@ -37,8 +37,15 @@ class PanelTab(QAbstractButton):
         self._icon_only = icon_only
         self._divider = divider
         self._marked = False
-        on = THEME.accent_secondary if stacked else THEME.text_primary
-        self.setIcon(qta.icon(icon, color=THEME.text_hint, color_active=THEME.text_primary, color_on=on, color_on_active=on))
+        self.setIcon(
+            qta.icon(
+                icon,
+                color=THEME.text_hint,
+                color_active=THEME.text_primary,
+                color_on=THEME.text_primary,
+                color_on_active=THEME.text_primary,
+            )
+        )
         if icon_only:
             self.setFixedWidth(self.ICON_ONLY_WIDTH)
 
@@ -61,11 +68,21 @@ class PanelTab(QAbstractButton):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         w, h = self.width(), self.height()
         checked, hover = self.isChecked(), self.underMouse()
-        if self._stacked:
-            p.fillRect(self.rect(), QColor(THEME.bg_panel if checked else THEME.bg_selected if hover else THEME.bg_header))
         p.fillRect(0, h - 1, w, 1, QColor(THEME.border_primary))
         if self._divider:
             p.fillRect(0, THEME.space_xl, 1, h - 2 * THEME.space_xl, QColor(THEME.border_primary))
+        # The chip of a segmented control's current choice; hover takes its hover tint.
+        pad_x, pad_y = THEME.space_xs + 0.5, THEME.space_sm + 0.5
+        chip = QRectF(0, 0, w, h - 1).adjusted(pad_x, pad_y, -pad_x, -pad_y)
+        radius = THEME.radius_lg - pad_x / 2
+        if checked:
+            p.setPen(QPen(QColor(THEME.border_checked), 1))
+            p.setBrush(QColor(THEME.bg_checked))
+            p.drawRoundedRect(chip, radius, radius)
+        elif hover:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(255, 255, 255, 12))
+            p.drawRoundedRect(chip, radius, radius)
 
         font = _font(checked)
         fm = QFontMetrics(font)
@@ -88,15 +105,11 @@ class PanelTab(QAbstractButton):
             p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self.text())
 
         p.setPen(Qt.PenStyle.NoPen)
-        if checked:
-            bar, inset = (3, THEME.space_xl) if self._stacked else (2, THEME.space_lg)
-            p.setBrush(QColor(THEME.accent_secondary))
-            # Twice the bar's height, cut by the bottom edge: only the top corners round.
-            p.drawRoundedRect(QRectF(inset, h - bar, w - 2 * inset, 2 * bar), bar, bar)
         if self._marked:
             anchor = text_rect if text_w else icon_rect
             p.setBrush(QColor(THEME.channel_red))
-            p.drawEllipse(QPointF(anchor.right() + THEME.space_md, anchor.top() + THEME.space_xs), _DOT / 2, _DOT / 2)
+            # Close to the name, so the dot stays inside the chip of the narrowest tab.
+            p.drawEllipse(QPointF(anchor.right() + THEME.space_xs, anchor.top() + THEME.space_xs), _DOT / 2, _DOT / 2)
         if self.hasFocus():
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.setPen(QColor(THEME.accent_secondary))

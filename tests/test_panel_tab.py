@@ -1,3 +1,6 @@
+from PyQt6.QtGui import QColor
+
+from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.panel_tab import PanelTab
 
 
@@ -16,3 +19,32 @@ def test_a_mark_shows_edits_on_the_tab(qapp):
     assert not tab.is_marked()
     tab.set_marked(True)
     assert tab.is_marked()
+
+
+def _image(tab, width: int, height: int = 38):
+    tab.resize(width, height)
+    return tab.grab().toImage()
+
+
+def test_a_checked_tab_takes_the_warm_chip(qapp):
+    tab = PanelTab("mdi6.crop", "Geometry")
+    probe = (THEME.space_xs + THEME.space_sm, 19)
+    rest = _image(tab, 105).pixelColor(*probe).name()
+    tab.setChecked(True)
+
+    assert rest != QColor(THEME.bg_checked).name()
+    assert _image(tab, 105).pixelColor(*probe).name() == QColor(THEME.bg_checked).name()
+
+
+def test_the_edit_dot_stays_inside_the_chip_of_a_narrow_tab(qapp):
+    for tab, width in (
+        (PanelTab("mdi6.crop", "Geometry"), 105),
+        (PanelTab("mdi6.history", "History", icon_only=True), PanelTab.ICON_ONLY_WIDTH),
+    ):
+        tab.setChecked(True)
+        tab.set_marked(True)
+        image = _image(tab, width)
+        xs = [x for x in range(width) for y in range(38) if (c := image.pixelColor(x, y)).red() > c.green() + 60]
+
+        # The chip's edge runs half a pixel inside space_xs; the dot keeps a pixel clear of it.
+        assert xs and max(xs) < width - THEME.space_xs - 2, tab.text()
