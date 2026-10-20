@@ -709,6 +709,25 @@ def test_a_thumbnail_lays_the_frames_out_again_only_when_it_changes_a_frame_shap
     view.hide()
 
 
+def test_a_new_shape_after_a_reindex_lays_the_frames_out_again(browser, qapp):
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    _thumbs(browser, [(200, 300)] * 3)
+    view, _vw = _shown_table(browser, qapp)
+    browser.session.asset_model.set_sort_order("name")
+    QTest.qWait(3 * _RESHAPE_MS)
+    portrait = view._slim_layout()[1].width()
+    state = browser.session.state
+    key = asset_thumbnail_key(state.uploaded_files[1])
+
+    state.thumbnails[key] = QIcon(QPixmap.fromImage(_qimage(prepare_thumbnail(Image.new("RGB", (300, 200), (40, 160, 220)), 120))))
+    browser.session.asset_model.refresh_thumbnails({key})
+    QTest.qWait(3 * _RESHAPE_MS)
+
+    assert view._slim_layout()[1].width() > 2 * portrait
+    view.hide()
+
+
 def test_a_portrait_thumbnail_moves_the_strip_frames_after_it(browser, qapp):
     from negpy.services.assets.thumbnails import asset_thumbnail_key
 

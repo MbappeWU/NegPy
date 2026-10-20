@@ -928,7 +928,7 @@ class _FilmGridView(ThumbnailGridView):
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         self._slim_cells: Optional[dict[int, QRect]] = None
-        # Each row's picture shape as its last thumbnail gave it.
+        # Each row's picture shape as the layout read it, kept until the frames take new shapes.
         self._shown_aspects: dict[int, float] = {}
         super().__init__(parent, target_cell)
         # Thumbnails arrive faster than a layout of every frame; new shapes in one burst share one layout.
@@ -965,11 +965,11 @@ class _FilmGridView(ThumbnailGridView):
         model.dataChanged.connect(self._on_data_changed)
 
     def _on_rows_changed(self, *_args) -> None:
-        self._shown_aspects = {}
         self._invalidate_slim()
 
     def _invalidate_slim(self) -> None:
         self._slim_cells = None
+        self._shown_aspects = {}
         if self._slim():
             self.scheduleDelayedItemsLayout()
 
@@ -978,14 +978,14 @@ class _FilmGridView(ThumbnailGridView):
         # per thumbnail stalls a long roll, so a thumbnail within _SHAPE_TOLERANCE of the shape it replaces keeps it.
         if not self._slim():
             return
-        delegate, changed = self.itemDelegate(), False
+        # A row no layout has read yet takes its new shape from the pending one.
+        delegate = self.itemDelegate()
         for row in range(top_left.row(), bottom_right.row() + 1):
-            aspect = delegate.picture_aspect(top_left.siblingAtRow(row))
-            before = self._shown_aspects.get(row, delegate.placeholder_aspect)
-            self._shown_aspects[row] = aspect
-            changed = changed or abs(aspect / before - 1) > _SHAPE_TOLERANCE
-        if changed and not self._reshape_timer.isActive():
-            self._reshape_timer.start()
+            before = self._shown_aspects.get(row)
+            if before is not None and abs(delegate.picture_aspect(top_left.siblingAtRow(row)) / before - 1) > _SHAPE_TOLERANCE:
+                if not self._reshape_timer.isActive():
+                    self._reshape_timer.start()
+                return
 
     def _slim(self) -> bool:
         delegate = self.itemDelegate()
@@ -998,6 +998,12 @@ class _FilmGridView(ThumbnailGridView):
     def slim_cell(self, index: QModelIndex) -> QSize:
         return self._slim_layout().get(index.row(), QRect()).size()
 
+    def _layout_aspect(self, index: QModelIndex) -> float:
+        row = index.row()
+        if row not in self._shown_aspects:
+            self._shown_aspects[row] = self.itemDelegate().picture_aspect(index)
+        return self._shown_aspects[row]
+
     def _slim_layout(self) -> dict[int, QRect]:
         """Each frame's cell in justified rows, the gap between rows split above and below its film; a
         scene sort starts each scene's block on a new row."""
@@ -1007,7 +1013,7 @@ class _FilmGridView(ThumbnailGridView):
             blocks = [(first, last) for _ordinal, first, last in runs] or [(0, model.rowCount() - 1)]
             border, cells, y = delegate._BORDER, {}, 0
             for first, last in blocks:
-                aspects = [delegate.picture_aspect(model.index(row, 0)) for row in range(first, last + 1)]
+                aspects = [self._layout_aspect(model.index(row, 0)) for row in range(first, last + 1)]
                 row = first
                 for height, frames in justified_rows(aspects, self.viewport().width(), self._slim_height(), border):
                     for x, width in frames:
@@ -1197,7 +1203,7 @@ class _FilmStripView(_FilmGridView):
 
     def slim_cell(self, index: QModelIndex) -> QSize:
         height, border = self.viewport().height(), _FilmDelegate._BORDER
-        return QSize(round((height - self.STRIP_GAP - 2 * border) * self.itemDelegate().picture_aspect(index)) + border, height)
+        return QSize(round((height - self.STRIP_GAP - 2 * border) * self._layout_aspect(index)) + border, height)
 
     def cell_for_width(self, vw: int) -> int:
         return max(1, int((self.viewport().height() - self.STRIP_GAP - 1) / self._aspect))
