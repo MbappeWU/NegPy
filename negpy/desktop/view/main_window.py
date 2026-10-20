@@ -36,6 +36,7 @@ from negpy.desktop.view.sidebar.right_panel import RightPanel
 from negpy.desktop.view.sidebar.files import FileBrowser, table_color
 from negpy.desktop.view.update_notice import UpdateNotice
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
+from negpy.desktop.view.widgets.collapsible import fit_pane
 from negpy.desktop.view.widgets.command_palette import CommandPalette, FindField
 from negpy.desktop.view.widgets.loading_overlay import LoadingOverlay
 from negpy.desktop.view.widgets.pinnable_dock import PinnableDockWidget
@@ -137,7 +138,6 @@ class _EmptyStateOverlay(QWidget):
             self.setGeometry(self.parent().rect())
 
 
-_UNBOUNDED_HEIGHT = 16777215  # QWIDGETSIZE_MAX, Qt's "no maximum"
 # (canvas, Film Strip) heights until the splitter is first dragged; Qt scales them to the window.
 _STRIP_DEFAULT_SPLIT = (700, 300)
 _CANVAS_MIN_HEIGHT = 120
@@ -467,20 +467,9 @@ class MainWindow(QMainWindow):
     def _apply_strip_constraints(self, expanded: bool) -> None:
         """A collapsed Film Strip is exactly its toolbar tall, so no drag can open an empty pane;
         expanding gives back the height it had open."""
-        pane = self.strip_pane
         # Collapsed, the canvas sits on the toolbar with no handle between.
         self.strip_splitter.setHandleWidth(self._strip_handle_width if expanded else 0)
-        total = sum(self.strip_splitter.sizes())
-        if expanded:
-            pane.setMinimumHeight(0)
-            pane.setMaximumHeight(_UNBOUNDED_HEIGHT)
-            height = min(self._strip_open_height, total - _CANVAS_MIN_HEIGHT)
-        else:
-            height = self.toolbar.sizeHint().height()
-            pane.setFixedHeight(height)
-        # A splitter keeps its handle where it was; the canvas takes what the strip gives up.
-        if total > 0:
-            self.strip_splitter.setSizes([total - height, height])
+        fit_pane(self.strip_splitter, 1, expanded, self._strip_open_height, self.toolbar.sizeHint().height(), _CANVAS_MIN_HEIGHT)
 
     def _sync_strip_handle(self) -> None:
         """The handle above the strip takes the table's color and no grip, so it reads as the strip's top edge."""

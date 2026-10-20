@@ -8,10 +8,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import sys
 
-from PyQt6.QtWidgets import QApplication, QWidget
+import pytest
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QSplitter, QWidget
 
 from conftest import FakeRepo
-from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
+from negpy.desktop.view.widgets.collapsible import CollapsibleSection, fit_pane, make_section
 
 if not QApplication.instance():
     _app = QApplication(sys.argv)
@@ -266,3 +268,22 @@ def test_a_field_row_value_reserve_gives_way_in_a_narrow_card() -> None:
     assert len(spacers) == 1
     assert spacers[0].sizeHint().width() > 0
     assert spacers[0].minimumSize().width() == 0
+
+
+@pytest.mark.parametrize("index", [0, 1])
+def test_a_folded_pane_holds_its_header_height_and_opens_to_its_saved_height(qapp, index):
+    splitter = QSplitter(Qt.Orientation.Vertical)
+    splitter.addWidget(QWidget())
+    splitter.addWidget(QWidget())
+    splitter.resize(200, 600)
+    splitter.show()
+    qapp.processEvents()
+    pane = splitter.widget(index)
+
+    fit_pane(splitter, index, False, 250, 30, 120)
+    assert splitter.sizes()[index] == 30 and pane.minimumHeight() == pane.maximumHeight() == 30
+    fit_pane(splitter, index, True, 250, 30, 120)
+    assert splitter.sizes()[index] == 250 and pane.maximumHeight() > 600
+    fit_pane(splitter, index, True, 900, 30, 120)
+    assert splitter.sizes()[1 - index] == 120, "the other pane keeps its least height"
+    splitter.hide()

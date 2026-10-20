@@ -26,7 +26,7 @@ from negpy.desktop.view.styles.templates import CLIPPING_SWEEP, gradient_icon, t
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
-from negpy.desktop.view.widgets.collapsible import CollapsibleSection, make_section
+from negpy.desktop.view.widgets.collapsible import CollapsibleSection, fit_pane, make_section
 from negpy.desktop.view.widgets.fold import Fold, group_fold
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog
@@ -566,16 +566,8 @@ class RightPanel(QWidget):
         self.controller.session.repo.save_global_setting("analysis_splitter_sizes", sizes)
 
     def _resize_splitter_for_analysis(self, expanded: bool) -> None:
-        """Pin the collapsed Analysis header at the top: shrink pane 0 to the header and
-        give the rest to the tabs; restore the dragged size when re-expanded."""
-        total = sum(self.splitter.sizes())
-        if total <= 0 or not self._analysis_split_shown:
-            return
-        if expanded:
-            top = min(max(self._analysis_expanded_size, 120), max(120, total - 120))
-        else:
-            top = max(1, self.analysis_section.sizeHint().height())
-        self.splitter.setSizes([top, max(0, total - top)])
+        header = max(1, self.analysis_section.sizeHint().height())
+        fit_pane(self.splitter, 0, expanded, self._analysis_expanded_size, header, 120, resize=self._analysis_split_shown)
 
     def apply_shortcut_tooltips(self) -> None:
         """Append the current keyboard shortcut (action id `tab_<key>`) to each tab tooltip,

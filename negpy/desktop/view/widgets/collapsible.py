@@ -1,6 +1,8 @@
 from negpy.kernel.system.i18n import tr
 from typing import Optional
 from PyQt6.QtWidgets import (
+    QWIDGETSIZE_MAX,
+    QSplitter,
     QWidget,
     QVBoxLayout,
     QCheckBox,
@@ -331,6 +333,24 @@ class CollapsibleSection(QWidget):
             self.roll_btn.setChecked(self._scope == "roll")
             return
         self.scope_selected.emit(scope)
+
+
+def fit_pane(
+    splitter: QSplitter, index: int, expanded: bool, open_height: int, folded_height: int, rest_min: int, resize: bool = True
+) -> None:
+    """Folds pane *index* of a two-pane *splitter* to *folded_height*, held there so a drag cannot open an
+    empty pane, or opens it to *open_height* and leaves the other pane at least *rest_min*. Before a
+    splitter's first show Qt rescales any sizes set, so its owner passes resize=False until then."""
+    pane = splitter.widget(index)
+    pane.setMinimumHeight(0 if expanded else folded_height)
+    pane.setMaximumHeight(QWIDGETSIZE_MAX if expanded else folded_height)
+    total = sum(splitter.sizes())
+    if total <= 0 or not resize:
+        return
+    height = min(max(open_height, folded_height), max(folded_height, total - rest_min)) if expanded else folded_height
+    sizes = [total - height, total - height]
+    sizes[index] = height
+    splitter.setSizes(sizes)
 
 
 def make_section(

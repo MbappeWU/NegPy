@@ -5,7 +5,6 @@ from dataclasses import asdict, replace
 from typing import Optional
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWIDGETSIZE_MAX,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -27,7 +26,7 @@ from negpy.desktop.view.styles.templates import field_label, hint_label, set_hin
 from negpy.desktop.view.styles.fonts import mono_font_family
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.controller import AppController
-from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, make_section
+from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, fit_pane, make_section
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.services.assets.rolls import ROLL_DEFAULT_FIELDS
 from negpy.desktop.view.widgets.sub_tabs import SubTabs, tab_page
@@ -432,14 +431,8 @@ class MetadataSidebar(BaseSidebar):
             self.controller.session.repo.save_global_setting("metadata_preview_height", self._preview_height)
 
     def _fit_preview(self, expanded: bool) -> None:
-        """A folded preview is held at its header's height, so a drag cannot open an empty pane."""
         header = self.preview_section.sizeHint().height()
-        self.preview_section.setMaximumHeight(QWIDGETSIZE_MAX if expanded else header)
-        total = sum(self.preview_split.sizes())
-        if total <= 0 or not self._preview_split_shown:
-            return
-        top = min(max(self._preview_height, header), max(header, total - _TABS_MIN_HEIGHT)) if expanded else header
-        self.preview_split.setSizes([top, total - top])
+        fit_pane(self.preview_split, 0, expanded, self._preview_height, header, _TABS_MIN_HEIGHT, resize=self._preview_split_shown)
 
     def _scope_sections(self) -> tuple:
         """Every card whose fields are a roll fact, paired with its ROLL_DEFAULT_FIELDS

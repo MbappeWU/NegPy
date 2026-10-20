@@ -126,6 +126,7 @@ def test_only_an_expanded_analysis_drag_sets_the_saved_height():
 def test_analysis_split_waits_for_the_first_show():
     panel = MagicMock()
     panel.splitter.sizes.return_value = [189, 287]
+    panel.analysis_section.sizeHint.return_value.height.return_value = 30
     panel._analysis_split_shown = False
 
     RightPanel._resize_splitter_for_analysis(panel, True)
