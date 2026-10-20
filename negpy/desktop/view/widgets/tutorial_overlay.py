@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QTextBrowser, QVBoxLayo
 
 from negpy.desktop.view.styles.templates import hint_label, labeled_action, set_hint_kind
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 
 if TYPE_CHECKING:
@@ -135,7 +135,7 @@ class TutorialOverlay(QWidget):
         layout.setSpacing(10)
 
         self._header = QHBoxLayout()
-        self._chapter_btn: Optional[ChoiceButton] = None
+        self._chapter_btn: Optional[StepCombo] = None
         self._header.addStretch()
         self._counter = hint_label()
         self._counter.setWordWrap(False)
@@ -200,9 +200,9 @@ class TutorialOverlay(QWidget):
         if self._chapter_btn is not None:
             self._header.removeWidget(self._chapter_btn)
             self._chapter_btn.deleteLater()
-        self._chapter_btn = ChoiceButton(tuple(("", c) for c in self._chapters), tr("Jump to a chapter of the tour"))
+        self._chapter_btn = StepCombo.of(list(self._chapters), tr("Jump to a chapter of the tour"))
         self._chapter_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._chapter_btn.currentChanged.connect(self._jump_chapter)
+        self._chapter_btn.currentIndexChanged.connect(self._jump_chapter)
         self._header.insertWidget(0, self._chapter_btn)
 
     # Public API

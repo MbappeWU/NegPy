@@ -93,7 +93,7 @@ def _drag(canvas, start, end):
 def test_opens_on_the_saved_paper(dialog):
     d = dialog()
     assert d.settings() == ContactSheetSettings()
-    assert d.paper_btn.text() == DEFAULT_PAPER.label
+    assert d.paper_btn.currentText() == DEFAULT_PAPER.label
     plan = d.plan()
     assert (plan.frames_per_strip, len(plan.pages)) == (6, 1)
 
@@ -108,7 +108,7 @@ def test_dragging_the_right_edge_widens_the_paper_about_its_center(dialog):
     assert width == pytest.approx(DEFAULT_PAPER.width + 40, abs=1.0)
     assert height == DEFAULT_PAPER.height
     assert d.plan().frames_per_strip == 7
-    assert d.paper_btn.text() == "Custom"
+    assert d.paper_btn.currentText() == "Custom"
 
 
 def test_a_drag_near_an_ilford_size_snaps_to_it(dialog):
@@ -166,12 +166,12 @@ def test_resolution_over_the_pixel_budget_steps_down(dialog):
     assert d.settings().dpi == 600
     d.paper_btn.setCurrentIndex(9)  # 40.6 × 50.8 cm
     assert d.settings().dpi == 300
-    assert not d.dpi_btn.choice_menu.actions()[2].isEnabled()
+    assert not d.dpi_btn.is_item_enabled(2)
 
 
 def test_a_paper_that_holds_no_frame_disables_export(dialog):
     d = dialog(n=4, film=SheetFormat.MEDIUM, frame_size="6×17")
-    assert not d.paper_btn.choice_menu.actions()[0].isEnabled()
+    assert not d.paper_btn.is_item_enabled(0)
     d._render()
     assert d.export_btn.isEnabled()
 
@@ -261,7 +261,7 @@ def test_edge_print_toggle_reaches_the_look_and_the_settings(dialog):
 
 def test_straight_proof_is_offered_only_when_it_can_be_made(dialog):
     d = dialog(proof=StraightProof(reason="Run Roll Analysis on this roll first."))
-    assert not d.print_btn.choice_menu.actions()[1].isEnabled()
+    assert not d.print_btn.is_item_enabled(1)
     assert "Roll Analysis" in d.proof_label.text()
 
 
@@ -295,7 +295,7 @@ def _scened(frames, scenes):
 
 def test_scene_order_needs_scenes(dialog):
     d = dialog(n=4)
-    assert not d.order_btn.choice_menu.actions()[1].isEnabled()
+    assert not d.order_btn.is_item_enabled(1)
 
 
 def test_scene_order_groups_frames_and_starts_each_scene_on_a_new_strip(dialog):

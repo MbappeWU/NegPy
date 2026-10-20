@@ -21,7 +21,7 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QValidator
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -272,7 +272,7 @@ def test_minimal_device_hides_passes_control() -> None:
 
 def test_only_single_pass_enabled_when_device_has_neither_capability() -> None:
     sidebar, _ = _sidebar(MINIMAL_DEVICE)
-    enabled = {mode: sidebar.mode_btn.is_choice_enabled(sidebar.mode_btn.findData(mode.value)) for mode in ScanCaptureMode}
+    enabled = {mode: sidebar.mode_btn.is_item_enabled(sidebar.mode_btn.findData(mode.value)) for mode in ScanCaptureMode}
     assert enabled[ScanCaptureMode.SINGLE_PASS] is True
     assert enabled[ScanCaptureMode.MULTI_PASS] is False
     assert enabled[ScanCaptureMode.ADAPTIVE_ME] is False
@@ -281,8 +281,8 @@ def test_only_single_pass_enabled_when_device_has_neither_capability() -> None:
 
 def test_mode_combo_tooltips_present() -> None:
     sidebar, _ = _sidebar(SE_DEVICE, settings={"backend": "plustek"})
-    for action in sidebar.mode_btn.choice_menu.actions():
-        assert action.toolTip().strip()
+    for i in range(sidebar.mode_btn.count()):
+        assert str(sidebar.mode_btn.itemData(i, Qt.ItemDataRole.ToolTipRole)).strip()
 
 
 def test_selecting_multi_pass_reveals_passes_slider_and_unchecks_ir() -> None:
@@ -777,7 +777,7 @@ def test_selecting_a_device_keeps_a_saved_auto_exposure() -> None:
 
 def test_the_film_types_the_transport_takes_are_offered() -> None:
     sidebar, _ = _sidebar(NKSCAN_DEVICE)
-    labels = [action.text() for action in sidebar.film_type_btn.choice_menu.actions()]
+    labels = [sidebar.film_type_btn.itemText(i) for i in range(sidebar.film_type_btn.count())]
     assert labels == ["Color negative", "B&W negative", "Slide", "Kodachrome"]
     assert sidebar.film_type_btn.currentData() == "negative"
 
@@ -1199,7 +1199,7 @@ def test_a_film_that_blocks_infrared_leaves_the_control_visible_to_explain_itsel
 
 def test_the_format_combo_offers_the_mono_tiff() -> None:
     sidebar, _ = _sidebar(FULL_DEVICE)
-    offered = [action.text() for action in sidebar.fmt_btn.choice_menu.actions()]
+    offered = [sidebar.fmt_btn.itemText(i) for i in range(sidebar.fmt_btn.count())]
     assert offered == ["TIFF", "TIFF (mono)"]
 
 

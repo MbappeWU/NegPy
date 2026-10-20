@@ -1,9 +1,12 @@
+from collections.abc import Sequence
+from typing import Any, Optional
+
 import qtawesome as qta
 from PyQt6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QComboBox, QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
-from negpy.desktop.view.styles.templates import HEADER_BUTTON_SIZE, default_button_height
+from negpy.desktop.view.styles.templates import HEADER_BUTTON_SIZE, default_button_height, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 
 _HEADER_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -84,6 +87,35 @@ class StepCombo(QComboBox):
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.setIconSize(QSize(_ICON, _ICON))
         self.setItemDelegate(_ChoiceDelegate(self))
+
+    @classmethod
+    def of(cls, labels: Sequence[str], tooltip: str, data: Optional[Sequence[Any]] = None) -> "StepCombo":
+        """A StepCombo holding `labels`, the first current; `data` is each choice's stored value."""
+        combo = cls()
+        combo.set_choices(labels, data)
+        combo.setToolTip(wrap_tooltip(tooltip))
+        return combo
+
+    def set_choices(self, labels: Sequence[str], data: Optional[Sequence[Any]] = None) -> None:
+        """Replace the choices without emitting; the first becomes current."""
+        blocked = self.blockSignals(True)
+        self.clear()
+        for i, label in enumerate(labels):
+            self.addItem(label, None if data is None else data[i])
+        self.blockSignals(blocked)
+
+    def set_item_enabled(self, index: int, enabled: bool) -> None:
+        """A grayed choice: the list will not pick it and the arrows step past it."""
+        item = self.model().item(index)
+        if item is not None:
+            item.setEnabled(enabled)
+
+    def is_item_enabled(self, index: int) -> bool:
+        item = self.model().item(index)
+        return item is not None and item.isEnabled()
+
+    def set_item_tooltip(self, index: int, tooltip: str) -> None:
+        self.setItemData(index, tooltip, Qt.ItemDataRole.ToolTipRole)
 
     def add_header(self, text: str) -> None:
         """A caption row in the list. It never becomes current, so the caller sets the current choice."""

@@ -39,7 +39,6 @@ from negpy.kernel.system.override import (
 )
 from negpy.kernel.system.parallel import parallel_enabled, set_parallel_enabled
 from negpy.services.assets import semantic_model
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
 
 UI_SCALES: tuple[int, ...] = (80, 90, 100, 110, 120)
 
@@ -217,14 +216,14 @@ class PreferencesDialog(QDialog):
         state = self.session.state
         row = 0
 
-        self.language_combo = ChoiceButton(
-            tuple(("", tr(label)) for _, label in LANGUAGES),
+        self.language_combo = StepCombo.of(
+            [tr(label) for _, label in LANGUAGES],
             tr("Interface language. Restart NegPy to apply the change."),
-            data=tuple(key for key, _ in LANGUAGES),
+            [key for key, _ in LANGUAGES],
         )
         saved_language = self.repo.get_global_setting("ui_language", "system")
         self.language_combo.setCurrentIndex(max(0, self.language_combo.findData(saved_language)))
-        self.language_combo.currentChanged.connect(self._on_language_changed)
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
         grid.addWidget(field_label(tr("Language")), row, 0)
         grid.addWidget(self.language_combo, row, 1)
         row += 1

@@ -50,7 +50,6 @@ from negpy.desktop.view.styles.templates import (
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.sliders import CompactSlider, LogSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure import simulated
@@ -440,7 +439,7 @@ class ScanlightSidebar(QWidget):
             tr("Meter: set the shutter so the film base lands just under clipping, at this ISO and aperture. Opens Live View if needed."),
         )
         _exp.addLayout(header_row(section_subheader(tr("CAMERA EXPOSURE")), self.meter_btn))
-        self.capture_btn = ChoiceButton(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
+        self.capture_btn = StepCombo.of(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
         self.capture_btn.setEnabled(False)  # the preset's mode, editable only while building a manual preset
         self.capture_mode_row = QWidget()  # a white-light preset has one exposure, so the row hides there
         self.capture_mode_row.setObjectName("collapsible_content_body")
@@ -534,7 +533,7 @@ class ScanlightSidebar(QWidget):
         self.scan_btn.clicked.connect(self._on_scan)
         self.retake_btn.clicked.connect(self._on_retake)
         self.preset_combo.activated.connect(self._on_preset_selected)
-        self.capture_btn.currentChanged.connect(lambda _i: self._push_light())
+        self.capture_btn.currentIndexChanged.connect(lambda _i: self._push_light())
         self.preset_save_btn.clicked.connect(self._on_preset_save)
         self.preset_del_btn.clicked.connect(self._on_preset_delete)
         # Typing an invalid path greys Scan immediately (with the reason), not on the next click.

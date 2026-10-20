@@ -24,12 +24,12 @@ from negpy.desktop.view.sidebar.live_view_window import SettingStepper
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
 from negpy.desktop.view.styles.templates import hint_label, labeled_action, labeled_toggle
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
+from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.floating_panel import float_over_app
 
 # The index is the preset's `single_capture` flag.
-CAPTURE_MODES = (("", tr("Triplet")), ("", tr("Single Capture")))
+CAPTURE_MODES = (tr("Triplet"), tr("Single Capture"))
 CAPTURE_MODE_TOOLTIP = tr(
     "Triplet takes one exposure per LED and merges them. Single Capture takes one exposure with red, green and blue lit together."
 )
@@ -75,13 +75,13 @@ class CalibrationWindow(QDialog):
         self.name_edit.setPlaceholderText(tr("e.g. Portra 400"))
         name_row.addWidget(self.name_edit, 1)
         self._running = False
-        self.capture_btn = ChoiceButton(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
+        self.capture_btn = StepCombo.of(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
         name_row.addWidget(self.capture_btn)
         self._sensor_profile_wanted = True  # the operator's pick, kept while Triplet shows the toggle off
         self.sensor_profile_btn = labeled_toggle("fa5s.vials", tr(" Create Sensor Profile"), True, SENSOR_PROFILE_TOOLTIP)
         _reserve_checked_width(self.sensor_profile_btn)
         self.sensor_profile_btn.clicked.connect(self._on_sensor_profile_clicked)
-        self.capture_btn.currentChanged.connect(lambda _i: self._sync_sensor_profile())
+        self.capture_btn.currentIndexChanged.connect(lambda _i: self._sync_sensor_profile())
         name_row.addWidget(self.sensor_profile_btn)
         self._sync_sensor_profile()
         self.calibrate_btn = labeled_action(

@@ -5,9 +5,10 @@ from PyQt6.QtWidgets import QColorDialog
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import field_row, section_subheader, wrap_tooltip
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
+from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.fold import show_while
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
+from negpy.desktop.view.widgets.step_combo import StepCombo
 
 
 class FinishSidebar(BaseSidebar):
@@ -51,10 +52,12 @@ class FinishSidebar(BaseSidebar):
         self.bottom_weight_slider.setToolTip(wrap_tooltip(tr("Makes the bottom border wider than the others, as in a picture mat.")))
         self.layout.addWidget(self.border_slider)
 
-        self.border_color_btn = ChoiceButton(
-            (("fa5s.file", tr("Paper White")), ("fa5s.palette", tr("Custom"))),
+        self.border_color_btn = StepCombo.of(
+            [tr("Paper White"), tr("Custom")],
             tr("Paper White matches the border to the paper color; Custom uses the color you pick."),
         )
+        for i, icon in enumerate(("fa5s.file", "fa5s.palette")):
+            self.border_color_btn.setItemIcon(i, qta.icon(icon, color=THEME.text_primary, color_disabled=THEME.text_muted))
         self.border_color_btn.setCurrentIndex(0 if conf.border_match_paper else 1)
         self.color_btn = self._icon_action("fa5s.square", tr("Pick the custom border color…"))
         self._update_color_btn(conf.border_color)
@@ -133,7 +136,7 @@ class FinishSidebar(BaseSidebar):
             lambda v: self.update_config_section("finish", persist=True, readback_metrics=True, border_bottom_weight=v)
         )
 
-        self.border_color_btn.currentChanged.connect(
+        self.border_color_btn.currentIndexChanged.connect(
             lambda i: self.update_config_section("finish", persist=True, border_match_paper=i == 0)
         )
 

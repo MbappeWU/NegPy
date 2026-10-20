@@ -32,7 +32,6 @@ from negpy.desktop.view.styles.templates import (
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure.scanners.base import ScannerCapabilities, ScannerDevice
@@ -251,8 +250,8 @@ class ScanSidebar(QWidget):
         # ── DEVICE ───────────────────────────────────────────
         self.device_body, device = self._body()
         backends = backend_choices()
-        self.backend_btn = ChoiceButton(
-            tuple(("", label) for _id, label in backends), tr("Scanner transport backend"), data=tuple(bid for bid, _label in backends)
+        self.backend_btn = StepCombo.of(
+            [label for _id, label in backends], tr("Scanner transport backend"), [bid for bid, _label in backends]
         )
         self.backend_btn.setCurrentIndex(max(self.backend_btn.findData(self._settings.backend), 0))
         device.addLayout(field_row(tr("Backend"), self.backend_btn))
@@ -277,8 +276,8 @@ class ScanSidebar(QWidget):
         self.eject_btn.setVisible(False)
         device.addLayout(field_row(tr("Device"), self.device_combo, self.refresh_btn, self.eject_btn))
 
-        self.debug_log_btn = ChoiceButton(
-            tuple(("", level.title()) for level in nkscan_log.LEVELS),
+        self.debug_log_btn = StepCombo.of(
+            [level.title() for level in nkscan_log.LEVELS],
             tr("Write a diagnostics log (nkscan.log) in the NegPy folder. Use Trace for a bug report."),
         )
         level = self._settings.nkscan_log_level
@@ -298,7 +297,7 @@ class ScanSidebar(QWidget):
 
         # What is on the film: it decides which way the frame boundaries read on a strip, and
         # whether an IR pass has anything to see.
-        self.film_type_btn = ChoiceButton((), tr("What is on the film. Silver and Kodachrome block infrared"))
+        self.film_type_btn = StepCombo.of([], tr("What is on the film. Silver and Kodachrome block infrared"))
         self.film_type_widget = self._row_widget(field_row(tr("Film"), self.film_type_btn))
         quality.addWidget(self.film_type_widget)
 
@@ -315,17 +314,17 @@ class ScanSidebar(QWidget):
         self.dpi_combo.setFixedHeight(default_button_height())
         quality.addLayout(field_row(tr("Resolution"), self.dpi_combo))
 
-        self.depth_btn = ChoiceButton((), tr("Bits per channel in the scanned file"))
+        self.depth_btn = StepCombo.of([], tr("Bits per channel in the scanned file"))
         self.depth_widget = self._row_widget(field_row(tr("Bit depth"), self.depth_btn))
         quality.addWidget(self.depth_widget)
 
-        self.mode_btn = ChoiceButton(
-            tuple(("", label) for _mode, label, _tip in _CAPTURE_MODE_LABELS),
+        self.mode_btn = StepCombo.of(
+            [label for _mode, label, _tip in _CAPTURE_MODE_LABELS],
             tr("How the scan is exposed: one pass, several passes for less noise, a short and a long exposure for more range, or both."),
-            data=tuple(mode.value for mode, _label, _tip in _CAPTURE_MODE_LABELS),
+            [mode.value for mode, _label, _tip in _CAPTURE_MODE_LABELS],
         )
         for i, (_mode, _label, tip) in enumerate(_CAPTURE_MODE_LABELS):
-            self.mode_btn.set_choice_tooltip(i, tip)
+            self.mode_btn.set_item_tooltip(i, tip)
         self.mode_widget = self._row_widget(field_row(tr("Scan mode"), self.mode_btn))
         quality.addWidget(self.mode_widget)
         self.passes_slider = CompactSlider(tr("Passes"), MIN_PASSES_UI, MAX_N_PASSES, DEFAULT_N_PASSES, step=1, precision=1)
@@ -341,7 +340,7 @@ class ScanSidebar(QWidget):
         quality.addWidget(self.passes_rail)
 
         # Multi-sample: repeated reads of one line the scanner averages, for shadow noise.
-        self.samples_btn = ChoiceButton((), tr("Reads per line the scanner averages"))
+        self.samples_btn = StepCombo.of([], tr("Reads per line the scanner averages"))
         self.samples_widget = self._row_widget(field_row(tr("Samples"), self.samples_btn))
         quality.addWidget(self.samples_widget)
 
@@ -419,10 +418,10 @@ class ScanSidebar(QWidget):
 
         # ── OUTPUT ───────────────────────────────────────────
         self.output_body, out = self._body()
-        self.fmt_btn = ChoiceButton(
-            tuple(("", fmt) for fmt in OUTPUT_FORMATS),
+        self.fmt_btn = StepCombo.of(
+            list(OUTPUT_FORMATS),
             tr("Output file format. Mono writes one gray plane, for film with a single record."),
-            data=OUTPUT_FORMATS,
+            list(OUTPUT_FORMATS),
         )
         out.addLayout(field_row(tr("Format"), self.fmt_btn))
         self.pattern_edit = QLineEdit()
@@ -460,26 +459,26 @@ class ScanSidebar(QWidget):
     def _connect_signals(self) -> None:
         self.refresh_btn.clicked.connect(self._on_refresh)
         self.eject_now_act.triggered.connect(self._on_eject)
-        self.debug_log_btn.currentChanged.connect(self._on_debug_log_changed)
+        self.debug_log_btn.currentIndexChanged.connect(self._on_debug_log_changed)
         self.debug_log_folder_btn.clicked.connect(self._on_show_debug_log)
-        self.backend_btn.currentChanged.connect(self._on_backend_changed)
+        self.backend_btn.currentIndexChanged.connect(self._on_backend_changed)
         self.device_combo.currentIndexChanged.connect(self._on_device_changed)
         self.scan_btn.clicked.connect(self._on_scan)
         self.pattern_edit.textChanged.connect(lambda: self._update_settings_from_ui())
-        self.fmt_btn.currentChanged.connect(lambda: self._update_settings_from_ui())
+        self.fmt_btn.currentIndexChanged.connect(lambda: self._update_settings_from_ui())
         self.dpi_combo.currentTextChanged.connect(lambda: self._update_settings_from_ui())
-        self.depth_btn.currentChanged.connect(lambda: self._update_settings_from_ui())
+        self.depth_btn.currentIndexChanged.connect(lambda: self._update_settings_from_ui())
         self.ir_btn.toggled.connect(self._on_ir_toggled)
-        self.mode_btn.currentChanged.connect(self._on_mode_changed)
+        self.mode_btn.currentIndexChanged.connect(self._on_mode_changed)
         self.passes_slider.valueChanged.connect(lambda _v: self._update_settings_from_ui())
         self.autofocus_btn.toggled.connect(lambda: self._update_settings_from_ui())
         self.eject_after_act.toggled.connect(lambda: self._update_settings_from_ui())
         self.ae_btn.toggled.connect(lambda: self._on_ae_toggled())
         self.clean_btn.toggled.connect(lambda on: self._on_ir_pass_toggled(self.ir_btn, on))
         self.superfine_btn.toggled.connect(lambda: self._update_settings_from_ui())
-        self.samples_btn.currentChanged.connect(lambda: self._update_settings_from_ui())
+        self.samples_btn.currentIndexChanged.connect(lambda: self._update_settings_from_ui())
         self.format_combo.currentIndexChanged.connect(lambda: self._update_settings_from_ui())
-        self.film_type_btn.currentChanged.connect(lambda: self._on_film_type_changed())
+        self.film_type_btn.currentIndexChanged.connect(lambda: self._on_film_type_changed())
         self.exposure_slider.valueChanged.connect(lambda _v: self._update_settings_from_ui())
         self.frame_spec_edit.textChanged.connect(self._on_frame_spec_typed)
         self.frame_spec_edit.editingFinished.connect(self._update_settings_from_ui)
@@ -740,7 +739,7 @@ class ScanSidebar(QWidget):
         # Depth, shown only when the device offers more than one bit depth. Default to the
         # deepest supported when the saved value is absent: a saved 16 does not exist on a
         # 14-bit LS-50, and findData returning -1 must not leave the combo on index 0 (8-bit).
-        self.depth_btn.set_choices(tuple(("", f"{d}-bit") for d in caps.supported_depths), data=tuple(caps.supported_depths))
+        self.depth_btn.set_choices([f"{d}-bit" for d in caps.supported_depths], list(caps.supported_depths))
         if caps.supported_depths:
             idx = self.depth_btn.findData(self._settings.depth) if self._settings.depth else -1
             if idx < 0:
@@ -778,7 +777,7 @@ class ScanSidebar(QWidget):
                 if capture_mode == ScanCaptureMode.MULTI_PASS
                 else bool(caps.multi_exposure) and caps.max_n_passes > 1  # ADAPTIVE_MULTI_PASS
             )
-            self.mode_btn.set_choice_enabled(idx, enabled)
+            self.mode_btn.set_item_enabled(idx, enabled)
         saved_mode = _capture_mode_from_params(
             MultiExposureMode(self._settings.multi_exposure_mode)
             if self._settings.multi_exposure_mode in set(MultiExposureMode)
@@ -837,14 +836,14 @@ class ScanSidebar(QWidget):
         self.samples_btn.blockSignals(True)
         show_samples = caps.max_samples > 1
         counts = tuple(count for count in _SAMPLE_COUNTS if show_samples and count <= caps.max_samples)
-        self.samples_btn.set_choices(tuple(("", str(count)) for count in counts), data=counts)
+        self.samples_btn.set_choices([str(count) for count in counts], list(counts))
         self.samples_btn.setCurrentIndex(max(self.samples_btn.findData(self._settings.samples), 0))
         self.samples_widget.setVisible(show_samples)
         self.samples_btn.blockSignals(False)
 
         self._caps_film_types = tuple(caps.film_types)
         self.film_type_btn.blockSignals(True)
-        self.film_type_btn.set_choices(tuple(("", FILM_TYPES[t][0]) for t in self._caps_film_types), data=self._caps_film_types)
+        self.film_type_btn.set_choices([FILM_TYPES[t][0] for t in self._caps_film_types], list(self._caps_film_types))
         self.film_type_btn.setCurrentIndex(max(self.film_type_btn.findData(self._settings.film_type), 0))
         self.film_type_widget.setVisible(bool(self._caps_film_types))
         self.film_type_btn.blockSignals(False)

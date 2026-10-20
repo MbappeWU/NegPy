@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import field_label, hint_label, wrap_tooltip
-from negpy.desktop.view.widgets.choice_button import ChoiceButton
 from negpy.desktop.view.widgets.file_dialogs import last_open_folder
 from negpy.desktop.view.sidebar.scan_setup import resolved_rig
 from negpy.desktop.view.widgets.fold import group_fold
@@ -60,14 +59,15 @@ class SensorSidebar(BaseSidebar):
 
         unmix_row = QHBoxLayout()
         self.unmix_label = field_label(tr("Method"))
-        self.unmix_btn = ChoiceButton(
-            tuple(("", mode.label) for mode, _tip in _UNMIX_CHOICES),
+        # Plain strings: Qt's findData cannot match a StrEnum member.
+        self.unmix_btn = StepCombo.of(
+            [mode.label for mode, _tip in _UNMIX_CHOICES],
             tr("How the calibration is applied. Run Roll Analysis again after a change."),
-            data=tuple(mode for mode, _tip in _UNMIX_CHOICES),
+            [mode.value for mode, _tip in _UNMIX_CHOICES],
         )
         for i, (_mode, tip) in enumerate(_UNMIX_CHOICES):
-            self.unmix_btn.set_choice_tooltip(i, wrap_tooltip(tip))
-        self.unmix_btn.setCurrentIndex(max(0, self.unmix_btn.findData(conf.sensor_unmix)))
+            self.unmix_btn.set_item_tooltip(i, wrap_tooltip(tip))
+        self.unmix_btn.setCurrentIndex(max(0, self.unmix_btn.findData(str(conf.sensor_unmix))))
         unmix_row.addWidget(self.unmix_label)
         unmix_row.addWidget(self.unmix_btn, 1)
 
@@ -212,7 +212,7 @@ class SensorSidebar(BaseSidebar):
 
     def _connect_signals(self) -> None:
         self.sensor_combo.currentTextChanged.connect(self._on_sensor_profile_changed)
-        self.unmix_btn.currentChanged.connect(self._on_unmix_changed)
+        self.unmix_btn.currentIndexChanged.connect(self._on_unmix_changed)
         self.calibrate_sensor_btn.clicked.connect(self._open_sensor_calibration)
 
         self.crosstalk_combo.currentTextChanged.connect(self._on_crosstalk_profile_changed)
@@ -238,7 +238,7 @@ class SensorSidebar(BaseSidebar):
     def _on_unmix_changed(self, _index: int) -> None:
         self.controller.set_roll_default(
             "sensor",
-            sensor_unmix=self.unmix_btn.currentData(),
+            sensor_unmix=SensorUnmix(self.unmix_btn.currentData()),
             **invalidate_local_bounds(self.state.config.process),
         )
 
@@ -364,7 +364,7 @@ class SensorSidebar(BaseSidebar):
             if profiles != [self.sensor_combo.itemText(i) for i in range(self.sensor_combo.count())]:
                 self.sensor_combo.clear()
                 self.sensor_combo.addItems(profiles)
-            self.unmix_btn.setCurrentIndex(max(0, self.unmix_btn.findData(conf.sensor_unmix)))
+            self.unmix_btn.setCurrentIndex(max(0, self.unmix_btn.findData(str(conf.sensor_unmix))))
             self._apply_gate(conf)
 
             # Headings included, so a changed `type` rebuilds too (the name set alone would not).
