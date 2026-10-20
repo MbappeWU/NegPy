@@ -37,6 +37,18 @@ def test_merge_bindings_applies_known_overrides_only():
     assert "unknown" not in bindings
 
 
+def test_a_users_key_wins_over_a_new_default_on_the_same_key():
+    bindings = merge_bindings({"density_up": "+"})
+
+    assert bindings["density_up"] == "+"
+    assert bindings["light_table_zoom_in"] == ""
+    assert bindings["light_table_zoom_out"] == "-"
+
+
+def test_a_renamed_action_keeps_its_saved_key():
+    assert merge_bindings({"toggle_left_panel": "Ctrl+Alt+F"})["toggle_film_strip"] == "Ctrl+Alt+F"
+
+
 def test_save_bindings_only_persists_overrides():
     repo = _Repo()
     bindings = default_bindings()

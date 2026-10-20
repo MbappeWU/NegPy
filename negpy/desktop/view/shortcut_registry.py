@@ -430,12 +430,23 @@ def default_bindings() -> dict[str, str]:
     return {action_id: entry.default_key for action_id, entry in REGISTRY.items()}
 
 
+_RENAMED_ACTIONS = {"toggle_left_panel": "toggle_film_strip"}
+
+
 def merge_bindings(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """The defaults with the user's keys over them. A default on a key the user gave another action
+    is left unbound, as two shortcuts on one key both go dead."""
     bindings = default_bindings()
-    if overrides:
-        for action_id, key in overrides.items():
-            if action_id in REGISTRY:
-                bindings[action_id] = str(key)
+    chosen = {}
+    for action_id, key in (overrides or {}).items():
+        action_id = _RENAMED_ACTIONS.get(action_id, action_id)
+        if action_id in REGISTRY:
+            chosen[action_id] = str(key)
+    bindings.update(chosen)
+    taken = {(clash_scope(a, k), QKeySequence(k).toString()) for a, k in chosen.items() if k}
+    for action_id, key in bindings.items():
+        if action_id not in chosen and key and (clash_scope(action_id, key), QKeySequence(key).toString()) in taken:
+            bindings[action_id] = ""
     return bindings
 
 
