@@ -15,6 +15,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QApplication, QSizePolicy, QVBoxLayout, QWidget
 
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.templates import wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 
@@ -34,6 +35,11 @@ def _draw_plated_text(painter: QPainter, rect: QRect, flags: Qt.AlignmentFlag, t
     painter.fillRect(box, _alpha(THEME.canvas_bg_black, 190))
     painter.setPen(_alpha(THEME.text_hint, 230))
     painter.drawText(rect, flags, text)
+
+
+def _guide_pen() -> QPen:
+    """Every chart's grid and guide lines."""
+    return QPen(_alpha(THEME.border_hover, 150), 1)
 
 
 def _draw_hover_ring(painter: QPainter, at: QPointF) -> None:
@@ -389,7 +395,7 @@ class PhotometricCurveWidget(QWidget):
 
         # Grid at 0.25 intervals, including 0 and 1, so the axis padding reads as margin and a
         # curve flat at zero visibly lands on the baseline.
-        painter.setPen(QPen(QColor(THEME.border_input), 1))
+        painter.setPen(_guide_pen())
         for i in range(0, 5):
             gx = int(self._wx(i * 0.25, w))
             gy = int(self._wy(i * 0.25, h))
@@ -536,14 +542,14 @@ class PhotometricCurveWidget(QWidget):
 
     def _draw_output_histogram(self, painter: QPainter, w: int, h: int) -> None:
         """Print tones, black left → white right across the plot's 0..1, in the density
-        histogram's bottom band."""
+        histogram's bottom band: luminance filled gray, R, G and B as lines."""
         if self._output_counts is None:
             return
         specs = (
-            (3, THEME.text_secondary, 26, 120),
-            (0, THEME.channel_red, 55, 160),
-            (1, THEME.channel_green, 55, 160),
-            (2, THEME.channel_blue, 55, 160),
+            (3, THEME.text_secondary, 34, 130),
+            (0, THEME.channel_red, 0, 170),
+            (1, THEME.channel_green, 0, 170),
+            (2, THEME.channel_blue, 0, 170),
         )
         bot = self._wy(self._Y_MIN, h)
         scale = self._DENSITY_HIST_FRAC * h
@@ -555,15 +561,16 @@ class PhotometricCurveWidget(QWidget):
             xs = [self._wx((i + 0.5) / n, w) for i in range(n)]
             values = data.tolist()
 
-            path = QPainterPath()
-            path.moveTo(xs[0], bot)
-            for x, v in zip(xs, values):
-                path.lineTo(x, bot - v * scale)
-            path.lineTo(xs[-1], bot)
-            path.closeSubpath()
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(_alpha(color_hex, alpha_fill)))
-            painter.drawPath(path)
+            if alpha_fill:
+                path = QPainterPath()
+                path.moveTo(xs[0], bot)
+                for x, v in zip(xs, values):
+                    path.lineTo(x, bot - v * scale)
+                path.lineTo(xs[-1], bot)
+                path.closeSubpath()
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QBrush(_alpha(color_hex, alpha_fill)))
+                painter.drawPath(path)
 
             # Open polyline for the outline so the closing edges don't stroke.
             path_line = QPainterPath()
@@ -731,6 +738,13 @@ class WaveformWidget(QWidget):
         self._scan_base: np.ndarray | None = None
         self._base_relative = False
         self._overlay = False
+        self._clip_colors: tuple[str, str] = palette_for("standard").pair
+
+    def set_clip_colors(self, shadow: str, highlight: str) -> None:
+        """The Clipping Overlay's pair, for the bottom and top edge marks."""
+        if (shadow, highlight) != self._clip_colors:
+            self._clip_colors = (shadow, highlight)
+            self.update()
 
     def set_overlay(self, enabled: bool) -> None:
         """Draw a parade's R, G and B added on one plot instead of side by side."""
@@ -945,7 +959,7 @@ class WaveformWidget(QWidget):
             guides = [(float(encoded_of_zone(zone)), label) for zone, label in self._GUIDE_ZONES]
         for tone, label in guides:
             y = int(h - tone * h)
-            painter.setPen(QPen(_alpha(THEME.border_hover, 200), 1, Qt.PenStyle.DashLine))
+            painter.setPen(_guide_pen())
             painter.drawLine(0, y, w, y)
             _draw_plated_text(
                 painter, QRect(THEME.space_xs, y - 12, 40, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, label
@@ -1000,8 +1014,9 @@ class WaveformWidget(QWidget):
                 _draw_hover_ring(painter, QPointF(mx, my))
 
         # Over the label plates, so a clipped column under a caption still shows.
-        painter.setPen(QPen(QColor(THEME.clip_warning), 2))
+        shadow, highlight = self._clip_colors
         for x1, x2, y in ticks:
+            painter.setPen(QPen(QColor(highlight if y < h / 2 else shadow), 2))
             painter.drawLine(x1, y, x2, y)
 
 
@@ -1105,14 +1120,13 @@ class VectorscopeWidget(QWidget):
         font = QFont(self.font())
         font.setPixelSize(THEME.font_size_micro)
         painter.setFont(font)
-        guide = _alpha(THEME.border_hover, 160)
         for chroma in self._RINGS:
             r = float(scope_radius(chroma, self._log_scale)) * rim
-            painter.setPen(QPen(guide, 1, Qt.PenStyle.DashLine))
+            painter.setPen(_guide_pen())
             painter.drawEllipse(center, r, r)
             painter.setPen(QColor(THEME.text_hint))
             painter.drawText(QPointF(center.x() + r * 0.71 + 2, center.y() + r * 0.71 + 8), f"{chroma:.0f}")
-        painter.setPen(QPen(guide, 1))
+        painter.setPen(_guide_pen())
         painter.drawEllipse(center, rim, rim)
         painter.drawLine(QPointF(center.x() - 6, center.y()), QPointF(center.x() + 6, center.y()))
         painter.drawLine(QPointF(center.x(), center.y() - 6), QPointF(center.x(), center.y() + 6))

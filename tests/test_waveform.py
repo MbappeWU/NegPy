@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.session import AppState
 from negpy.features.exposure.analysis import (
     WAVEFORM_BINS,
@@ -120,7 +121,6 @@ class TestWaveformParity(unittest.TestCase):
 def test_waveform_widget_paints_and_marks_clipped_columns(qapp) -> None:
     from PyQt6.QtGui import QColor
 
-    from negpy.desktop.view.styles.theme import THEME
     from negpy.desktop.view.widgets.charts import WaveformWidget
 
     widget = WaveformWidget()
@@ -132,8 +132,12 @@ def test_waveform_widget_paints_and_marks_clipped_columns(qapp) -> None:
 
     img = widget.grab().toImage()
 
-    assert QColor(img.pixel(20, 61)).name() == QColor(THEME.clip_warning).name()
-    assert QColor(img.pixel(200, 61)).name() != QColor(THEME.clip_warning).name()
+    shadow, highlight = palette_for("standard").pair
+    assert QColor(img.pixel(20, 61)).name() == QColor(shadow).name()
+    assert QColor(img.pixel(200, 61)).name() != QColor(shadow).name()
+
+    widget.set_clip_colors(*palette_for("tritan").pair)
+    assert QColor(widget.grab().toImage().pixel(20, 61)).name() == QColor(palette_for("tritan").pair[0]).name()
 
     widget.set_log_scale(True)
     assert widget._images is None
@@ -244,8 +248,9 @@ def test_the_parade_draws_three_panels_in_channel_colors(qapp) -> None:
     for panel, hex_ in enumerate((THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)):
         got, want = QColor(img.pixel(panel * 101 + 50, y)), QColor(hex_)
         assert max(abs(got.red() - want.red()), abs(got.green() - want.green()), abs(got.blue() - want.blue())) <= 1
-    assert QColor(img.pixel(5, 2)).name() == QColor(THEME.clip_warning).name()
-    assert QColor(img.pixel(106, 2)).name() != QColor(THEME.clip_warning).name()
+    highlight = QColor(palette_for("standard").pair[1]).name()
+    assert QColor(img.pixel(5, 2)).name() == highlight
+    assert QColor(img.pixel(106, 2)).name() != highlight
     widget.set_data(np.ones((WAVEFORM_BINS, WAVEFORM_COLS)))  # a luma waveform is not a parade
     assert widget._counts is None
 
@@ -365,7 +370,7 @@ def _row_across(img, y: int) -> bool:
     """A drawn line across a third of the row, over the black trace image and its separators."""
     from PyQt6.QtGui import QColor
 
-    return sum(QColor(img.pixel(x, y)).lightness() > 40 for x in range(img.width())) > img.width() // 3
+    return sum(QColor(img.pixel(x, y)).lightness() > 30 for x in range(img.width())) > img.width() // 3
 
 
 def test_the_scan_parade_trades_zone_guides_for_density_guides_and_marks(qapp) -> None:
@@ -764,9 +769,7 @@ def test_wgsl_full_scale_columns_match_the_cpu() -> None:
 def _top_tick(img, x: int) -> bool:
     from PyQt6.QtGui import QColor
 
-    from negpy.desktop.view.styles.theme import THEME
-
-    return QColor(img.pixel(x, 2)).name() == QColor(THEME.clip_warning).name()
+    return QColor(img.pixel(x, 2)).name() == QColor(palette_for("standard").pair[1]).name()
 
 
 def test_the_scan_parade_ticks_full_scale_from_the_scan_before_the_unmix(qapp) -> None:

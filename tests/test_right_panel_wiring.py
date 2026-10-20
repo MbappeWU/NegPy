@@ -274,7 +274,7 @@ def test_histogram_scale_choice_sets_the_chart_and_persists() -> None:
     panel.controller.session.repo.save_global_setting.assert_called_once_with("histogram_log_scale", True)
 
 
-def test_chart_zone_tints_follow_color_vision() -> None:
+def test_chart_colors_follow_color_vision() -> None:
     from negpy.desktop.view.styles.color_vision import palette_for
 
     panel = MagicMock()
@@ -283,6 +283,9 @@ def test_chart_zone_tints_follow_color_vision() -> None:
     RightPanel._sync_chart_colors(panel)
 
     panel.curve_widget.set_zone_colors.assert_called_once_with(*palette_for("tritan").dodge_burn)
+    panel.waveform_widget.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
+    panel.parade_widget.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
+    panel.clipping_btn.setIcon.assert_called_once()
 
 
 def test_roll_tab_apply_offers_every_card_of_its_sections():

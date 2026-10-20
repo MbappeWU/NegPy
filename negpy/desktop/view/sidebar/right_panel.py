@@ -22,7 +22,7 @@ from negpy.desktop.view.sidebar.history import HistoryPanel
 from negpy.desktop.view.sidebar.library_tree import LibraryTree
 from negpy.desktop.view.sidebar.metadata import MetadataSidebar
 from negpy.desktop.view.styles.color_vision import palette_for
-from negpy.desktop.view.styles.templates import CLIPPING_SWEEP, gradient_icon, tool_toggle
+from negpy.desktop.view.styles.templates import clipping_sweep, gradient_icon, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.charts import (
@@ -261,8 +261,6 @@ class RightPanel(QWidget):
         self.waveform_widget.set_log_scale(self.scale_btn.isChecked())
         self.parade_widget.set_log_scale(self.scale_btn.isChecked())
         self.scale_btn.toggled.connect(self._on_histogram_scale)
-        self._sync_chart_colors()
-        self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
 
         self.chart_stack = QStackedWidget()
         self.chart_stack.addWidget(self.curve_widget)
@@ -330,7 +328,8 @@ class RightPanel(QWidget):
         self.analysis_section = make_section(repo, tr("Analysis"), "analysis", analysis_content, "fa5s.chart-bar", persist=False)
         self.analysis_section.expanded_changed.connect(lambda checked: repo.save_global_setting(self._analysis_expanded_setting(), checked))
         self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
-        self.clipping_btn.setIcon(gradient_icon("fa5s.adjust", CLIPPING_SWEEP))
+        self._sync_chart_colors()
+        self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
         self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
         self.clipping_btn.toggled.connect(self.controller.toggle_clipping_overlay)
         self.zone_highlight_btn = self.analysis_section.add_header_toggle("fa5s.highlighter", tr("Zone Highlight"))
@@ -714,7 +713,11 @@ class RightPanel(QWidget):
         self.controller.session.repo.save_global_setting("histogram_log_scale", log)
 
     def _sync_chart_colors(self) -> None:
-        self.curve_widget.set_zone_colors(*palette_for(self.controller.state.color_vision).dodge_burn)
+        palette = palette_for(self.controller.state.color_vision)
+        self.curve_widget.set_zone_colors(*palette.dodge_burn)
+        self.waveform_widget.set_clip_colors(*palette.pair)
+        self.parade_widget.set_clip_colors(*palette.pair)
+        self.clipping_btn.setIcon(gradient_icon("fa5s.adjust", clipping_sweep(palette.pair)))
 
     def _refresh_zone_strip_hint(self) -> None:
         self.zone_strip.set_overlay_hint(tooltip_with_shortcut(tr("Double-click: Zone Overlay on or off"), "toggle_zones"))

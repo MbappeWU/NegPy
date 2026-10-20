@@ -98,7 +98,7 @@ Every feature lives in `negpy/features/<name>/`:
   - `tool_toggle`: icon-only or icon+label toggle. `clearable_tool_toggle`: one whose tool leaves a saved result, with an inline × that clears it.
   - `labeled_toggle` (checkable) and `labeled_action`, its one-shot twin; `primary=True` for the panel's one call to action.
   - `icon_button`: icon-only action. `header_button`: a section header's small flat icon.
-  - `gradient_icon(name, sweep)`: for the one icon in a row that must stand out. Every sweep is a named constant beside `RGB_SWEEP` with one meaning.
+  - `gradient_icon(name, sweep)`: for the one icon in a row that must stand out. Every sweep is a named constant beside `RGB_SWEEP` with one meaning; `clipping_sweep` takes the Color vision pair, as the Clipping Overlay does.
   - `field_label` / `field_row`: a label beside a combo or entry. `hint_label`: a line of help under a control. `section_subheader` and `header_row` for grouping.
   - `CollapsibleSection`: a panel section, and the only reset affordance.
   - `CompactSlider`: one slider per row, never two side by side.

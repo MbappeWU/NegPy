@@ -288,8 +288,12 @@ RING_AROUND_SWEEP = Sweep((THEME.filter_magenta, THEME.filter_yellow))
 TEST_STRIP_SWEEP = Sweep((THEME.canvas_bg_white, THEME.mode_bw), angle=45)
 # Paper white to a warm print, across the bands: a paper test strip prints one stock per band.
 PAPER_STRIP_SWEEP = Sweep((THEME.canvas_bg_white, THEME.mode_c41))
-# The clipping overlay's own two colors: clipped highlights, then clipped shadows.
-CLIPPING_SWEEP = Sweep((THEME.clip_warning, THEME.clip_shadow))
+
+
+def clipping_sweep(pair: tuple[str, str]) -> Sweep:
+    """The Clipping Overlay's own two colors, a Color vision pair: clipped highlights, then clipped shadows."""
+    shadow, highlight = pair
+    return Sweep((highlight, shadow))
 
 
 class _GradientIconEngine(QIconEngine):
