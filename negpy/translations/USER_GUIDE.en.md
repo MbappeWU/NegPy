@@ -152,7 +152,7 @@ A plain word matches the file name. `field:value` terms match frame data, and a 
 | `scene:beach` | frames in a scene |
 | `keeper:` · `rejected:` · `edited:` | marked or edited frames |
 
-Terms combine: `film:portra iso:>=400 -rejected:`. Metadata terms match only frames whose Metadata you filled in. **Search by meaning** (turn it on in Preferences → Performance) finds pictures by description, such as "a dog on a beach".
+Terms combine: `film:portra iso:>=400 -rejected:`. Metadata terms match only frames whose Metadata you filled in. **Search by Meaning** (turn it on in Preferences → Performance) finds pictures by description, such as "a dog on a beach".
 
 ### Marking frames
 
@@ -418,7 +418,7 @@ How the print is presented. The other sliders of each effect show once its first
 
 ## 8. Favorites tab
 
-Your most-used sliders in one place. It is empty until you fill it: click **Edit Favorites**, tick sliders on the left and drag them into order on the right, then click **Apply**. They are the same controls as in their own cards.
+Your most-used sliders in one place. It is empty until you fill it: click **Edit Favorites**, turn sliders on at the left and drag them into order on the right, then click **Apply**. They are the same controls as in their own cards.
 
 <!-- panel:presets -->
 ### Presets
@@ -485,7 +485,7 @@ How files become frames. Each roll keeps its own settings here.
 For a camera with narrowband light that takes three shots of each frame: red, green and blue.
 
 *   **Trichrome Mode**: joins the three shots into one color frame. Shots are grouped by capture time (or file name), so take each frame's three shots one after another. Shots that do not group stay separate.
-*   **Edit Triplet…**: pick the three shots of the current frame by hand. **Align channels** lines them up to remove color fringes.
+*   **Edit Triplet…**: pick the three shots of the current frame by hand. **Align Channels** lines them up to remove color fringes.
 *   **Merge Frame to TIFF Negative…** (right-click): saves a triplet or a stitch as one TIFF beside its first source file, with its edit. An option moves the source files to the Trash.
 
 #### Half Frame
@@ -809,10 +809,10 @@ Shared by both scanners.
 Shows the whole strip, to place and pick the frames before the scan. **Apply** keeps the framing and **Scan** scans. **Stop Preview** ends a preview early.
 
 *   **Crop**: drag on a frame. **Clear Crops** removes all crops.
-*   **Offset**: moves every frame along the film to line it up with the pictures. The red box shows the frame NegPy found.
+*   **Offset**: moves every frame along the film to line it up with the pictures. The white box shows the frame NegPy found.
 *   **Drift**: an offset that grows from frame to frame.
 *   The slider under each tile moves that frame alone.
-*   **Size** sets the tile size. **All**, **None** and the tick boxes pick frames. **Preview frame** scans one frame again.
+*   **Size** sets the tile size. **All**, **None** and each frame's toggle pick frames. **Preview frame** scans one frame again.
 
 ---
 
@@ -825,7 +825,7 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 *   **Language**: English, Simplified Chinese, Japanese or Korean, after a restart.
 *   **UI scale**: 80% to 120%, after a restart.
 *   **Canvas background**: from black to white. Mid gray is best for judging a print.
-*   **Sticky zoom**: keeps the zoom when you change frames. **Reverse scroll zoom**: scroll up zooms out.
+*   **Sticky Zoom**: keeps the zoom when you change frames. **Reverse Scroll Zoom**: scroll up zooms out.
 *   **Customize Shortcuts…**, **Edit Toolbar…** and **Reset Panel Layout**.
 
 ### Accessibility
@@ -834,17 +834,17 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 
 ### Performance
 
-*   **GPU acceleration**: renders on the graphics card. Off uses the slower CPU, with the same result. If the GPU fails at launch, an amber line here says so.
-*   **Multi-core CPU rendering**: uses all CPU cores. It is off at first on macOS, where it can crash.
-*   **Search by meaning**: find frames by description (§2).
-*   **Update thumbnails automatically**: after a change to many frames, renders their thumbnails again in the background. Off (the default), the frames get an amber dot until you use **Update Thumbnails**.
+*   **GPU Acceleration**: renders on the graphics card. Off uses the slower CPU, with the same result. If the GPU fails at launch, an amber line here says so.
+*   **Multi-core CPU Rendering**: uses all CPU cores. It is off at first on macOS, where it can crash.
+*   **Search by Meaning**: find frames by description (§2).
+*   **Update Thumbnails Automatically**: after a change to many frames, renders their thumbnails again in the background. Off (the default), the frames get an amber dot until you use **Update Thumbnails**.
 *   **Preview size**: the canvas resolution. Higher is sharper and uses more memory.
 *   **Preview cache**, **HQ buffers**, **Rendered frames** and **GPU texture cap**: how much memory NegPy uses. Lower them on a computer with little memory, or if exports run out of GPU memory.
-*   **Show GPU memory warning**: tells you when an HQ preview is reduced to fit.
+*   **Show GPU Memory Warning**: tells you when an HQ preview is reduced to fit.
 
 ### Session & Storage
 
-*   **Carry settings between frames** and **Persistent Settings…**: what a new frame takes from the last one (§1).
+*   **Carry Settings Between Frames** and **Persistent Settings…**: what a new frame takes from the last one (§1).
 *   **Manage Database…**: sizes, clearing saved edits, and library folders.
 
 ### Startup override (`override.toml`)
@@ -857,7 +857,7 @@ If NegPy crashes at launch or draws wrongly, edit `Documents/NegPy/override.toml
 | `display.qt_rhi_backend` | `"auto"`, `"vulkan"`, `"d3d12"`, `"metal"`, `"opengl"`, `"software"` | How the window is drawn. |
 | `display.qt_platform` | `"auto"`, `"xcb"`, `"wayland"` | Window system (Linux only). |
 | `performance.force_hq_preview` | `true` / `false` | Turns HQ Preview on or off. |
-| `performance.cpu_parallel` | `true` / `false` | Multi-core CPU rendering. |
+| `performance.cpu_parallel` | `true` / `false` | Multi-core CPU Rendering. |
 | `logging.level` | `"debug"`, `"info"`, `"warning"`, `"error"` | How much NegPy logs. Use `"debug"` for a bug report. |
 
 The memory rows of Preferences can be set here too (`max_texture_size`, `preview_render_size`, `preview_cache_max_bytes`, `preview_cache_max_entries`, `preview_cache_max_full_res_entries`, `render_memo_max_entries`).

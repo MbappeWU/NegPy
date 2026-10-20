@@ -5,7 +5,6 @@ from functools import partial
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -17,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from negpy.desktop.settings_catalog import SettingRow, catalog_sections
-from negpy.desktop.view.styles.templates import field_label, hint_label, pin_dialog_default, wrap_tooltip
+from negpy.desktop.view.styles.templates import field_label, hint_label, labeled_toggle, pin_dialog_default, tool_toggle, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
@@ -79,15 +78,15 @@ class GranularSettingsDialog(QDialog):
         # ponytail: at nine flags this class is at its ceiling. A tenth means splitting
         # pick mode into its own dialog.
         super().__init__(parent)
-        self._checks: list[tuple[QCheckBox, SettingRow, bool, QWidget]] = []
+        self._checks: list[tuple[QPushButton, SettingRow, bool, QWidget]] = []
         self._sections: list[tuple[QWidget, int]] = []
         self._section_ids: list[tuple[str, ...]] = []
         self._section_rows: list[tuple[CollapsibleSection, tuple[str, ...]]] = []
         self._scope_choice: SegmentedChoice | None = None
         self._preselect_ids = preselect_ids
-        self._bounds_luma: QCheckBox | None = None
-        self._bounds_color: QCheckBox | None = None
-        self._bounds_local: QCheckBox | None = None
+        self._bounds_luma: QPushButton | None = None
+        self._bounds_color: QPushButton | None = None
+        self._bounds_local: QPushButton | None = None
         self._name_edit: QLineEdit | None = None
         if show_current:
             self._scope = "current"
@@ -140,10 +139,10 @@ class GranularSettingsDialog(QDialog):
         row = QHBoxLayout()
         self.mode_choice = SegmentedChoice(
             (("", tr("Apply on Top")), ("", tr("Replace Look"))),
-            tr("How the ticked settings meet each frame's edit"),
+            tr("How the settings that are on meet each frame's edit"),
             data=("overlay", "replace"),
         )
-        self.mode_choice.set_choice_tooltip(0, tr("Only the ticked settings change; the rest of each frame's edit stays"))
+        self.mode_choice.set_choice_tooltip(0, tr("Only the settings that are on change; the rest of each frame's edit stays"))
         self.mode_choice.set_choice_tooltip(
             1, tr("Reset look settings to defaults first. Crop, rotation, metadata, export and retouch marks stay.")
         )
@@ -153,12 +152,13 @@ class GranularSettingsDialog(QDialog):
 
     def _build_checks_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        check_all = QPushButton(tr("Check All"))
+        check_all = QPushButton(tr("All On"))
         check_all.clicked.connect(lambda: self._set_all_checked(True))
-        check_none = QPushButton(tr("Check None"))
+        check_none = QPushButton(tr("All Off"))
         check_none.clicked.connect(lambda: self._set_all_checked(False))
-        self._show_unchanged = QCheckBox(tr("Show unchanged settings"))
-        self._show_unchanged.setToolTip(tr("List settings still at their default, so they can be applied too"))
+        self._show_unchanged = labeled_toggle(
+            "fa5s.eye", tr("Show Unchanged"), False, tr("List settings still at their default, so they can be applied too")
+        )
         self._show_unchanged.toggled.connect(self._apply_visibility)
         self._show_unchanged.setVisible(self._preselect_ids is None)
         row.addWidget(check_all)
@@ -211,22 +211,22 @@ class GranularSettingsDialog(QDialog):
         body = QWidget()
         col = QVBoxLayout(body)
         col.setContentsMargins(0, 0, 0, 0)
-        col.setSpacing(0)
+        col.setSpacing(THEME.space_xs)
         for row, value, edited in rows:
             # One widget per row (not a grid) so an unchanged row hides as a unit.
             line = QWidget()
             line_layout = QHBoxLayout(line)
             line_layout.setContentsMargins(0, 0, 0, 0)
-            box = QCheckBox(tr(row.label))
+            label = tr(row.label)
+            box = tool_toggle("", label, tr("Include {value}", value=label), align_left=True)
             box.setChecked(row.id in self._preselect_ids if self._preselect_ids is not None else edited)
-            box.stateChanged.connect(self._update_apply_enabled)
-            box.stateChanged.connect(self._refresh_section_states)
+            box.toggled.connect(self._update_apply_enabled)
+            box.toggled.connect(self._refresh_section_states)
             self._checks.append((box, row, edited, line))
             val = QLabel(value)
             val.setStyleSheet(f"color: {THEME.text_hint};")
             val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            line_layout.addWidget(box)
-            line_layout.addStretch()
+            line_layout.addWidget(box, 1)
             line_layout.addWidget(val)
             col.addWidget(line)
         return body
@@ -235,10 +235,10 @@ class GranularSettingsDialog(QDialog):
         body = QWidget()
         col = QVBoxLayout(body)
         col.setContentsMargins(0, 0, 0, 0)
-        self._bounds_luma = QCheckBox(tr("Tonal span"))
-        self._bounds_color = QCheckBox(tr("Color balance"))
+        self._bounds_luma = tool_toggle("", tr("Tonal Span"), tr("Take the black and white point span from this frame"), align_left=True)
+        self._bounds_color = tool_toggle("", tr("Color Balance"), tr("Take the per-channel color balance from this frame"), align_left=True)
         for box in (self._bounds_luma, self._bounds_color):
-            box.stateChanged.connect(self._update_apply_enabled)
+            box.toggled.connect(self._update_apply_enabled)
             col.addWidget(box)
         return body
 
@@ -249,13 +249,12 @@ class GranularSettingsDialog(QDialog):
         row = QHBoxLayout(body)
         row.setContentsMargins(0, 0, 0, 0)
         label = tr("Copied frame's bounds") + (tr(" (locked)") if process.lock_bounds else "")
-        self._bounds_local = QCheckBox(label)
+        self._bounds_local = tool_toggle("", label, tr("Apply the copied frame's own metered bounds"), align_left=True)
         self._bounds_local.setChecked(True)
-        self._bounds_local.stateChanged.connect(self._update_apply_enabled)
+        self._bounds_local.toggled.connect(self._update_apply_enabled)
         val = QLabel(tr("{value} → {value1}", value=_triplet(process.local_floors), value1=_triplet(process.local_ceils)))
         val.setStyleSheet(f"color: {THEME.text_hint};")
-        row.addWidget(self._bounds_local)
-        row.addStretch()
+        row.addWidget(self._bounds_local, 1)
         row.addWidget(val)
         return body
 
@@ -271,7 +270,7 @@ class GranularSettingsDialog(QDialog):
         pin_dialog_default(self.apply_btn, cancel_btn)
         return row
 
-    def _all_boxes(self) -> list[QCheckBox]:
+    def _all_boxes(self) -> list[QPushButton]:
         boxes = [box for box, _row, _edited, _line in self._checks]
         boxes += [b for b in (self._bounds_luma, self._bounds_color, self._bounds_local) if b is not None]
         return boxes
@@ -419,13 +418,11 @@ class SyncBoundsDialog(QDialog):
         row, self._scope_choice = build_scope_row(sel_count, roll_count)
         root.addLayout(row)
 
-        self.luma_box = QCheckBox(tr("Tonal span"))
-        self.luma_box.setToolTip(wrap_tooltip(tr("Take the black/white-point span from this frame")))
-        self.color_box = QCheckBox(tr("Color balance"))
-        self.color_box.setToolTip(wrap_tooltip(tr("Take the per-channel color balance from this frame")))
+        self.luma_box = tool_toggle("", tr("Tonal Span"), tr("Take the black and white point span from this frame"), align_left=True)
+        self.color_box = tool_toggle("", tr("Color Balance"), tr("Take the per-channel color balance from this frame"), align_left=True)
         for box in (self.luma_box, self.color_box):
             box.setChecked(True)
-            box.stateChanged.connect(self._update_apply_enabled)
+            box.toggled.connect(self._update_apply_enabled)
             root.addWidget(box)
 
         footer = QHBoxLayout()
@@ -584,9 +581,11 @@ class SequentialFrameDialog(QDialog):
         dir_row.addStretch()
         root.addLayout(dir_row)
 
-        self.skip_reject_box = QCheckBox(tr("Skip Rejected Frames"))
-        self.skip_reject_box.setToolTip(
-            wrap_tooltip(tr("Leave frames in the rejected state out of the run; the numbers fill the frames that remain."))
+        self.skip_reject_box = labeled_toggle(
+            "mdi6.close-circle-outline",
+            tr("Skip Rejected Frames"),
+            False,
+            tr("Leave frames in the rejected state out of the run; the numbers fill the frames that remain."),
         )
         self.skip_reject_box.toggled.connect(self._refresh_preview)
         root.addWidget(self.skip_reject_box)

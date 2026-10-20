@@ -13,7 +13,6 @@ import qtawesome as qta
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QColor, QPainter, QPen, QPixmap, QTransform
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QFrame,
     QGridLayout,
@@ -30,7 +29,7 @@ from PyQt6.QtWidgets import (
 
 from negpy.kernel.system.text import count_of, plural
 from negpy.desktop.converters import ImageConverter
-from negpy.desktop.view.styles.templates import EditedDot, StatusStrip, header_button, pin_dialog_default
+from negpy.desktop.view.styles.templates import EditedDot, StatusStrip, header_button, pin_dialog_default, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.scan_preview_common import RollPreviewSignalsMixin, preview_positive
@@ -98,8 +97,8 @@ def _display_to_scan_rect(rect):
 
 # One line of orientation. Offset and Drift explain themselves on their own sliders, where
 # the hand already is, and the ⓘ carries the rest.
-_FEEDER_HELP = tr("Preview a frame, drag on it to crop, and tick the frames to scan.")
-_DISCOVERY_HELP = tr("Untick what you do not want, drag on a tile to crop it, slide under a tile to shift it.")
+_FEEDER_HELP = tr("Preview a frame, drag on it to crop, and turn on the frames to scan.")
+_DISCOVERY_HELP = tr("Turn off what you do not want, drag on a tile to crop it, slide under a tile to shift it.")
 
 _OFFSET_TIP = tr("Moves every frame along the film to line it up with the pictures. The shaded band is film the scanner cannot reach.")
 _DRIFT_TIP = tr("Adds progressively more (or less) offset per frame position, for a strip whose gaps creep.")
@@ -151,7 +150,7 @@ class _Tile:
         self,
         frame: int,
         label: ScanWindowLabel,
-        checkbox: QCheckBox,
+        checkbox: QPushButton,
         preview_btn: QPushButton,
         offset_slider: _ZeroTickSlider,
         widget: QWidget,
@@ -341,7 +340,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
         self.select_all_btn.clicked.connect(lambda: self._set_all_checked(True))
         self.select_none_btn = QPushButton(tr("None"))
         self.select_none_btn.setFixedWidth(56)
-        self.select_none_btn.setToolTip(tr("Untick every frame"))
+        self.select_none_btn.setToolTip(tr("Turn every frame off"))
         self.select_none_btn.clicked.connect(lambda: self._set_all_checked(False))
         self.selection_label = QLabel()
         self.selection_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
@@ -374,7 +373,7 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
         self.ok_btn.clicked.connect(self.accept)
         btns.addWidget(self.ok_btn)
         self.scan_btn = QPushButton(qta.icon("fa5s.play", color=THEME.text_primary), tr(" Scan"))
-        self.scan_btn.setToolTip(tr("Scan the ticked frames now with the current settings"))
+        self.scan_btn.setToolTip(tr("Scan the frames that are on now, with the current settings"))
         self.scan_btn.setProperty("primary", True)
         self.scan_btn.clicked.connect(self._on_scan_clicked)
         pin_dialog_default(None, self.clear_btn, self.cancel_btn, self.ok_btn, self.scan_btn)
@@ -424,21 +423,17 @@ class StripPreviewDialog(RollPreviewSignalsMixin, QDialog):
 
         overlay = QFrame()
         overlay.setObjectName("frameOverlay")
-        # Opaque, not a wash: the tick sits over the picture and has to read on a bright frame
+        # Opaque, not a wash: the toggle sits over the picture and has to read on a bright frame
         # as well as a dark one.
         overlay.setStyleSheet(
             f"#frameOverlay {{ background: {THEME.surface_overlay}; border-radius: {THEME.radius_lg}px; }}"
-            f"#frameOverlay QCheckBox {{ color: {THEME.text_primary}; font-size: {THEME.font_size_base}px;"
-            " font-weight: 600; spacing: 6px; }"
-            "#frameOverlay QCheckBox::indicator { width: 16px; height: 16px; }"
             f"#frameOverlay QLabel {{ color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px; }}"
         )
         oh = QHBoxLayout(overlay)
         oh.setContentsMargins(7, 4, 7, 4)
         oh.setSpacing(6)
-        checkbox = QCheckBox(str(frame))
+        checkbox = tool_toggle("fa5s.check", str(frame), tr("Scan frame {frame}", frame=frame))
         checkbox.setChecked(checked)
-        checkbox.setToolTip(tr("Scan frame {frame}", frame=frame))
         oh.addWidget(checkbox)
         preview_btn = header_button(qta.icon("fa5s.eye", color=THEME.text_secondary), tr("Preview frame {frame}", frame=frame))
         preview_btn.clicked.connect(lambda _checked=False, f=frame: self._on_preview_one(f))

@@ -6,7 +6,6 @@ import qtawesome as qta
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QCheckBox,
     QDialog,
     QFrame,
     QGridLayout,
@@ -21,7 +20,7 @@ from PyQt6.QtWidgets import (
 
 from negpy.desktop.controller import AppController
 from negpy.desktop.view.styles.color_vision import PALETTES
-from negpy.desktop.view.styles.templates import default_button_height, field_label, hint_label, pin_dialog_default
+from negpy.desktop.view.styles.templates import default_button_height, field_label, hint_label, labeled_toggle, pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
@@ -204,12 +203,14 @@ class PreferencesDialog(QDialog):
         grid.setColumnStretch(1, 1)
         return host, grid
 
-    def _add_checkbox(self, grid: QGridLayout, row: int, label: str, checked: bool, tooltip: str) -> QCheckBox:
-        box = QCheckBox(label)
-        box.setChecked(checked)
-        box.setToolTip(tooltip)
-        grid.addWidget(box, row, 0, 1, 2)
-        return box
+    @staticmethod
+    def _add_toggles(grid: QGridLayout, row: int, *toggles: QPushButton) -> None:
+        """Toggles side by side across the row, two to a row."""
+        line = QHBoxLayout()
+        line.setSpacing(THEME.space_md)
+        for toggle in toggles:
+            line.addWidget(toggle, 1)
+        grid.addLayout(line, row, 0, 1, 2)
 
     def _build_interface(self) -> QWidget:
         host, grid = self._grid()
@@ -260,16 +261,18 @@ class PreferencesDialog(QDialog):
         grid.addLayout(pills, row, 1)
         row += 1
 
-        self.sticky_zoom_box = self._add_checkbox(
-            grid, row, tr("Sticky zoom"), state.sticky_zoom, tr("Keep the zoom level when switching images, instead of resetting to fit")
+        self.sticky_zoom_box = labeled_toggle(
+            "mdi6.magnify-plus-outline",
+            tr("Sticky Zoom"),
+            state.sticky_zoom,
+            tr("Keep the zoom level when switching images, instead of resetting to fit"),
         )
         self.sticky_zoom_box.toggled.connect(self.session.set_sticky_zoom)
-        row += 1
-
-        self.invert_zoom_box = self._add_checkbox(
-            grid, row, tr("Reverse scroll zoom"), state.invert_zoom_scroll, tr("Scroll up zooms out instead of in")
+        self.invert_zoom_box = labeled_toggle(
+            "mdi6.swap-vertical", tr("Reverse Scroll Zoom"), state.invert_zoom_scroll, tr("Scroll up zooms out instead of in")
         )
         self.invert_zoom_box.toggled.connect(self.session.set_invert_zoom_scroll)
+        self._add_toggles(grid, row, self.sticky_zoom_box, self.invert_zoom_box)
         row += 1
 
         interface_row, _ = _button_row(
@@ -316,83 +319,69 @@ class PreferencesDialog(QDialog):
         host, grid = self._grid()
         row = 0
 
-        self.gpu_box = self._add_checkbox(
-            grid, row, tr("GPU acceleration"), self.session.state.gpu_enabled and self._gpu_available, tr("Render the pipeline on the GPU")
-        )
-        row += 1
-        if self._gpu_available:
-            self.gpu_box.toggled.connect(self._on_gpu_changed)
-            grid.addWidget(hint_label(tr("Active backend: {value}", value=self._backend_name())), row, 0, 1, 2)
-            if self.session.state.gpu_viewport_failed:
-                row += 1
-                grid.addWidget(
-                    hint_label(
-                        tr(
-                            "GPU viewport failed to start ({gpu_viewport_failed}); the display runs on the CPU.",
-                            gpu_viewport_failed=self.session.state.gpu_viewport_failed,
-                        ),
-                        "warning",
-                    ),
-                    row,
-                    0,
-                    1,
-                    2,
-                )
-        else:
-            self.gpu_box.setEnabled(False)
-            grid.addWidget(hint_label(tr("No GPU available on this hardware. NegPy uses the CPU.")), row, 0, 1, 2)
-        row += 1
-
-        self.semantic_box = self._add_checkbox(
-            grid,
-            row,
-            tr("Search by meaning"),
-            self.session.state.semantic_search_enabled,
-            tr("Type a plain-language description in the Film Strip search box to find frames, instead of field:value terms"),
-        )
-        self.semantic_box.toggled.connect(self._on_semantic_search_changed)
-        row += 1
-        if not semantic_model.clip_model_ready():
-            grid.addWidget(
-                hint_label(
-                    tr(
-                        "Downloads a small model ({MODEL_DOWNLOAD_SIZE}) the first time this is turned on.",
-                        MODEL_DOWNLOAD_SIZE=semantic_model.MODEL_DOWNLOAD_SIZE,
-                    )
-                ),
-                row,
-                0,
-                1,
-                2,
-            )
+        def hint(widget_or_text, kind: str = "muted") -> None:
+            nonlocal row
+            grid.addWidget(hint_label(widget_or_text, kind), row, 0, 1, 2)
             row += 1
 
-        self.auto_thumbnails_box = self._add_checkbox(
-            grid,
-            row,
-            tr("Update thumbnails automatically"),
-            self.session.state.auto_thumbnail_refresh,
-            tr("Render thumbnails again in the background after a change to many frames; off marks them with a dot for Update Thumbnails"),
+        self.gpu_box = labeled_toggle(
+            "fa5s.microchip",
+            tr("GPU Acceleration"),
+            self.session.state.gpu_enabled and self._gpu_available,
+            tr("Render the pipeline on the GPU"),
         )
-        self.auto_thumbnails_box.toggled.connect(self.session.set_auto_thumbnail_refresh)
-        row += 1
-
-        self.parallel_box = self._add_checkbox(
-            grid,
-            row,
-            tr("Multi-core CPU rendering"),
+        self.parallel_box = labeled_toggle(
+            "mdi6.cpu-64-bit",
+            tr("Multi-core CPU Rendering"),
             parallel_enabled(),
             tr("Spread the CPU rendering kernels across cores. Experimental: turn it off if the app closes without warning."),
         )
         self.parallel_box.toggled.connect(self._on_parallel_changed)
+        self._add_toggles(grid, row, self.gpu_box, self.parallel_box)
         row += 1
-        grid.addWidget(hint_label(tr("{value} cores available. Applies at once, no restart.", value=os.cpu_count() or "?")), row, 0, 1, 2)
-        row += 1
+        if self._gpu_available:
+            self.gpu_box.toggled.connect(self._on_gpu_changed)
+            hint(tr("Active backend: {value}", value=self._backend_name()))
+            if self.session.state.gpu_viewport_failed:
+                hint(
+                    tr(
+                        "GPU viewport failed to start ({gpu_viewport_failed}); the display runs on the CPU.",
+                        gpu_viewport_failed=self.session.state.gpu_viewport_failed,
+                    ),
+                    "warning",
+                )
+        else:
+            self.gpu_box.setEnabled(False)
+            hint(tr("No GPU available on this hardware. NegPy uses the CPU."))
+        hint(tr("{value} cores available. Applies at once, no restart.", value=os.cpu_count() or "?"))
 
-        self.low_vram_tiling_box = self._add_checkbox(
-            grid,
-            row,
-            tr("Reduce export memory use"),
+        self.semantic_box = labeled_toggle(
+            "mdi.image-search-outline",
+            tr("Search by Meaning"),
+            self.session.state.semantic_search_enabled,
+            tr("Type a plain-language description in the Film Strip search box to find frames, instead of field:value terms"),
+        )
+        self.semantic_box.toggled.connect(self._on_semantic_search_changed)
+        self.auto_thumbnails_box = labeled_toggle(
+            "mdi6.image-sync-outline",
+            tr("Update Thumbnails Automatically"),
+            self.session.state.auto_thumbnail_refresh,
+            tr("Render thumbnails again in the background after a change to many frames; off marks them with a dot for Update Thumbnails"),
+        )
+        self.auto_thumbnails_box.toggled.connect(self.session.set_auto_thumbnail_refresh)
+        self._add_toggles(grid, row, self.semantic_box, self.auto_thumbnails_box)
+        row += 1
+        if not semantic_model.clip_model_ready():
+            hint(
+                tr(
+                    "Downloads a small model ({MODEL_DOWNLOAD_SIZE}) the first time this is turned on.",
+                    MODEL_DOWNLOAD_SIZE=semantic_model.MODEL_DOWNLOAD_SIZE,
+                )
+            )
+
+        self.low_vram_tiling_box = labeled_toggle(
+            "fa5s.memory",
+            tr("Reduce Export Memory Use"),
             APP_CONFIG.low_vram_export_tiling,
             tr("Export in smaller pieces, a little slower. Turn this on if exporting crashes on your GPU."),
         )
@@ -401,12 +390,19 @@ class PreferencesDialog(QDialog):
             self.low_vram_tiling_box.setToolTip(tr("Set in override.toml, which wins over this dialog"))
         else:
             self.low_vram_tiling_box.toggled.connect(self._on_low_vram_tiling_changed)
-        row += 1
-        note = tr("Applies to the next export started, no restart needed.") + (
-            tr(" Set in override.toml.") if "low_vram_export_tiling" in self._pinned else ""
+        self.vram_warning_box = labeled_toggle(
+            "fa5s.exclamation-triangle",
+            tr("Show GPU Memory Warning"),
+            bool(self.repo.get_global_setting("show_vram_capped_warning", default=True)),
+            tr("Show a message when a scan is reduced to fit the GPU texture cap."),
         )
-        grid.addWidget(hint_label(note), row, 0, 1, 2)
+        self.vram_warning_box.toggled.connect(self._on_vram_warning_changed)
+        self._add_toggles(grid, row, self.low_vram_tiling_box, self.vram_warning_box)
         row += 1
+        hint(
+            tr("Reduce Export Memory Use applies to the next export started, no restart needed.")
+            + (tr(" Set in override.toml.") if "low_vram_export_tiling" in self._pinned else "")
+        )
 
         for spec in NUMBER_ROWS:
             grid.addWidget(field_label(spec.label), row, 0)
@@ -427,32 +423,21 @@ class PreferencesDialog(QDialog):
             grid.addWidget(hint_label(note), row, 0, 1, 2)
             row += 1
 
-        self.vram_warning_box = self._add_checkbox(
-            grid,
-            row,
-            tr("Show GPU memory warning"),
-            bool(self.repo.get_global_setting("show_vram_capped_warning", default=True)),
-            tr("Show a message when a scan is reduced to fit the GPU limit above."),
-        )
-        self.vram_warning_box.toggled.connect(self._on_vram_warning_changed)
-        row += 1
-
         return host
 
     def _build_storage(self) -> QWidget:
         host, grid = self._grid()
         state = self.session.state
 
-        self.sticky_settings_box = self._add_checkbox(
-            grid,
-            0,
-            tr("Carry settings between frames"),
+        self.sticky_settings_box = labeled_toggle(
+            "fa5s.thumbtack",
+            tr("Carry Settings Between Frames"),
             state.sticky_settings_enabled,
             tr("Apply Persistent Settings to a file with no saved edit, instead of starting at default settings"),
         )
         self.sticky_settings_box.toggled.connect(self._on_sticky_settings_changed)
 
-        button_row, buttons = _button_row(
+        _row, buttons = _button_row(
             (
                 (tr("Persistent Settings…"), "fa5s.thumbtack", self._open_sticky_dialog),
                 (tr("Manage Database…"), "fa5s.database", self._open_database_dialog),
@@ -460,7 +445,9 @@ class PreferencesDialog(QDialog):
         )
         self._persistent_settings_button = buttons[0]
         self._persistent_settings_button.setEnabled(state.sticky_settings_enabled)
-        grid.addLayout(button_row, 1, 0, 1, 2)
+        # The toggle beside the choice of what it carries; the database tools on their own row.
+        self._add_toggles(grid, 0, self.sticky_settings_box, self._persistent_settings_button)
+        self._add_toggles(grid, 1, buttons[1])
 
         grid.addWidget(
             hint_label(tr("Persistent Settings chooses which edits carry onto the next file you open.")),

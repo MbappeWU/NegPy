@@ -180,13 +180,10 @@ def test_dialog_ticking_appends_and_unticking_removes(qapp):
     dlg = _dialog(qapp, ["grade"])
     assert dlg.selected_ids() == ["grade"]
 
-    items = {dlg.available_list.item(i).data(256): dlg.available_list.item(i) for i in range(dlg.available_list.count())}
-    from PyQt6.QtCore import Qt
-
-    items["density"].setCheckState(Qt.CheckState.Checked)
+    dlg.available_toggles["density"].setChecked(True)
     assert dlg.selected_ids() == ["grade", "density"]
 
-    items["grade"].setCheckState(Qt.CheckState.Unchecked)
+    dlg.available_toggles["grade"].setChecked(False)
     assert dlg.selected_ids() == ["density"]
 
 
@@ -205,17 +202,11 @@ def test_dialog_without_defaults_has_no_restore_button(qapp):
 def test_dialog_restore_defaults_resets_the_chosen_list_and_the_ticks(qapp):
     """The toolbar editor passes defaults so the stock row is one click away."""
     choices = [("density", "Exposure", "Density"), ("grade", "Exposure", "Grade"), ("saturation", "Lab", "Chroma")]
-    from PyQt6.QtCore import Qt
 
     dlg = FavouritesDialog(None, choices, ["saturation"], defaults=["grade", "density"])
 
     dlg._restore_defaults()
 
     assert dlg.selected_ids() == ["grade", "density"]
-    states = {
-        dlg.available_list.item(i).data(Qt.ItemDataRole.UserRole): dlg.available_list.item(i).checkState()
-        for i in range(dlg.available_list.count())
-    }
-    assert states["grade"] == Qt.CheckState.Checked
-    assert states["density"] == Qt.CheckState.Checked
-    assert states["saturation"] == Qt.CheckState.Unchecked
+    states = {slider_id: toggle.isChecked() for slider_id, toggle in dlg.available_toggles.items()}
+    assert states == {"density": True, "grade": True, "saturation": False}

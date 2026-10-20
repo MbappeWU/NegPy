@@ -8,6 +8,7 @@ import qtawesome as qta
 from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt
 from PyQt6.QtGui import QColor, QIcon, QIconEngine, QImage, QLinearGradient, QPainter, QPalette, QPixmap
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialogButtonBox,
     QHBoxLayout,
@@ -107,8 +108,6 @@ def load_stylesheet() -> str:
             qss = qss.replace(f"@{f_.name}", str(value))
     # QSS url() cannot resolve relative paths reliably across dev and frozen runs, so bake in
     # the absolute icon path, with forward slashes for Qt.
-    check_icon = get_resource_path("media/icons/checkbox_check.svg").replace("\\", "/")
-    qss = qss.replace("__CHECKBOX_CHECK_ICON__", check_icon)
     qss = qss.replace("__CHEVRON_DOWN_ICON__", get_resource_path("media/icons/chevron_down.svg").replace("\\", "/"))
     return qss.replace("__UI_FONT__", ui_font_family())
 
@@ -247,6 +246,18 @@ def labeled_toggle(icon_name: str, label: str, checked: bool, tooltip: str) -> Q
     btn.plain_tooltip = tooltip
     btn.edited_dot = EditedDot(btn)
     return btn
+
+
+def box_toggle(label: str, checked: bool = False, tooltip: str = "") -> QCheckBox:
+    """A labeled toggle for QMessageBox.setCheckBox, which takes only a QCheckBox; the QSS draws
+    it as a toggle (QCheckBox#box_toggle). Everywhere else a toggle is labeled_toggle."""
+    box = QCheckBox(label)
+    box.setObjectName("box_toggle")
+    box.setChecked(checked)
+    box.setFixedHeight(default_button_height())
+    if tooltip:
+        box.setToolTip(wrap_tooltip(tooltip))
+    return box
 
 
 def labeled_action(icon_name: str, label: str, tooltip: str, primary: bool = False) -> QPushButton:

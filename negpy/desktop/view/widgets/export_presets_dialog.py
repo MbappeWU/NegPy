@@ -2,9 +2,8 @@ from negpy.kernel.system.i18n import tr
 import uuid
 
 import qtawesome as qta
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -18,12 +17,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from negpy.desktop.view.styles.templates import dialog_pane_qss, hint_label, pin_dialog_default, pane_header_qss
+from negpy.desktop.view.styles.templates import dialog_pane_qss, hint_label, labeled_toggle, pin_dialog_default, pane_header_qss
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.export_settings_form import ExportSettingsForm
 from negpy.domain.models import ColorSpace, ExportFormat, ExportPreset, ExportResolutionMode, preset_display_name
 from negpy.features.exposure.models import RenderIntent
+
+
+def _list_label(preset: ExportPreset) -> str:
+    """The list row: a preset that is off says so, since the row has no check mark."""
+    name = preset_display_name(preset)
+    return name if preset.enabled else tr("{value} (off)", value=name)
 
 
 class ExportPresetsDialog(QDialog):
@@ -154,8 +159,10 @@ class ExportPresetsDialog(QDialog):
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText(tr("Preset Name"))
         self.name_edit.textChanged.connect(self._on_name_changed)
-        self.enabled_check = QCheckBox(tr("Enabled"))
-        self.enabled_check.stateChanged.connect(self._on_enabled_changed)
+        self.enabled_check = labeled_toggle(
+            "fa5s.check", tr("Enabled"), False, tr("Run this preset on every export; off keeps it for later")
+        )
+        self.enabled_check.toggled.connect(self._on_enabled_changed)
         row.addWidget(self.name_edit)
         row.addWidget(self.enabled_check)
         form.addLayout(row)
@@ -176,10 +183,7 @@ class ExportPresetsDialog(QDialog):
         self.preset_list.blockSignals(True)
         self.preset_list.clear()
         for p in self._presets:
-            item = QListWidgetItem(preset_display_name(p))
-            item.setCheckState(Qt.CheckState.Checked if p.enabled else Qt.CheckState.Unchecked)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            self.preset_list.addItem(item)
+            self.preset_list.addItem(QListWidgetItem(_list_label(p)))
         self.preset_list.blockSignals(False)
 
         has = len(self._presets) > 0
@@ -197,15 +201,6 @@ class ExportPresetsDialog(QDialog):
     def _on_list_selection_changed(self, row: int) -> None:
         if row < 0 or row >= len(self._presets):
             return
-        # Check if enabled state toggled via checkbox
-        item = self.preset_list.item(row)
-        if item and self._selected_idx == row:
-            enabled = item.checkState() == Qt.CheckState.Checked
-            if self._presets[row].enabled != enabled:
-                self._presets[row].enabled = enabled
-                self.enabled_check.setChecked(enabled)
-                self._emit_changed()
-                return
         self._select_row(row)
 
     # Form population and change handling
@@ -232,16 +227,16 @@ class ExportPresetsDialog(QDialog):
         self._presets[self._selected_idx].name = text
         item = self.preset_list.item(self._selected_idx)
         if item:
-            item.setText(preset_display_name(self._presets[self._selected_idx]))
+            item.setText(_list_label(self._presets[self._selected_idx]))
         self._emit_changed()
 
-    def _on_enabled_changed(self, _state: int) -> None:
+    def _on_enabled_changed(self, _on: bool) -> None:
         if self._updating_form or self._selected_idx < 0:
             return
         self._presets[self._selected_idx].enabled = self.enabled_check.isChecked()
         item = self.preset_list.item(self._selected_idx)
         if item:
-            item.setCheckState(Qt.CheckState.Checked if self.enabled_check.isChecked() else Qt.CheckState.Unchecked)
+            item.setText(_list_label(self._presets[self._selected_idx]))
         self._emit_changed()
 
     def _on_form_changed(self) -> None:

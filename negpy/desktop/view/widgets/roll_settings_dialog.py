@@ -8,7 +8,6 @@ from negpy.kernel.system.i18n import tr
 from dataclasses import replace
 
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -26,6 +25,7 @@ from negpy.desktop.view.styles.templates import (
     icon_button,
     labeled_action,
     pin_dialog_default,
+    tool_toggle,
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
@@ -87,7 +87,7 @@ class RollSettingsDialog(QDialog):
         self._library = gear_library
         self._repo = repo
         self._meta = source_config.metadata
-        self._checks: dict[str, QCheckBox] = {}
+        self._checks: dict[str, QPushButton] = {}
         self._simple_labels: dict[str, QLabel] = {}
         self._scope_choice: SegmentedChoice
 
@@ -95,7 +95,9 @@ class RollSettingsDialog(QDialog):
         root.setContentsMargins(THEME.space_2xl, THEME.space_2xl, THEME.space_2xl, THEME.space_2xl)
         root.setSpacing(THEME.space_xl)
 
-        root.addWidget(hint_label(tr("Set values once, then apply the ticked groups to the current frame, a selection or the whole roll.")))
+        root.addWidget(
+            hint_label(tr("Set values once, then apply the groups that are on to the current frame, a selection or the whole roll."))
+        )
         root.addLayout(self._build_preset_row())
 
         scroll = QScrollArea()
@@ -133,7 +135,7 @@ class RollSettingsDialog(QDialog):
         row = _METADATA_ROWS[label]
         default = MetadataConfig()
         edited = any(getattr(self._meta, f) != getattr(default, f) for f in row.fields)
-        box = QCheckBox(tr(label))
+        box = tool_toggle("", tr(label), tr("Apply the {value} values below", value=tr(label)), align_left=True)
         box.setChecked(edited)
         self._checks[label] = box
         wrapper = QWidget()
@@ -415,7 +417,7 @@ class RollSettingsDialog(QDialog):
         self.preset_combo.setToolTip(wrap_tooltip(tr("A saved set of metadata values. Click and type to search.")))
         self.preset_combo.set_labeled_items([(n, n) for n in sorted(MetadataPresets.list_presets())], "")
         row.addWidget(self.preset_combo, 1)
-        load_btn = labeled_action("fa5s.download", tr(" Load"), tr("Fill these fields from the preset, and tick the groups it stores"))
+        load_btn = labeled_action("fa5s.download", tr(" Load"), tr("Fill these fields from the preset, and turn on the groups it stores"))
         load_btn.clicked.connect(self._on_load_preset)
         row.addWidget(load_btn)
         return row

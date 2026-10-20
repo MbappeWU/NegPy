@@ -758,42 +758,41 @@ QToolButton#split_menu_btn::menu-arrow {
     height: 0px;
 }
 
-/* Checkboxes — Fusion's default indicator is almost invisible on this dark
-   background. Give the unchecked box a clear border + subtle fill, and the warm
-   chip when checked, so its state reads at a glance. */
-QCheckBox {
-    spacing: 6px;
-    background: transparent;
+/* templates.box_toggle: QMessageBox.setCheckBox takes only a QCheckBox, so this one is drawn as
+   a labeled toggle, with no indicator. */
+QCheckBox#box_toggle {
+    background-color: @bg_input;
+    border: 1px solid @border_primary;
+    border-radius: 4px;
+    padding: 0px 12px;
+    spacing: 0px;
 }
 
-QCheckBox::indicator, QListView::indicator {
-    width: 15px;
-    height: 15px;
-    border-radius: 3px;
+QCheckBox#box_toggle:hover:!checked {
     border: 1px solid @border_indicator;
-    background-color: @bg_indicator;
 }
 
-QCheckBox::indicator:hover, QListView::indicator:hover {
-    border: 1px solid @border_indicator_hover;
-    background-color: @bg_indicator_hover;
-}
-
-QCheckBox::indicator:checked, QListView::indicator:checked {
+QCheckBox#box_toggle:checked {
     background-color: @bg_checked;
-    border: 1px solid @border_checked_hover;
-    image: url("__CHECKBOX_CHECK_ICON__");
+    border: 1px solid @border_checked;
+    font-weight: 600;
 }
 
-QCheckBox::indicator:checked:hover, QListView::indicator:checked:hover {
+QCheckBox#box_toggle:checked:hover {
     background-color: @bg_checked_hover;
     border: 1px solid @border_checked_hover;
-    image: url("__CHECKBOX_CHECK_ICON__");
 }
 
-QCheckBox::indicator:disabled, QListView::indicator:disabled {
-    border: 1px solid @border_color;
-    background-color: @bg_indicator_disabled;
+QCheckBox#box_toggle:focus {
+    border: 1px solid @border_focus;
+}
+
+QCheckBox#box_toggle::indicator {
+    width: 0px;
+    height: 0px;
+    border: none;
+    background: transparent;
+    image: none;
 }
 
 /* Cancel before the accept button, as every hand-built footer has it: GnomeLayout. */
@@ -805,10 +804,6 @@ QDialogButtonBox {
    panel or a dialog footer moves an invisible cursor. Marked with a neutral gray edge. */
 QPushButton:focus, QToolButton:focus {
     border: 1px solid @border_focus;
-}
-
-QCheckBox::indicator:focus {
-    border-color: @border_focus;
 }
 
 /* The ring grows inward: a 2px border on a 12px content box would make the

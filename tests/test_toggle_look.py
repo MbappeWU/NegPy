@@ -2,11 +2,8 @@ from PyQt6.QtCore import QPoint, QRect, Qt
 from PyQt6.QtGui import QColor, QImage, QPainter, QPalette
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialogButtonBox,
     QHBoxLayout,
-    QListWidget,
-    QListWidgetItem,
     QMenu,
     QProgressBar,
     QStyle,
@@ -201,25 +198,33 @@ def test_a_button_box_puts_cancel_before_ok(qapp):
     assert box.button(QDialogButtonBox.StandardButton.Cancel).x() < ok.x()
 
 
-def test_a_checkbox_paints_no_band_across_its_card(qapp):
-    box = QCheckBox("Sticky zoom")
-    _host, image = _on_card(box)
+def test_a_message_box_toggle_draws_as_a_labeled_toggle(qapp):
+    from negpy.desktop.view.styles.templates import box_toggle
 
-    assert image.pixelColor(box.geometry().right() - 4, box.geometry().center().y()).name() == QColor(THEME.bg_card).name()
+    toggle = box_toggle("Don't Show Again")
+    toggle.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the app's buttons take Tab focus only
+    _host, image = _on_card(toggle)
+    assert _edge_and_fill(image, toggle) == (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
+
+    toggle.setChecked(True)
+    host, _image = _on_card(toggle)
+    assert _edge_and_fill(host.grab().toImage(), toggle)[1] == QColor(THEME.bg_checked).name()
 
 
-def test_a_checkable_list_row_takes_the_checkbox_look(qapp):
-    rows = QListWidget()
-    rows.setObjectName("preset_list")
-    item = QListWidgetItem("Magenta")
-    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-    item.setCheckState(Qt.CheckState.Checked)
-    rows.addItem(item)
-    _host, image = _on_card(rows)
+def test_the_app_has_no_checkbox_but_the_message_box_toggle():
+    """Every on/off choice is a toggle; Qt's message box alone needs a QCheckBox (templates.box_toggle)."""
+    from pathlib import Path
 
-    rect = rows.visualItemRect(item).translated(rows.viewport().mapTo(rows.parentWidget(), QPoint(0, 0)))
-    colors = {image.pixelColor(x, rect.center().y()).name() for x in range(rect.left(), rect.left() + 30)}
-    assert QColor(THEME.bg_checked).name() in colors
+    import negpy.desktop as desktop
+
+    root = Path(desktop.__file__).parent
+    offenders = []
+    for path in root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for needle in ("QCheckBox(", "ItemIsUserCheckable"):
+            if needle in text and not (path.name == "templates.py" and needle == "QCheckBox("):
+                offenders.append(f"{path.relative_to(root)}: {needle}")
+    assert offenders == []
 
 
 def _edge_and_fill(image: QImage, widget: QWidget) -> tuple[str, str]:

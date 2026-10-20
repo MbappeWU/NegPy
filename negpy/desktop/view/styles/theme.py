@@ -50,10 +50,6 @@ class ThemeConfig:
     # Keyboard focus: a neutral edge, as hover and the arrow-key row are neutral.
     border_focus: str = "#949494"
     border_indicator: str = "#5A5A5A"
-    border_indicator_hover: str = "#8A8A8A"
-    bg_indicator: str = "#1A1A1A"
-    bg_indicator_hover: str = "#202020"
-    bg_indicator_disabled: str = "#141414"
     slider_disabled: str = "#555555"
     text_on_accent: str = "#FFFFFF"
     text_primary: str = "#E4E4E4"

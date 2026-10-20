@@ -1,7 +1,9 @@
 from negpy.kernel.system.i18n import tr
 from typing import Optional
 
-from PyQt6.QtWidgets import QCheckBox, QMessageBox
+from PyQt6.QtWidgets import QMessageBox
+
+from negpy.desktop.view.styles.templates import box_toggle
 from negpy.kernel.system.text import count_of
 from negpy.services.assets import rolls
 
@@ -21,7 +23,7 @@ def confirm_load_roll(parent, repo, image_count: int, label: str) -> bool:
     box.setWindowTitle(tr("Load Roll"))
     box.setText(tr("Load {value} from “{label}”?", value=count_of(n, "image"), label=label))
     box.setInformativeText(tr("They are hashed and thumbnailed on load, which takes a moment on a large roll."))
-    remember = QCheckBox(tr("Always load without asking"))
+    remember = box_toggle(tr("Always Load Without Asking"))
     box.setCheckBox(remember)
     load = box.addButton(tr("Load"), QMessageBox.ButtonRole.AcceptRole)
     box.addButton(tr("Cancel"), QMessageBox.ButtonRole.RejectRole)
@@ -45,7 +47,7 @@ def warn_targets_affect_unbaked(parent, repo) -> None:
     box.setWindowTitle(tr("Auto Density and Grade Targets"))
     box.setText(tr("Changing the targets affects every frame, including ones not yet baked."))
     box.setInformativeText(tr("Bake Auto Density and Grade on a frame before you change the targets to keep its density and grade fixed."))
-    dismiss = QCheckBox(tr("Don't show again"))
+    dismiss = box_toggle(tr("Don't Show Again"))
     box.setCheckBox(dismiss)
     ok = box.addButton(tr("OK"), QMessageBox.ButtonRole.AcceptRole)
     box.setDefaultButton(ok)
@@ -259,9 +261,11 @@ def confirm_frame_merge(parent, title: str, counts: dict, skipped: list) -> Opti
         more = f"\n…and {len(skipped) - len(shown)} more" if len(skipped) > len(shown) else ""
         lines.append(tr("Skipped:\n") + "\n".join(shown) + more)
     box.setInformativeText("\n\n".join(lines))
-    trash = QCheckBox(tr("Move each merged frame's source files to the Trash"))
-    trash.setToolTip(tr("Off keeps the source files, and the frame stays in the Film Strip beside the TIFF"))
-    trash.setChecked(True)
+    trash = box_toggle(
+        tr("Move Source Files to the Trash"),
+        True,
+        tr("Move each merged frame's source files to the Trash. Off keeps them, and the frame stays in the Film Strip beside the TIFF"),
+    )
     box.setCheckBox(trash)
     merge = box.addButton(tr("Merge"), QMessageBox.ButtonRole.AcceptRole)
     box.addButton(tr("Cancel"), QMessageBox.ButtonRole.RejectRole)

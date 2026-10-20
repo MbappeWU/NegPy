@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from PyQt6.QtCore import Q_ARG, QMetaObject, QObject, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap, QTransform
-from PyQt6.QtWidgets import QApplication, QCheckBox, QDialog, QMessageBox
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from negpy.kernel.system.memory import available_system_memory_bytes
 from negpy.kernel.system.text import count_of, plural
@@ -2406,7 +2406,9 @@ class AppController(QObject):
         title, body = rgb_nothing_matched_message(summary)
         box = QMessageBox(QMessageBox.Icon.Information, title, body, QMessageBox.StandardButton.NoButton)
         if summary["narrowband"]:
-            remember = QCheckBox(tr("Do not show this again"))
+            from negpy.desktop.view.styles.templates import box_toggle
+
+            remember = box_toggle(tr("Don't Show Again"))
             box.setCheckBox(remember)
             close_btn = box.addButton(QMessageBox.StandardButton.Ok)
             box.setDefaultButton(close_btn)
@@ -8624,8 +8626,12 @@ class AppController(QObject):
             )
         box.setInformativeText(tr("{names}\n\nOverwrite, save with a new name, or cancel?", names=names))
 
-        remember_check = QCheckBox(tr("Always overwrite without asking"))
-        remember_check.setToolTip(tr("Turns on the Export panel's “Overwrite existing files” option; stays on until you turn it off."))
+        from negpy.desktop.view.styles.templates import box_toggle
+
+        remember_check = box_toggle(
+            tr("Always Overwrite Without Asking"),
+            tooltip=tr("Turns on the Export panel's “Overwrite existing files” option; stays on until you turn it off."),
+        )
         box.setCheckBox(remember_check)
 
         overwrite_label = "Overwrite" if n == 1 else "Overwrite All"

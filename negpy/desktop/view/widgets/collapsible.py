@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QWidget,
     QVBoxLayout,
-    QCheckBox,
     QComboBox,
     QMenu,
     QPushButton,
@@ -16,7 +15,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
-from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, HEADER_HEIGHT, header_button
+from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, HEADER_HEIGHT, header_button, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.fold import Fold
 from negpy.desktop.view.widgets.sliders import align_slider_columns
@@ -96,14 +95,13 @@ class CollapsibleSection(QWidget):
         # to insert into later.
         self._header_row = btn_layout
 
-        # Nested in the header button like reset_btn, so ticking the section does not also
-        # collapse it. Tristate is for display only: a click always resolves to all or none.
-        self.select_box: Optional[QCheckBox] = None
+        # Nested in the header button like reset_btn, so a click on it does not also collapse
+        # the section. It reads "on of total" and is checked only when every row is on; a click
+        # turns them all on, or all off when they already are.
+        self.select_box: Optional[QPushButton] = None
         if select:
-            self.select_box = QCheckBox()
-            self.select_box.setTristate(True)
+            self.select_box = tool_toggle("", "0/0", tr("Turn every {title} setting on or off", title=title))
             self.select_box.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.select_box.setToolTip(tr("Select every {title} setting", title=title))
             self.select_box.clicked.connect(self._on_select_clicked)
             btn_layout.addWidget(self.select_box)
 
@@ -225,22 +223,15 @@ class CollapsibleSection(QWidget):
         """Reflect how many of the section's rows are ticked. Emits nothing."""
         if self.select_box is None:
             return
-        if checked == 0:
-            state = Qt.CheckState.Unchecked
-        elif checked == total:
-            state = Qt.CheckState.Checked
-        else:
-            state = Qt.CheckState.PartiallyChecked
         self.select_box.blockSignals(True)
-        self.select_box.setCheckState(state)
+        self.select_box.setChecked(total > 0 and checked == total)
+        self.select_box.setText(f"{checked}/{total}")
         self.select_box.blockSignals(False)
 
     def _on_select_clicked(self) -> None:
         if self.select_box is None:
             return
-        want = self.select_box.checkState() != Qt.CheckState.Checked
-        self.select_box.setCheckState(Qt.CheckState.Checked if want else Qt.CheckState.Unchecked)
-        self.selection_toggled.emit(want)
+        self.selection_toggled.emit(self.select_box.isChecked())
 
     def _on_reset_clicked(self) -> None:
         self.reset_requested.emit()
