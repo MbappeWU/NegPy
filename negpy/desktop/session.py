@@ -48,6 +48,7 @@ from negpy.services.assets.flatfield import FlatFieldProfiles
 from negpy.services.assets import rolls
 from negpy.services.assets import semantic_model
 from negpy.services.assets.rolls import unforked_hash
+from negpy.services.assets.migrations.roll_fields import with_frame_seed
 from negpy.services.assets.search import facts_for, match, parse_query
 from negpy.services.assets.sidecar import load_or_promote, read_sidecar
 from negpy.services.assets.thumbnails import asset_thumbnail_key
@@ -1314,7 +1315,7 @@ class DesktopSessionManager(QObject):
         config = resolve_asset_hdr_seed(config, asset)
         return resolve_asset_hdr(resolve_asset_stitch(resolve_asset_rgbscan(config, asset), asset), asset)
 
-    def _overlay_roll_defaults(self, config: WorkspaceConfig, asset: dict) -> WorkspaceConfig:
+    def _overlay_roll_defaults(self, config: WorkspaceConfig, asset: dict, fresh: bool = False) -> WorkspaceConfig:
         """Roll-wide film, rig and scanning facts win over this frame's own saved
         value, on every card it has not locked away from the roll within this
         roll. Applied before the asset-identity overlays below, so a composite's own
@@ -1323,10 +1324,13 @@ class DesktopSessionManager(QObject):
 
         Keyed on the unforked hash: a lock is about this physical frame's relationship
         to the roll, and must survive forking or unforking its edit identity.
+        A *fresh* frame, one with no saved edit, also takes the roll's frame seed.
         """
         roll_id = rolls.frame_roll(self.repo, self.state.active_roll_id, asset)
         if roll_id is None:
             return config
+        if fresh and (seed := rolls.frame_seed(self.repo, roll_id)):
+            config = with_frame_seed(config, seed)
         file_hash = unforked_hash(asset["hash"])
         config = rolls.resolve_roll_config(self.repo, roll_id, file_hash, config)
         return rolls.resolve_roll_baseline(self.repo, roll_id, file_hash, config)
@@ -1367,7 +1371,7 @@ class DesktopSessionManager(QObject):
         #
         # Not a bare WorkspaceConfig(): only this config holds the shipped autocrop fields, and the
         # print/transfer curves are an identity at it (transfer_grade_ref, test_transparency_transfer.py).
-        config = self._overlay_roll_defaults(self._apply_sticky_settings(DEFAULT_WORKSPACE_CONFIG, only_global=False), asset)
+        config = self._overlay_roll_defaults(self._apply_sticky_settings(DEFAULT_WORKSPACE_CONFIG, only_global=False), asset, fresh=True)
         return self._asset_defaults(config, asset)
 
     def config_for_asset(self, asset: dict) -> WorkspaceConfig:
@@ -2015,7 +2019,7 @@ class DesktopSessionManager(QObject):
             roll_id = rolls.frame_roll(self.repo, self.state.active_roll_id, asset)
             if roll_id is not None:
                 rolls.clear_frame_overrides(self.repo, roll_id, unforked_hash(asset["hash"]))
-            config = self._overlay_roll_defaults(config, asset)
+            config = self._overlay_roll_defaults(config, asset, fresh=True)
         return self._mode_aware_reset_defaults(self._asset_defaults(config, asset))
 
     @staticmethod

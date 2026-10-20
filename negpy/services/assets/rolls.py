@@ -689,6 +689,21 @@ def restore_roll_fields(repo: Any, roll_id: str, snapshot: Dict[str, Any]) -> No
     _write(repo, store)
 
 
+def frame_seed(repo: Any, roll_id: str) -> Dict[str, Any]:
+    """The roll's values for fields that left its cards, which a frame with no saved edit still starts from."""
+    entry = roll_for_id(repo, roll_id)
+    return dict(entry.get("frame_seed", {})) if entry else {}
+
+
+def add_frame_seed(repo: Any, roll_id: str, **fields: Any) -> None:
+    store = _read(repo)
+    entry = store.get(roll_id)
+    if entry is None:
+        return
+    entry["frame_seed"] = {**entry.get("frame_seed", {}), **fields}
+    _write(repo, store)
+
+
 def roll_fields_snapshot(repo: Any, roll_id: str, names) -> Dict[str, Any]:
     """The roll's current value for each named field, or a marker where it has none."""
     defaults = roll_defaults(repo, roll_id)

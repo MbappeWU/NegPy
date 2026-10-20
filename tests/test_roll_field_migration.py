@@ -189,3 +189,36 @@ def test_the_crop_migration_runs_once(repo):
     migrate_crop_to_frames(repo)
 
     assert repo.load_file_settings("a").geometry.autocrop_ratio == "Free"
+
+
+def test_a_frame_with_no_saved_edit_keeps_its_rolls_crop_and_cast_removal(repo, tmp_path):
+    from negpy.desktop.session import DesktopSessionManager
+    from negpy.services.assets.migrations.roll_fields import migrate_cast_removal_to_frames, migrate_crop_to_frames
+
+    path = str(tmp_path / "e.tif")
+    roll = rolls.create_virtual_roll(repo, "Roll", [path, str(tmp_path / "f.tif")])
+    repo.save_file_settings("f", _crop(), file_path=str(tmp_path / "f.tif"))
+    rolls.set_roll_defaults(repo, roll, crop_from_auto=True, autocrop_ratio="6:7", cast_removal_strength=0.3)
+
+    migrate_cast_removal_to_frames(repo)
+    migrate_crop_to_frames(repo)
+    session = DesktopSessionManager(repo)
+    session.state.active_roll_id = roll
+    config = session.config_for_asset({"name": "e.tif", "path": path, "hash": "e"})
+
+    assert (config.geometry.crop_from_auto, config.geometry.autocrop_ratio) == (True, "6:7")
+    assert config.exposure.cast_removal_strength == 0.3
+    assert repo.load_file_settings("e") is None
+    assert rolls.roll_defaults(repo, roll) == {}
+
+
+def test_a_reset_frame_takes_its_rolls_frame_seed(repo, tmp_path):
+    from negpy.desktop.session import DesktopSessionManager
+
+    path = str(tmp_path / "a.tif")
+    roll = rolls.create_virtual_roll(repo, "Roll", [path])
+    rolls.add_frame_seed(repo, roll, autocrop_ratio="6:7")
+    session = DesktopSessionManager(repo)
+    session.state.active_roll_id = roll
+
+    assert session._reset_frame({"name": "a.tif", "path": path, "hash": "a"}).geometry.autocrop_ratio == "6:7"

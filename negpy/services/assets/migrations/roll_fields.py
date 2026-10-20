@@ -120,7 +120,8 @@ def migrate_baseline_card_split(repo) -> None:
 
 def migrate_cast_removal_to_frames(repo) -> None:
     """Cast Removal is a Filtration field, not a roll card. A saved frame that followed its
-    roll's Cast Removal keeps that value as its own; the roll's value and the card's locks go."""
+    roll's Cast Removal keeps that value as its own, a frame with no saved edit gets it from the
+    roll's frame seed; the roll's value and the card's locks go."""
     if repo.get_global_setting(_CAST_REMOVAL_FLAG):
         return
     try:
@@ -158,6 +159,7 @@ def migrate_cast_removal_to_frames(repo) -> None:
                 if "cast_removal" in cards:
                     rolls.set_frame_override(repo, roll_id, file_hash, "cast_removal", False)
             if roll_id in roll_values:
+                rolls.add_frame_seed(repo, roll_id, cast_removal_strength=roll_values[roll_id])
                 rolls.restore_roll_fields(repo, roll_id, {"cast_removal_strength": rolls._ABSENT})
     except Exception:
         logger.exception("Cast Removal move to Filtration failed; continuing without it")
@@ -218,9 +220,9 @@ def migrate_auto_crop_roll_locks(repo) -> None:
 
 def migrate_crop_to_frames(repo) -> None:
     """Crop is a frame card, not two roll cards. A saved frame keeps the crop it resolved to
-    through its roll as its own; the roll's crop values and the cards' locks go, and a whole-roll
-    Geometry apply hands its crop fields to Crop. Runs after migrate_auto_crop_roll_locks, so a
-    frame saved with Auto Crop on keeps it."""
+    through its roll as its own, a frame with no saved edit gets it from the roll's frame seed;
+    the roll's crop values and the cards' locks go, and a whole-roll Geometry apply hands its crop
+    fields to Crop. Runs after migrate_auto_crop_roll_locks, so a frame saved with Auto Crop on keeps it."""
     if repo.get_global_setting(_CROP_TO_FRAMES_FLAG):
         return
     try:
@@ -257,10 +259,19 @@ def migrate_crop_to_frames(repo) -> None:
                     if card in cards:
                         rolls.set_frame_override(repo, roll_id, file_hash, card, False)
             if roll_id in roll_values:
+                rolls.add_frame_seed(repo, roll_id, **roll_values[roll_id])
                 rolls.restore_roll_fields(repo, roll_id, {f: rolls._ABSENT for f in roll_values[roll_id]})
     except Exception:
         logger.exception("Crop move to the frames failed; continuing without it")
     repo.save_global_setting(_CROP_TO_FRAMES_FLAG, True)
+
+
+def with_frame_seed(config: WorkspaceConfig, seed: dict) -> WorkspaceConfig:
+    """*config* with the crop and Cast Removal of a roll's frame seed."""
+    config = _with_roll_crop(config, seed, set())
+    if "cast_removal_strength" in seed:
+        config = replace(config, exposure=replace(config.exposure, cast_removal_strength=float(seed["cast_removal_strength"])))
+    return config
 
 
 def _with_roll_crop(config: WorkspaceConfig, values: dict, locked: set) -> WorkspaceConfig:
