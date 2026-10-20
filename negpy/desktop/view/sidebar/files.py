@@ -1558,11 +1558,12 @@ class FileBrowser(QWidget):
             del_shortcut.activated.connect(self._on_delete_key)
 
     def _measure_rebate(self) -> None:
-        model = self.session.asset_model
-        tones = []
-        last = model.rowCount() - 1
+        # Frames in roll order, so a sort or a filter keeps the tone.
+        state = self.session.state
+        files, tones = state.uploaded_files, []
+        last = len(files) - 1
         for row in sorted({round(i * last / (_DMAX_SAMPLES - 1)) for i in range(_DMAX_SAMPLES)} if last >= 0 else ()):
-            icon = model.data(model.index(row, 0), Qt.ItemDataRole.DecorationRole)
+            icon = state.thumbnails.get(asset_thumbnail_key(files[row]))
             pixmap = icon.pixmap(QSize(4096, 4096)) if isinstance(icon, QIcon) else None
             if pixmap is None or pixmap.isNull():
                 continue
@@ -1606,8 +1607,12 @@ class FileBrowser(QWidget):
         film = roll_film(asset, config, library, half_frame, self._rebate_tone)
         geometry = film[0]
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
+            new_shape = delegate._film is None or delegate._film[0] != geometry
             delegate.set_film(*film)
-            view.set_film_aspect(geometry.width / geometry.pitch)
+            if new_shape:
+                view.set_film_aspect(geometry.width / geometry.pitch)
+            else:
+                view.viewport().update()
             view.set_table_color(table)
 
     def _open_from_light_table(self, index) -> None:

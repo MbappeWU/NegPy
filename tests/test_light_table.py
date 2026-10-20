@@ -653,6 +653,38 @@ def test_the_roll_dmax_reads_a_few_frames_spread_over_the_roll(browser, monkeypa
     assert browser._rebate_tone == (20, 20, 20)
 
 
+def test_the_roll_dmax_reads_the_same_frames_whatever_the_sort_or_filter(browser, monkeypatch):
+    from negpy.desktop.view.sidebar import files
+    from negpy.services.assets.thumbnails import asset_thumbnail_key
+
+    _long_roll(browser, 20)
+    state = browser.session.state
+    for i, info in enumerate(state.uploaded_files):
+        state.thumbnails[asset_thumbnail_key(info)] = QIcon(QPixmap.fromImage(_qimage(Image.new("RGB", (60, 40), (10 * i, 0, 0)))))
+    monkeypatch.setattr(files, "print_dmax", lambda image: image.pixelColor(30, 20).getRgb()[:3])
+    browser._measure_rebate()
+    tone = browser._rebate_tone
+
+    browser.session.asset_model.set_sort_descending(True)
+    browser.session.asset_model.set_filter("1", regex=False)
+    browser._measure_rebate()
+
+    assert browser._rebate_tone == tone
+
+
+def test_a_new_rebate_tone_repaints_without_a_layout(browser, qapp):
+    _long_roll(browser, 8)
+    view, _vw = _shown_table(browser, qapp)
+    cells = view._slim_layout()
+
+    browser._rebate_tone = (30, 20, 10)
+    browser._sync_film()
+
+    assert view._slim_cells is cells
+    assert browser._light_table_delegate._film[1] == (30, 20, 10)
+    view.hide()
+
+
 def test_a_long_roll_measures_each_picture_once(browser, qapp, monkeypatch):
     from negpy.desktop.view.sidebar import files
 
