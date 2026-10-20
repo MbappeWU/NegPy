@@ -3,7 +3,7 @@ from PyQt6.QtGui import QColor, QImage, QPainter
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QHBoxLayout, QMenu, QProgressBar, QStyle, QStyleOptionViewItem, QWidget
 
-from negpy.desktop.view.styles.templates import labeled_action, load_stylesheet, tool_toggle
+from negpy.desktop.view.styles.templates import header_row, icon_button, labeled_action, load_stylesheet, section_subheader, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
@@ -137,3 +137,23 @@ def test_a_progress_bar_fills_with_the_chip(qapp):
 
     assert image.pixelColor(50, 10).name() == QColor(THEME.bg_checked_hover).name()
     assert image.pixelColor(150, 10).name() == QColor(THEME.bg_input).name()
+
+
+def test_a_button_sits_on_the_track_surface_and_a_flat_one_on_nothing(qapp):
+    host = QWidget()
+    host.setObjectName("host")
+    host.setStyleSheet(load_stylesheet() + f"#host {{ background: {THEME.bg_card}; }}")
+    boxed = labeled_action("fa5s.undo", "Reset", "")
+    flat = icon_button("fa5s.trash-alt", "Clear")
+    header_row(section_subheader("Clone"), flat)
+    layout = QHBoxLayout(host)
+    layout.addWidget(boxed)
+    layout.addWidget(flat)
+    host.resize(300, 60)
+    image = host.grab().toImage()
+
+    def at(w, x):
+        return image.pixelColor(w.geometry().left() + x, w.geometry().center().y()).name()
+
+    assert (at(boxed, 0), at(boxed, 4)) == (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
+    assert flat.isFlat() and at(flat, 0) == QColor(THEME.bg_card).name()

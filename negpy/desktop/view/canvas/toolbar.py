@@ -2,14 +2,16 @@ from negpy.kernel.system.i18n import tr
 from dataclasses import dataclass
 
 import qtawesome as qta
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QActionGroup, QCursor, QIcon
+from PyQt6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt
+from PyQt6.QtGui import QActionGroup, QColor, QCursor, QIcon, QPainter, QPen
 from PyQt6.QtWidgets import (
+    QAbstractButton,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLayout,
     QMenu,
+    QPushButton,
     QSizePolicy,
     QToolButton,
     QVBoxLayout,
@@ -826,6 +828,7 @@ class ActionToolbar(QWidget):
         main_layout.addWidget(self._create_separator())
         for btn in (self.btn_light_table, self.btn_overflow, self.btn_toggle_right, self.btn_toggle_strip):
             main_layout.addWidget(btn)
+        self._adopt_row(self)
         self._sync_rows()
 
     def _build_tool_row(self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, btn_height: int) -> None:
@@ -1154,6 +1157,7 @@ class ActionToolbar(QWidget):
         """The Film Strip's own row, which Roll mode shows."""
         self._roll_row = row
         self._rows_layout.addWidget(row)
+        self._adopt_row(row)
         self._sync_rows()
 
     def _sync_rows(self) -> None:
@@ -1610,6 +1614,73 @@ class ActionToolbar(QWidget):
         self._rebuild_row()
         self._update_ui_state()
         self._relayout()
+
+    def _adopt_row(self, root: QWidget) -> None:
+        """Flatten the buttons under root into their group's track, and repaint the tracks when
+        any of its layouts changes. A popup menu's widgets keep their own look."""
+        window = root.window()
+        for btn in root.findChildren(QPushButton):
+            if btn.window() is window and not btn.property("primary"):
+                btn.setFlat(True)
+        for widget in (root, *root.findChildren(QWidget)):
+            if widget.window() is window and widget.layout() is not None:
+                widget.installEventFilter(self)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.LayoutRequest:
+            self.update()
+        return super().eventFilter(obj, event)
+
+    def _track_rects(self) -> list[QRect]:
+        """Each run of buttons in bar coordinates, with a label between two of them (the frame
+        count between Previous and Next). A separator, a field, a slider or a primary button
+        ends a run; a segmented control carries its own track."""
+        rects: list[QRect] = []
+
+        def walk(layout) -> None:
+            run: list[QWidget] = []
+
+            def flush() -> None:
+                while run and not isinstance(run[0], QAbstractButton):
+                    run.pop(0)
+                while run and not isinstance(run[-1], QAbstractButton):
+                    run.pop()
+                if run:
+                    rect = QRect()
+                    for w in run:
+                        rect = rect.united(QRect(w.mapTo(self, QPoint(0, 0)), w.size()))
+                    rects.append(rect)
+                run.clear()
+
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                widget = item.widget()
+                if widget is self._rows:
+                    flush()
+                    for j in range(self._rows_layout.count()):
+                        row = self._rows_layout.itemAt(j).widget()
+                        if row is not None and row.isVisible() and row.layout() is not None:
+                            walk(row.layout())
+                elif item.isEmpty():
+                    continue
+                elif isinstance(widget, (QAbstractButton, QLabel)) and not widget.property("primary"):
+                    run.append(widget)
+                else:
+                    flush()
+            flush()
+
+        walk(self.layout())
+        return rects
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(QPen(QColor(THEME.border_primary), 1))
+        p.setBrush(QColor(THEME.bg_input))
+        pad = THEME.space_xs + 0.5
+        for rect in self._track_rects():
+            p.drawRoundedRect(QRectF(rect).adjusted(-pad, -pad, pad, pad), THEME.radius_lg, THEME.radius_lg)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)

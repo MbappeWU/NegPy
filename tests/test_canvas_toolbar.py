@@ -983,3 +983,24 @@ class TestPaperStripRow(unittest.TestCase):
         tb._sync_tool_row()
         self.assertTrue(tb.paper_layout.isHidden())
         self.assertEqual(tb.btn_paper_back.text().strip(), "Grid")
+
+
+def test_each_run_of_buttons_sits_flat_in_one_track():
+    from PyQt6.QtCore import QPoint, QRect
+    from PyQt6.QtWidgets import QAbstractButton
+
+    tb = _make_toolbar()
+    tb.resize(1600, tb.sizeHint().height())
+    tb.show()
+    tb.set_available_width(1600)
+    QApplication.processEvents()
+    tracks = tb._track_rects()
+
+    def rect(w):
+        return QRect(w.mapTo(tb, QPoint(0, 0)), w.size())
+
+    buttons = [b for b in tb._view_row.findChildren(QAbstractButton) if b.isVisible()]
+    assert buttons and all(any(t.contains(rect(b)) for t in tracks) for b in buttons)
+    assert not any(t.intersects(rect(tb.mode_switch)) for t in tracks)
+    assert tb.btn_tools.isFlat() and tb.source_choice.isFlat() and not tb.btn_tool_done.isFlat()
+    tb.close()

@@ -45,12 +45,20 @@ QGroupBox::title {
     color: @text_on_accent;
 }
 
+/* A button sits on the surface of a segmented control's track and a dropdown's face. */
 QPushButton {
-    background-color: transparent;
+    background-color: @bg_input;
     color: @text_primary;
-    border: 1px solid transparent;
+    border: 1px solid @border_primary;
     border-radius: 4px;
     padding: 6px 12px;
+}
+
+/* setFlat: a sub-header row's icons, and the canvas bar's buttons, which sit in their
+   group's track (ActionToolbar.paintEvent). */
+QPushButton:flat {
+    background-color: transparent;
+    border: 1px solid transparent;
 }
 
 QPushButton:hover {
@@ -77,8 +85,13 @@ QPushButton:checked:hover {
     border: 1px solid @border_checked_hover;
 }
 
-/* The fill means checked, so hover on a toggle that is off draws only the border. */
+/* The fill means checked, so hover on a toggle that is off brightens only the border. */
 QPushButton[checkable="true"]:hover:!checked {
+    background-color: @bg_input;
+    border: 1px solid @border_indicator;
+}
+
+QPushButton[checkable="true"]:flat:hover:!checked {
     background-color: transparent;
 }
 
@@ -481,6 +494,12 @@ QWidget#action_bar {
 QFrame#toolbar_separator {
     color: @border_color;
     background-color: @border_color;
+}
+
+/* In the canvas bar a group's track divides it from the next; the separator stays as the gap. */
+QWidget#action_bar QFrame#toolbar_separator {
+    color: transparent;
+    background-color: transparent;
 }
 
 QToolButton#toolbar_overflow::menu-indicator {

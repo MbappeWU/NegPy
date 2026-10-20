@@ -553,6 +553,8 @@ def header_row(header: QLabel, *buttons: QWidget) -> QHBoxLayout:
     row.setContentsMargins(0, THEME.space_xl - 1, 0, 0)
     row.addWidget(header, 1)
     for btn in buttons:
+        if isinstance(btn, QPushButton):
+            btn.setFlat(True)
         row.addWidget(btn)
     return row
 
