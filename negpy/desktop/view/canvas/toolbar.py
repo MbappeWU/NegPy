@@ -677,11 +677,10 @@ class ActionToolbar(QWidget):
         self._menu_tip(self._ov_rot_l_action, tr("Rotate CCW"), "rotate_ccw")
         self._ov_rot_r_action = overflow_menu.addAction(qta.icon("mdi6.file-rotate-right", color=icon_color), tr("Rotate CW"))
         self._menu_tip(self._ov_rot_r_action, tr("Rotate CW"), "rotate_cw")
-        self._ov_flip_h_action = overflow_menu.addAction(tr("Flip Horizontal"))
-        self._ov_flip_h_action.setCheckable(True)
+        # Actions, like Rotate, so they carry the row buttons' icons; the row's buttons show the flip state.
+        self._ov_flip_h_action = overflow_menu.addAction(qta.icon("fa5s.arrows-alt-h", color=icon_color), tr("Flip Horizontal"))
         self._menu_tip(self._ov_flip_h_action, tr("Flip Horizontal"), "flip_h")
-        self._ov_flip_v_action = overflow_menu.addAction(tr("Flip Vertical"))
-        self._ov_flip_v_action.setCheckable(True)
+        self._ov_flip_v_action = overflow_menu.addAction(qta.icon("fa5s.arrows-alt-v", color=icon_color), tr("Flip Vertical"))
         self._menu_tip(self._ov_flip_v_action, tr("Flip Vertical"), "flip_v")
         overflow_menu.addSeparator()
 
@@ -1500,8 +1499,6 @@ class ActionToolbar(QWidget):
         geo = state.config.geometry
         self.btn_flip_h.setChecked(geo.flip_horizontal)
         self.btn_flip_v.setChecked(geo.flip_vertical)
-        self._ov_flip_h_action.setChecked(geo.flip_horizontal)
-        self._ov_flip_v_action.setChecked(geo.flip_vertical)
 
         self.btn_undo.setEnabled(state.undo_index > 0)
         self.btn_redo.setEnabled(state.undo_index < state.max_history_index)

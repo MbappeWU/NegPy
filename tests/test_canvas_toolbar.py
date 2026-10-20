@@ -211,6 +211,12 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             self.assertIn(action, view)
         self.assertIn(tb._update_action, submenus["Help"].actions())
 
+    def test_flip_in_the_overflow_menu_carries_its_icon_like_rotate(self):
+        tb = _make_toolbar()
+        for action in (tb._ov_rot_l_action, tb._ov_flip_h_action, tb._ov_flip_v_action):
+            self.assertFalse(action.icon().isNull())
+            self.assertFalse(action.isCheckable())
+
     def test_a_waiting_update_marks_the_help_submenu(self):
         tb = _make_toolbar()
         before = tb._help_menu.menuAction().icon().cacheKey()
