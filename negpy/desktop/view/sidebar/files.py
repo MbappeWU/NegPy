@@ -1075,17 +1075,22 @@ class _FilmGridView(ThumbnailGridView):
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
         others = QColor(THEME.text_hint if self._pale_table else THEME.text_secondary)
+        b = delegate._BORDER
+        marks = []
         for row in sorted(rows):
             index = model.index(row, 0)
             cell = self.visualRect(index)
-            if not cell.adjusted(-1, -1, 1, 1).intersects(area):
-                continue
-            # One pixel past the border, over the scene's line and the neighbors' edges.
+            # As wide on every side as the border above and below the picture; on the left and right
+            # that reaches over the neighbors' border.
+            if cell.adjusted(-b, 0, b, 0).intersects(area):
+                window = delegate._window(cell)
+                marks.append((delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}), window.adjusted(-b, -b, b, b), window))
+        # The open frame's mat goes over a selected neighbor's.
+        for active, outer, window in sorted(marks, key=lambda mark: mark[0]):
             mat = QPainterPath()
-            mat.addRoundedRect(QRectF(delegate.band(cell)).adjusted(-1, -1, 1, 1), _CHIP_RADIUS + 0.5, _CHIP_RADIUS + 0.5)
+            mat.addRoundedRect(QRectF(outer), _CHIP_RADIUS + 0.5, _CHIP_RADIUS + 0.5)
             picture = QPainterPath()
-            picture.addRect(QRectF(delegate._window(cell)))
-            active = delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {})
+            picture.addRect(QRectF(window))
             painter.fillPath(mat.subtracted(picture), QColor(THEME.text_primary) if active else others)
 
     def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate, area: QRect) -> None:

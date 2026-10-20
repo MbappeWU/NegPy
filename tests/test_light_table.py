@@ -611,6 +611,15 @@ def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser,
     picture = image.pixelColor(window.center().x(), window.top())
     assert picture.red() < picture.green(), "the picture stays clear"
     assert at(1, -3) == table, "nothing past the mat"
+    x, y, white = window.center().x(), window.center().y(), QColor(THEME.text_primary)
+    sides = [
+        (window.left() - border, y, -1, 0),
+        (window.right() + border, y, 1, 0),
+        (x, window.top() - border, 0, -1),
+        (x, window.bottom() + border, 0, 1),
+    ]
+    assert [image.pixelColor(px, py) for px, py, _dx, _dy in sides] == [white] * 4, "as wide on every side, over the selected neighbor's"
+    assert white not in [image.pixelColor(px + dx, py + dy) for px, py, dx, dy in sides]
     browser.hide()
 
 
