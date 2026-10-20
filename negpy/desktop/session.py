@@ -1335,6 +1335,18 @@ class DesktopSessionManager(QObject):
         config = rolls.resolve_roll_config(self.repo, roll_id, file_hash, config)
         return rolls.resolve_roll_baseline(self.repo, roll_id, file_hash, config)
 
+    def _keep_locked_flatfield_profile(self, saved: WorkspaceConfig, config: WorkspaceConfig, asset: dict) -> WorkspaceConfig:
+        """Put back the saved flat-field profile when that card is locked.
+
+        The rig-global profile replaces profile_id before the lock is read.
+        """
+        roll_id = rolls.frame_roll(self.repo, self.state.active_roll_id, asset)
+        if roll_id is None:
+            return config
+        if "flatfield" not in rolls.frame_override_cards(self.repo, roll_id, unforked_hash(asset["hash"])):
+            return config
+        return replace(config, flatfield=replace(config.flatfield, profile_id=saved.flatfield.profile_id))
+
     def load_edit_from_sidecar(self, path: str) -> bool:
         """Replace the active frame's edit with the sidecar at *path*, as an undoable
         history step. Like a work print, its own values beat the roll's, so diverged cards
@@ -1365,6 +1377,7 @@ class DesktopSessionManager(QObject):
             # A saved edit keeps its own process mode and shadow lift, which are the user's
             # now, so only the wiring overlays apply.
             config = self._overlay_roll_defaults(self._apply_sticky_settings(saved_config, only_global=True), asset)
+            config = self._keep_locked_flatfield_profile(saved_config, config, asset)
             return resolve_asset_hdr(resolve_asset_stitch(resolve_asset_rgbscan(config, asset), asset), asset), False
         # Sticky settings include the global process mode, which a composite must not take over
         # the mode of the frames it was built from. _asset_defaults applies after.
