@@ -80,7 +80,7 @@ class LocalSidebar(BaseSidebar):
         # The row is a custom widget, so drop the app-wide item padding, margin and border that
         # would otherwise squeeze and clip it.
         self.mask_list.setStyleSheet(
-            f"QListView::item {{ border: none; margin: 0px; padding: 0px; }}QListView::item:selected {{ background-color: {THEME.bg_hover}; }}"
+            f"QListView::item {{ border: none; margin: 0px; padding: 0px; }}QListView::item:selected {{ background-color: {THEME.bg_checked}; }}"
         )
         self.layout.addWidget(self.mask_list)
 
@@ -201,9 +201,9 @@ class LocalSidebar(BaseSidebar):
         label.setStyleSheet(f"color: {color if mask.enabled else THEME.text_muted};")
         label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
-        # Accent while on, like any armed toggle; the card itself instead of the hole cut in it.
+        # Bright while on, like any toggle; the card itself instead of the hole cut in it.
         invert = self._row_icon_btn("fa5s.yin-yang", checkable=True)
-        invert.setIcon(qta.icon("fa5s.yin-yang", color=THEME.accent_primary if mask.invert else THEME.text_primary))
+        invert.setIcon(qta.icon("fa5s.yin-yang", color=THEME.text_primary if mask.invert else THEME.text_hint))
         invert.setChecked(mask.invert)
         invert.setToolTip(wrap_tooltip(tr("Invert: act everywhere except inside this mask.")))
 

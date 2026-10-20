@@ -1,7 +1,7 @@
 import qtawesome as qta
 from PyQt6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QComboBox, QStyledItemDelegate, QStyleOptionViewItem
+from PyQt6.QtWidgets import QComboBox, QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
 from negpy.desktop.view.styles.templates import HEADER_BUTTON_SIZE, default_button_height
 from negpy.desktop.view.styles.theme import THEME
@@ -17,7 +17,7 @@ def _is_separator(index) -> bool:
 
 
 class _ChoiceDelegate(QStyledItemDelegate):
-    """List rows: a check and a semibold label on the current choice, a caption for a header,
+    """List rows: a chip, a check and a semibold label on the current choice, a caption for a header,
     a rule for a separator."""
 
     def __init__(self, combo: QComboBox):
@@ -52,6 +52,15 @@ class _ChoiceDelegate(QStyledItemDelegate):
         opt = QStyleOptionViewItem(option)
         if current:
             opt.font.setWeight(QFont.Weight.DemiBold)
+            # The chip of a checked toggle; hover lightens it instead of the gray hover fill.
+            hover = bool(option.state & (QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_MouseOver))
+            opt.state &= ~(QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_MouseOver)
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QPen(QColor(THEME.border_checked_hover if hover else THEME.border_checked), 1))
+            painter.setBrush(QColor(THEME.bg_checked_hover if hover else THEME.bg_checked))
+            painter.drawRoundedRect(QRectF(option.rect).adjusted(0.5, 0.5, -0.5, -0.5), THEME.radius_sm, THEME.radius_sm)
+            painter.restore()
         super().paint(painter, opt, index)
         if current:
             r = option.rect

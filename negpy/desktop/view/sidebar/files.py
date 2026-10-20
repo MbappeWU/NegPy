@@ -2111,7 +2111,7 @@ class FileBrowser(QWidget):
         """A switch inside the filter box, its icon lit while on."""
 
         def icon(on: bool) -> QIcon:
-            return qta.icon(icon_name, color=THEME.accent_secondary if on else THEME.text_hint, color_disabled=THEME.text_muted)
+            return qta.icon(icon_name, color=THEME.text_primary if on else THEME.text_hint, color_disabled=THEME.text_muted)
 
         action = QAction(icon(False), "", self)
         self.search_input.addAction(action, QLineEdit.ActionPosition.TrailingPosition)

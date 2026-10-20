@@ -205,9 +205,9 @@ QListView::item {
 }
 
 QListView::item:selected {
-    background-color: @bg_selected;
-    border: 1px solid @slider_disabled;
-    color: @text_on_accent;
+    background-color: @bg_checked;
+    border: 1px solid @border_checked;
+    color: @text_primary;
 }
 
 QTabWidget::pane {
@@ -359,13 +359,25 @@ QMenu {
 QMenu::item {
     background-color: transparent;
     color: @text_primary;
-    padding: 5px 24px 5px 12px;
+    border: 1px solid transparent;
+    padding: 4px 23px 4px 11px;
     border-radius: 3px;
 }
 
 QMenu::item:selected {
     background-color: @bg_menu_selected;
     color: @text_on_accent;
+}
+
+/* Hover stays gray; the chip marks the item that is on, as on a checked toggle. */
+QMenu::item:checked {
+    background-color: @bg_checked;
+    border: 1px solid @border_checked;
+}
+
+QMenu::item:checked:selected {
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
 }
 
 QMenu::item:disabled {
@@ -594,13 +606,16 @@ QListWidget#preset_list {
 }
 
 QListWidget#preset_list::item {
-    padding: 8px;
+    padding: 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
     color: @text_primary;
 }
 
 QListWidget#preset_list::item:selected {
-    background: @bg_hover;
-    color: @text_on_accent;
+    background: @bg_checked;
+    border: 1px solid @border_checked;
+    color: @text_primary;
 }
 
 /* Searchable gear combo (widgets/searchable_gear_combo.py): inline arrow + completer popup. */
@@ -696,14 +711,14 @@ QCheckBox::indicator:hover {
 }
 
 QCheckBox::indicator:checked {
-    background-color: @accent_primary;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_checked;
+    border: 1px solid @border_checked_hover;
     image: url("__CHECKBOX_CHECK_ICON__");
 }
 
 QCheckBox::indicator:checked:hover {
-    background-color: @accent_secondary;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
     image: url("__CHECKBOX_CHECK_ICON__");
 }
 

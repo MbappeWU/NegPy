@@ -1,11 +1,11 @@
 """Flat rows a delegate paints, for the History steps, the Library's rolls and the metadata presets:
-a fill for the hovered, selected or current row, a red bar on the current one, a pill, and ⋮ on hover."""
+a fill for the hovered or selected row, the chip of a checked toggle on the current one, a pill, and ⋮ on hover."""
 
 from typing import Optional
 
 import qtawesome as qta
 from PyQt6.QtCore import QPoint, QRect, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import QListWidget
 
 from negpy.desktop.view.styles.theme import THEME
@@ -27,12 +27,14 @@ def more_press(view, event) -> Optional[QPoint]:
 
 def paint_fill(p: QPainter, rect: QRect, *, current: bool, hover: bool, selected: bool = False) -> None:
     p.setPen(Qt.PenStyle.NoPen)
-    if current or selected or hover:
-        p.setBrush(QColor(THEME.bg_selected if current or selected else THEME.bg_hover))
-        p.drawRoundedRect(QRectF(rect), THEME.radius_md, THEME.radius_md)
+    box = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5)
     if current:
-        p.setBrush(QColor(THEME.accent_secondary))
-        p.drawRoundedRect(QRectF(rect.left(), rect.top() + THEME.space_md, 3, rect.height() - 2 * THEME.space_md), 1.5, 1.5)
+        p.setPen(QPen(QColor(THEME.border_checked_hover if hover else THEME.border_checked), 1))
+        p.setBrush(QColor(THEME.bg_checked_hover if hover else THEME.bg_checked))
+        p.drawRoundedRect(box, THEME.radius_md, THEME.radius_md)
+    elif selected or hover:
+        p.setBrush(QColor(THEME.bg_selected if selected else THEME.bg_hover))
+        p.drawRoundedRect(box, THEME.radius_md, THEME.radius_md)
 
 
 def paint_pill(p: QPainter, right: int, center_y: float, text: str, font: QFont, *, accent: bool) -> int:
@@ -42,7 +44,7 @@ def paint_pill(p: QPainter, right: int, center_y: float, text: str, font: QFont,
     height = metrics.height() + 2
     pill = QRectF(right - width, center_y - height / 2, width, height)
     p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(QColor(THEME.accent_primary if accent else THEME.border_color))
+    p.setPen(QColor(THEME.border_checked_hover if accent else THEME.border_color))
     p.drawRoundedRect(pill, height / 2, height / 2)
     p.setFont(font)
     p.setPen(QColor(THEME.text_primary if accent else THEME.text_hint))

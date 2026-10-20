@@ -245,8 +245,8 @@ _TOOL_BUTTON_PATHS = {spec[0]: spec[2] for spec in _CANVAS_TOOLS if not isinstan
 
 
 def _checkable_menu_icon(name: str):
-    """The icon takes the checkmark's place in the menu, so the accent marks the item on."""
-    return qta.icon(name, color=THEME.text_primary, color_on=THEME.accent_primary, color_disabled=THEME.text_muted)
+    """The icon takes the checkmark's place in the menu; the checked item's chip marks it on."""
+    return qta.icon(name, color=THEME.text_primary, color_disabled=THEME.text_muted)
 
 
 def frame_position(model, actual_idx: int) -> str:
