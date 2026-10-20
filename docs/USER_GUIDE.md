@@ -770,7 +770,7 @@ Scans with a camera on a copy stand, connected over USB in **PC Remote** mode (m
 
 *   **Camera** / **Light**: the connection status. The light turns amber when it runs warm. On Linux, the Scanlight needs your user in the `dialout` group.
 *   **Live View**: a live picture from the camera. Click to place the focus magnifier, and focus until the **Focus meter** reads **at peak**. Set ISO, shutter and aperture here or on the camera.
-*   **Histogram** and **Zebras**: the frame's histogram, and stripes on parts that are about to clip (red at the top, blue at the bottom).
+*   **Histogram** and **Zebras**: the frame's histogram, and stripes on parts that are about to clip, in the clipping colors that Color vision sets.
 *   **Meter**: sets the shutter so the brightest part that must not clip (a negative's clear film, a slide's highlights) lands just under clipping.
 *   **Scan** shoots the next frame and imports it; **Retake** (the redo arrow) shoots the last frame again. In the Live View window, `Space` or `S` scans and `R` retakes. With a Scanlight, **R**, **G**, **B** and **IR** pick which exposures Retake repeats.
 *   **Capture Delay**: waits before the first exposure, so a shaky table can settle.

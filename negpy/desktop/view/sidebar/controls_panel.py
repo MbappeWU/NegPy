@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from negpy.desktop.controller import AppController
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.templates import gradient_icon, header_row, hint_label, section_subheader, set_hint_kind, wrap_tooltip
 from negpy.desktop.view.widgets.collapsible import NO_ROLL_SCOPE_HINT, CollapsibleSection, make_section
 from negpy.desktop.view.widgets.charts import MiniCurveWidget, MiniHistogramWidget, MiniRGBHistogramWidget
@@ -511,6 +512,8 @@ class ControlsPanel(QWidget):
         self.controller.tool_sync_requested.connect(self._sync_tool_buttons)
         # The histogram only changes on render completion, so refresh there, not on every resync.
         self.controller.image_updated.connect(self._update_histogram)
+        self._sync_clip_colors()
+        self.controller.session.color_vision_changed.connect(self._sync_clip_colors)
 
         self.color_section.reset_requested.connect(lambda: self._reset_exposure_fields(COLOR_FIELDS))
         self.tone_section.reset_requested.connect(self._reset_tone_fields)
@@ -1089,6 +1092,9 @@ class ControlsPanel(QWidget):
         applied = open_apply_dialog(self, self.controller.session, rows=frame_card_rows(key))
         if applied and applied[1] == "roll":
             self.controller.record_roll_apply(applied[0])
+
+    def _sync_clip_colors(self) -> None:
+        self.tone_histogram.set_clip_colors(*palette_for(self.controller.state.color_vision).pair)
 
     def _update_histogram(self) -> None:
         """Repaint only when the render produced a new buffer."""

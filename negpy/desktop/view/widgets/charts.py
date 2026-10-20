@@ -1174,6 +1174,7 @@ class ZoneStripWidget(QWidget):
         self.setMouseTracking(True)
         self._occ: np.ndarray | None = None
         self._warn: tuple[bool, bool] = (False, False)
+        self._clip_colors: tuple[str, str] = palette_for("standard").pair
         self._armed: int | None = None
         self._placement_enabled = True
         self._overlay_hint = ""
@@ -1198,6 +1199,12 @@ class ZoneStripWidget(QWidget):
         self._occ = occ
         self._warn = warnings
         self.update()
+
+    def set_clip_colors(self, shadow: str, highlight: str) -> None:
+        """The Clipping Overlay's pair, for the tint on a clipped end."""
+        if (shadow, highlight) != self._clip_colors:
+            self._clip_colors = (shadow, highlight)
+            self.update()
 
     def set_armed(self, zone: int | None) -> None:
         """Outline the zone waiting for a canvas click, or clear it."""
@@ -1275,8 +1282,10 @@ class ZoneStripWidget(QWidget):
                 tone = 40 + int(215 * i / (n - 1))
                 alpha = int(min(1.0, np.sqrt(frac)) * 235)
                 painter.fillRect(x0, 0, x1 - x0, h, QColor(tone, tone, tone, alpha))
-                if (shadow_warn and i <= 1) or (highlight_warn and i >= n - 2):
-                    painter.fillRect(x0, 0, x1 - x0, h, _alpha(THEME.clip_warning, 90))
+                if shadow_warn and i <= 1:
+                    painter.fillRect(x0, 0, x1 - x0, h, _alpha(self._clip_colors[0], 90))
+                elif highlight_warn and i >= n - 2:
+                    painter.fillRect(x0, 0, x1 - x0, h, _alpha(self._clip_colors[1], 90))
                 armed = i == self._armed
                 if armed:
                     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -1451,8 +1460,15 @@ class MiniHistogramWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._data_l: list = []
         self._clip_strips = clip_strips
+        self._clip_colors: tuple[str, str] = palette_for("standard").pair
         self._clip_low: bool = False
         self._clip_high: bool = False
+
+    def set_clip_colors(self, shadow: str, highlight: str) -> None:
+        """The Clipping Overlay's pair, for the strips at the clipped ends."""
+        if (shadow, highlight) != self._clip_colors:
+            self._clip_colors = (shadow, highlight)
+            self.update()
 
     def update_data(self, buffer: Any) -> None:
         if buffer is None or not isinstance(buffer, np.ndarray):
@@ -1501,11 +1517,10 @@ class MiniHistogramWidget(QWidget):
         if not self._clip_strips:
             return
         if self._clip_low:
-            painter.setBrush(QBrush(_alpha(THEME.clip_shadow, 180)))
+            painter.setBrush(QBrush(_alpha(self._clip_colors[0], 180)))
             painter.drawRect(0, 0, 3, h)
         if self._clip_high:
-            highlight_color = _alpha(THEME.clip_warning, 180)
-            painter.setBrush(QBrush(highlight_color))
+            painter.setBrush(QBrush(_alpha(self._clip_colors[1], 180)))
             painter.drawRect(w - 3, 0, 3, h)
 
 

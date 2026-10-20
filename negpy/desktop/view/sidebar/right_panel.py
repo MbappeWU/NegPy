@@ -717,6 +717,7 @@ class RightPanel(QWidget):
         self.curve_widget.set_zone_colors(*palette.dodge_burn)
         self.waveform_widget.set_clip_colors(*palette.pair)
         self.parade_widget.set_clip_colors(*palette.pair)
+        self.zone_strip.set_clip_colors(*palette.pair)
         self.clipping_btn.setIcon(gradient_icon("fa5s.adjust", clipping_sweep(palette.pair)))
 
     def _refresh_zone_strip_hint(self) -> None:

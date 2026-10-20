@@ -285,7 +285,20 @@ def test_chart_colors_follow_color_vision() -> None:
     panel.curve_widget.set_zone_colors.assert_called_once_with(*palette_for("tritan").dodge_burn)
     panel.waveform_widget.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
     panel.parade_widget.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
+    panel.zone_strip.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
     panel.clipping_btn.setIcon.assert_called_once()
+
+
+def test_the_tone_card_histogram_follows_color_vision() -> None:
+    from negpy.desktop.view.sidebar.controls_panel import ControlsPanel
+    from negpy.desktop.view.styles.color_vision import palette_for
+
+    panel = MagicMock()
+    panel.controller.state = AppState(color_vision="tritan")
+
+    ControlsPanel._sync_clip_colors(panel)
+
+    panel.tone_histogram.set_clip_colors.assert_called_once_with(*palette_for("tritan").pair)
 
 
 def test_roll_tab_apply_offers_every_card_of_its_sections():

@@ -46,12 +46,13 @@ def _stripe_masks(h: int, w: int) -> tuple[np.ndarray, np.ndarray]:
     return _stripes[(h, w)]
 
 
-def zebra_image(highlights: np.ndarray, blacks: np.ndarray) -> QImage:
-    """Hatched overlay at frame resolution from two boolean `HxW` masks: clipped highlights in
-    the clip-warning color, clipped blacks in the blue channel's fill color."""
+def zebra_image(highlights: np.ndarray, blacks: np.ndarray, pair: tuple[str, str]) -> QImage:
+    """Hatched overlay at frame resolution from two boolean `HxW` masks, in the Clipping
+    Overlay's (shadow, highlight) pair."""
     h, w = highlights.shape
     buf = np.zeros((h, w, 4), np.uint8)  # BGRA bytes: ARGB32 on a little-endian host
-    for mask, stripe, color in zip((highlights, blacks), _stripe_masks(h, w), (THEME.clip_warning, THEME.channel_blue)):
+    shadow, highlight = pair
+    for mask, stripe, color in zip((highlights, blacks), _stripe_masks(h, w), (highlight, shadow)):
         r, g, b, _ = QColor(color).getRgb()
         buf[mask & stripe] = (b, g, r, _ZEBRA_ALPHA)
     return QImage(buf.data, w, h, 4 * w, QImage.Format.Format_ARGB32).copy()

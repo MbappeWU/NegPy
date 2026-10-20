@@ -33,6 +33,7 @@ from negpy.desktop.view.sidebar.calibration_window import CAPTURE_MODE_TOOLTIP, 
 from negpy.desktop.view.sidebar.live_view_window import LiveViewWindow, SettingStepper
 from negpy.desktop.view.sidebar.roi_image import zebra_image
 from negpy.desktop.view.sidebar.scan_output import ScanOutputPanel
+from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.templates import (
     field_row,
     header_row,
@@ -1437,7 +1438,7 @@ class ScanlightSidebar(QWidget):
             raw = self._current_raw_clip(rgb)
             if raw is not None:
                 highlights = raw.at(highlights.shape)
-            self.lv_image.set_zebra(zebra_image(highlights, blacks))
+            self.lv_image.set_zebra(zebra_image(highlights, blacks, palette_for(self.controller.state.color_vision).pair))
 
     def _exposure_key(self, shutter: object = None) -> tuple:
         """What sets the RAW level apart from the film: the body's ISO, shutter and aperture and

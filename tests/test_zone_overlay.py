@@ -95,6 +95,15 @@ def _paint(overlay: CanvasOverlay) -> None:
     painter.end()
 
 
+def test_both_map_looks_mark_paper_black_and_white_in_the_clipping_pair():
+    from negpy.desktop.view.canvas.overlay import zone_colors
+
+    for palette in PALETTES:
+        for style in ("grid", "zone_map"):
+            colors = zone_colors(style, palette.key)
+            assert (colors[0][0].name(), colors[-1][0].name()) == tuple(c.lower() for c in palette.pair), (style, palette.key)
+
+
 def test_both_looks_paint_a_map_and_report_the_shares(qapp):
     for style in ("false_color", "zone_map"):
         overlay = _overlay(style)

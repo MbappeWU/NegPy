@@ -122,10 +122,7 @@ _ZONE_OUTLINE_MIN_AREA = 20.0  # field px; smaller specks are noise, not regions
 def zone_colors(style: str, color_vision: str) -> List[Tuple[QColor, int]]:
     """(color, alpha) per zone 0..10 for a Zone Overlay look; the canvas and its legend share it."""
     palette = palette_for(color_vision)
-    if style == "grid":
-        grays = [QColor.fromRgbF(encoded_of_zone(z), encoded_of_zone(z), encoded_of_zone(z)) for z in range(1, 10)]
-        return [(_ZONE_CLIP_COLOR, 255), *((g, 255) for g in grays), (_ZONE_CLIP_COLOR, 255)]
-    if style == "zone_map":
+    if style in ("grid", "zone_map"):
         shadow, highlight = palette.pair
         grays = [QColor.fromRgbF(encoded_of_zone(z), encoded_of_zone(z), encoded_of_zone(z)) for z in range(1, 10)]
         return [(QColor(shadow), 255), *((g, 255) for g in grays), (QColor(highlight), 255)]
@@ -135,8 +132,6 @@ def zone_colors(style: str, color_vision: str) -> List[Tuple[QColor, int]]:
         (QColor(255, 255, 255), _ZONE_CLIP_ALPHA),
     ]
 
-
-_ZONE_CLIP_COLOR = QColor(THEME.clip_warning)  # paper black / paper white, same red the zone strip warns with
 
 _STRIP_LABEL_MIN_PX = 34.0  # below this patch size the two axis labels overlap
 _STRIP_LABEL_INSET_PX = 6.0
@@ -1792,6 +1787,8 @@ class CanvasOverlay(QWidget):
             return
         widget_rect = QRectF(self.rect())
         label_white = QColor(255, 255, 255, 230)
+        clip_shadow, clip_highlight = palette_for(self.state.color_vision).pair
+        clip_colors = {0: QColor(clip_shadow), 10: QColor(clip_highlight)}
         shadow = QColor(0, 0, 0, 160)
         painter.save()
         painter.setFont(_overlay_label_font(painter))
@@ -1803,7 +1800,7 @@ class CanvasOverlay(QWidget):
             # Drop shadow first, or white numerals vanish against a blown highlight.
             painter.setPen(shadow)
             painter.drawText(cell.translated(1.0, 1.0), Qt.AlignmentFlag.AlignCenter, label)
-            painter.setPen(_ZONE_CLIP_COLOR if zone in (0, 10) else label_white)
+            painter.setPen(clip_colors.get(zone, label_white))
             painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
         painter.restore()
 
@@ -1962,8 +1959,9 @@ class CanvasOverlay(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(chip, 4, 4)
         top = QRectF(chip.x() + pad, chip.y() + THEME.space_sm, w - 2 * pad, fm.height())
-        clipped = zone_roman(reading.zone) in ("0", "X")
-        painter.setPen(_ZONE_CLIP_COLOR if clipped else QColor(255, 255, 255, 245))
+        clip_shadow, clip_highlight = palette_for(self.state.color_vision).pair
+        clip_colors = {"0": QColor(clip_shadow), "X": QColor(clip_highlight)}
+        painter.setPen(clip_colors.get(zone_roman(reading.zone), QColor(255, 255, 255, 245)))
         painter.drawText(top, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, zone_line)
         painter.setPen(QColor(255, 255, 255, 200))
         painter.drawText(top.translated(0, fm.height()), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, dd_line)

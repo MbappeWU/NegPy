@@ -116,9 +116,6 @@ class ThemeConfig:
     # Dodge & Burn: the same amber and blue on the overlay, the mask list and the printing notes.
     dodge: str = "#E8C84A"
     burn: str = "#4A8FE8"
-    # Clipping and paper-limit warnings drawn on charts and the zone overlay.
-    clip_warning: str = "#DC5050"
-    clip_shadow: str = "#508CDC"
     # Contrast Mask band on the Analysis chart.
     chart_mask: str = "#AF8CFF"
     # Film-mode chips: orange mask, silver grey, slide blue.
