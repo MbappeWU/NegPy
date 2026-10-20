@@ -28,8 +28,8 @@ def _paint(delegate, path: str, file_hash: str = "") -> QPixmap:
 
 def _bottom_edge_colour(pix: QPixmap) -> QColor:
     img = pix.toImage()
-    # One px above the rounded frame line, mid-width, inside the image rect.
-    return QColor(img.pixel(33, 46 - _ThumbnailDelegate._MARGIN - 2))
+    # On the image's bottom row, mid-width: the 60x40 thumbnail fills the 66x46 cell down to y=44.
+    return QColor(img.pixel(33, 44))
 
 
 def test_active_dirty_frame_gets_an_edited_mark_line(qapp):

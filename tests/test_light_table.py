@@ -614,6 +614,34 @@ def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser,
     browser.hide()
 
 
+def test_a_selected_frame_whose_thumbnail_is_still_loading_takes_its_mat(browser, qapp):
+    from PyQt6.QtCore import QItemSelectionModel
+
+    strip = browser.list_view
+    _show_strip(browser)
+    strip.selectionModel().select(strip.model().index(1, 0), QItemSelectionModel.SelectionFlag.ClearAndSelect)
+    qapp.processEvents()
+    band = strip.itemDelegate().band(strip.visualRect(strip.model().index(1, 0)))
+
+    assert strip.viewport().grab().toImage().pixelColor(band.center().x(), band.top() + 1) == QColor(THEME.text_secondary)
+    browser.hide()
+
+
+def test_scene_sort_starts_each_scene_on_a_new_row_of_the_light_table(browser, qapp):
+    _scene_roll(browser, [BEACH] * 3 + [NIGHT] * 2 + [None] * 2)
+    _thumbs(browser, [(300, 200)] * 7)
+    browser.session.asset_model.set_sort_order("scene")
+    view, _vw = _shown_table(browser, qapp)
+    QTest.qWait(3 * _RESHAPE_MS)
+    model = view.model()
+    cells = [view.visualRect(model.index(row, 0)) for row in range(model.rowCount())]
+    tops = [{cells[row].top() for row in range(first, last + 1)} for _ordinal, first, last in model.scene_runs()]
+
+    assert all(cells[first].left() == cells[0].left() for _ordinal, first, _last in model.scene_runs())
+    assert all(not a & b for i, a in enumerate(tops) for b in tops[i + 1 :]), "no row holds two scenes"
+    view.hide()
+
+
 def test_the_frame_under_the_pointer_gets_no_ring(browser, qapp):
     from PyQt6.QtCore import QEvent
     from PyQt6.QtGui import QHoverEvent
@@ -640,16 +668,14 @@ def test_no_gray_border_edges_a_picture_on_film(qapp):
 
 
 @pytest.mark.parametrize("hover", [False, True])
-def test_an_idle_picture_dims_but_not_its_film_and_its_cell_draws_no_ring(qapp, hover):
-    delegate = _FilmDelegate()
-    canvas, window = _paint_cell(delegate, hover)
+def test_an_idle_picture_dims_but_not_its_film(qapp, hover):
+    canvas, window = _paint_cell(_FilmDelegate(), hover)
 
     picture = canvas.pixelColor(window.center())
     assert (picture == QColor(40, 160, 220)) == hover
     assert picture.lightness() <= QColor(40, 160, 220).lightness()
-    film = canvas.pixelColor(window.center().x(), window.top() - 2 * delegate._SELECTION_OUTSET)
+    film = canvas.pixelColor(window.center().x(), window.top() - 2)
     assert max(film.red(), film.green(), film.blue()) < 40, "the rebate is not dimmed"
-    assert canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1) != QColor(THEME.accent_primary)
 
 
 def _long_roll(browser, count: int) -> None:
@@ -821,7 +847,7 @@ def test_a_paint_reads_the_scene_runs_once_until_the_next_layout(browser, qapp, 
 
     assert [first.top() for _s, _i, first, _l in scrolled] == [first.top() - 50 for _s, _i, first, _l in runs]
     monkeypatch.undo()
-    view.set_film_aspect(view._aspect)
+    view.set_film(view._film)
     view.updateGeometries()
     assert view._scene_runs is None
     view.hide()

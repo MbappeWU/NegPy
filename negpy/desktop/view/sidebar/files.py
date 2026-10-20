@@ -14,7 +14,6 @@ from PyQt6.QtCore import (
     QItemSelectionModel,
     QModelIndex,
     QPersistentModelIndex,
-    QPoint,
     QPropertyAnimation,
     QRect,
     QRectF,
@@ -107,9 +106,7 @@ from negpy.services.film_edge.geometry import FilmGeometry, film_geometry
 
 
 class _ThumbnailDelegate(QStyledItemDelegate):
-    """Contact-sheet rendering: scales each cached ~120px thumbnail into its cell and
-    draws a subtle 1px border hugging the image outline (no cell box). The selected image is shown full-brightness
-    with the accent ring just outside that border, so both show at once; the others are
+    """Scales each cached thumbnail into its cell; a frame not selected or under the pointer is
     dimmed. A dirty active file gets an edited-mark line along the image's bottom edge.
     Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
     rejected; the bottom-left badge says the frame was built from several files
@@ -117,8 +114,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     decode-failure badge, else a small dot saying the bitmap shown predates a settings
     change (a bulk apply reaches the file before a render reaches its thumbnail)."""
 
-    _MARGIN = 5  # room for the selection ring outside the picture
-    _SELECTION_OUTSET = 4  # the ring's outer edge, outside the picture edge
     _RADIUS = 4  # = button border-radius (modern_dark.qss)
     # Neutral, not the triage red: red already means "you marked this" and "this failed".
     # What a frame is built from is a fact about the asset, not a state the user set.
@@ -218,9 +213,9 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         return QRect(x, y, size.width(), size.height())
 
     def picture_rect(self, cell: QRect, index: QModelIndex) -> QRect:
-        """Where paint() puts the picture inside *cell*: the thumbnail fitted to the area
-        within the margin, or that whole area while it has none."""
-        area = cell.adjusted(self._MARGIN, self._MARGIN, -self._MARGIN, -self._MARGIN)
+        """Where paint() puts the picture inside *cell*: the thumbnail fitted to it, or all of it
+        while it has none."""
+        area = cell
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         base = self._thumbnail(icon, index) if icon is not None and not icon.isNull() else None
         if base is None or base.isNull():
@@ -248,16 +243,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.setPen(QPen(QColor(THEME.text_on_accent), 2))
         painter.drawLine(cx, cy - 4, cx, cy + 1)
         painter.drawPoint(cx, cy + 4)
-
-    def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
-        """The picture's edge line and the selection ring outside it."""
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(self._border_pen(hover))
-        painter.drawRoundedRect(img_rect.adjusted(0, 0, -1, -1), self._RADIUS, self._RADIUS)
-        if selected:
-            out = self._SELECTION_OUTSET
-            painter.setPen(QPen(QColor(THEME.accent_primary), 2))
-            painter.drawRoundedRect(QRectF(img_rect).adjusted(1 - out, 1 - out, out - 2, out - 2), self._RADIUS + out, self._RADIUS + out)
 
     def _draw_composite_badge(self, painter: QPainter, img_rect: QRect, kind: str, half: int, split_axis: str = "x") -> None:
         """Bottom-left mark: this frame was assembled from more than one file.
@@ -301,28 +286,18 @@ class _ThumbnailDelegate(QStyledItemDelegate):
             return QRect(cx - 5, cy - 3, 11, 3), QRect(cx - 5, cy + 1, 11, 3)
         return QRect(cx - 5, cy - 3, 5, 7), QRect(cx + 1, cy - 3, 5, 7)
 
-    @staticmethod
-    def _border_pen(hover: bool) -> QPen:
-        if hover:
-            return QPen(QColor(THEME.text_muted), 1)
-        return QPen(QColor(THEME.border_color), 1)
-
     def _paint_placeholder(self, painter: QPainter, option: QStyleOptionViewItem, file_info: dict, failed: bool, kind: str) -> None:
-        """A cell whose thumbnail hasn't decoded yet (or failed to). Still carries the
-        selection/hover border and the triage marks, so a multi-selection or a rejected frame
-        stays visible while thumbnails are still loading in the background instead of looking
-        selective or broken."""
-        selected = bool(option.state & QStyle.StateFlag.State_Selected)
-        hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
+        """A cell whose thumbnail hasn't decoded yet (or failed to). Still carries the triage
+        marks, so a rejected frame stays visible while thumbnails are still loading in the
+        background instead of looking broken."""
         rejected = bool(file_info.get("excluded"))
         keeper = bool(file_info.get("keeper"))
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        area = option.rect.adjusted(self._MARGIN, self._MARGIN, -self._MARGIN, -self._MARGIN)
+        area = option.rect
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(20, 20, 20))
         painter.drawRoundedRect(area, self._RADIUS, self._RADIUS)
-        self._draw_outline(painter, area, file_info, selected, hover)
         if rejected:
             self._draw_mark_badge(painter, area, check=False)
         elif keeper:
@@ -342,16 +317,12 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         if icon is None or icon.isNull():
             painter.save()
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-            area = option.rect.adjusted(self._MARGIN, self._MARGIN, -self._MARGIN, -self._MARGIN)
-            img_rect = area
-            selected = bool(option.state & QStyle.StateFlag.State_Selected)
-            hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
+            img_rect = option.rect
             rejected = bool(file_info.get("excluded"))
             keeper = bool(file_info.get("keeper"))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(THEME.bg_header))
             painter.drawRoundedRect(img_rect, self._RADIUS, self._RADIUS)
-            self._draw_outline(painter, img_rect, file_info, selected, hover)
             glyph_side = min(32, min(img_rect.width(), img_rect.height()) // 3)
             glyph_rect = QRect(0, 0, glyph_side, glyph_side)
             glyph_rect.moveCenter(img_rect.center())
@@ -390,7 +361,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        area = option.rect.adjusted(self._MARGIN, self._MARGIN, -self._MARGIN, -self._MARGIN)
+        area = option.rect
         scaled = base.scaled(
             area.size(),
             Qt.AspectRatioMode.KeepAspectRatio,
@@ -398,7 +369,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         )
         img_rect = self._fit_rect(area, scaled.size())
 
-        # Selected image full-brightness with the armed-red frame; others dimmed.
         selected = bool(option.state & QStyle.StateFlag.State_Selected)
         hover = bool(option.state & QStyle.StateFlag.State_MouseOver)
         rejected = bool(file_info.get("excluded"))
@@ -422,10 +392,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
             self._draw_stale_dot(painter, img_rect)
         painter.setClipping(False)
 
-        self._draw_outline(painter, img_rect, file_info, selected, hover)
-
         if self._is_dirty(file_info):
-            # Over the frame line, so it reads as the mark and not a blend with the border.
             painter.setClipPath(clip)
             painter.fillRect(
                 QRect(img_rect.left(), img_rect.bottom() - self._DIRTY_PX + 1, img_rect.width(), self._DIRTY_PX),
@@ -449,8 +416,6 @@ class ThumbnailGridView(QListView):
     ``target_cell`` as fit, each grown to fill the width exactly."""
 
     SPACING = 2
-    # Scene sort: the gap between two scenes' blocks.
-    SCENE_GAP = THEME.space_lg
     # One notch scrolls one row of thumbnails. Qt's default, three "lines" a notch, advanced
     # several frames at a time in a single-column panel.
     WHEEL_ROWS_PER_NOTCH = 1.0
@@ -466,7 +431,6 @@ class ThumbnailGridView(QListView):
         self._range_anchor_row: Optional[int] = None
         self._ctrl_target: set[QPersistentModelIndex] = set()
         self._pre_press_selection: set[QPersistentModelIndex] = set()
-        self._placing_scenes = False
         # Hover tracks the pointer, not only a scroll. The macOS style turns on neither, so a
         # plain move never reaches the view.
         self.setMouseTracking(True)
@@ -509,36 +473,6 @@ class ThumbnailGridView(QListView):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._relayout()
-
-    def updateGeometries(self) -> None:
-        super().updateGeometries()
-        if self._placing_scenes:
-            return
-        self._placing_scenes = True
-        try:
-            self._place_scene_runs()
-        finally:
-            self._placing_scenes = False
-
-    def _place_scene_runs(self) -> None:
-        """Scene sort: each scene's frames as their own block from a new row, SCENE_GAP apart,
-        frames in no scene last. Qt re-flows every cell on each layout, so this runs after
-        each one; every other order keeps Qt's own flow."""
-        model = self.model()
-        runs = model.scene_runs() if hasattr(model, "scene_runs") else []
-        if not runs:
-            return
-        grid, cell = self.gridSize(), self.iconSize()
-        cols = self.columns_for_width(self.viewport().width())
-        inset = (grid.width() - cell.width()) // 2  # Qt centers a cell in its grid square
-        y = self.SCENE_GAP // 2
-        for _ordinal, first, last in runs:
-            count = last - first + 1
-            for n in range(count):
-                position = QPoint(inset + (n % cols) * grid.width(), y + (n // cols) * grid.height())
-                self.setPositionForIndex(position, model.index(first + n, 0))
-            lines = (count - 1) // cols + 1
-            y += lines * grid.height() + self.SCENE_GAP
 
     def _begin_click_selection(self, pre_press_current: QModelIndex) -> None:
         """Decides the gesture's mode and range anchor exactly once, from the modifiers and
@@ -747,6 +681,10 @@ def roll_film(
     return film_geometry(fmt, frame_size), rebate
 
 
+# The film until the active frame's roll gives one.
+_DEFAULT_FILM = roll_film({}, WorkspaceConfig(), None, half_frame=False)
+
+
 def _rgb_pixels(image: QImage) -> np.ndarray:
     rgb = image.convertToFormat(QImage.Format.Format_RGB888)
     width, height = rgb.width(), rgb.height()
@@ -807,7 +745,7 @@ def justified_rows(aspects: list[float], width: int, height: int, gap: int) -> l
 
 
 # The corner radius of a scene's name chip; a selection mat's is half a pixel more.
-_RING_RADIUS = 3
+_CHIP_RADIUS = 3
 
 
 class _FilmDelegate(_ThumbnailDelegate):
@@ -824,15 +762,11 @@ class _FilmDelegate(_ThumbnailDelegate):
 
     def __init__(self, parent=None, state: Optional[AppState] = None) -> None:
         super().__init__(parent, state)
-        self._film: Optional[tuple[FilmGeometry, tuple[int, int, int]]] = None
+        self._film = _DEFAULT_FILM
         self._pictures: dict[int, QPixmap] = {}
 
     def set_film(self, geometry: FilmGeometry, rebate: tuple[int, int, int]) -> None:
         self._film = (geometry, rebate)
-
-    @property
-    def slim(self) -> bool:
-        return self._film is not None
 
     def picture_aspect(self, index: QModelIndex) -> float:
         """The upright picture's shape."""
@@ -843,7 +777,7 @@ class _FilmDelegate(_ThumbnailDelegate):
 
     @property
     def placeholder_aspect(self) -> float:
-        return self._film[0].window_aspect if self._film is not None else 1.5
+        return self._film[0].window_aspect
 
     def _picture_bounds(self, base: QPixmap) -> QRect:
         bounds = self._bounds.get(base.cacheKey())
@@ -855,24 +789,13 @@ class _FilmDelegate(_ThumbnailDelegate):
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
         view = self.parent()
-        if self.slim and isinstance(view, _FilmGridView):
+        if isinstance(view, _FilmGridView):
             return view.slim_cell(index)
         return super().sizeHint(option, index)
 
-    def _draw_outline(self, painter: QPainter, img_rect: QRect, file_info: dict, selected: bool, hover: bool) -> None:
-        # On film the view rings the whole frame, past its cell.
-        if self._film is None:
-            super()._draw_outline(painter, img_rect, file_info, selected or hover, False)
-
-    def _border_pen(self, hover: bool) -> QPen:
-        # On film the rebate frames the picture.
-        if self._film is not None:
-            return QPen(Qt.PenStyle.NoPen)
-        return super()._border_pen(hover)
-
     def _thumbnail(self, icon: QIcon, index: QModelIndex) -> QPixmap:
         base = super()._thumbnail(icon, index)
-        if self._film is None or base.isNull():
+        if base.isNull():
             return base
         picture = self._pictures.get(base.cacheKey())
         if picture is None:
@@ -893,10 +816,7 @@ class _FilmDelegate(_ThumbnailDelegate):
         return self.band(cell).adjusted(b // 2, b, -(b - b // 2), -b)
 
     def picture_rect(self, cell: QRect, index: QModelIndex) -> QRect:
-        if self._film is None:
-            return super().picture_rect(cell, index)
-        m = self._MARGIN
-        return super().picture_rect(self._window(cell).adjusted(-m, -m, m, m), index)
+        return super().picture_rect(self._window(cell), index)
 
     def _paint_scene_line(self, painter: QPainter, cell: QRect, index: QModelIndex) -> None:
         scene = (index.data(Qt.ItemDataRole.UserRole) or {}).get("scene")
@@ -905,16 +825,11 @@ class _FilmDelegate(_ThumbnailDelegate):
             painter.fillRect(band.left(), band.top(), band.width(), self._BORDER, QColor(scene_color(scene[0])))
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
-        film = self._film
-        if film is None:
-            super().paint(painter, option, index)
-            return
         cell = option.rect
-        painter.fillRect(self.band(cell), QColor(*film[1]))
+        painter.fillRect(self.band(cell), QColor(*self._film[1]))
         self._paint_scene_line(painter, cell, index)
         framed = QStyleOptionViewItem(option)
-        m = self._MARGIN
-        framed.rect = self._window(cell).adjusted(-m, -m, m, m)
+        framed.rect = self._window(cell)
         super().paint(painter, framed, index)
 
 
@@ -924,7 +839,9 @@ class _FilmGridView(ThumbnailGridView):
 
     SPACING = 0
     STRIP_GAP = THEME.space_xl
-    _aspect = 1.0
+    # Scene sort: the gap between two scenes' blocks.
+    SCENE_GAP = THEME.space_lg
+    _film = _DEFAULT_FILM[0]
     cell_zoomed = pyqtSignal(int)
     # A layout that may change the frames to a row or their range: a zoom, a resize or a new film.
     columns_changed = pyqtSignal()
@@ -935,6 +852,7 @@ class _FilmGridView(ThumbnailGridView):
         self._shown_aspects: dict[int, float] = {}
         # scene_runs_on_rows in content coordinates, kept until the next layout or data change.
         self._scene_runs: Optional[list[tuple[tuple, QModelIndex, QRect, QRect]]] = None
+        self._placing_scenes = False
         super().__init__(parent, target_cell)
         # Thumbnails arrive faster than a layout of every frame; new shapes in one burst share one layout.
         self._reshape_timer = QTimer(self)
@@ -956,9 +874,9 @@ class _FilmGridView(ThumbnailGridView):
     def _table_qss(self, color: str) -> str:
         return f"QListView {{ background-color: {color}; border: none; }}"
 
-    def set_film_aspect(self, aspect: float) -> None:
+    def set_film(self, geometry: FilmGeometry) -> None:
         """Lays the cells out again for a new film."""
-        self._aspect = aspect
+        self._film = geometry
         self._last_cell = -1
         self._slim_cells = None
         self._relayout()
@@ -976,15 +894,12 @@ class _FilmGridView(ThumbnailGridView):
         self._slim_cells = None
         self._shown_aspects = {}
         self._scene_runs = None
-        if self._slim():
-            self.scheduleDelayedItemsLayout()
+        self.scheduleDelayedItemsLayout()
 
     def _on_data_changed(self, top_left: QModelIndex, bottom_right: QModelIndex, *_roles) -> None:
         # Qt does not move the frames after one whose width a new thumbnail changed. A layout of every frame
         # per thumbnail stalls a long roll, so a thumbnail within _SHAPE_TOLERANCE of the shape it replaces keeps it.
         self._scene_runs = None
-        if not self._slim():
-            return
         # A row no layout has read yet takes its new shape from the pending one.
         delegate = self.itemDelegate()
         for row in range(top_left.row(), bottom_right.row() + 1):
@@ -994,13 +909,14 @@ class _FilmGridView(ThumbnailGridView):
                     self._reshape_timer.start()
                 return
 
-    def _slim(self) -> bool:
-        delegate = self.itemDelegate()
-        return isinstance(delegate, _FilmDelegate) and delegate.slim
-
     def _slim_height(self) -> int:
         """The picture height of a full row: a landscape frame as wide as one cell."""
-        return max(1, round(self._last_cell / self.itemDelegate()._film[0].window_aspect))
+        return max(1, round(self._last_cell / self._film.window_aspect))
+
+    @property
+    def _aspect(self) -> float:
+        """The film's width over a frame's pitch along it."""
+        return self._film.width / self._film.pitch
 
     def slim_cell(self, index: QModelIndex) -> QSize:
         return self._slim_layout().get(index.row(), QRect()).size()
@@ -1077,38 +993,37 @@ class _FilmGridView(ThumbnailGridView):
         if cell == self._last_cell:
             return
         self._last_cell = cell
-        if self._slim():
-            # No grid: each cell takes the size the delegate asks of slim_cell.
-            self._slim_cells = None
-            self.setGridSize(QSize())
-            self.scheduleDelayedItemsLayout()
-            self.verticalScrollBar().setSingleStep(max(1, self._row_step() // 4))
-            return
-        size = QSize(cell, int(round(cell * self._aspect)) + self.STRIP_GAP)
-        self.setGridSize(size)
-        self.setIconSize(size)
-        self.verticalScrollBar().setSingleStep(max(1, size.height() // 4))
+        # No grid: each cell takes the size the delegate asks of slim_cell.
+        self._slim_cells = None
+        self.setGridSize(QSize())
+        self.scheduleDelayedItemsLayout()
+        self.verticalScrollBar().setSingleStep(max(1, self._row_step() // 4))
 
     def resizeEvent(self, event) -> None:
         self._slim_cells = None
         super().resizeEvent(event)
 
     def _row_step(self) -> int:
-        if self._slim():
-            return self._slim_height() + 2 * _FilmDelegate._BORDER + self.STRIP_GAP
-        return super()._row_step()
+        return self._slim_height() + 2 * _FilmDelegate._BORDER + self.STRIP_GAP
 
     def _place_scene_runs(self) -> None:
-        if not self._slim():
-            super()._place_scene_runs()
-            return
+        """Each frame at its slim cell. Qt re-flows every cell on each layout, so this runs after each one."""
         model = self.model()
+        if model is None:
+            return
         for row, cell in self._slim_layout().items():
             self.setPositionForIndex(cell.topLeft(), model.index(row, 0))
 
     def updateGeometries(self) -> None:
         self._scene_runs = None
         super().updateGeometries()
+        if self._placing_scenes:
+            return
+        self._placing_scenes = True
+        try:
+            self._place_scene_runs()
+        finally:
+            self._placing_scenes = False
 
     def scene_runs_on_rows(self) -> list[tuple[tuple, QModelIndex, QRect, QRect]]:
         """(scene, first index, first cell, last cell) per run of one scene's consecutive frames on one row."""
@@ -1146,7 +1061,7 @@ class _FilmGridView(ThumbnailGridView):
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
         delegate = self.itemDelegate()
-        if not isinstance(delegate, _FilmDelegate) or delegate._film is None:
+        if not isinstance(delegate, _FilmDelegate):
             return
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -1167,7 +1082,7 @@ class _FilmGridView(ThumbnailGridView):
                 continue
             # One pixel past the border, over the scene's line and the neighbors' edges.
             mat = QPainterPath()
-            mat.addRoundedRect(QRectF(delegate.band(cell)).adjusted(-1, -1, 1, 1), _RING_RADIUS + 0.5, _RING_RADIUS + 0.5)
+            mat.addRoundedRect(QRectF(delegate.band(cell)).adjusted(-1, -1, 1, 1), _CHIP_RADIUS + 0.5, _CHIP_RADIUS + 0.5)
             picture = QPainterPath()
             picture.addRect(QRectF(delegate._window(cell)))
             active = delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {})
@@ -1190,7 +1105,7 @@ class _FilmGridView(ThumbnailGridView):
             color = QColor(scene_color(scene[0]))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(color)
-            painter.drawRoundedRect(chip, _RING_RADIUS, _RING_RADIUS)
+            painter.drawRoundedRect(chip, _CHIP_RADIUS, _CHIP_RADIUS)
             luma = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
             painter.setPen(QColor(THEME.bg_dark if luma > 140 else THEME.text_primary))
             painter.drawText(chip, Qt.AlignmentFlag.AlignCenter, name)
@@ -1432,6 +1347,7 @@ class FileBrowser(QWidget):
         self._make_grid(self.light_table_view, self._light_table_delegate)
         self.light_table_view.setSelectionModel(self.list_view.selectionModel())
         self._film_key: Optional[tuple] = None
+        self._film_geometry: Optional[FilmGeometry] = None
         # The rebate prints as the roll's mean print D-max, measured once per thumbnail pixmap.
         self._rebate_tone: Optional[tuple[int, int, int]] = None
         self._dmax_by_pixmap: dict[int, Optional[tuple[int, int, int]]] = {}
@@ -1628,11 +1544,11 @@ class FileBrowser(QWidget):
             library = None
         film = roll_film(asset, config, library, half_frame, self._rebate_tone)
         geometry = film[0]
+        new_shape, self._film_geometry = geometry != self._film_geometry, geometry
         for delegate, view in ((self._thumbnail_delegate, self.list_view), (self._light_table_delegate, self.light_table_view)):
-            new_shape = delegate._film is None or delegate._film[0] != geometry
             delegate.set_film(*film)
             if new_shape:
-                view.set_film_aspect(geometry.width / geometry.pitch)
+                view.set_film(geometry)
             else:
                 view.viewport().update()
             view.set_table_color(table)
