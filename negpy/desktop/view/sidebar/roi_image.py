@@ -80,7 +80,7 @@ class RoiImageLabel(QLabel):
         self._zebra: Optional[QImage] = None  # clipping overlay for the current frame, scan pop-up only
         self._roi: Optional[tuple[float, float, float, float]] = None
         self._drag_start: Optional[QPoint] = None
-        self.hover_ring = False  # when True a cursor hover draws the red selection ring (Pick Better)
+        self.hover_ring = False  # when True a cursor hover draws the gray hover ring (Pick Better)
         self._hover = False
         # Video-player-style buffering spinner drawn on the black frame while a stream spins up.
         self._loading = False
@@ -231,9 +231,9 @@ class RoiImageLabel(QLabel):
                 painter.drawImage(draw_rect, self._zebra)
             painter.setPen(QPen(QColor(THEME.border_indicator), _FRAME_BORDER))
             painter.drawRect(draw_rect.adjusted(-_FRAME_BORDER, -_FRAME_BORDER, 0, 0))
-            if self.hover_ring and self._hover:  # cursor hover → the red selection ring (Pick Better)
+            if self.hover_ring and self._hover:
                 # Drawn outside the photo edge, in the ring margin reserved by _display.
-                painter.setPen(QPen(QColor(THEME.accent_primary), 2))
+                painter.setPen(QPen(QColor(THEME.text_hint), 2))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.drawRoundedRect(
                     QRectF(draw_rect).adjusted(-_RING_OFFSET, -_RING_OFFSET, _RING_OFFSET, _RING_OFFSET),

@@ -1719,7 +1719,7 @@ class FileBrowser(QWidget):
 
     def _set_search_error(self, error: bool) -> None:
         if error:
-            self.search_input.setStyleSheet(f"border: 1px solid {THEME.accent_primary};")
+            self.search_input.setStyleSheet(f"border: 1px solid {THEME.error};")
         else:
             self.search_input.setStyleSheet("")
 
@@ -1859,13 +1859,7 @@ class FileBrowser(QWidget):
         empty = bool(files) and self.session.asset_model.rowCount() == 0 and bool(filters)
         if empty:
             named = " and ".join(filters)
-            self.empty_label.setText(
-                tr(
-                    'No frames match the {named} filter.<br><a href="#clear" style="color: {accent_primary};">Show all frames</a>',
-                    named=named,
-                    accent_primary=THEME.accent_primary,
-                )
-            )
+            self.empty_label.setText(tr('No frames match the {named} filter.<br><a href="#clear">Show all frames</a>', named=named))
         self.empty_label.setVisible(empty)
         self.list_view.setVisible(not empty)
 

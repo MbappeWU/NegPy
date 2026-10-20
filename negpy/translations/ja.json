@@ -1540,7 +1540,7 @@
   "No frames in the library match that search": "ライブラリ内にその検索に一致するフレームはありません",
   "No frames loaded": "フレームがロードされていません",
   "No frames match the filter": "フィルターに一致するフレームがありません",
-  "No frames match the {named} filter.<br><a href=\"#clear\" style=\"color: {accent_primary};\">Show all frames</a>": "{named} フィルタに一致するフレームはありません。<br><a href=\"#clear\" style=\"color: {accent_primary};\">すべてのフレームを表示</a>",
+  "No frames match the {named} filter.<br><a href=\"#clear\">Show all frames</a>": "{named} フィルタに一致するフレームはありません。<br><a href=\"#clear\">すべてのフレームを表示</a>",
   "No frames to auto-crop": "自動トリミングするフレームがありません",
   "No frames were detected on the loaded film.": "ロードされたフィルムではフレームが検出されませんでした。",
   "No live-view image. Is the camera in PC Remote mode? On macOS, a background app such as a cloud sync client can hold the camera; unplug it to free it.": "ライブビュー画像がありません — カメラは PC リモートにありますか? macOS では、クラウド同期クライアントなどのバックグラウンド アプリがそれを保持している可能性があります。プラグを抜くと解放されます。",

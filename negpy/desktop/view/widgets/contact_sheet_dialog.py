@@ -184,7 +184,7 @@ class SheetCanvas(QWidget):
                     draw_mark_badge(painter, rect, check=False)
                 if index == self._hover:
                     painter.setBrush(Qt.BrushStyle.NoBrush)
-                    painter.setPen(QPen(QColor(THEME.accent_primary), 2))
+                    painter.setPen(QPen(QColor(THEME.text_hint), 2))
                     painter.drawRect(rect)
         corners, edges = self._handles()
         draw_resize_handles(painter, corners, edges)

@@ -1540,7 +1540,7 @@
   "No frames in the library match that search": "图库中没有符合搜索的画面",
   "No frames loaded": "未载入画面",
   "No frames match the filter": "没有画面符合筛选",
-  "No frames match the {named} filter.<br><a href=\"#clear\" style=\"color: {accent_primary};\">Show all frames</a>": "没有画面符合“{named}”筛选。<br><a href=\"#clear\" style=\"color: {accent_primary};\">显示所有画面</a>",
+  "No frames match the {named} filter.<br><a href=\"#clear\">Show all frames</a>": "没有画面符合“{named}”筛选。<br><a href=\"#clear\">显示所有画面</a>",
   "No frames to auto-crop": "没有可自动裁切的画面",
   "No frames were detected on the loaded film.": "未在当前胶片中检测到画面。",
   "No live-view image. Is the camera in PC Remote mode? On macOS, a background app such as a cloud sync client can hold the camera; unplug it to free it.": "没有实时取景图像，请确认相机处于 PC 遥控模式。macOS 云同步等后台程序可能占用相机，拔插连接线可释放。",

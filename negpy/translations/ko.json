@@ -1540,7 +1540,7 @@
   "No frames in the library match that search": "라이브러리에 검색과 일치하는 프레임이 없습니다.",
   "No frames loaded": "로드된 프레임 없음",
   "No frames match the filter": "필터와 일치하는 프레임이 없습니다.",
-  "No frames match the {named} filter.<br><a href=\"#clear\" style=\"color: {accent_primary};\">Show all frames</a>": "{named} 필터와 일치하는 프레임이 없습니다.<br><a href=\"#clear\" style=\"color: {accent_primary};\">모든 프레임 표시</a>",
+  "No frames match the {named} filter.<br><a href=\"#clear\">Show all frames</a>": "{named} 필터와 일치하는 프레임이 없습니다.<br><a href=\"#clear\">모든 프레임 표시</a>",
   "No frames to auto-crop": "자동으로 자를 프레임이 없습니다.",
   "No frames were detected on the loaded film.": "로드된 필름에서 프레임이 감지되지 않았습니다.",
   "No live-view image. Is the camera in PC Remote mode? On macOS, a background app such as a cloud sync client can hold the camera; unplug it to free it.": "라이브 뷰 이미지가 없습니다. 카메라가 PC 원격 모드입니까? macOS에서는 클라우드 동기화 클라이언트 같은 백그라운드 앱이 카메라를 점유할 수 있습니다. 카메라를 뽑았다 다시 꽂으면 해제됩니다.",

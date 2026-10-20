@@ -83,7 +83,7 @@ def test_invalid_regex_sets_error_stylesheet(browser):
     browser.regex_action.setChecked(True)
     browser.search_input.setText("[")
     browser._apply_filter()
-    assert THEME.accent_primary in browser.search_input.styleSheet()
+    assert THEME.error in browser.search_input.styleSheet()
 
 
 def test_invalid_regex_does_not_change_visible(browser, session):
