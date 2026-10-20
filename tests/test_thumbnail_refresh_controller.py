@@ -859,6 +859,7 @@ class TestThumbnailRefreshController:
         from negpy.services.assets.thumbnails import asset_thumbnail_key
 
         self.controller.state.selected_indices = [0, 1, 2]
+        self.session.selection_is_open_frame.return_value = False
         before = self.controller.thumbnail_turn_snapshot()
         self.session.config_for_asset.return_value = turned
         keys = [asset_thumbnail_key(f) for f in self.files[1:]]

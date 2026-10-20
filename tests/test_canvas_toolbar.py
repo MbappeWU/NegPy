@@ -523,6 +523,18 @@ class TestRotateRouting(unittest.TestCase):
         tb.session.rotate_selected_frames.assert_called_once_with(1, active_included=False)
         tb.controller.rerender_active_view.assert_not_called()
 
+    def test_one_selected_frame_that_is_not_open_rotates_alone(self):
+        """A Light Table click selects a frame without opening it."""
+        tb = _make_toolbar()
+        tb.controller.rotate_test_strip.return_value = False
+        tb.session.state.selected_file_idx = 0
+        tb.session.state.selected_indices = [2]
+
+        tb.rotate(1)
+
+        tb.session.update_config.assert_not_called()
+        tb.session.rotate_selected_frames.assert_called_once_with(1, active_included=False)
+
     def test_a_selection_that_includes_the_active_frame_still_rotates_it(self):
         tb = _make_toolbar()
         tb.controller.rotate_test_strip.return_value = False

@@ -1187,7 +1187,7 @@ class AppController(QObject):
     def thumbnail_turn_snapshot(self) -> dict[str, Optional[bool]]:
         """Per selected frame but the active one: whether its stored thumbnail shows its settings,
         None for a quick or unfingerprinted one. Take it before a batch turn writes the geometry."""
-        if len(self.state.selected_indices) <= 1:
+        if self.session.selection_is_open_frame():
             return {}
         result: dict[str, Optional[bool]] = {}
         for idx in self.state.selected_indices:

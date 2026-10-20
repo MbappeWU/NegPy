@@ -1624,8 +1624,8 @@ class FileBrowser(QWidget):
             self._update_tally()
 
     def _update_unload_button(self) -> None:
-        multi = len(self.session.state.selected_indices) > 1
-        self.unload_action.setText(tr("Unload Selected…") if multi else tr("Unload…"))
+        on_selection = not self.session.selection_is_open_frame()
+        self.unload_action.setText(tr("Unload Selected…") if on_selection else tr("Unload…"))
 
     def sync_ui(self) -> None:
         """Updates list selection to match session state."""
@@ -2119,10 +2119,12 @@ class FileBrowser(QWidget):
 
     def build_frame_menu(self) -> QMenu:
         state = self.session.state
+        # The selection, not the open frame, once it is anything but the open frame alone.
+        on_selection = not self.session.selection_is_open_frame()
         multi = len(state.selected_indices) > 1
 
         menu = QMenu(self)
-        if multi:
+        if on_selection:
             menu.addAction(tr("Export Selected Frames")).triggered.connect(lambda: self.controller.request_export_selected())
         else:
             menu.addAction(tr("Export Current Frame")).triggered.connect(lambda: self.controller.request_export())
@@ -2136,7 +2138,7 @@ class FileBrowser(QWidget):
         act_paste.setEnabled(state.clipboard is not None)
         targets = [i for i in (state.selected_indices or [state.selected_file_idx]) if 0 <= i < len(state.uploaded_files)]
         n = len(targets)
-        if multi:
+        if on_selection:
             menu.addAction(tr("Reset {value}…", value=count_of(n, "frame").title())).triggered.connect(
                 lambda: _reset_selected(self, self.controller)
             )
@@ -2149,11 +2151,11 @@ class FileBrowser(QWidget):
                 lambda: load_edit_from_sidecar(self, self.controller)
             )
         menu.addSeparator()
-        act_keep = menu.addAction(tr("Keep {value}", value=count_of(n, "frame")) if multi else tr("Keep"))
+        act_keep = menu.addAction(tr("Keep {value}", value=count_of(n, "frame")) if on_selection else tr("Keep"))
         act_keep.setCheckable(True)
         act_keep.setChecked(bool(targets) and all(state.uploaded_files[i].get("keeper") for i in targets))
         act_keep.triggered.connect(lambda: self.session.toggle_mark("keeper"))
-        act_reject = menu.addAction(tr("Reject {value}", value=count_of(n, "frame")) if multi else tr("Reject"))
+        act_reject = menu.addAction(tr("Reject {value}", value=count_of(n, "frame")) if on_selection else tr("Reject"))
         act_reject.setCheckable(True)
         act_reject.setChecked(bool(targets) and all(state.uploaded_files[i].get("excluded") for i in targets))
         act_reject.triggered.connect(lambda: self.session.toggle_mark("excluded"))
@@ -2165,16 +2167,17 @@ class FileBrowser(QWidget):
         if self.controller.thumbnail_refresh_running:
             menu.addAction(tr("Cancel Thumbnail Update")).triggered.connect(lambda: self.controller.cancel_thumbnail_refresh())
         else:
-            menu.addAction(tr("Update {value}", value=count_of(n, "thumbnail")) if multi else tr("Update Thumbnail")).triggered.connect(
-                lambda: self.controller.request_thumbnail_refresh("selection")
-            )
+            menu.addAction(
+                tr("Update {value}", value=count_of(n, "thumbnail")) if on_selection else tr("Update Thumbnail")
+            ).triggered.connect(lambda: self.controller.request_thumbnail_refresh("selection"))
         menu.addAction(label_with_shortcut(tr("Reset Roll to Defaults…"), "reset_roll")).triggered.connect(
             lambda: _reset_roll(self, self.controller)
         )
-        if multi:
+        if on_selection:
             menu.addSeparator()
-            menu.addAction(tr("Stitch Selected Frames")).triggered.connect(lambda: self.controller.request_stitch_selected())
-            self._add_hdr_merge_action(menu, state)
+            if multi:
+                menu.addAction(tr("Stitch Selected Frames")).triggered.connect(lambda: self.controller.request_stitch_selected())
+                self._add_hdr_merge_action(menu, state)
             self._add_merge_to_tiff_action(menu, state, SCOPE_SELECTION)
         else:
             menu.addSeparator()
@@ -2207,7 +2210,7 @@ class FileBrowser(QWidget):
         if state.active_roll_id:
             self._add_scene_menu(menu, [state.uploaded_files[i] for i in targets], multi)
         menu.addSeparator()
-        if not multi:
+        if not on_selection:
             menu.addAction(label_with_shortcut(SHOW_LABEL, "show_in_folder")).triggered.connect(
                 lambda: show_current_in_folder(self.controller)
             )
@@ -2215,7 +2218,7 @@ class FileBrowser(QWidget):
             lambda: move_selected_to_trash(self, self.controller)
         )
         menu.addSeparator()
-        unload_label = "Unload Selected…" if multi else "Unload…"
+        unload_label = "Unload Selected…" if on_selection else "Unload…"
         menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)
         if state.active_roll_id:
             menu.addAction(label_with_shortcut(tr("Remove from Roll…"), "remove_from_roll")).triggered.connect(
@@ -2341,7 +2344,7 @@ class FileBrowser(QWidget):
 
     def _on_remove_from_menu(self) -> None:
         count = len(self.session.state.selected_indices)
-        if count > 1:
+        if not self.session.selection_is_open_frame():
             if confirm_unload(self, count=count):
                 self.session.remove_selected_files()
         else:

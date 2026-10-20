@@ -1072,7 +1072,7 @@ class ActionToolbar(QWidget):
             for widget in group:
                 layout.addWidget(widget)
         layout.insertWidget(0, self.selection_count)
-        v_layout.addWidget(self._light_table_row, 0, Qt.AlignmentFlag.AlignRight)
+        v_layout.addWidget(self._light_table_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _selected_frames(self) -> list[dict]:
         state = self.session.state
@@ -1466,10 +1466,10 @@ class ActionToolbar(QWidget):
             return
 
         state = self.session.state
-        # A multi-selection that has explicitly excluded the active frame (ctrl-click
-        # toggled it off) must not rotate it anyway: selection wins over "what's on
+        # A selection that leaves out the open frame (a ctrl-click toggled it off, or a Light
+        # Table click picked another frame) must not rotate it: selection wins over "what's on
         # screen" once there is one, the same rule toggle_mark already uses.
-        include_active = len(state.selected_indices) <= 1 or state.selected_file_idx in state.selected_indices
+        include_active = not state.selected_indices or state.selected_file_idx in state.selected_indices
         if include_active:
             config = state.config
             new_geo, new_rect = rotate_geometry_and_analysis(config.geometry, config.process.analysis_rect, direction)
@@ -1496,7 +1496,7 @@ class ActionToolbar(QWidget):
         horizontal = axis == "horizontal"
         state = self.session.state
         # See rotate(): a multi-selection that excludes the active frame skips it too.
-        include_active = len(state.selected_indices) <= 1 or state.selected_file_idx in state.selected_indices
+        include_active = not state.selected_indices or state.selected_file_idx in state.selected_indices
         if include_active:
             config = state.config
             new_geo, new_rect = flip_geometry_and_analysis(config.geometry, config.process.analysis_rect, horizontal)

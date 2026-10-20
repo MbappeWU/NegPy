@@ -1502,6 +1502,13 @@ class DesktopSessionManager(QObject):
         self.asset_model.refresh()
         self.files_changed.emit()
 
+    def selection_is_open_frame(self) -> bool:
+        """True when an action targets the open frame alone: nothing is selected, or the open
+        frame is the whole selection. A Light Table click selects a frame without opening it,
+        so a single selected frame can be another one."""
+        selected = self.state.selected_indices
+        return not selected or list(selected) == [self.state.selected_file_idx]
+
     def _scope_indices(self, scope: str) -> List[int]:
         """Frames a scoped apply targets: "roll" (every visible frame) or "selection".
         A hidden frame is never a target: a filename filter is a non-destructive view."""
@@ -1721,7 +1728,7 @@ class DesktopSessionManager(QObject):
         rest of a multi-selection. `active_included` only affects the status message's
         count, since the active frame is always excluded from this method's own loop.
         Returns the thumbnail keys touched, so the caller can invalidate them."""
-        if len(self.state.selected_indices) <= 1:
+        if self.selection_is_open_frame():
             return []
 
         touched_keys = []
@@ -1756,7 +1763,7 @@ class DesktopSessionManager(QObject):
     def flip_selected_frames(self, horizontal: bool, active_included: bool = True) -> List[str]:
         """Mirrors every OTHER selected frame by its own current geometry. See
         rotate_selected_frames — same active/other split, same reasoning."""
-        if len(self.state.selected_indices) <= 1:
+        if self.selection_is_open_frame():
             return []
 
         touched_keys = []
@@ -2094,7 +2101,11 @@ class DesktopSessionManager(QObject):
     def copy_settings(self, include_bounds: bool = False) -> None:
         import copy
 
-        cfg = copy.deepcopy(self.state.config)
+        selected = self.state.selected_indices
+        source = self.state.config
+        if len(selected) == 1 and not self.selection_is_open_frame():
+            source = self.config_for_asset(self.state.uploaded_files[selected[0]])
+        cfg = copy.deepcopy(source)
         if not include_bounds:
             cfg = replace(
                 cfg,
@@ -2141,7 +2152,7 @@ class DesktopSessionManager(QObject):
                 ),
             )
 
-        if len(self._scope_indices("selection")) > 1:
+        if not self.selection_is_open_frame() and self._scope_indices("selection"):
             self.apply_preset_fields(clip, rows, "selection", finish=with_bounds if bounds else None, label=tr("Pasted"))
             self.state_changed.emit()
             return

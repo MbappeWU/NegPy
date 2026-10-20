@@ -572,6 +572,7 @@ def test_remove_from_menu_routes_single_vs_multi(browser, session):
 
     # confirm_unload opens a blocking QMessageBox — must be patched headless.
     with patch("negpy.desktop.view.sidebar.files.confirm_unload", return_value=True):
+        session.state.selected_file_idx = 1
         session.state.selected_indices = [1]
         browser._on_remove_from_menu()
         session.remove_current_file.assert_called_once()
@@ -589,6 +590,7 @@ def test_remove_from_menu_cancelled_confirm_removes_nothing(browser, session):
     session.remove_selected_files = MagicMock()
 
     with patch("negpy.desktop.view.sidebar.files.confirm_unload", return_value=False):
+        session.state.selected_file_idx = 1
         session.state.selected_indices = [1]
         browser._on_remove_from_menu()
         session.state.selected_indices = [0, 1]
@@ -941,6 +943,7 @@ def test_unload_button_always_targets_the_selection_never_the_whole_roll(browser
     session.clear_files = MagicMock()
 
     with patch("negpy.desktop.view.sidebar.files.confirm_unload", return_value=True):
+        session.state.selected_file_idx = 1
         session.state.selected_indices = [1]
         browser._on_unload_clicked()
         session.remove_current_file.assert_called_once()
@@ -954,6 +957,7 @@ def test_unload_button_always_targets_the_selection_never_the_whole_roll(browser
 
 
 def test_the_unload_item_names_the_selection(browser, session):
+    session.state.selected_file_idx = 0
     session.state.selected_indices = [0]
     browser._update_unload_button()
     assert browser.unload_action.text() == "Unload…"
@@ -1275,3 +1279,22 @@ def test_context_menu_scopes_merge_to_tiff_by_selection(browser, session):
     session.state.selected_indices = [0]
     labels = _action_labels(browser.build_frame_menu())
     assert "Merge Selected to TIFF Negative…" not in labels
+
+
+def test_one_selected_frame_that_is_not_open_is_what_the_frame_menu_acts_on(browser, session):
+    """A Light Table click selects a frame without opening it: the menu must not act on the open one."""
+    session.state.selected_file_idx = 0
+    session.state.selected_indices = [2]
+    labels = _action_labels(browser.build_frame_menu())
+
+    assert "Export Selected Frames" in labels and "Export Current Frame" not in labels
+    assert "Reset 1 Frame…" in labels and "Reset Settings" not in labels
+    assert "Unload Selected…" in labels
+    assert "Edit RGB Triplet…" not in labels and "Stitch Selected Frames" not in labels
+
+    session.remove_current_file = MagicMock()
+    session.remove_selected_files = MagicMock()
+    with patch("negpy.desktop.view.sidebar.files.confirm_unload", return_value=True):
+        browser._on_remove_from_menu()
+    session.remove_selected_files.assert_called_once()
+    session.remove_current_file.assert_not_called()
