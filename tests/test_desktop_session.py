@@ -325,6 +325,12 @@ class TestDesktopSessionSync(unittest.TestCase):
         self.session.set_invert_zoom_scroll(False)
         self.mock_repo.save_global_setting.assert_not_called()
 
+    def test_shortcut_hints_start_on_and_persist_when_turned_off(self):
+        self.assertTrue(self.session.state.shortcut_hints)
+        self.session.set_shortcut_hints(False)
+        self.assertFalse(self.session.state.shortcut_hints)
+        self.mock_repo.save_global_setting.assert_called_with("shortcut_hints", False)
+
     def test_persist_writes_sticky_settings_in_one_batch(self):
         self.session.select_file(0)
         self.mock_repo.save_global_settings.reset_mock()

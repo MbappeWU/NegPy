@@ -268,6 +268,15 @@ class PreferencesDialog(QDialog):
         self.invert_zoom_box.toggled.connect(self.session.set_invert_zoom_scroll)
         self._add_toggles(grid, row, self.sticky_zoom_box, self.invert_zoom_box)
         row += 1
+        self.shortcut_hints_box = labeled_toggle(
+            "fa5s.keyboard",
+            tr("Shortcut Hints"),
+            state.shortcut_hints,
+            tr("After you use a control with the mouse, show its keyboard shortcut once per session"),
+        )
+        self.shortcut_hints_box.toggled.connect(self.session.set_shortcut_hints)
+        self._add_toggles(grid, row, self.shortcut_hints_box)
+        row += 1
 
         interface_row, _ = _button_row(
             (

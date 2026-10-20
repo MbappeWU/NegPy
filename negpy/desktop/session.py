@@ -214,6 +214,8 @@ class AppState:
     # When True, switching to a different image keeps the current zoom level
     # instead of resetting to fit-to-window.
     sticky_zoom: bool = False
+    # After a mouse edit, a toast shows the control's keyboard shortcut (view/shortcut_hints.py).
+    shortcut_hints: bool = True
 
     # Master switch for the Persistent Settings overlay on a freshly opened file with no
     # saved edit. Off, a new file gets bare WorkspaceConfig() defaults for every catalog
@@ -920,6 +922,9 @@ class DesktopSessionManager(QObject):
         saved_sticky_zoom = self.repo.get_global_setting("sticky_zoom")
         if saved_sticky_zoom is not None:
             self.state.sticky_zoom = bool(saved_sticky_zoom)
+        saved_hints = self.repo.get_global_setting("shortcut_hints")
+        if saved_hints is not None:
+            self.state.shortcut_hints = bool(saved_hints)
 
         saved_sticky_enabled = self.repo.get_global_setting("sticky_settings_enabled")
         if saved_sticky_enabled is not None:
@@ -1071,6 +1076,11 @@ class DesktopSessionManager(QObject):
             self.state.sticky_zoom = enabled
             self.repo.save_global_setting("sticky_zoom", enabled)
             self.state_changed.emit()
+
+    def set_shortcut_hints(self, enabled: bool) -> None:
+        if self.state.shortcut_hints != enabled:
+            self.state.shortcut_hints = enabled
+            self.repo.save_global_setting("shortcut_hints", enabled)
 
     def set_sticky_settings_enabled(self, enabled: bool) -> None:
         """Updates and persists whether Persistent Settings applies to a fresh file."""

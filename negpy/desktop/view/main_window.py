@@ -29,6 +29,7 @@ from negpy.desktop.view.canvas.toolbar import ActionToolbar, frame_position
 from negpy.desktop.view.canvas.widget import ImageCanvas
 from negpy.desktop.view.keyboard_shortcuts import SpacePanKeyFilter, setup_keyboard_shortcuts
 from negpy.desktop.view.mac_menu_bar import install_mac_menus
+from negpy.desktop.view.shortcut_hints import HINT_MS, ShortcutHints
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.custom_routing_dialog import CustomRoutingDialog
 from negpy.desktop.view.sidebar.pick_better_window import PickBetterWindow
@@ -706,6 +707,11 @@ class MainWindow(QMainWindow):
 
         self.controller.status_message_requested.connect(self.canvas.hud.showMessage)
         self.controller.status_progress_requested.connect(self.canvas.hud.set_progress)
+        # Parented to the window, so Qt drops the app-wide filter when the window goes.
+        self.shortcut_hints = ShortcutHints(
+            self.controller.session.state, lambda text: self.canvas.hud.showMessage(text, HINT_MS), parent=self
+        )
+        QApplication.instance().installEventFilter(self.shortcut_hints)
 
         self.progress_dialog = ProgressDialog(self)
         self.controller.batch_started.connect(self._on_batch_started)

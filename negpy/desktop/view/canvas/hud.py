@@ -155,7 +155,8 @@ class CanvasHud(QWidget):
         # block, so a long message folds into narrow lines rather than using the width it is
         # allowed. Short toasts keep their natural width.
         cap = max(_TOAST_MIN_WIDTH, int(self.width() * _TOAST_WIDTH_RATIO))
-        one_line = self.toast.fontMetrics().horizontalAdvance(text) + _TOAST_PADDING
+        # Rich text (a shortcut hint's keycaps) sizes itself; measuring its markup would not.
+        one_line = 0 if text.startswith("<") else self.toast.fontMetrics().horizontalAdvance(text) + _TOAST_PADDING
         self.toast.setMaximumWidth(cap)
         self.toast.setMinimumWidth(min(cap, one_line))
         self.toast.setStyleSheet(toast_qss(kind))

@@ -1,4 +1,5 @@
 from negpy.kernel.system.i18n import tr
+import re
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -263,6 +264,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_sticky_zoom": ShortcutEntry("", tr("Sticky zoom (keep zoom level when switching images)"), tr("View")),
     "toggle_sticky_settings": ShortcutEntry("", tr("Carry settings between frames (apply Persistent Settings to a new file)"), tr("View")),
     "toggle_invert_zoom_scroll": ShortcutEntry("", tr("Reverse scroll-to-zoom direction (scroll up zooms out)"), tr("View")),
+    "toggle_shortcut_hints": ShortcutEntry("", tr("Shortcut hints (show a control's keys after a mouse edit)"), tr("View")),
     "toggle_film_strip": ShortcutEntry("Ctrl+[", tr("Collapse or expand the Film Strip"), tr("View")),
     "toggle_toolbar_mode": ShortcutEntry("", tr("Switch the toolbar between the photo's tools and the roll's"), tr("View")),
     "toggle_right_panel": ShortcutEntry("Ctrl+]", tr("Toggle controls panel (re-docks when floating)"), tr("View")),
@@ -510,18 +512,30 @@ def tooltip_with_shortcut(text: str, action_ids: str | Iterable[str] | None = No
         ids = [action_ids]
     else:
         ids = list(action_ids)
-    keys = [key_for(action_id, bindings) for action_id in ids if action_id in REGISTRY and key_for(action_id, bindings)]
-    if not keys:
+    bound = [action_id for action_id in ids if action_id in REGISTRY and key_for(action_id, bindings)]
+    if not bound:
         return text
-    # Each key is a bordered table cell, so it reads like a physical keycap: a thin,
-    # lighter-than-background border boxing the label. Qt's rich-text engine ignores `border`
-    # on inline <span> elements, where background and padding render but the outline does not,
-    # and honours it on table cells, so the chips must be <td>s.
+    row = keycap_cells([key_for(action_id, bindings) for action_id in bound], "&amp;")
+    # The ids ride along in a comment, which rich text never renders: shortcut_hints reads them back.
+    mark = _IDS_MARK.format(",".join(bound))
+    return f'{text}<table align="right" cellspacing="0" cellpadding="0"><tr>{row}</tr></table>{mark}'
+
+
+_IDS_MARK = "<!--shortcut:{}-->"
+_IDS_RE = re.compile(r"<!--shortcut:([\w,]+)-->")
+
+
+def shortcut_ids_in(tooltip: str) -> list[str]:
+    """The action ids tooltip_with_shortcut put in a tooltip, or none."""
+    found = _IDS_RE.search(tooltip)
+    return found.group(1).split(",") if found else []
+
+
+def keycap_cells(keys: Iterable[str], separator: str) -> str:
+    """Table cells that read like physical keycaps. Qt's rich text draws `border` on table
+    cells only, never on an inline <span>; the separator cell has no border of its own."""
     cells = [
         f'<td style="border:1px solid {THEME.border_indicator};background:{THEME.bg_selected};color:{THEME.text_primary};padding:1px 6px;font-size:{THEME.font_size_small}px;">{display_key(key)}</td>'
         for key in keys
     ]
-    # The " & " separator sits in its own borderless cell, so it does not inherit a keycap
-    # outline. The whole row is right-aligned on its own line below the text.
-    row = "<td>&nbsp;&amp;&nbsp;</td>".join(cells)
-    return f'{text}<table align="right" cellspacing="0" cellpadding="0"><tr>{row}</tr></table>'
+    return f"<td>&nbsp;{separator}&nbsp;</td>".join(cells)
