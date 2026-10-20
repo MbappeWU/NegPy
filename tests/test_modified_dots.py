@@ -98,9 +98,9 @@ def test_crop_reset_restores_its_own_card(qapp):
     controller.state.config = replace(cfg, geometry=replace(cfg.geometry, autocrop_offset=9, distortion_k1=0.05, fine_rotation=1.5))
 
     panel.autocrop_section.reset_requested.emit()
-    applied = controller.apply_config.call_args[0][0]
-    assert applied.geometry.autocrop_offset == cfg.geometry.autocrop_offset
-    assert (applied.geometry.distortion_k1, applied.geometry.fine_rotation) == (0.05, 1.5)
+    settings = controller.reset_crop.call_args.kwargs
+    assert settings["autocrop_offset"] == cfg.geometry.autocrop_offset
+    assert all(field.startswith("autocrop_") for field in settings)
 
 
 def test_geometry_reset_leaves_the_roll_scoped_cards_alone(qapp):
