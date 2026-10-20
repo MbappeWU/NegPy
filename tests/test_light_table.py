@@ -389,7 +389,7 @@ def test_a_scene_draws_a_line_over_its_frames_that_starts_with_its_name(browser,
 
     assert [_near(image.pixelColor(band.center().x(), band.top() + 1), color) for band in bands] == [False, True, False, False]
     selected = image.pixelColor(bands[2].center().x(), bands[2].top() + 1)
-    assert selected.red() > selected.green(), "the selection ring covers the line"
+    assert selected == QColor(THEME.border_indicator), "the selection mat covers the line"
     assert not _near(image.pixelColor(bands[1].center().x(), bands[1].bottom() - 1), color), "only the top border"
     assert _near(image.pixelColor(bands[1].left() + 3, bands[1].top() - 3), color), "the name sits on the line at the run's start"
     assert not _near(image.pixelColor(bands[2].center().x(), bands[2].top() - 3), color)
@@ -572,9 +572,11 @@ def test_a_light_table_frame_is_never_dimmed_and_its_cell_draws_no_ring(qapp, ho
     assert canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1) != QColor(THEME.accent_primary)
 
 
-def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser, qapp):
+@pytest.mark.parametrize(("bg", "others"), [(2, THEME.border_indicator), (3, THEME.text_hint)])
+def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser, qapp, bg, others):
     from PyQt6.QtCore import QItemSelectionModel
 
+    browser.session.set_canvas_bg(bg)
     _thumbs(browser, [(300, 200)] * 3)
     browser.session.state.current_file_path = "/r/1.tif"
     strip = browser.list_view
@@ -586,21 +588,19 @@ def test_the_selection_rings_the_whole_frame_and_the_active_frame_glows(browser,
     qapp.processEvents()
     bands = [strip.itemDelegate().band(strip.visualRect(model.index(row, 0))) for row in range(3)]
     image = strip.viewport().grab().toImage()
-
-    def light(row: int, above: int) -> int:
-        color = image.pixelColor(bands[row].center().x(), bands[row].top() - above)
-        return color.red() - color.green()
-
-    table = light(0, 2)
-    assert not light(0, 1) > table, "an unselected frame has no ring"
-    assert light(1, 2) > light(2, 2) > table + 40, "the ring reaches past the border, the active frame's the strongest"
     border = _FilmDelegate._BORDER
-    assert light(1, 1 - border) > table + 40, "the ring fills the border"
+
+    def at(row: int, below_top: int) -> QColor:
+        return image.pixelColor(bands[row].center().x(), bands[row].top() + below_top)
+
+    table = QColor(table_color(bg))
+    assert max(at(0, border - 1).getRgb()[:3]) < 40, "an unselected frame keeps its rebate"
+    assert at(1, border - 1) == QColor(THEME.text_primary), "the mat fills the border"
+    assert at(2, border - 1) == QColor(others)
     window = strip.itemDelegate()._window(strip.visualRect(model.index(1, 0)))
     picture = image.pixelColor(window.center().x(), window.top())
     assert picture.red() < picture.green(), "the picture stays clear"
-    assert light(1, 6) > light(2, 6) > table, "the glow fades out past the ring"
-    assert light(1, strip.STRIP_GAP // 2) <= table + 2, "the glow is gone at the strip's edge"
+    assert at(1, -3) == table, "nothing past the mat"
     browser.hide()
 
 
@@ -619,8 +619,7 @@ def test_the_frame_under_the_pointer_gets_no_ring(browser, qapp):
     qapp.processEvents()
     image = strip.viewport().grab().toImage()
 
-    color = image.pixelColor(band.center().x(), band.top() - 1)
-    assert color.red() - color.green() <= 2
+    assert image.pixelColor(band.center().x(), band.top() - 1) == QColor(table_color(browser.session.state.canvas_bg_index))
     browser.hide()
 
 

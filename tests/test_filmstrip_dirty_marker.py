@@ -32,16 +32,16 @@ def _bottom_edge_colour(pix: QPixmap) -> QColor:
     return QColor(img.pixel(33, 46 - _ThumbnailDelegate._MARGIN - 2))
 
 
-def test_active_dirty_frame_gets_an_accent_line(qapp):
+def test_active_dirty_frame_gets_an_edited_mark_line(qapp):
     state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", stale_thumbnails=set())
     dirty = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=state), "/a.nef"))
-    assert dirty.name().upper() == THEME.accent_primary.upper()
+    assert dirty.name().upper() == THEME.mark_edited.upper()
 
 
 def test_other_frames_and_clean_frames_do_not(qapp):
     state = SimpleNamespace(is_dirty=True, current_file_path="/a.nef", stale_thumbnails=set())
     other = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=state), "/b.nef"))
-    assert other.name().upper() != THEME.accent_primary.upper()
+    assert other.name().upper() != THEME.mark_edited.upper()
     clean = SimpleNamespace(is_dirty=False, current_file_path="/a.nef", stale_thumbnails=set())
     same = _bottom_edge_colour(_paint(_ThumbnailDelegate(state=clean), "/a.nef"))
-    assert same.name().upper() != THEME.accent_primary.upper()
+    assert same.name().upper() != THEME.mark_edited.upper()

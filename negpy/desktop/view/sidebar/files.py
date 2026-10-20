@@ -1,7 +1,6 @@
 from negpy.kernel.system.i18n import tr
 import math
 import os
-from functools import lru_cache
 from typing import Any, List, Optional
 
 import numpy as np
@@ -111,7 +110,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     """Contact-sheet rendering: scales each cached ~120px thumbnail into its cell and
     draws a subtle 1px border hugging the image outline (no cell box). The selected image is shown full-brightness
     with the accent ring just outside that border, so both show at once; the others are
-    dimmed. A dirty active file gets an accent line along the image's bottom edge.
+    dimmed. A dirty active file gets an edited-mark line along the image's bottom edge.
     Triage marks are small bottom-right badges: check = keeper, cross + heavy dim =
     rejected; the bottom-left badge says the frame was built from several files
     (stitch, HDR merge, RGB triplet, half-frame split). Top-left holds the
@@ -422,11 +421,11 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         self._draw_outline(painter, img_rect, file_info, selected, hover)
 
         if self._is_dirty(file_info):
-            # Over the frame line, so it reads as the accent and not a blend with the border.
+            # Over the frame line, so it reads as the mark and not a blend with the border.
             painter.setClipPath(clip)
             painter.fillRect(
                 QRect(img_rect.left(), img_rect.bottom() - self._DIRTY_PX + 1, img_rect.width(), self._DIRTY_PX),
-                QColor(THEME.accent_primary),
+                QColor(THEME.mark_edited),
             )
             painter.setClipping(False)
 
@@ -800,27 +799,8 @@ def justified_rows(aspects: list[float], width: int, height: int, gap: int) -> l
     return rows
 
 
-# The selection ring's corner radius, and how far its glow fades out past the ring: inside the strip's space.
+# The corner radius of a scene's name chip; a selection mat's is half a pixel more.
 _RING_RADIUS = 3
-_GLOW_REACH = THEME.space_xl - 2
-
-
-@lru_cache(maxsize=64)
-def _selection_glow(width: int, height: int) -> QImage:
-    """Accent light fading out from the outer edge of a ring around a `width` x `height` frame, the
-    frame itself left clear; the image's corner lies `2 + _GLOW_REACH` up and left of the frame's."""
-    pad = 2 + _GLOW_REACH
-    ys, xs = np.mgrid[0 : height + 2 * pad, 0 : width + 2 * pad].astype(np.float32) + 0.5
-    corner = _RING_RADIUS + 1
-    qx = np.abs(xs - (width / 2 + pad)) - (width / 2 + 2 - corner)
-    qy = np.abs(ys - (height / 2 + pad)) - (height / 2 + 2 - corner)
-    outside = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - corner
-    alpha = np.where(outside > 0, 0.5 * np.exp(-((outside / (_GLOW_REACH / 2.4)) ** 2)), 0.0)
-    color = QColor(THEME.accent_primary)
-    rgba = np.empty((*alpha.shape, 4), np.uint8)
-    for channel, value in enumerate((color.red(), color.green(), color.blue(), 255)):
-        rgba[..., channel] = np.round(alpha * value)
-    return QImage(rgba.data, rgba.shape[1], rgba.shape[0], rgba.strides[0], QImage.Format.Format_RGBA8888_Premultiplied).copy()
 
 
 class _FilmDelegate(_ThumbnailDelegate):
@@ -951,8 +931,6 @@ class _FilmGridView(ThumbnailGridView):
     cell_zoomed = pyqtSignal(int)
     # A layout that may change the frames to a row or their range: a zoom, a resize or a new film.
     columns_changed = pyqtSignal()
-    # (ring, glow) strength of the active frame and the other selected frames.
-    _MARKS = {"active": (1.0, 1.0), "selected": (0.6, 0.5)}
 
     def __init__(self, parent=None, target_cell: int = THUMB_CELL_DEFAULT) -> None:
         self._slim_cells: Optional[dict[int, QRect]] = None
@@ -970,6 +948,7 @@ class _FilmGridView(ThumbnailGridView):
         self.set_table_color(table_color(AppState.canvas_bg_index))
 
     def set_table_color(self, color: str) -> None:
+        self._pale_table = QColor(color).lightness() >= 128
         # A new stylesheet lays every cell out again, even when it is the same.
         qss = self._table_qss(color)
         if qss != self.styleSheet():
@@ -1159,32 +1138,20 @@ class _FilmGridView(ThumbnailGridView):
         painter.end()
 
     def _paint_marks(self, painter: QPainter, delegate: _FilmDelegate) -> None:
-        """An accent ring around each selected frame and its border, the glows under the rings."""
+        """A light mat in place of the active frame's border, a gray one on the other selected frames."""
         model, selection = self.model(), self.selectionModel()
         rows = {index.row() for index in selection.selectedIndexes()} if selection is not None else set()
-        marks = []
+        others = QColor(THEME.text_hint if self._pale_table else THEME.border_indicator)
         for row in sorted(rows):
             index = model.index(row, 0)
-            level = "active" if delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {}) else "selected"
             cell = self.visualRect(index)
-            marks.append((delegate.band(cell), delegate._window(cell), *self._MARKS[level]))
-        reach = 2 + _GLOW_REACH
-        for band, _window, _ring, glow in marks:
-            if glow:
-                painter.setOpacity(glow)
-                painter.drawImage(band.left() - reach, band.top() - reach, _selection_glow(band.width(), band.height()))
-        painter.setOpacity(1.0)
-        for band, window, ring, _glow in marks:
-            color = QColor(THEME.accent_primary)
-            color.setAlphaF(ring)
-            # The ring fills the frame's border up to the picture, over the scene's line.
-            ring_path = QPainterPath()
-            ring_path.addRoundedRect(
-                QRectF(band.x() - 2, band.y() - 2, band.width() + 4, band.height() + 4), _RING_RADIUS + 1, _RING_RADIUS + 1
-            )
+            # One pixel past the border, over the scene's line and the neighbors' edges.
+            mat = QPainterPath()
+            mat.addRoundedRect(QRectF(delegate.band(cell)).adjusted(-1, -1, 1, 1), _RING_RADIUS + 0.5, _RING_RADIUS + 0.5)
             picture = QPainterPath()
-            picture.addRect(QRectF(window))
-            painter.fillPath(ring_path.subtracted(picture), color)
+            picture.addRect(QRectF(delegate._window(cell)))
+            active = delegate.is_active(index.data(Qt.ItemDataRole.UserRole) or {})
+            painter.fillPath(mat.subtracted(picture), QColor(THEME.text_primary) if active else others)
 
     def _paint_scene_names(self, painter: QPainter, delegate: _FilmDelegate) -> None:
         """A chip with the scene's name on its line, at the start of each run of its frames on one row."""
@@ -1212,7 +1179,7 @@ class _FilmStripView(_FilmGridView):
     """The Film Strip: one row of film as tall as the view, scrolling sideways."""
 
     # The space above and below the film lies inside the cells, as the Light Table's row gap does,
-    # so the selection's glow can reach into it.
+    # so a scene's name chip on the film's top edge fits.
     STRIP_GAP = 2 * THEME.space_xl
 
     def __init__(self, parent=None) -> None:
