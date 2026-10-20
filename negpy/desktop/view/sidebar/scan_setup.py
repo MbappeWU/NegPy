@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.features.process.models import ProcessMode, scan_setup_rig
 
 _LIGHT_HINT = {
@@ -42,7 +42,7 @@ class ScanSetupSidebar(BaseSidebar):
     def _init_ui(self) -> None:
         self.capture_btn = SegmentedChoice(
             (("fa5s.camera", tr("Camera")), ("fa5s.camera-retro", tr("Film Scanner"))),
-            tr("What you scanned with. NegPy reads it from the file until you pick one."),
+            tr("What you scanned with, which NegPy reads from the file until you pick one."),
             data=("camera", "scanner"),
         )
         self.light_btn = SegmentedChoice(

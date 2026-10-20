@@ -1,13 +1,13 @@
 from PyQt6.QtCore import QPoint
 from PyQt6.QtWidgets import QApplication
 
-from negpy.desktop.view.widgets.choice_button import MenuButton
+from negpy.desktop.view.widgets.segmented_choice import MenuButton
 
 _CHOICES = (("fa5s.globe", "Global"), ("fa5s.moon", "Shadows"), ("fa5s.sun", "Highlights"))
 
 
 def test_toggle_menu_button_is_checked_while_any_option_is_on(qapp):
-    from negpy.desktop.view.widgets.choice_button import ToggleMenuButton
+    from negpy.desktop.view.widgets.segmented_choice import ToggleMenuButton
 
     btn = ToggleMenuButton("fa5s.magic", "Auto", "tip")
     a = btn.add_toggle("A", "a")
@@ -84,7 +84,7 @@ def test_a_release_off_the_button_disarms_the_swallow(qapp, monkeypatch):
 
 
 def _segmented(width: int = 300):
-    from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+    from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 
     seg = SegmentedChoice(_CHOICES, "tip", data=("g", "s", "h"))
     seg.resize(width, seg.height())

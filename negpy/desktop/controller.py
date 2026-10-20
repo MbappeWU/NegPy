@@ -413,9 +413,9 @@ def baseline_compare_config(config: WorkspaceConfig) -> WorkspaceConfig:
 
 # Solved knee fields under their slider names (sidebar/tone.py).
 _KNEE_LABELS = {
-    "shadow_grade": "Shadows Grade",
-    "highlight_grade": "Highlights Grade",
-    "midtone_gamma": "Snap",
+    "shadow_grade": tr("Shadows Grade"),
+    "highlight_grade": tr("Highlights Grade"),
+    "midtone_gamma": tr("Snap"),
 }
 
 # A background thumbnail refresh adds its own preview cache to the navigation and Auto-crop all
@@ -441,9 +441,12 @@ def thumbnail_refresh_progress_text(
     left = total - samples if in_flight else total - index
     if samples >= 2 and left > 0:
         seconds = (mean_decode_s + mean_render_s) * left
-        text += f" · ~{round(seconds / 60)} min left" if seconds >= 60 else f" · ~{max(1, round(seconds))} s left"
+        left_text = (
+            tr("~{value} min left", value=round(seconds / 60)) if seconds >= 60 else tr("~{value} s left", value=max(1, round(seconds)))
+        )
+        text += " · " + left_text
     if mean_decode_s > _THUMBNAIL_READ_BOUND_DECODE_S and mean_decode_s > 2 * mean_render_s:
-        text += f" · reading {mean_decode_s:.0f} s/frame"
+        text += " · " + tr("reading {value:.0f} s/frame", value=mean_decode_s)
     return text
 
 
@@ -466,7 +469,13 @@ def _first_two(names: List[str]) -> str:
     return shown if len(names) <= 2 else tr("{names} +{count}", names=shown, count=len(names) - 2)
 
 
-_NOTHING_TO_APPLY = "Nothing to apply — every card already follows the roll"
+_NOTHING_TO_APPLY = tr("Nothing to apply: every card already follows the roll")
+
+
+def _kept_own_exposure(count: int) -> str:
+    locked = count_of(count, "locked frame")
+    return tr("{value} kept its own exposure", value=locked) if count == 1 else tr("{value} kept their own exposure", value=locked)
+
 
 # Process-wide, so a cleared last_metrics never reissues a serial a canvas cache still holds.
 _RENDER_SERIALS = itertools.count(1)
@@ -2408,7 +2417,7 @@ class AppController(QObject):
         if summary["narrowband"]:
             from negpy.desktop.view.styles.templates import box_toggle
 
-            remember = box_toggle(tr("Don't Show Again"))
+            remember = box_toggle(tr("Do Not Show Again"))
             box.setCheckBox(remember)
             close_btn = box.addButton(QMessageBox.StandardButton.Ok)
             box.setDefaultButton(close_btn)
@@ -3543,12 +3552,12 @@ class AppController(QObject):
         sol = self._pin_solution
         if sol is None or not self.state.zone_pins:
             return ""
-        controls = ["Print Density"]
+        controls = [tr("Print Density")]
         if "grade" in sol.fields:
-            controls.append("ISO-R Grade")
+            controls.append(tr("ISO-R Grade"))
         if sol.knee:
             controls.append(_KNEE_LABELS[sol.knee])
-        return "Solving " + " + ".join(controls)
+        return tr("Solving {controls}", controls=" + ".join(controls))
 
     def set_zone_pin_target(self, index: int, zone: float) -> None:
         """Retarget one pin and preview the solved exposure without committing it."""
@@ -3858,7 +3867,7 @@ class AppController(QObject):
         # Record the spread this render ran at, so a render that lands after the Difference slider
         # moved can re-request at the new spread instead of showing a stale pair.
         self._pick_better_request_scale = self._pick_better_diff_scale
-        self.pick_better_param.emit(f"Round {progress.round_number} · {PICK_PARAMS[real].name}")
+        self.pick_better_param.emit(tr("Round {round} · {name}", round=progress.round_number, name=tr(PICK_PARAMS[real].name)))
         cam_xyz, camera_wb = self._effective_cam_xyz()
         self.state.pick_better_pending = True
         self.set_status(tr("Printing Pick Better…"), 2500)
@@ -4103,12 +4112,12 @@ class AppController(QObject):
         self.session.update_config(replace(config, geometry=new_geo), persist=True)
         self.rotation_guide_requested.emit()
         # The slider shows rotation clockwise-positive; the stored value is counter-clockwise.
-        parts = [f"Fine Rotation {-new_geo.fine_rotation:+.2f}°"]
+        parts = [tr("Fine Rotation {value:+.2f}°", value=-new_geo.fine_rotation)]
         if skew.converge_v is not None:
-            parts.append(f"Tilt {new_geo.converge_v:+.1f}%")
+            parts.append(tr("Tilt {value:+.1f}%", value=new_geo.converge_v))
         if skew.converge_h is not None:
-            parts.append(f"Swing {new_geo.converge_h:+.1f}%")
-        self.set_status(tr("Square to Film: ") + ", ".join(parts), 4000)
+            parts.append(tr("Swing {value:+.1f}%", value=new_geo.converge_h))
+        self.set_status(tr("Square to Film: {changes}", changes=", ".join(parts)), 4000)
         self.request_render()
 
     def handle_keystone_line_marked(self, edge: str, nx1: float, ny1: float, nx2: float, ny2: float) -> None:
@@ -4438,14 +4447,20 @@ class AppController(QObject):
 
         unresolved = max(0, self._autocrop_dispatched - len(results))
         preserved = self._autocrop_preflight_skipped + conflicted
-        failure_suffix = f", failed {failed}" if failed else ""
         self.set_status(
             tr(
-                "Auto Crop: saved {saved}, kept {preserved}, unchanged {unresolved}{failure_suffix}",
+                "Auto Crop: saved {saved}, kept {preserved}, unchanged {unresolved}, failed {failed}",
                 saved=saved,
                 preserved=preserved,
                 unresolved=unresolved,
-                failure_suffix=failure_suffix,
+                failed=failed,
+            )
+            if failed
+            else tr(
+                "Auto Crop: saved {saved}, kept {preserved}, unchanged {unresolved}",
+                saved=saved,
+                preserved=preserved,
+                unresolved=unresolved,
             ),
             5000,
         )
@@ -5254,40 +5269,36 @@ class AppController(QObject):
                 cropped += 1
 
         if cropped == 0:
-            crop_status = f"Crop status: 0 of {total} files are cropped."
-            crop_warning = (
-                "Strongly recommended: crop all images before running the analysis. "
-                "Without a crop, the Analysis Buffer's small centered "
-                "margin isn't enough to exclude sprocket holes and empty space outside "
-                "the actual frame — that unwanted region gets included in the luma and "
-                "color average, producing a less accurate result for every file."
+            crop_status = tr("Crop status: 0 of {total} files are cropped.", total=total)
+            crop_warning = tr(
+                "Strongly recommended: crop all images before you run the analysis. Without a crop, the small centered "
+                "margin of the Analysis Buffer cannot exclude the sprocket holes and the empty space outside the frame. "
+                "That region then goes into the luma and color average, and every file gets a less accurate result."
             )
         elif cropped < total:
-            crop_status = f"Crop status: {cropped} of {total} files are cropped."
-            crop_warning = (
-                f"Strongly recommended: crop the remaining {count_of(total - cropped, 'file')} "
-                "before running the analysis. Uncropped files rely on the Analysis "
-                "Buffer's small centered margin, which isn't enough to exclude sprocket "
-                "holes and empty space outside the actual frame — that unwanted region "
-                "gets included in the luma and color average, producing a less accurate "
-                "result for every file."
+            crop_status = tr("Crop status: {cropped} of {total} files are cropped.", cropped=cropped, total=total)
+            crop_warning = tr(
+                "Strongly recommended: crop the remaining {value} before you run the analysis. Uncropped files use the "
+                "small centered margin of the Analysis Buffer, which cannot exclude the sprocket holes and the empty space "
+                "outside the frame. That region then goes into the luma and color average, and every file gets a less "
+                "accurate result.",
+                value=count_of(total - cropped, "file"),
             )
         else:
-            crop_status = f"Crop status: all {total} files are cropped."
-            crop_warning = "Analysis will run on each file's cropped negative area."
+            crop_status = tr("Crop status: all {total} files are cropped.", total=total)
+            crop_warning = tr("The analysis reads the cropped negative area of each file.")
 
         sheet_note = ""
         if filtered and self.session.asset_model.sheet_filter != "all":
-            sheet_note = (
-                f"Note: the Sheet filter is on — only the {count_of(total, 'visible frame')} {plural(total, 'is', 'are')} analyzed.\n\n"
-            )
+            sheet_note = tr("Note: the Sheet filter is on, so the analysis reads only the {value}.", value=count_of(total, "visible frame"))
+            sheet_note += "\n\n"
         if title == tr("Roll Analysis"):
-            summary = (
+            summary = tr(
                 "Roll Analysis measures the exposure bounds of every file outside a scene and "
                 "applies their average to those files, so they share a consistent baseline."
             )
         else:
-            summary = "Scene Analysis measures the exposure bounds of each scene's files and applies their average to that scene alone."
+            summary = tr("Scene Analysis measures the exposure bounds of each scene's files and applies their average to that scene alone.")
 
         reply = QMessageBox.question(
             None,
@@ -5347,7 +5358,7 @@ class AppController(QObject):
         if waiting and self.request_batch_auto_crop(assets=waiting):
             self._analysis_after_crop = (scene_id,)
             return
-        batch_title = "Analyzing roll" if scene_id is None else f"Analyzing scene “{self._scene_name(scene_id)}”"
+        batch_title = tr("Analyzing roll") if scene_id is None else tr("Analyzing scene “{name}”", name=self._scene_name(scene_id))
         if self._begin_batch("normalization", batch_title, abortable=True) is None:
             return
         self._scene_queue = []
@@ -5377,7 +5388,7 @@ class AppController(QObject):
         """
         Updates UI status during Roll or Scene Analysis.
         """
-        marker = "cropped" if has_crop else "full frame"
+        marker = tr("cropped") if has_crop else tr("full frame")
         self.set_status(tr("Analyzing {current}/{total}: {name} [{marker}]…", current=current, total=total, name=name, marker=marker))
         self.status_progress_requested.emit(current, total)
         self.batch_progress.emit(current, total, f"{name} [{marker}]")
@@ -5461,25 +5472,33 @@ class AppController(QObject):
             if roll_id is not None:
                 rolls.set_roll_normalization(self.session.repo, roll_id, locked_floors, locked_ceils, outliers=outliers, axis=axis)
             message = tr("Roll analysis complete")
-            scope_word = "roll"
         else:
             rolls.set_scene_normalization(self.session.repo, roll_id, scene_id, locked_floors, locked_ceils, outliers=outliers, axis=axis)
             self.session.refresh_scene_marks()
             message = tr("Scene “{value}” analyzed", value=self._scene_name(scene_id))
-            scope_word = "scene"
 
         names_by_hash = {f["hash"]: f["name"] for f in self.state.uploaded_files}
         outlier_names = [names_by_hash.get(h, h) for h in outliers]
         timeout = 3000
+        sentences = [message]
         if locked_skipped:
-            message += f" — {count_of(locked_skipped, 'locked frame')} kept its own exposure"
+            sentences.append(_kept_own_exposure(locked_skipped))
         if outlier_names:
+            n = len(outlier_names)
             shown = ", ".join(outlier_names[:3])
-            if len(outlier_names) > 3:
-                shown += f" +{len(outlier_names) - 3} more"
-            message += f". {count_of(len(outlier_names), 'frame')} far from the {scope_word} color {plural(len(outlier_names), 'keeps its', 'keep their')} own exposure and color: {shown}"
+            if n > 3:
+                shown += " " + tr("+{value} more", value=n - 3)
+            values = {"value": count_of(n, "frame"), "names": shown}
+            if scene_id is None and n == 1:
+                sentences.append(tr("{value} far from the roll color keeps its own exposure and color: {names}", **values))
+            elif scene_id is None:
+                sentences.append(tr("{value} far from the roll color keep their own exposure and color: {names}", **values))
+            elif n == 1:
+                sentences.append(tr("{value} far from the scene color keeps its own exposure and color: {names}", **values))
+            else:
+                sentences.append(tr("{value} far from the scene color keep their own exposure and color: {names}", **values))
             timeout = 8000
-        self.set_status(message, timeout=timeout)
+        self.set_status(". ".join(sentences), timeout=timeout)
 
         while self._scene_queue:
             next_id = self._scene_queue.pop(0)
@@ -5538,7 +5557,7 @@ class AppController(QObject):
 
         message = tr('Applied "{name}"\'s baseline', name=name)
         if locked_skipped:
-            message += f" — {count_of(locked_skipped, 'locked frame')} kept its own exposure"
+            message = ". ".join((message, _kept_own_exposure(locked_skipped)))
         self.set_status(message, 2000)
         self.request_render()
 
@@ -5606,31 +5625,31 @@ class AppController(QObject):
         "metadata_exposure",
     )
     _ROLL_CARD_LABELS = {
-        "film": "Film Mode",
-        "sensor": "Calibration",
-        "demosaic": "Raw Decode",
+        "film": tr("Film Mode"),
+        "sensor": tr("Calibration"),
+        "demosaic": tr("Raw Decode"),
         "baseline": tr("Roll Analysis"),
-        "process": "Metering",
-        "lens": "Optics",
-        "flatfield": "Optics",
-        "metadata_gear": "Analog Gear",
-        "metadata_capture": "Capture",
-        "metadata_process": "Process",
+        "process": tr("Metering"),
+        "lens": tr("Optics"),
+        "flatfield": tr("Optics"),
+        "metadata_gear": tr("Analog Gear"),
+        "metadata_capture": tr("Capture"),
+        "metadata_process": tr("Process"),
         "metadata_scanning": tr("Scanning"),
-        "metadata_exposure": "Exposure",
+        "metadata_exposure": tr("Exposure"),
     }
     METADATA_CARDS = ("metadata_gear", "metadata_capture", "metadata_process", "metadata_scanning", "metadata_exposure")
     _FRAME_CARD_LABELS = {
-        "autocrop": "Crop",
-        "geometry": "Straighten",
-        "color": "Filtration",
-        "tone": "Tone",
-        "paper": "Paper Response",
-        "lab": "Lab",
-        "altproc": "Alternative Processes",
-        "toning": "Toning",
-        "retouch": "Retouch",
-        "finish": "Finishing",
+        "autocrop": tr("Crop"),
+        "geometry": tr("Straighten"),
+        "color": tr("Filtration"),
+        "tone": tr("Tone"),
+        "paper": tr("Paper Response"),
+        "lab": tr("Lab"),
+        "altproc": tr("Alternative Processes"),
+        "toning": tr("Toning"),
+        "retouch": tr("Retouch"),
+        "finish": tr("Finishing"),
     }
 
     @staticmethod
@@ -5921,8 +5940,13 @@ class AppController(QObject):
             self.apply_config(config, persist=True)
         self.config_updated.emit()
         labels = {**self._ROLL_CARD_LABELS, **self._FRAME_CARD_LABELS}
-        held = "; Crop waits for Auto Crop" if crop_held else ""
-        self.set_status(tr("Reset to the roll: {value}{held}", value=", ".join(dict.fromkeys(labels[k] for k in cards)), held=held), 3000)
+        names = ", ".join(dict.fromkeys(labels[k] for k in cards))
+        self.set_status(
+            tr("Reset to the roll: {value}; Crop waits for Auto Crop", value=names)
+            if crop_held
+            else tr("Reset to the roll: {value}", value=names),
+            3000,
+        )
         return len(cards)
 
     def can_revert_frame_to_roll(self) -> bool:
@@ -6238,17 +6262,17 @@ class AppController(QObject):
                 continue
             # Before the kind test: a triplet half reads as "rgb", and two halves share one path.
             if f.get("half"):
-                skipped.append(f"{f['name']}: a half-frame scan cannot merge")
+                skipped.append(tr("{name}: a half-frame scan cannot merge", name=f["name"]))
             elif kind == "hdr":
-                skipped.append(f"{f['name']}: a bracket would lose its shadow detail in a TIFF")
+                skipped.append(tr("{name}: a bracket would lose its shadow detail in a TIFF", name=f["name"]))
             elif kind not in MERGEABLE_KINDS:
-                skipped.append(f"{f['name']}: a {kind} cannot merge")
+                skipped.append(tr("{name}: a diptych cannot merge", name=f["name"]))
             elif not can_merge(f, kind):
-                skipped.append(f"{f['name']}: a source file is missing or not a camera RAW")
+                skipped.append(tr("{name}: a source file is missing or not a camera RAW", name=f["name"]))
             elif needs_camera_matrix(self._batch_params_for(f)):
-                skipped.append(f"{f['name']}: a TIFF cannot carry a slide's camera color matrix")
+                skipped.append(tr("{name}: a TIFF cannot carry a slide's camera color matrix", name=f["name"]))
             elif not describes_a_merge(f["path"], self._batch_params_for(f)):
-                skipped.append(f"{f['name']}: this source format cannot merge")
+                skipped.append(tr("{name}: this source format cannot merge", name=f["name"]))
             else:
                 mergeable.append(i)
         return mergeable, skipped
@@ -6391,16 +6415,16 @@ class AppController(QObject):
         self.generate_missing_thumbnails()
 
         merged = len(results) - failed - len(already)
-        parts_msg = [f"Merged {count_of(merged, 'frame')} to TIFF negatives"]
+        parts_msg = [tr("Merged {value} to TIFF negatives", value=count_of(merged, "frame"))]
         if aborted:
-            parts_msg.append("aborted")
+            parts_msg.append(tr("aborted"))
         if already:
             one = already[0] if len(already) == 1 else ""
-            parts_msg.append(f"{one or count_of(len(already), 'frame')} already merged — delete the negative to merge again")
+            parts_msg.append(tr("{value} already merged: delete the negative to merge again", value=one or count_of(len(already), "frame")))
         if failed:
-            parts_msg.append(f"{failed} failed")
+            parts_msg.append(tr("{value} failed", value=failed))
         if kept:
-            parts_msg.append(f"{count_of(kept, 'file')} could not go to the Trash")
+            parts_msg.append(tr("{value} could not go to the Trash", value=count_of(kept, "file")))
         self.set_status(", ".join(parts_msg), 8000, kind="warning" if failed or kept or already else "info")
 
     def _drop_dissolved_composite(self, idx: int) -> None:
@@ -7592,15 +7616,17 @@ class AppController(QObject):
         if stored.reference is not None:
             view, measured = evenness_view(self_corrected(stored.reference, stored.gain))
             check = stored.check or measured
-            clipped = ", reference clipped" if check.clipped else ""
-            message = tr(
-                "Check Flat Field '{name}': {low:+.1%} to {high:+.1%}, color ±{color:.1%}{clipped}. Gray is even; full white or black is {EVENNESS_RANGE:.0%} off",
-                name=name,
-                low=check.low,
-                high=check.high,
-                color=check.color,
-                clipped=clipped,
-                EVENNESS_RANGE=EVENNESS_RANGE,
+            values = {"name": name, "low": check.low, "high": check.high, "color": check.color, "EVENNESS_RANGE": EVENNESS_RANGE}
+            message = (
+                tr(
+                    "Check Flat Field '{name}': {low:+.1%} to {high:+.1%}, color ±{color:.1%}, reference clipped. Gray is even; full white or black is {EVENNESS_RANGE:.0%} off",
+                    **values,
+                )
+                if check.clipped
+                else tr(
+                    "Check Flat Field '{name}': {low:+.1%} to {high:+.1%}, color ±{color:.1%}. Gray is even; full white or black is {EVENNESS_RANGE:.0%} off",
+                    **values,
+                )
             )
         else:
             view, _ = evenness_view(1.0 / stored.gain, span=GAIN_VIEW_RANGE)
@@ -8373,7 +8399,7 @@ class AppController(QObject):
     def _contact_sheet_lane_message(self) -> str:
         if self._active_batch is None:
             return ""
-        return f"{self._active_batch_title} is running; export once it finishes."
+        return tr("{title} is running; export once it finishes.", title=self._active_batch_title)
 
     def _contact_sheet_roll_name(self, frames: list) -> str:
         roll_id = self.state.active_roll_id
@@ -8419,8 +8445,12 @@ class AppController(QObject):
         if not visible_files:
             return
         written, failed, skipped = self._write_edit_sidecars(visible_files)
-        suffix = (f" — {failed} failed" if failed else "") + (f", {skipped} composite or forked skipped" if skipped else "")
-        self.set_status(tr("Wrote {value}{suffix}", value=count_of(written, "edit sidecar"), suffix=suffix), 6000 if failed else 4000)
+        parts = [tr("Wrote {value}", value=count_of(written, "edit sidecar"))]
+        if failed:
+            parts.append(tr("{value} failed", value=failed))
+        if skipped:
+            parts.append(tr("{value} composite or forked skipped", value=skipped))
+        self.set_status(", ".join(parts), 6000 if failed else 4000)
 
     def _baked_exposure_config(self, params: WorkspaceConfig, meters: Dict[str, Any]) -> Optional[WorkspaceConfig]:
         """Freeze Auto Density / Auto Grade to this frame's metered values, or None when there is
@@ -8521,10 +8551,12 @@ class AppController(QObject):
             except Exception as exc:
                 failed += 1
                 logger.warning("Bake auto density/grade failed for %s: %s", f.get("path"), exc)
-        suffix = (tr(" — {count} failed", count=failed) if failed else "") + (tr(", {count} skipped", count=skipped) if skipped else "")
-        self.set_status(
-            tr("Froze Auto Density/Grade for {value}{value1}", value=count_of(baked, "frame"), value1=suffix), 6000 if failed else 4000
-        )
+        parts = [tr("Froze Auto Density/Grade for {value}", value=count_of(baked, "frame"))]
+        if failed:
+            parts.append(tr("{value} failed", value=failed))
+        if skipped:
+            parts.append(tr("{count} skipped", count=skipped))
+        self.set_status(", ".join(parts), 6000 if failed else 4000)
 
     def _bake_auto_density_grade_for_export(self, files: list[dict]) -> None:
         """Freeze Auto Density / Auto Grade for each exported file into the DB before the export
@@ -8548,7 +8580,7 @@ class AppController(QObject):
                 None,
                 tr("Export"),
                 tr(
-                    "JPEG XL can't tag the selected color space ({names}).\nChoose sRGB, P3 D65, Rec 2020 or Grayscale, or a different format.",
+                    "JPEG XL cannot tag the selected color space ({names}).\nChoose sRGB, P3 D65, Rec 2020 or Grayscale, or a different format.",
                     names=names,
                 ),
             )
@@ -8597,7 +8629,7 @@ class AppController(QObject):
 
     def _set_overwrite_preference(self, value: bool) -> None:
         """Persist the global 'Overwrite existing files' preference (syncs the Export tab
-        checkbox and the sticky default) without touching edit history or re-rendering."""
+        toggle and the sticky default) without touching edit history or re-rendering."""
         cfg = self.state.config
         if bool(cfg.export.overwrite) == value:
             return
@@ -8612,7 +8644,7 @@ class AppController(QObject):
         n = len(conflicts)
         names = "\n".join("  • " + os.path.basename(p) for p in conflicts[:8])
         if n > 8:
-            names += f"\n  … and {n - 8} more"
+            names += "\n  " + tr("…and {value} more", value=n - 8)
 
         box = QMessageBox()
         box.setIcon(QMessageBox.Icon.Warning)
@@ -8634,8 +8666,8 @@ class AppController(QObject):
         )
         box.setCheckBox(remember_check)
 
-        overwrite_label = "Overwrite" if n == 1 else "Overwrite All"
-        rename_label = "Rename" if n == 1 else "Rename All"
+        overwrite_label = tr("Overwrite") if n == 1 else tr("Overwrite All")
+        rename_label = tr("Rename") if n == 1 else tr("Rename All")
         overwrite_btn = box.addButton(overwrite_label, QMessageBox.ButtonRole.DestructiveRole)
         rename_btn = box.addButton(rename_label, QMessageBox.ButtonRole.AcceptRole)
         cancel_btn = box.addButton(QMessageBox.StandardButton.Cancel)
@@ -8986,15 +9018,13 @@ class AppController(QObject):
         self._end_batch(owner)
         self.export_finished.emit(elapsed, list(self._export_errors))
         if owner == "contact_sheet" and self._contact_sheet_folder:
-            failed = f" — {count_of(len(self._export_errors), 'frame')} failed" if self._export_errors else ""
+            folder, errors = self._contact_sheet_folder, len(self._export_errors)
             self.set_status(
-                tr(
-                    "Contact sheet saved to {_contact_sheet_folder}{failed}",
-                    _contact_sheet_folder=self._contact_sheet_folder,
-                    failed=failed,
-                ),
+                tr("Contact sheet saved to {folder}, {failed} failed", folder=folder, failed=count_of(errors, "frame"))
+                if errors
+                else tr("Contact sheet saved to {folder}", folder=folder),
                 6000,
-                kind="warning" if failed else "info",
+                kind="warning" if errors else "info",
             )
             self._contact_sheet_folder = ""
         self._update_thumbnail_from_state()

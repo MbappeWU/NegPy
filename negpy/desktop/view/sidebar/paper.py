@@ -36,7 +36,7 @@ class PaperSidebar(BaseSidebar):
         conf = self.state.config.exposure
 
         self.ch_btn = channel_selector(
-            tr("Global changes all colors. R, G or B changes one color, for a cast that differs in shadows and highlights.")
+            tr("Global changes all colors, and R, G or B changes one color, for a cast that differs in shadows and highlights.")
         )
         self._channel_fields = tuple(
             (
@@ -73,7 +73,7 @@ class PaperSidebar(BaseSidebar):
         self.layout.addLayout(ch_row)
 
         self.paper_combo = StepCombo()
-        self.paper_combo.setToolTip(tr("The paper the picture prints on. It sets the contrast curve and, on color paper, the colors."))
+        self.paper_combo.setToolTip(tr("The paper the picture prints on, which sets the contrast curve and, on color paper, the colors."))
         self._populate_paper_combo(self.state.config.process.process_mode)
         idx = self.paper_combo.findData(conf.paper_profile)
         if idx >= 0:

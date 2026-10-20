@@ -13,7 +13,6 @@ from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QProgressBar,
     QPushButton,
@@ -22,7 +21,7 @@ from PyQt6.QtWidgets import (
 
 from negpy.desktop.view.sidebar.live_view_window import SettingStepper
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
-from negpy.desktop.view.styles.templates import hint_label, labeled_action, labeled_toggle
+from negpy.desktop.view.styles.templates import field_row, hint_label, labeled_action, labeled_toggle, pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
@@ -31,7 +30,7 @@ from negpy.desktop.view.widgets.floating_panel import float_over_app
 # The index is the preset's `single_capture` flag.
 CAPTURE_MODES = (tr("Triplet"), tr("Single Capture"))
 CAPTURE_MODE_TOOLTIP = tr(
-    "Triplet takes one exposure per LED and merges them. Single Capture takes one exposure with red, green and blue lit together."
+    "Triplet merges one exposure per LED, and Single Capture takes one exposure with red, green and blue lit together."
 )
 
 
@@ -42,7 +41,7 @@ _GUIDE = tr(
 )
 _SENSOR_PROFILE_OFF_TOOLTIP = tr("Single Capture only: a triplet reads each LED alone and has no sensor mixing to unmix.")
 
-SENSOR_PROFILE_TOOLTIP = tr("Also save a sensor profile for this preset, from the same exposures. Single Capture only.")
+SENSOR_PROFILE_TOOLTIP = tr("Single Capture only: also save a sensor profile for this preset, from the same exposures.")
 
 
 def _reserve_checked_width(btn: QPushButton) -> None:
@@ -69,23 +68,22 @@ class CalibrationWindow(QDialog):
         self.resize(820, 680)
         layout = QVBoxLayout(self)
 
-        name_row = QHBoxLayout()
-        name_row.addWidget(QLabel(tr("Film stock")))
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText(tr("e.g. Portra 400"))
-        name_row.addWidget(self.name_edit, 1)
+        self.name_edit.setToolTip(tr("The name of the film stock, which is also the name of the new preset."))
+        name_row = field_row(tr("Film stock"), self.name_edit)
         self._running = False
         self.capture_btn = StepCombo.of(CAPTURE_MODES, CAPTURE_MODE_TOOLTIP)
         name_row.addWidget(self.capture_btn)
         self._sensor_profile_wanted = True  # the operator's pick, kept while Triplet shows the toggle off
-        self.sensor_profile_btn = labeled_toggle("fa5s.vials", tr(" Create Sensor Profile"), True, SENSOR_PROFILE_TOOLTIP)
+        self.sensor_profile_btn = labeled_toggle("fa5s.vials", tr("Create Sensor Profile"), True, SENSOR_PROFILE_TOOLTIP)
         _reserve_checked_width(self.sensor_profile_btn)
         self.sensor_profile_btn.clicked.connect(self._on_sensor_profile_clicked)
         self.capture_btn.currentIndexChanged.connect(lambda _i: self._sync_sensor_profile())
         name_row.addWidget(self.sensor_profile_btn)
         self._sync_sensor_profile()
         self.calibrate_btn = labeled_action(
-            "fa5s.crosshairs", tr(" Calibrate && Save"), tr("Meter the clicked film base and save the result as this preset")
+            "fa5s.crosshairs", tr("Calibrate && Save"), tr("Meter the clicked film base and save the result as this preset"), primary=True
         )
         name_row.addWidget(self.calibrate_btn)
         layout.addLayout(name_row)
@@ -108,14 +106,14 @@ class CalibrationWindow(QDialog):
             tag.setAlignment(Qt.AlignmentFlag.AlignHCenter)
             stepper.setToolTip(tip)
             col = QVBoxLayout()
-            col.setSpacing(2)
+            col.setSpacing(THEME.space_xs)
             col.addWidget(tag)
             col.addWidget(stepper)
             settings_row.addLayout(col, 1)
         layout.addLayout(settings_row)
 
         self.consistency_hint = hint_label(
-            tr("Set the ISO and aperture you'll scan with. Changing either afterwards throws off every scan made with this preset."),
+            tr("Set the ISO and aperture that you scan with. A later change to either one makes every scan from this preset wrong."),
             "warning",
         )
         layout.addWidget(self.consistency_hint)
@@ -130,6 +128,7 @@ class CalibrationWindow(QDialog):
 
         self._running = False
         self.calibrate_btn.clicked.connect(self._emit_calibrate)
+        pin_dialog_default(self.calibrate_btn, scope=self)
         remember_dialog_geometry(self, repo, "scanlight_calibration")
 
     def _emit_calibrate(self) -> None:

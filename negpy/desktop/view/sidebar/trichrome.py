@@ -18,7 +18,7 @@ class TrichromeSidebar(BaseSidebar):
             "mdi.google-circles-communities",
             tr("Trichrome Mode"),
             self.controller.rgb_scan_mode_for_roll(self.state.active_roll_id),
-            wrap_tooltip(tr("Make each frame from three exposures: red, green and blue. Each roll keeps its own setting.")),
+            wrap_tooltip(tr("Make each frame from three exposures (red, green and blue), a setting that each roll keeps.")),
             align_left=True,
         )
         self.edit_btn = self._icon_action("fa5s.pen", tr("Edit Triplet…: pick this frame's three exposures by hand."))

@@ -5,7 +5,7 @@ from negpy.desktop.session import ToolMode
 from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, RING_AROUND_SWEEP, gradient_icon, wrap_tooltip
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.desktop.view.widgets.sliders import CompactSlider, KelvinSlider
 from negpy.features.exposure.logic import kelvin_to_wb, wb_to_kelvin
 
@@ -112,7 +112,7 @@ class ColorSidebar(BaseSidebar):
         if printing:
             return tr("Printing the color ring-around…")
         return tooltip_with_shortcut(
-            tr("Ring-around: show the picture as a grid of color variations. Click the one that looks right."),
+            tr("Ring-around: show the picture as a grid of color variations, then click the one that looks right."),
             "toggle_ring_around",
         )
 

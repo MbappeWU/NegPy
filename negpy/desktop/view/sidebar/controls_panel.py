@@ -241,7 +241,7 @@ class ControlsPanel(QWidget):
         baseline_body = QWidget()
         baseline_layout = QVBoxLayout(baseline_body)
         baseline_layout.setContentsMargins(0, 0, 0, 0)
-        baseline_layout.setSpacing(4)
+        baseline_layout.setSpacing(THEME.space_sm)
         baseline_layout.addWidget(self.roll_sidebar)
         baseline_layout.addWidget(self.process_sidebar.baseline_bar)
         self.baseline_section = self._make_section(
@@ -256,7 +256,7 @@ class ControlsPanel(QWidget):
         metering_body = QWidget()
         metering_layout = QVBoxLayout(metering_body)
         metering_layout.setContentsMargins(0, 0, 0, 0)
-        metering_layout.setSpacing(4)
+        metering_layout.setSpacing(THEME.space_sm)
         metering_layout.addWidget(self.process_sidebar)
         metering_layout.addWidget(self.process_sidebar.analysis_bar)
         self.metering_histogram = MiniHistogramWidget(clip_strips=False)  # the Clipping line below is the card's one clip readout
@@ -413,7 +413,7 @@ class ControlsPanel(QWidget):
             page = QWidget()
             page_layout = QVBoxLayout(page)
             page_layout.setContentsMargins(0, 0, 0, 0)
-            page_layout.setSpacing(8)
+            page_layout.setSpacing(THEME.space_lg)
             # A one-card tab has no header: that card's own is already the whole tab's.
             header = (
                 self._make_tab_header(title, sections, [a.removesuffix("_section") for a in section_attrs]) if len(sections) > 1 else None
@@ -456,9 +456,9 @@ class ControlsPanel(QWidget):
     @staticmethod
     def _pick_better_tooltip(printing: bool = False) -> str:
         if printing:
-            return "Printing Pick Better…"
+            return tr("Printing Pick Better…")
         return tooltip_with_shortcut(
-            tr("Pick Better: shows two versions beside your edit. Click the better one; each round tunes one control."),
+            tr("Pick Better: shows two versions beside your edit, and each click on the better one tunes one control."),
             "toggle_pick_better",
         )
 
@@ -635,19 +635,19 @@ class ControlsPanel(QWidget):
         )
         exp.density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How light or dark the print is. Lower is lighter."),
+                tr("How light or dark the print is, where lower is lighter."),
                 ["density_up", "density_down"],
             )
         )
         exp.grade_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Contrast. A lower number gives more contrast; about 110 is a normal print."),
+                tr("Contrast: a lower number gives more contrast, and about 110 is a normal print."),
                 ["grade_up", "grade_down"],
             )
         )
         paper.toe_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Shapes the shadows. Positive lifts them; negative makes them deeper."),
+                tr("Shapes the shadows: positive lifts them, and negative makes them deeper."),
                 ["toe_inc", "toe_dec"],
             )
         )
@@ -659,7 +659,7 @@ class ControlsPanel(QWidget):
         )
         paper.sh_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Shapes the highlights. Positive softens them; negative brightens them and can lose detail."),
+                tr("Shapes the highlights: positive softens them, and negative brightens them and can lose detail."),
                 ["shoulder_inc", "shoulder_dec"],
             )
         )
@@ -671,19 +671,19 @@ class ControlsPanel(QWidget):
         )
         paper.midtone_gamma_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Midtone contrast. The deepest black and the paper white do not change."),
+                tr("Midtone contrast, with no change to the deepest black and the paper white."),
                 ["snap_inc", "snap_dec"],
             )
         )
         exp.shadow_density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Darkens (positive) or lightens (negative) only the shadows. Auto Grade can set it too."),
+                tr("Darkens (positive) or lightens (negative) only the shadows, and Auto Grade can set it too."),
                 ["shadow_density_inc", "shadow_density_dec"],
             )
         )
         exp.highlight_density_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Darkens (positive) or lightens (negative) only the highlights. Auto Grade can set it too."),
+                tr("Darkens (positive) or lightens (negative) only the highlights, and Auto Grade can set it too."),
                 ["highlight_density_inc", "highlight_density_dec"],
             )
         )
@@ -739,7 +739,7 @@ class ControlsPanel(QWidget):
         )
         geo.fine_rot_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Turns the picture by small amounts. Positive turns it clockwise."),
+                tr("Turns the picture by small amounts, clockwise for a positive value."),
                 ["fine_rot_inc", "fine_rot_dec"],
             )
         )
@@ -752,7 +752,7 @@ class ControlsPanel(QWidget):
         )
         proc.use_cast_avg_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Use the roll's gray balance for Cast Removal, so frames under one light match. Color negatives only."),
+                tr("Color negatives only: use the roll's gray balance for Cast Removal, so frames under one light match."),
                 "cast_average_toggle",
             )
         )
@@ -764,38 +764,40 @@ class ControlsPanel(QWidget):
         )
         proc.luma_range_clip_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How tightly black and white are set. Positive gives more contrast; negative keeps more shadow and highlight detail."),
+                tr(
+                    "How tightly black and white are set: positive gives more contrast, and negative keeps more shadow and highlight detail."
+                ),
                 ["luma_range_clip_inc", "luma_range_clip_dec"],
             )
         )
         proc.color_range_clip_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How tightly the color balance is set. Positive balances more strongly; negative is gentler."),
+                tr("How tightly the color balance is set: positive balances more strongly, and negative is gentler."),
                 ["color_range_clip_inc", "color_range_clip_dec"],
             )
         )
         proc.white_point_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Moves the white point. Positive brightens the print; negative brings back highlights."),
+                tr("Moves the white point: positive brightens the print, and negative brings back highlights."),
                 ["white_point_inc", "white_point_dec"],
             )
         )
         proc.black_point_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Moves the black point. Positive lifts the blacks; negative makes them deeper."),
+                tr("Moves the black point: positive lifts the blacks, and negative makes them deeper."),
                 ["black_point_inc", "black_point_dec"],
             )
         )
 
         sen.crosstalk_strength_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How much crosstalk correction to apply. Run Roll Analysis again after a change."),
+                tr("How much crosstalk correction to apply; run Roll Analysis again after a change."),
                 ["separation_inc", "separation_dec"],
             )
         )
         lab.chroma_denoise_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Removes colored speckles. Film grain stays."),
+                tr("Removes colored speckles and keeps the film grain."),
                 ["chroma_denoise_inc", "chroma_denoise_dec"],
             )
         )
@@ -820,13 +822,13 @@ class ControlsPanel(QWidget):
         )
         exp.preflash_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Preflash: brings back detail in the brightest areas. It also lowers contrast a little."),
+                tr("Preflash: brings back detail in the brightest areas, and also lowers contrast a little."),
                 ["preflash_inc", "preflash_dec"],
             )
         )
         lab.clahe_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Adds local contrast to bring out detail. Strong values can look unnatural."),
+                tr("Adds local contrast to bring out detail, but strong values can look unnatural."),
                 ["clahe_inc", "clahe_dec"],
             )
         )
@@ -837,9 +839,9 @@ class ControlsPanel(QWidget):
             )
         )
         lab.sharpen_method_combo.setToolTip(
-            tr("Unsharp Mask makes edges crisper. Deconvolution undoes the scanner's blur; set Radius to the blur size.")
+            tr("Unsharp Mask makes edges crisper, and Deconvolution undoes the scanner's blur when Radius is the blur size.")
         )
-        lab.sharpen_radius_slider.setToolTip(tr("Size of the detail to sharpen, in pixels. Small for fine grain, larger for soft scans."))
+        lab.sharpen_radius_slider.setToolTip(tr("Size of the detail to sharpen, in pixels: small for fine grain, larger for soft scans."))
         lab.sharpen_masking_slider.setToolTip(tr("Sharpens only edges, so sky, skin and grain stay smooth."))
         lab.glow_slider.setToolTip(
             tooltip_with_shortcut(
@@ -856,31 +858,31 @@ class ControlsPanel(QWidget):
 
         ret.pick_dust_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Heal: click or paint over dust to remove it. Clean film under the brush stays as it is."),
+                tr("Heal: click or paint over dust to remove it, and clean film under the brush stays as it is."),
                 "pick_dust",
             )
         )
         ret.clone_btn.setToolTip(
             tooltip_with_shortcut(
-                tr("Clone: copy film from another area over a defect. Alt-click to pick the area to copy from."),
+                tr("Clone: Alt-click to pick an area, then copy its film over a defect."),
                 "clone_tool",
             )
         )
         ret.threshold_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How easily dust specks are found. Lower finds more but can remove real detail. 1 is off."),
+                tr("How easily dust specks are found: lower finds more but can remove real detail, and 1 is off."),
                 ["threshold_inc", "threshold_dec"],
             )
         )
         ret.hair_threshold_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("How easily hairs are found. Lower finds more. 1 is off."),
+                tr("How easily hairs are found: lower finds more, and 1 is off."),
                 ["hair_threshold_inc", "hair_threshold_dec"],
             )
         )
         ret.auto_size_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Largest dust size to remove. Larger values can remove real detail."),
+                tr("Largest dust size to remove, where larger values can remove real detail."),
                 ["auto_size_inc", "auto_size_dec"],
             )
         )
@@ -893,13 +895,13 @@ class ControlsPanel(QWidget):
 
         ton.selenium_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Selenium toner: deeper, cooler blacks. B&W negatives only."),
+                tr("Selenium toner, B&W negatives only: deeper, cooler blacks."),
                 ["selenium_inc", "selenium_dec"],
             )
         )
         ton.sepia_slider.setToolTip(
             tooltip_with_shortcut(
-                tr("Sepia toner: warm brown tones, from the highlights down. B&W negatives only."),
+                tr("Sepia toner, B&W negatives only: warm brown tones, from the highlights down."),
                 ["sepia_inc", "sepia_dec"],
             )
         )
@@ -1047,8 +1049,14 @@ class ControlsPanel(QWidget):
             section.set_scope_buttons(
                 True,
                 "frame" if locked or not has_roll else "roll",
-                roll_tooltip=(f"{label} follows the roll — click to give the roll this frame's value" if has_roll else NO_ROLL_SCOPE_HINT),
-                frame_tooltip=f"{label} follows this frame alone" if has_roll else f"{label} is this frame's own",
+                roll_tooltip=(
+                    tr("{value} follows the roll: click to give the roll this frame's value", value=label)
+                    if has_roll
+                    else NO_ROLL_SCOPE_HINT
+                ),
+                frame_tooltip=tr("{value} follows this frame alone", value=label)
+                if has_roll
+                else tr("{value} is this frame's own", value=label),
                 roll_enabled=has_roll,
             )
             section.set_roll_revert(any(card in revertible for card in cards))
@@ -1313,8 +1321,6 @@ class ControlsPanel(QWidget):
         self.geometry_sidebar.sync_ui()
         self.local_sidebar.sync_ui()
         self.process_sidebar.sync_ui()
-        # Retouch hosts two tool toggles, heal and scratch. Without this sync, activating one
-        # left the other highlighted as if both were live. The color sidebar's WB picker had the
-        # same latent stale-check bug.
+        # Retouch's heal and scratch toggles and the color sidebar's WB picker follow active_tool too.
         self.retouch_sidebar.sync_ui()
         self.color_sidebar.sync_ui()

@@ -9,19 +9,15 @@ from negpy.desktop.view.styles.templates import header_button, labeled_action
 from negpy.desktop.view.styles.theme import THEME
 from negpy.features.exposure.stats import StatRow
 
-CLIPPING_TOOLTIP = tr("Share of the picture that prints pure black (shadows) or pure white (highlights). Amber above 1%.")
+CLIPPING_TOOLTIP = tr("Share of the picture that prints pure black in the shadows or pure white in the highlights.")
 
 _TOOLTIPS = {
-    "Negative": (tr("How contrasty the negative is: its density range (Δ), read as flat, normal or contrasty. An estimate.")),
-    "Exposure": (tr("Where the midtones sit, in stops: positive is bright (high-key), negative is dark (low-key).")),
+    mark("Negative"): (tr("How contrasty the negative is: its estimated density range (Δ), read as flat, normal or contrasty.")),
+    mark("Exposure"): (tr("Where the midtones sit, in stops: positive is bright (high-key), negative is dark (low-key).")),
     mark("Clipping"): CLIPPING_TOOLTIP,
-    mark("Scan clip"): (
-        tr(
-            "Share of each channel (red, green, blue) at the scanner's maximum. Expose the scan lower; no edit brings it back. Amber above 1%."
-        )
-    ),
-    mark("Gamut"): (tr("Share of the picture the proof printer or paper cannot print. Shown only while soft proofing. Amber above 2%.")),
-    mark("Repair"): (tr("Share of the scan that dust removal rewrote. Above 5% it may be changing the picture itself.")),
+    mark("Scan clip"): (tr("Share of each channel at the scanner's maximum, which no edit can bring back.")),
+    mark("Gamut"): (tr("Share of the picture that the proof printer or paper cannot print, shown while soft proofing.")),
+    mark("Repair"): (tr("Share of the scan that dust removal rewrote, which can change the picture itself above 5%.")),
 }
 
 
@@ -151,14 +147,14 @@ class ZonePlacementRows(QWidget):
             self._target_labels[index].setText(zone_roman(target))
             if achieved is not None:
                 self._lands[index].setText(tr("→ lands {achieved}", achieved=achieved))
-                self._lands[index].setToolTip(tr("Outside the paper's range at this grade and exposure. The closest print is shown."))
+                self._lands[index].setToolTip(tr("Outside the paper's range at this grade and exposure, so the closest print is shown."))
             else:
                 self._lands[index].setText("")
                 self._lands[index].setToolTip("")
             self._lands[index].setVisible(achieved is not None)
             solvable = row_solvable
         self.apply_btn.setEnabled(solvable)
-        self.apply_btn.setToolTip(tr("The outer pins read the same tone. Grade needs two different tones.") if not solvable else "")
+        self.apply_btn.setToolTip(tr("Grade needs two different tones, but the outer pins read the same tone.") if not solvable else "")
         self.solving.setText(solving)
         self.solving.setVisible(bool(solving))
 

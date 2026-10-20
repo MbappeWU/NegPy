@@ -45,7 +45,7 @@ class _ReorderList(QListWidget):
 
 
 class FavouritesDialog(QDialog):
-    """Column-chooser for the Favourites panel: tick sliders on the left, order them on the
+    """Column-chooser for the Favourites panel: toggle sliders on the left, order them on the
     right. Takes plain (id, category, label) triples rather than widgets so it stays testable
     without a live controls panel."""
 

@@ -467,10 +467,9 @@ def build(window: "MainWindow") -> list[TutorialStep]:
             ),
             lambda w: rp(w).export_sidebar,
             focus=lambda w: rp(w).export_sidebar.intent_btn,
-            task=tr("Open the intent menu and choose another intent."),
+            task=tr("Click Flat or Linear to change the output intent."),
             watch=lambda w: rp(w).export_sidebar.intent_btn.currentIndex(),
             pre_hook=lambda w: rp(w).show_tab_by_key("export"),
-            guide=("export_presets", "Export Presets"),
         ),
         step(
             SCANNING,
@@ -485,7 +484,7 @@ def build(window: "MainWindow") -> list[TutorialStep]:
         ),
         step(
             SCANNING,
-            tr("You're All Set"),
+            tr("You Are Ready"),
             tr(
                 "{value} lists every shortcut and {value1} finds any control. Each card's ⓘ opens its guide. "
                 "Replay this tour from the ⋯ menu.",

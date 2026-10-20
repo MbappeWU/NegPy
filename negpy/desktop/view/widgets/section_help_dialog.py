@@ -82,7 +82,7 @@ class SectionHelpDialog(QDialog):
 
     def __init__(self, key: str, title: str, parent: Optional[QWidget] = None, *, repo=None):
         super().__init__(parent)
-        heading = tr("Reading the {title} panel", title=title)
+        heading = tr("Reading the {title} Panel", title=title)
         self.setWindowTitle(heading)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
         self.setModal(True)
@@ -90,7 +90,7 @@ class SectionHelpDialog(QDialog):
 
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 18, 18, 18)
-        root.setSpacing(12)
+        root.setSpacing(THEME.space_xl)
 
         label = QLabel(heading)
         label.setStyleSheet(f"color: {THEME.text_primary}; font-size: {THEME.font_size_title}px; font-weight: bold;")

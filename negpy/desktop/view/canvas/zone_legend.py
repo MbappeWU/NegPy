@@ -1,3 +1,4 @@
+from negpy.kernel.system.i18n import tr
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -5,7 +6,7 @@ from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
-from negpy.desktop.view.styles.templates import default_button_height
+from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT
 from negpy.desktop.view.styles.theme import THEME
 from negpy.features.exposure.densitometer import zone_roman
 
@@ -22,7 +23,7 @@ class ZoneLegend(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
-        self.setFixedSize(QSize(11 * _CELL_W, default_button_height()))
+        self.setFixedSize(QSize(11 * _CELL_W, BAR_BUTTON_HEIGHT))
         self._colors: List[Tuple[QColor, int]] = []
         self._shares: Optional[np.ndarray] = None
         self._ringed: Optional[int] = None
@@ -64,7 +65,7 @@ class ZoneLegend(QWidget):
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.setPen(QPen(QColor(THEME.text_primary), 2.0))
                 painter.drawRoundedRect(cell.adjusted(1.0, 1.0, -1.0, -1.0), THEME.radius_md, THEME.radius_md)
-            painter.setPen(QColor(0, 0, 0) if color.lightnessF() > 0.55 else QColor(255, 255, 255))
+            painter.setPen(QColor(THEME.mark_shadow) if color.lightnessF() > 0.55 else QColor(THEME.mark_photo))
             font.setBold(True)
             painter.setFont(font)
             painter.drawText(cell.adjusted(0, 1, 0, -cell.height() / 2), Qt.AlignmentFlag.AlignCenter, zone_roman(float(zone)))
@@ -82,7 +83,8 @@ class ZoneLegend(QWidget):
         zone = min(10, max(0, int(event.position().x() // _CELL_W)))
         self._set_hovered(zone)
         share = self._share_text(zone)
-        self.setToolTip(f"Zone {zone_roman(float(zone))}" + (f" — {share} of the frame" if share else ""))
+        roman = zone_roman(float(zone))
+        self.setToolTip(tr("Zone {zone}: {share} of the frame", zone=roman, share=share) if share else tr("Zone {zone}", zone=roman))
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event) -> None:  # noqa: N802

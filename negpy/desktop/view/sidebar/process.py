@@ -25,7 +25,7 @@ from negpy.desktop.view.widgets.stats import CLIPPING_TOOLTIP
 from negpy.features.exposure.stats import clipping_row
 from negpy.services.assets import rolls
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.desktop.view.widgets.fold import group_fold, rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.features.exposure.models import EXPOSURE_CONSTANTS
@@ -118,9 +118,9 @@ class ProcessSidebar(BaseSidebar):
         # setting to dig for.
         self.positive_source_btn = self._labeled_toggle(
             "fa5s.image",
-            tr(" Positive"),
+            tr("Positive"),
             conf.positive_source,
-            (tr("Positive: the file is already a positive, such as a scanned print or another app's export. Slide only.")),
+            (tr("Positive, slides only: the file is already a positive, such as a scanned print or another app's export.")),
         )
         mode_col.addWidget(self.positive_source_btn)
 
@@ -153,7 +153,7 @@ class ProcessSidebar(BaseSidebar):
         self.analysis_region_btn = clearable_tool_toggle(
             "fa5s.vector-square",
             tr("Draw Region"),
-            tr("Draw a region on the picture, and NegPy measures only that area. Double-click inside it to confirm."),
+            tr("Draw a region on the picture for NegPy to measure, then double-click inside it to confirm."),
             tr("Clear Region: measure with the Analysis Buffer again."),
         )
         self.clear_analysis_region_btn = self.analysis_region_btn.clear_btn
@@ -182,7 +182,7 @@ class ProcessSidebar(BaseSidebar):
         analysis_col.addWidget(self.clip_fold)
 
         self.ch_btn = channel_selector(
-            tr("Global changes all colors. R, G or B changes one color layer."),
+            tr("Global changes all colors, and R, G or B changes one color layer."),
         )
         self.white_point_slider = CompactSlider(tr("White Point"), -0.25, 0.25, conf.white_point_offset, has_neutral=True)
         self.black_point_slider = CompactSlider(tr("Black Point"), -0.25, 0.25, conf.black_point_offset, has_neutral=True)
@@ -210,19 +210,19 @@ class ProcessSidebar(BaseSidebar):
             "mdi6.brightness-6",
             tr("Luma"),
             conf.use_luma_average,
-            tr("Use the roll's average black and white points. Color stays per frame."),
+            tr("Use the roll's average black and white points, with color still per frame."),
         )
         self.use_color_avg_btn = self._small_toggle(
             "mdi6.palette-outline",
             tr("Color"),
             conf.use_color_average,
-            tr("Use the roll's average color balance. Black and white points stay per frame."),
+            tr("Use the roll's average color balance, with black and white points still per frame."),
         )
         self.use_cast_avg_btn = self._small_toggle(
             "mdi6.scale-balance",
             tr("Cast"),
             conf.use_cast_average,
-            tr("Use the roll's gray balance for Cast Removal, so frames under one light match. Color negatives only."),
+            tr("Color negatives only: use the roll's gray balance for Cast Removal, so frames under one light match."),
         )
         avg_row.addWidget(self.use_luma_avg_btn)
         avg_row.addWidget(self.use_color_avg_btn)
@@ -235,11 +235,7 @@ class ProcessSidebar(BaseSidebar):
         # most a merge can open at. output_scale clamps above it.
         self.render_ev_slider = CompactSlider(tr("Render Exposure"), -4.0, 0.0, 0.0, step=0.05, unit=" st")
         self.render_ev_slider.setToolTip(
-            wrap_tooltip(
-                tr(
-                    "Which exposure of a merged bracket to show, in stops below the brightest usable shot. Right-click the frame to pick a shot you took."
-                )
-            )
+            wrap_tooltip(tr("Which exposure of a merged bracket to show, in stops below the brightest usable shot."))
         )
         # Live again: the merge is cached unscaled, so a change of exposure is one multiply on the
         # cached buffer rather than another decode of the bracket. valueChanged is already

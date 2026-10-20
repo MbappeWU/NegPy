@@ -9,7 +9,7 @@ from negpy.desktop.view.shortcut_registry import tooltip_with_shortcut
 from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import ICON_BUTTON_WIDTH, TEST_STRIP_SWEEP, gradient_icon, hint_label, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice, ToggleMenuButton
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.fold import group_fold, rail_fold
 from negpy.desktop.view.widgets.sliders import CompactSlider
 from negpy.features.hdr.models import hdr_active
@@ -46,13 +46,13 @@ class ToneSidebar(BaseSidebar):
         self.grade_slider = CompactSlider(tr("ISO-R Grade"), _ISO_R_MIN, _ISO_R_MAX, conf.grade, step=1.0, inverted=True, unit=" R")
         self.grade_trim_slider = CompactSlider(tr("Grade"), -30.0, 30.0, 0.0, step=1.0, inverted=True, unit=" R")
         self.grade_trim_slider.setToolTip(
-            tr("Contrast of this color layer only. Use it for a color cast that differs between shadows and highlights.")
+            tr("Contrast of this color layer only, for a color cast that differs between shadows and highlights.")
         )
         self.grade_trim_slider.setVisible(False)
 
         # Channel selector: Global = the shared curve; R/G/B = per-layer trims.
         self.ch_btn = channel_selector(
-            tr("Global changes all colors. R, G or B changes one color, for a cast that differs in shadows and highlights.")
+            tr("Global changes all colors, and R, G or B changes one color, for a cast that differs in shadows and highlights.")
         )
         # Each channel's trim fields, for the edited dot.
         self._channel_fields = tuple(
@@ -107,7 +107,7 @@ class ToneSidebar(BaseSidebar):
         # Disabled widgets get no hover, so the reason hangs off the hint under them.
         self.auto_merged_hint = hint_label(tr("Not applied to a merged bracket."))
         self.auto_merged_hint.setToolTip(
-            wrap_tooltip(tr("A merged bracket sets its brightness with Render exposure. Unmerge the frame to use Auto."))
+            wrap_tooltip(tr("A merged bracket sets its brightness with Render Exposure, so unmerge the frame to use Auto."))
         )
         self.auto_merged_hint.setVisible(False)
         self.layout.addWidget(self.auto_merged_hint)
@@ -133,14 +133,14 @@ class ToneSidebar(BaseSidebar):
         # Inverted like ISO-R Grade, so dragging right hardens on both controls.
         self.contrast_mask_slider = CompactSlider(tr("Contrast Mask"), -0.5, 0.5, conf.contrast_mask, has_neutral=True, inverted=True)
         self.contrast_mask_slider.setToolTip(
-            tr("Contrast Mask: lowers overall contrast and keeps fine detail. Negative values add contrast.")
+            tr("Contrast Mask: lowers overall contrast and keeps fine detail, and negative values add contrast.")
         )
         self.mask_spacer_slider = CompactSlider(tr("Mask Spacer"), 2.0, 6.0, conf.mask_spacer, unit="%")
-        self.mask_spacer_slider.setToolTip(tr("Mask Spacer: how soft the contrast mask is. Thicker acts on large areas only."))
+        self.mask_spacer_slider.setToolTip(tr("Mask Spacer: how soft the contrast mask is, where thicker acts on large areas only."))
         # Light given to the paper, not the shape of its curve, so it sits with the exposure controls.
         self.preflash_slider = CompactSlider(tr("Preflash"), 0.0, 1.0, conf.preflash)
         self.diffusion_slider = CompactSlider(tr("Diffusion"), 0.0, 1.0, conf.diffusion)
-        self.diffusion_slider.setToolTip(tr("Diffusion: a soft glow. Dark areas spread into bright ones and edges soften. 0 is off."))
+        self.diffusion_slider.setToolTip(tr("Diffusion: a soft glow that spreads dark areas into bright ones and softens edges, off at 0."))
         self.mask_spacer_fold = rail_fold("tone_mask_spacer", self.contrast_mask_slider, self.mask_spacer_slider)
         self.contrast_mask_slider.valueChanged.connect(lambda _v: self._sync_spacer())
         aids_header, self.aids_fold = group_fold(
@@ -211,7 +211,7 @@ class ToneSidebar(BaseSidebar):
         if printing:
             return tr("Printing the test strip…")
         return tooltip_with_shortcut(
-            tr("Test Strip: a grid of versions at different brightness and contrast. Click the one you like."),
+            tr("Test Strip: show a grid of versions at different brightness and contrast, then click the one you like."),
             "toggle_test_strip",
         )
 

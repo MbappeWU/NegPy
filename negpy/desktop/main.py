@@ -285,7 +285,7 @@ def main() -> None:
         apply_stored_override(override_cfg, APP_CONFIG, repo.get_global_setting)
 
         # Opt-in smaller-tile/no-pipelining export path: override.toml wins if set, else the
-        # saved Preferences checkbox, else off. Not a STORED_PERF_KEYS entry since apply_stored
+        # saved Preferences toggle, else off. Not a STORED_PERF_KEYS entry since apply_stored
         # skips bool values (see its docstring).
         if override_cfg.low_vram_export_tiling is None:
             APP_CONFIG.low_vram_export_tiling = bool(repo.get_global_setting("low_vram_export_tiling", False))

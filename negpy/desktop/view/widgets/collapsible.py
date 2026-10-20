@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QComboBox,
-    QMenu,
     QPushButton,
     QFrame,
     QHBoxLayout,
@@ -23,7 +22,7 @@ import qtawesome as qta
 
 # Said by every card's Roll half where no roll spans the loaded frames, so the disabled
 # control carries the reason once rather than each sidebar wording it again.
-NO_ROLL_SCOPE_HINT = tr("These frames are not one roll, so there is no roll to hold a shared value. Save as Roll to make one.")
+NO_ROLL_SCOPE_HINT = tr("These frames are not one roll, so use Save as Roll to give them a shared value.")
 
 
 def roll_revert_icon(color: str) -> QIcon:
@@ -36,11 +35,15 @@ def roll_revert_icon(color: str) -> QIcon:
         "fa5s.circle",
         "fa5s.film",
         options=[
-            {"color": color},
+            {"color": color, "color_disabled": THEME.text_muted},
             {"color": THEME.bg_header, "scale_factor": 0.924, "offset": film_offset},
-            {"color": color, "scale_factor": 0.66, "offset": film_offset},
+            {"color": color, "color_disabled": THEME.text_muted, "scale_factor": 0.66, "offset": film_offset},
         ],
     )
+
+
+def _header_icon(name: str) -> QIcon:
+    return qta.icon(name, color=THEME.text_hint, color_on=THEME.text_primary, color_disabled=THEME.text_muted)
 
 
 class CollapsibleSection(QWidget):
@@ -89,10 +92,9 @@ class CollapsibleSection(QWidget):
         self.toggle_button.setProperty("overlay", "true" if background_widget else "false")
 
         btn_layout = QHBoxLayout(self.toggle_button)
-        btn_layout.setContentsMargins(THEME.space_xl, 8, THEME.space_xl, 8)
+        btn_layout.setContentsMargins(THEME.space_xl, THEME.space_lg, THEME.space_xl, THEME.space_lg)
         btn_layout.setSpacing(10)
-        # Kept typed (toggle_button.layout() widens to QLayout | None), for set_actions_menu
-        # to insert into later.
+        # Kept typed: toggle_button.layout() widens to QLayout | None.
         self._header_row = btn_layout
 
         # Nested in the header button like reset_btn, so a click on it does not also collapse
@@ -123,25 +125,21 @@ class CollapsibleSection(QWidget):
         if info:
             # Nested in the header button, like reset_btn: it eats its own clicks, so opening the help
             # does not also collapse the section.
-            self.info_btn = header_button(qta.icon("fa5s.info-circle", color=THEME.text_muted), tr("Open the {title} guide", title=title))
+            self.info_btn = header_button(_header_icon("fa5s.info-circle"), tr("Open the {title} guide", title=title))
             self.info_btn.clicked.connect(self.info_requested)
             btn_layout.addWidget(self.info_btn)
 
-        self.reset_btn = header_button(qta.icon("fa5s.undo", color=THEME.text_muted), tr("Reset {title} to defaults", title=title))
+        self.reset_btn = header_button(_header_icon("fa5s.undo"), tr("Reset {title} to defaults", title=title))
         self.reset_btn.setVisible(False)
         self.reset_btn.clicked.connect(self._on_reset_clicked)
         btn_layout.addWidget(self.reset_btn)
 
         # Hidden until set_roll_revert: most cards on most frames already follow the roll.
-        self.roll_revert_btn = header_button(roll_revert_icon(THEME.text_muted), tr("Reset {title} to the roll's settings", title=title))
+        self.roll_revert_btn = header_button(roll_revert_icon(THEME.text_hint), tr("Reset {title} to the roll's settings", title=title))
         self.roll_revert_btn.setVisible(False)
         self.roll_revert_btn.clicked.connect(self.roll_revert_requested)
         btn_layout.addWidget(self.roll_revert_btn)
         self.roll_revert_available = False
-
-        # Lazily built by set_actions_menu(): most sections have nothing that belongs
-        # here, so no button exists until one asks for it.
-        self.actions_btn: Optional[QPushButton] = None
 
         # Lazily built by set_scope_buttons(): a section owning no settings has no scope
         # to choose between.
@@ -167,6 +165,8 @@ class CollapsibleSection(QWidget):
             stacked.setContentsMargins(0, 0, 0, 0)
             stacked.addWidget(background_widget)
             stacked.addWidget(self.toggle_button)
+            # StackAll raises the current widget, which starts as the first one added.
+            stacked.setCurrentWidget(self.toggle_button)
             self.main_layout.addWidget(header_container)
         else:
             self.main_layout.addWidget(self.toggle_button)
@@ -174,8 +174,8 @@ class CollapsibleSection(QWidget):
         self.content_area = QFrame(self)
         self.content_area.setObjectName("collapsible_content")
         self.content_layout = QVBoxLayout(self.content_area)
-        self.content_layout.setContentsMargins(THEME.space_xl, 4, THEME.space_xl, 8)  # same inset as header
-        self.content_layout.setSpacing(4)
+        self.content_layout.setContentsMargins(THEME.space_xl, THEME.space_sm, THEME.space_xl, THEME.space_lg)  # same inset as header
+        self.content_layout.setSpacing(THEME.space_sm)
         self.content_area.setVisible(expanded)
 
         self.main_layout.addWidget(self.content_area)
@@ -203,10 +203,8 @@ class CollapsibleSection(QWidget):
             self.chevron_label.setPixmap(qta.icon("fa5s.chevron-right", color=THEME.text_secondary).pixmap(12, 12))
 
     def set_modified(self, count: int) -> None:
-        """Append count to title when non-zero; show reset button. Unrelated to
-        the scope pair's roll-override state -- keeping this title to only what it
-        has always meant (how far from NegPy's own defaults) instead of chaining a
-        second, unrelated fact onto the same "· count" reading."""
+        """Append count to the title when non-zero and show the reset button. The count is the
+        distance from NegPy's defaults; the scope pair carries the roll state."""
         self.modified_count = count
         visible = count > 0
         self.reset_btn.setVisible(visible)
@@ -220,7 +218,7 @@ class CollapsibleSection(QWidget):
         self.roll_revert_btn.setVisible(available)
 
     def set_selection_state(self, checked: int, total: int) -> None:
-        """Reflect how many of the section's rows are ticked. Emits nothing."""
+        """Reflect how many of the section's rows are on. Emits nothing."""
         if self.select_box is None:
             return
         self.select_box.blockSignals(True)
@@ -250,26 +248,16 @@ class CollapsibleSection(QWidget):
             self.toggle_button.setChecked(expanded)
 
     def add_header_toggle(self, icon_name: str, tooltip: str) -> QPushButton:
-        btn = header_button(qta.icon(icon_name, color=THEME.text_muted, color_on=THEME.text_on_accent), tooltip)
+        btn = header_button(_header_icon(icon_name), tooltip)
         btn.setCheckable(True)
         self._header_row.insertWidget(self._header_row.count() - 1, btn)
         return btn
 
     def add_header_button(self, icon_name: str, tooltip: str) -> QPushButton:
         """A one-shot action in the header, the twin of add_header_toggle."""
-        btn = header_button(qta.icon(icon_name, color=THEME.text_muted, color_disabled=THEME.border_hover), tooltip)
+        btn = header_button(_header_icon(icon_name), tooltip)
         self._header_row.insertWidget(self._header_row.count() - 1, btn)
         return btn
-
-    def set_actions_menu(self, menu: QMenu, tooltip: str) -> None:
-        """An always-visible header menu button, for section-level actions that reach
-        past the section's own settings -- Film Strip's New Roll and its roll-wide
-        reset, for one. reset_btn stays the affordance for resetting this section."""
-        if self.actions_btn is None:
-            self.actions_btn = header_button(qta.icon("fa5s.ellipsis-v", color=THEME.text_muted), "")
-            self._header_row.insertWidget(self._header_row.count() - 1, self.actions_btn)
-        self.actions_btn.setToolTip(tooltip)
-        self.actions_btn.setMenu(menu)
 
     def set_scope_buttons(
         self, visible: bool, scope: str, roll_tooltip: str = "", frame_tooltip: str = "", roll_enabled: bool = True
@@ -291,10 +279,10 @@ class CollapsibleSection(QWidget):
             active = key == scope
             btn.setVisible(visible)
             btn.setChecked(active)
-            btn.setIcon(qta.icon(btn.property("scope_icon"), color=color if active else THEME.text_muted))
+            btn.setIcon(qta.icon(btn.property("scope_icon"), color=color if active else THEME.text_hint, color_disabled=THEME.text_muted))
         self.roll_btn.setEnabled(roll_enabled)
-        self.frame_btn.setToolTip(frame_tooltip or f"{self._title_text} is this frame's own")
-        self.roll_btn.setToolTip(roll_tooltip or f"Give the roll this frame's {self._title_text}…")
+        self.frame_btn.setToolTip(frame_tooltip or tr("{title} is this frame's own", title=self._title_text))
+        self.roll_btn.setToolTip(roll_tooltip or tr("Give the roll this frame's {title}…", title=self._title_text))
         self._scope_visible = visible
         self._refresh_scope_stripe()
 

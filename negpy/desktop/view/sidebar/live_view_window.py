@@ -13,7 +13,7 @@ import numpy as np
 import qtawesome as qta
 from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QCursor, QKeySequence
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from negpy.desktop.view.shortcut_registry import key_for, tooltip_with_shortcut
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
@@ -21,6 +21,7 @@ from negpy.desktop.view.styles.templates import (
     SCAN_BUTTON_HEIGHT,
     default_button_height,
     hint_label,
+    icon_text,
     labeled_action,
     pin_dialog_default,
     set_hint_kind,
@@ -34,8 +35,7 @@ from negpy.desktop.view.widgets.floating_panel import float_over_app
 from negpy.desktop.view.widgets.step_combo import StepCombo
 
 #: Progress-bar chunk color per triplet channel. The live view freezes during a triplet,
-#: because the capture now holds the camera without gaps, so the bar carries the R to G
-#: to B switch the preview frames used to show. Muted tones, readable on the dark theme.
+#: because the capture holds the camera without gaps, so the bar shows the R to G to B switch.
 _CHANNEL_COLORS = {"R": THEME.channel_red_text, "G": THEME.channel_green_text, "B": THEME.channel_blue_text}
 _DONE_COLOR = THEME.status_success
 _FLASH_MS = 1500
@@ -99,11 +99,14 @@ class LiveViewWindow(QDialog):
         self.resize(900, 720)
         layout = QVBoxLayout(self)
 
-        # ── capture toolbar (mirrors the panel so you needn't switch tabs) ──
+        # The capture toolbar mirrors the panel, so the operator does not switch tabs.
         bar = QHBoxLayout()
-        self.scan_btn = labeled_action("fa5s.camera-retro", tr(" Scan"), tr("Capture this frame, or stop the capture"))
+        self.scan_btn = labeled_action("fa5s.camera-retro", tr("Scan"), tr("Capture this frame, or stop the capture"))
+        self.scan_btn.setObjectName("scan_btn")
+        self.scan_btn.setProperty("scanning", "false")
+        self.scan_btn.setIcon(qta.icon("fa5s.camera-retro", color=THEME.text_on_accent))
         self.scan_btn.setFixedHeight(SCAN_BUTTON_HEIGHT)
-        self.retake_btn = labeled_action("fa5s.redo", tr(" Retake"), tr("Re-capture the current frame without advancing the counter"))
+        self.retake_btn = labeled_action("fa5s.redo", tr("Retake"), tr("Re-capture the current frame without advancing the counter"))
         bar.addWidget(self.scan_btn, 2)
         # The card's Capture Delay, where Scan is pressed. Mirrored both ways by the panel.
         self.delay_stepper = SettingStepper()
@@ -120,20 +123,20 @@ class LiveViewWindow(QDialog):
         channels = QHBoxLayout(self.channel_widget)
         channels.setContentsMargins(0, 0, 0, 0)
         self.channel_btns: dict[str, QPushButton] = {}
-        for letter, name, fill, text in (
-            ("R", mark("red"), THEME.channel_red, THEME.channel_red_text),
-            ("G", mark("green"), THEME.channel_green, THEME.channel_green_text),
-            ("B", mark("blue"), THEME.channel_blue, THEME.channel_blue_text),
-            ("IR", "infrared", "", ""),
+        for letter, name, text in (
+            ("R", mark("red"), THEME.channel_red_text),
+            ("G", mark("green"), THEME.channel_green_text),
+            ("B", mark("blue"), THEME.channel_blue_text),
+            ("IR", "", ""),
         ):
             tip = (
                 tr("Shoot the infrared exposure with each frame")
                 if letter == "IR"
-                else tr("Retake shoots the {color} exposure again over this frame's. Scan always shoots all three.", color=tr(name))
+                else tr("Retake shoots the {color} exposure again over this frame's.", color=tr(name))
             )
             btn = tool_toggle("", letter, tip)
-            if fill:
-                btn.setStyleSheet(btn.styleSheet() + f" QPushButton:checked {{ background-color: {fill}; color: {text}; }}")
+            if text:
+                btn.setStyleSheet(btn.styleSheet() + f" QPushButton:checked {{ color: {text}; }}")
             btn.setChecked(letter != "IR")
             btn.toggled.connect(lambda _on, letter=letter: self.channelsChanged.emit(letter))
             self.channel_btns[letter] = btn
@@ -142,15 +145,13 @@ class LiveViewWindow(QDialog):
         # One RAW probe sets the shutter for the light as lit.
         self.meter_btn = labeled_action(
             "fa5s.tachometer-alt",
-            tr(" Meter"),
+            tr("Meter"),
             tr("Set the shutter from one RAW probe: a negative's base or a slide's highlights, just under clipping"),
         )
         bar.addWidget(self.meter_btn, 1)
         # Exposure readouts of the preview frame.
         self.histogram_btn = tool_toggle("fa5s.chart-area", "", tr("Show the frame's R, G and B histogram under the image"))
-        self.zebra_btn = tool_toggle(
-            "fa5s.grip-lines", "", tr("Hatch clipped pixels: red at the top of the preview range, blue at the bottom")
-        )
+        self.zebra_btn = tool_toggle("fa5s.grip-lines", "", tr("Hatch the clipped pixels in the Clipping Overlay colors"))
         bar.addWidget(self.histogram_btn)
         bar.addWidget(self.zebra_btn)
         layout.addLayout(bar)
@@ -175,9 +176,7 @@ class LiveViewWindow(QDialog):
 
         self.focus_label = hint_label("")
         self.focus_label.setToolTip(
-            wrap_tooltip(
-                tr("Sharpness compared with the best seen. Turn the focus ring past the peak and back. Click the image to reset it.")
-            )
+            wrap_tooltip(tr("Sharpness compared with the best seen: turn the focus ring past the peak and back to find it."))
         )
         self._focus_kind = "muted"
         layout.addWidget(self.focus_label)
@@ -186,10 +185,8 @@ class LiveViewWindow(QDialog):
         # Shown in the image's place on bodies that advertise no live view (issue #621). The
         # window still scans: only the preview pane is replaced, so the toolbar, the settings row
         # and the frame counter all keep working.
-        self.no_preview = QLabel("")
+        self.no_preview = hint_label()
         self.no_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.no_preview.setWordWrap(True)
-        self.no_preview.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
         self.no_preview.setVisible(False)
         layout.addWidget(self.no_preview, 1)
 
@@ -216,7 +213,7 @@ class LiveViewWindow(QDialog):
             tag.setAlignment(Qt.AlignmentFlag.AlignHCenter)  # label sits centred above its value
             stepper.setToolTip(tip)
             col = QVBoxLayout()  # label stacked over the ‹ value › stepper (clearer than side-by-side)
-            col.setSpacing(2)
+            col.setSpacing(THEME.space_xs)
             col.addWidget(tag)
             col.addWidget(stepper)
             settings_row.addLayout(col, 1)
@@ -353,7 +350,7 @@ class LiveViewWindow(QDialog):
         color = _CHANNEL_COLORS.get(letter)
         if color:
             self.progress.setStyleSheet(f"QProgressBar::chunk {{ background-color: {color}; }}")
-            self.progress.setFormat(f"Capturing {letter}… %p%")
+            self.progress.setFormat(tr("Capturing {letter}… %p%", letter=letter))
 
     def flash_captured(self, frame: str) -> None:
         """Fill the bar green with a checkmark for a beat, then hide it — the 'frame is
@@ -361,7 +358,7 @@ class LiveViewWindow(QDialog):
         self._flash_token += 1
         token = self._flash_token
         self.progress.setStyleSheet(f"QProgressBar::chunk {{ background-color: {_DONE_COLOR}; }}")
-        self.progress.setFormat(f"✓ Frame {frame} captured" if frame else tr("✓ Captured"))
+        self.progress.setFormat(tr("✓ Frame {frame} captured", frame=frame) if frame else tr("✓ Captured"))
         self.progress.setValue(100)
         self.progress.setVisible(True)
         QTimer.singleShot(_FLASH_MS, lambda: self._end_flash(token))
@@ -391,11 +388,16 @@ class LiveViewWindow(QDialog):
     def set_scanning(self, active: bool) -> None:
         """Mirror the panel's Scan/Stop toggle on the pop-up button."""
         if active:
-            self.scan_btn.setText(tr(" Stop"))
+            self.scan_btn.setText(icon_text(tr("Stop")))
             self.scan_btn.setIcon(qta.icon("fa5s.stop", color=THEME.text_primary))
         else:
-            self.scan_btn.setText(tr(" Scan"))
-            self.scan_btn.setIcon(qta.icon("fa5s.camera-retro", color=THEME.text_primary))
+            self.scan_btn.setText(icon_text(tr("Scan")))
+            self.scan_btn.setIcon(qta.icon("fa5s.camera-retro", color=THEME.text_on_accent))
+        # Qt re-reads a QSS property selector only on a repolish.
+        self.scan_btn.setProperty("scanning", "true" if active else "false")
+        style = self.scan_btn.style()
+        style.unpolish(self.scan_btn)
+        style.polish(self.scan_btn)
 
     def set_status(self, text: str) -> None:
         self.status.setText(text)

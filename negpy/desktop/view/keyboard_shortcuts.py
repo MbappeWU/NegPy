@@ -63,7 +63,7 @@ def _reset_roll(window, controller) -> None:
 
 
 def close_roll_label(state) -> str:
-    return "Close Roll…" if state.active_roll_id else tr("Unload All…")
+    return tr("Close Roll…") if state.active_roll_id else tr("Unload All…")
 
 
 def _close_roll(window, controller) -> None:

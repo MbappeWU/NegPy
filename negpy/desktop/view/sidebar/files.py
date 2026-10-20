@@ -81,7 +81,7 @@ from negpy.desktop.view.widgets.elided_label import ElidedLabel
 from negpy.desktop.view.widgets.marks import CHIP_FILL, CHIP_RING, draw_mark_badge
 from negpy.desktop.view.widgets.sort_button import SortButton
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
-from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, BAR_ICON_SIZE, wrap_tooltip
+from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, BAR_ICON_SIZE, hint_label, with_alpha, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME, scene_color
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.sidecar_action import LABEL as SIDECAR_LABEL, load_edit_from_sidecar
@@ -114,7 +114,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     change (a bulk apply reaches the file before a render reaches its thumbnail)."""
 
     _RADIUS = 4  # = button border-radius (modern_dark.qss)
-    _COMPOSITE_GLYPH = QColor(255, 255, 255, 235)
+    _COMPOSITE_GLYPH = with_alpha(THEME.mark_photo, 235)
     _IDLE_OPACITY = 0.5
     _STALE_DOT_RADIUS = 4
     _ACTIVITY_INTERVAL_MS = 40
@@ -191,7 +191,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     def _draw_stale_dot(self, painter: QPainter, img_rect: QRect) -> None:
         r = self._STALE_DOT_RADIUS
         cx, cy = img_rect.left() + r + 4, img_rect.top() + r + 4
-        painter.setPen(QPen(QColor(0, 0, 0, 140), 1))
+        painter.setPen(QPen(with_alpha(THEME.mark_shadow, 140), 1))
         painter.setBrush(QColor(THEME.warn_amber))
         painter.drawEllipse(QRect(cx - r, cy - r, 2 * r, 2 * r))
 
@@ -286,7 +286,7 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         area = option.rect
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(20, 20, 20))
+        painter.setBrush(QColor(THEME.bg_header))
         painter.drawRoundedRect(area, self._RADIUS, self._RADIUS)
         if rejected:
             self._draw_mark_badge(painter, area, check=False)
@@ -1258,7 +1258,9 @@ class FileBrowser(QWidget):
         self.sheet_btn.setMenu(sheet_menu)
 
         # The frames' own order; the Library's roll list has a Sort of its own.
-        self.sort_btn = SortButton((("name", "Name"), ("date", "Date"), ("scene", "Scene")), tr("Sort the frames in the Film Strip"))
+        self.sort_btn = SortButton(
+            (("name", tr("Name")), ("date", tr("Date")), ("scene", tr("Scene"))), tr("Sort the frames in the Film Strip")
+        )
         self.act_sort_name, self.act_sort_date, self.act_sort_scene = (self.sort_btn.order_action(k) for k in ("name", "date", "scene"))
         self.act_sort_asc, self.act_sort_desc = self.sort_btn.ascending_action, self.sort_btn.descending_action
         self.act_sort_scene.setVisible(False)
@@ -1291,7 +1293,7 @@ class FileBrowser(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(tr("Filter: name, film:portra, iso:>=400…"))
         self.search_input.setToolTip(
-            tr("Filter the frames. A word matches the file name; terms such as film:portra iso:>=400 -rejected: match frame data.")
+            tr("Filter the frames: a word matches the file name, and terms such as film:portra iso:>=400 -rejected: match frame data.")
         )
         self.search_input.setClearButtonEnabled(True)
         self.search_input.addAction(
@@ -1357,12 +1359,10 @@ class FileBrowser(QWidget):
 
         # Takes the strip's place when a filter hides every frame: a blank panel under a
         # full tally reads as a load failure.
-        self.empty_label = QLabel("")
+        self.empty_label = hint_label()
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.empty_label.setWordWrap(True)
         self.empty_label.setTextFormat(Qt.TextFormat.RichText)
         self.empty_label.setOpenExternalLinks(False)
-        self.empty_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px;")
         self.empty_label.setVisible(False)
         self.empty_label.linkActivated.connect(lambda _: self._clear_frame_filters())
 
@@ -1383,7 +1383,7 @@ class FileBrowser(QWidget):
         self.hot_folder_btn = QToolButton()
         self.hot_folder_btn.setCheckable(True)
         self.hot_folder_btn.setIcon(qta.icon("fa5s.fire", color=THEME.text_hint, color_on=THEME.text_primary))
-        self.hot_folder_btn.setToolTip(tr("Hot Folder is on. Click to stop loading new images from the current folder."))
+        self.hot_folder_btn.setToolTip(tr("Hot Folder is on: click to stop loading new images from the current folder."))
         self.hot_folder_btn.clicked.connect(lambda: self.hot_folder_action.setChecked(False))
         self.hot_folder_btn.setVisible(False)
 
@@ -1617,7 +1617,7 @@ class FileBrowser(QWidget):
         if not ok or not name:
             return
         if not is_valid_preset_name(name):
-            warn_invalid_roll_name(self, "Save as Roll")
+            warn_invalid_roll_name(self, tr("Save as Roll"))
             return
         if self.controller.create_roll_from_session(name):
             self.library_tree.reload()
@@ -1712,9 +1712,7 @@ class FileBrowser(QWidget):
 
     def _on_semantic_toggled(self, checked: bool) -> None:
         self.regex_action.setEnabled(not checked)
-        self.search_input.setPlaceholderText(
-            tr("Describe what you're looking for…") if checked else tr("Filter: name, film:portra, iso:>=400…")
-        )
+        self.search_input.setPlaceholderText(tr("Describe the photo to find…") if checked else tr("Filter: name, film:portra, iso:>=400…"))
         self.filter_timer.start()
 
     def _set_search_error(self, error: bool) -> None:
@@ -1794,13 +1792,13 @@ class FileBrowser(QWidget):
         model = self.session.asset_model
         names = []
         if model.filter_text:
-            names.append("search")
+            names.append(tr("search"))
         if model.sheet_filter == "keepers":
             names.append(tr("Keepers"))
         elif model.sheet_filter == "unrejected":
-            names.append("Hide Rejected")
+            names.append(tr("Hide Rejected"))
         elif model.sheet_filter == "unmarked":
-            names.append("Unmarked Only")
+            names.append(tr("Unmarked Only"))
         return names
 
     def _on_thumbnail_refresh_progress(self, text: str) -> None:
@@ -1824,7 +1822,7 @@ class FileBrowser(QWidget):
         if keepers:
             text += f" · {count_of(keepers, 'keeper')}"
         if rejected:
-            text += f" · {rejected} rejected"
+            text += f" · {count_of(rejected, 'rejected', 'rejected')}"
         selected = len(self.session.state.selected_indices)
         if selected > 1:
             text += " · " + tr("{count} selected", count=selected)
@@ -1837,7 +1835,9 @@ class FileBrowser(QWidget):
         self.roll_name_label.setText(roll_name or tr("No roll"))
         self.tally_label.setText(text)
         self.roll_title.setToolTip(
-            "" if roll_name else wrap_tooltip(tr("These frames are not one roll. An edit here also shows in the roll the frame came from."))
+            ""
+            if roll_name
+            else wrap_tooltip(tr("These frames are not one roll, so an edit here also shows in the roll the frame came from."))
         )
         self.roll_title.setVisible(True)
         self._title_separator.setVisible(True)
@@ -1858,7 +1858,7 @@ class FileBrowser(QWidget):
         filters = self._active_frame_filters()
         empty = bool(files) and self.session.asset_model.rowCount() == 0 and bool(filters)
         if empty:
-            named = " and ".join(filters)
+            named = filters[0] if len(filters) == 1 else tr("{value} and {value1}", value=filters[0], value1=filters[1])
             self.empty_label.setText(tr('No frames match the {named} filter.<br><a href="#clear">Show all frames</a>', named=named))
         self.empty_label.setVisible(empty)
         self.list_view.setVisible(not empty)
@@ -2077,8 +2077,8 @@ class FileBrowser(QWidget):
 
     def _maybe_suggest_gear(self, folder_path: str) -> None:
         """A folder just became a roll for the first time: offer Roll Settings pre-filled
-        from a folder-name match against the gear library, ticked but never applied
-        without the user pressing Apply. Silent when nothing matches -- checked before
+        from a folder-name match against the gear library, never applied without the user
+        pressing Apply. Silent when nothing matches -- checked before
         building the dialog, so a folder with nothing to suggest never pops one up."""
         detected = self._detect_gear_suggestion(folder_label(folder_path))
         if detected is None:
@@ -2133,7 +2133,7 @@ class FileBrowser(QWidget):
         menu.addAction(label_with_shortcut(tr("Copy Settings + Bounds"), "copy_with_bounds")).triggered.connect(
             self.session.copy_settings_with_bounds
         )
-        act_paste = menu.addAction(label_with_shortcut(tr("Paste Settings"), "paste"))
+        act_paste = menu.addAction(label_with_shortcut(tr("Paste Settings…"), "paste"))
         act_paste.triggered.connect(lambda: open_paste_dialog(self, self.controller))
         act_paste.setEnabled(state.clipboard is not None)
         targets = [i for i in (state.selected_indices or [state.selected_file_idx]) if 0 <= i < len(state.uploaded_files)]
@@ -2218,7 +2218,7 @@ class FileBrowser(QWidget):
             lambda: move_selected_to_trash(self, self.controller)
         )
         menu.addSeparator()
-        unload_label = "Unload Selected…" if on_selection else "Unload…"
+        unload_label = tr("Unload Selected…") if on_selection else tr("Unload…")
         menu.addAction(unload_label).triggered.connect(self._on_remove_from_menu)
         if state.active_roll_id:
             menu.addAction(label_with_shortcut(tr("Remove from Roll…"), "remove_from_roll")).triggered.connect(
@@ -2324,16 +2324,18 @@ class FileBrowser(QWidget):
         if len(choices) < 2:
             return  # only the reference is reachable: every entry would be the same picture
         current = str(asset.get("hdr_anchor", "") or "")
-        sub = menu.addMenu(tr("Render exposure"))
+        sub = menu.addMenu(tr("Render Exposure"))
         auto = sub.addAction(tr("Bracket Middle (Auto)"))
         auto.setCheckable(True)
         auto.setChecked(not current)
         auto.triggered.connect(lambda: self.controller.set_hdr_anchor(""))
         sub.addSeparator()
         for path, stops in choices:
-            label = tr("{value}   {stops:+.1f} EV", value=os.path.basename(path), stops=stops)
+            name = os.path.basename(path)
             if stops == 0.0:
-                label += tr("  (as captured)")
+                label = tr("{value}   {stops:+.1f} EV  (as captured)", value=name, stops=stops)
+            else:
+                label = tr("{value}   {stops:+.1f} EV", value=name, stops=stops)
             act = sub.addAction(label)
             act.setCheckable(True)
             act.setChecked(path == current)

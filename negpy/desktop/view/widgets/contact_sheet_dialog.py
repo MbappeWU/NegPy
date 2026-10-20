@@ -1,4 +1,4 @@
-from negpy.kernel.system.i18n import tr
+from negpy.kernel.system.i18n import mark, tr
 from negpy.kernel.system.text import plural
 from dataclasses import replace
 from typing import Callable, Optional, Protocol, Sequence
@@ -10,14 +10,14 @@ from PyQt6.QtWidgets import QDialog, QHBoxLayout, QPushButton, QSizePolicy, QVBo
 
 from negpy.desktop.view.canvas.overlay import draw_resize_handles, draw_view_badge, hit_resize_handle, resize_cursor, view_badge_width
 from negpy.desktop.view.styles.templates import (
-    FIELD_LABEL_WIDTH,
-    field_label,
+    field_row,
     hint_label,
     icon_button,
     labeled_toggle,
     pin_dialog_default,
     set_hint_kind,
     tool_toggle,
+    with_alpha,
 )
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
@@ -63,7 +63,7 @@ _FRAME_SIZES: tuple[str, ...] = tuple(FRAME_SIZES_120)
 _CUSTOM_PAPER = len(ILFORD_PAPERS)
 _PRINTS = (tr("As Edited"), tr("Straight Proof"))
 _AS_EDITED, _STRAIGHT_PROOF = 0, 1
-_ORDERS = ("Date", "Scene")
+_ORDERS = (mark("Date"), mark("Scene"))
 _BY_DATE, _BY_SCENE = 0, 1
 _EDITED_TILES, _PROOF_TILES, _SCENE_PROOF_TILES = 0, 1, 2
 _CANVAS_PAD = 28.0
@@ -182,7 +182,7 @@ class SheetCanvas(QWidget):
             for index, rect_mm in self._frames:
                 rect = self._frame_rect(rect_mm)
                 if index in self._left_out:
-                    painter.fillRect(rect, QColor(0, 0, 0, 170))
+                    painter.fillRect(rect, with_alpha(THEME.mark_shadow, 170))
                     draw_mark_badge(painter, rect, check=False)
                 if index == self._hover:
                     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -371,29 +371,24 @@ class ContactSheetDialog(QDialog):
         )
         self.format_btn.setCurrentIndex(_FORMATS.index(self._format))
         self.format_btn.currentIndexChanged.connect(self._on_format_changed)
-        col.addLayout(self._row(tr("Film format"), self.format_btn))
+        col.addLayout(field_row(tr("Film format"), self.format_btn))
 
         self.frame_size_btn = StepCombo.of(list(_FRAME_SIZES), tr("The 120 camera's frame size"))
         self.frame_size_btn.setCurrentIndex(_FRAME_SIZES.index(self._frame_size))
         self.frame_size_btn.currentIndexChanged.connect(self._on_frame_size_changed)
-        self.frame_size_rail = SliderGroup(self._row(tr("Frame size"), self.frame_size_btn))
+        self.frame_size_rail = SliderGroup(field_row(tr("Frame size"), self.frame_size_btn))
         col.addWidget(self.frame_size_rail)
 
-        paper_row = QHBoxLayout()
-        label = field_label(tr("Paper"), FIELD_LABEL_WIDTH)
-        paper_row.addWidget(label)
         self.paper_btn = StepCombo.of(
-            [paper.label for paper in ILFORD_PAPERS] + ["Custom"],
+            [paper.label for paper in ILFORD_PAPERS] + [tr("Custom")],
             tr("Ilford sheet size, or Custom for a size dragged or typed"),
         )
         # Custom names a dragged or typed size; it is shown, never picked or stepped to.
         self.paper_btn.set_item_enabled(_CUSTOM_PAPER, False)
         self.paper_btn.currentIndexChanged.connect(self._on_paper_choice)
-        paper_row.addWidget(self.paper_btn, 1)
         self.turn_btn = icon_button("fa5s.sync-alt", tr("Turn the paper (swap width and height)"))
         self.turn_btn.clicked.connect(lambda: self._set_paper(self._paper[1], self._paper[0], snap=False))
-        paper_row.addWidget(self.turn_btn)
-        col.addLayout(paper_row)
+        col.addLayout(field_row(tr("Paper"), self.paper_btn, self.turn_btn))
 
         self.width_slider = CompactSlider(tr("Width"), PAPER_MIN, PAPER_MAX, DEFAULT_PAPER.width, step=0.1, precision=10, unit=" mm")
         self.width_slider.setToolTip(tr("Paper width; drag the sheet's left or right edge to change it"))
@@ -411,25 +406,25 @@ class ContactSheetDialog(QDialog):
         )
         self.dpi_btn.setCurrentIndex(DPI_CHOICES.index(self._dpi) if self._dpi in DPI_CHOICES else 1)
         self.dpi_btn.currentIndexChanged.connect(self._on_dpi_changed)
-        col.addLayout(self._row(tr("DPI"), self.dpi_btn))
+        col.addLayout(field_row(tr("DPI"), self.dpi_btn))
 
         self.order_btn = StepCombo.of(
-            list(_ORDERS),
-            tr("Date: in the order the frames were taken. Scene: a new strip for each scene."),
+            [tr(order) for order in _ORDERS],
+            tr("Lay the frames out in the order they were taken, or start a new strip for each scene."),
         )
         self.order_btn.set_item_enabled(_BY_SCENE, self._has_scenes)
         if not self._has_scenes:
             self.order_btn.set_item_tooltip(_BY_SCENE, tr("No frame of this roll is in a scene"))
         self.order_btn.setCurrentIndex(_BY_SCENE if self._by_scene else _BY_DATE)
         self.order_btn.currentIndexChanged.connect(self._on_order_changed)
-        col.addLayout(self._row(tr("Order"), self.order_btn))
+        col.addLayout(field_row(tr("Order"), self.order_btn))
 
         self.print_btn = StepCombo.of(
             list(_PRINTS),
-            tr("As Edited prints each frame with its own edit. Straight Proof prints the roll at one exposure and grade"),
+            tr("Print each frame with its own edit, or print the whole roll at one exposure and grade as a straight proof."),
         )
         self.print_btn.currentIndexChanged.connect(lambda _index: self._apply_variant())
-        col.addLayout(self._row(tr("Print"), self.print_btn))
+        col.addLayout(field_row(tr("Print"), self.print_btn))
         self.proof_label = hint_label()
         self.proof_label.setWordWrap(True)
         col.addWidget(self.proof_label)
@@ -437,7 +432,7 @@ class ContactSheetDialog(QDialog):
         self.pick_btn = tool_toggle(
             "fa5s.times-circle",
             tr("Pick Frames"),
-            tr("Show every frame; click one to leave it out or put it back. Rejected frames start left out"),
+            tr("Show every frame, and click one to leave it out or put it back."),
         )
         self.pick_btn.toggled.connect(lambda _checked: self._schedule_render())
         col.addWidget(self.pick_btn)
@@ -446,28 +441,28 @@ class ContactSheetDialog(QDialog):
         toggles.setSpacing(THEME.space_md)
         self.edge_btn = labeled_toggle(
             "fa5s.barcode",
-            tr(" Edge Print"),
+            tr("Edge Print"),
             settings.edge_print,
             tr("Print the maker's edge markings: stock name, frame numbers and the DX barcode"),
         )
         self.edge_btn.toggled.connect(lambda _checked: self._restyle())
         toggles.addWidget(self.edge_btn, 1)
         self.label_btn = labeled_toggle(
-            "fa5s.tag", tr(" Roll Label"), settings.roll_label, tr("Print the roll name, film, developer, camera and date above the strips")
+            "fa5s.tag", tr("Roll Label"), settings.roll_label, tr("Print the roll name, film, developer, camera and date above the strips")
         )
         self.label_btn.toggled.connect(self._on_label_toggled)
         toggles.addWidget(self.label_btn, 1)
         col.addLayout(toggles)
         self.white_btn = labeled_toggle(
             "fa5s.print",
-            tr(" White Paper"),
+            tr("White Paper"),
             settings.white_paper,
             tr("Print on white paper with dark labels, to save ink on a home printer"),
         )
         self.white_btn.toggled.connect(lambda _checked: self._schedule_render())
         self.film_edges_btn = labeled_toggle(
             "fa5s.film",
-            tr(" Film Edges"),
+            tr("Film Edges"),
             settings.film_edges,
             tr(
                 "Print the frames on film strips with their perforations and edge print; off lays them upright in rows, as on the Light Table"
@@ -492,7 +487,7 @@ class ContactSheetDialog(QDialog):
         footer = QHBoxLayout()
         self.info_btn = icon_button("fa5s.info-circle", tr("How the contact sheet is laid out"))
         self.info_btn.setVisible(has_guide(_GUIDE_KEY))
-        self.info_btn.clicked.connect(lambda: SectionHelpDialog(_GUIDE_KEY, "Contact Sheet", self, repo=self._repo).exec())
+        self.info_btn.clicked.connect(lambda: SectionHelpDialog(_GUIDE_KEY, tr("Contact Sheet"), self, repo=self._repo).exec())
         footer.addWidget(self.info_btn)
         footer.addStretch()
         self.cancel_btn = QPushButton(tr("Cancel"))
@@ -510,14 +505,6 @@ class ContactSheetDialog(QDialog):
         for combo in combos:
             combo.setMinimumWidth(width)
         return panel
-
-    @staticmethod
-    def _row(text: str, control: QWidget) -> QHBoxLayout:
-        row = QHBoxLayout()
-        label = field_label(text, FIELD_LABEL_WIDTH)
-        row.addWidget(label)
-        row.addWidget(control, 1)
-        return row
 
     def _geometry(self):
         return film_geometry(self._format, self._frame_size)
@@ -773,10 +760,10 @@ class ContactSheetDialog(QDialog):
                 sheets=sheets,
             )
         if self._left_out:
-            text += f" · {len(self._left_out)} left out"
+            text = tr("{summary} · {value} left out", summary=text, value=len(self._left_out))
         done = self._tiles_done[self._variant]
         if self._source is not None and done < len(self._frames):
-            text += f" · preview {done}/{len(self._frames)}"
+            text = tr("{summary} · preview {value}/{total}", summary=text, value=done, total=len(self._frames))
         self.summary_label.setText(text)
 
     def resizeEvent(self, event) -> None:  # noqa: N802

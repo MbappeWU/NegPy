@@ -1,9 +1,8 @@
 from negpy.kernel.system.i18n import tr
-from PyQt6.QtWidgets import QHBoxLayout
 
 from negpy.desktop.view.sidebar.base import BaseSidebar
-from negpy.desktop.view.styles.templates import FIELD_LABEL_WIDTH, field_label, hint_label, section_subheader, wrap_tooltip
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.styles.templates import field_row, hint_label, section_subheader, wrap_tooltip
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.hdr.models import hdr_active
 from negpy.features.process.logic import VALID_HIGHLIGHT_LEVELS
@@ -11,7 +10,7 @@ from negpy.features.process.models import DemosaicMode, ProcessMode, invalidate_
 from negpy.features.rgbscan.models import is_rgb_triplet
 from negpy.infrastructure.loaders.helpers import supported_demosaic_modes
 
-_TIP = tr("How the camera's raw data becomes pixels. Auto is fast on screen and uses AHD for export.")
+_TIP = tr("How the camera's raw data becomes pixels: Auto is fast on screen and uses AHD for export.")
 
 # Highlight Reconstruction dropdown: rawpy's HighlightMode, collapsed to the three settings
 # worth choosing between (see effective_highlight_reconstruction) — Reconstruct pinned to
@@ -23,7 +22,7 @@ _HIGHLIGHT_LEVELS = (
 )
 
 _HIGHLIGHT_TIP = tr(
-    "Rebuilds blown highlights in a camera RAW. Blend suits sun and sky; Reconstruct is stronger but can get the color wrong."
+    "Rebuilds blown highlights in a camera RAW: Blend suits sun and sky, and Reconstruct is stronger but can get the color wrong."
 )
 
 
@@ -61,7 +60,7 @@ class DemosaicSidebar(BaseSidebar):
 
         self.linear_raw_btn = SegmentedChoice(
             (("fa5s.palette", tr("Camera WB")), ("fa5s.sliders-h", tr("Linear RAW"))),
-            tr("Camera WB uses the camera's white balance. Linear RAW decodes neutral, for narrowband light."),
+            tr("Camera WB uses the camera's white balance, and Linear RAW decodes neutral, for narrowband light."),
             data=(False, True),
         )
         self.linear_raw_btn.setCurrentIndex(self.linear_raw_btn.findData(conf.linear_raw))
@@ -75,12 +74,8 @@ class DemosaicSidebar(BaseSidebar):
         self.layout.addWidget(self.capture_hint)
 
         self.layout.addWidget(section_subheader(tr("DEMOSAIC")))
-        for label, combo in (("Preview", self.preview_combo), ("Export", self.export_combo)):
-            row = QHBoxLayout()
-            lbl = field_label(label, FIELD_LABEL_WIDTH)
-            row.addWidget(lbl)
-            row.addWidget(combo, 1)
-            self.layout.addLayout(row)
+        self.layout.addLayout(field_row(tr("Preview"), self.preview_combo))
+        self.layout.addLayout(field_row(tr("Export"), self.export_combo))
 
         # Shown only on a frame these do not reach; the general note lives in the tooltip.
         self.hint = hint_label(tr("This frame is not a Bayer or X-Trans RAW, so it arrives already de-mosaiced."))
@@ -92,19 +87,17 @@ class DemosaicSidebar(BaseSidebar):
 
         self.highlight_header = section_subheader(tr("HIGHLIGHTS"))
         self.layout.addWidget(self.highlight_header)
-        highlight_row = QHBoxLayout()
-        self.highlight_label = field_label(tr("Recovery"), FIELD_LABEL_WIDTH)
-        highlight_row.addWidget(self.highlight_label)
         self.highlight_combo = StepCombo()
         self.highlight_combo.addItems([label for _level, label in _HIGHLIGHT_LEVELS])
         self.highlight_combo.setToolTip(wrap_tooltip(_HIGHLIGHT_TIP))
         self.highlight_combo.setCurrentIndex(_highlight_bucket(conf.highlight_reconstruction))
-        highlight_row.addWidget(self.highlight_combo, 1)
+        highlight_row = field_row(tr("Recovery"), self.highlight_combo)
+        self.highlight_label = highlight_row.itemAt(0).widget()
         self.layout.addLayout(highlight_row)
 
         self.highlight_merged_hint = hint_label(tr("Not applied to a merged bracket."))
         self.highlight_merged_hint.setToolTip(
-            wrap_tooltip(tr("A merged bracket already recovers highlights from its shorter exposures. Unmerge the frame to use this."))
+            wrap_tooltip(tr("A merged bracket already recovers highlights from its shorter exposures, so unmerge the frame to use this."))
         )
         self.highlight_merged_hint.setVisible(False)
         self.layout.addWidget(self.highlight_merged_hint)
@@ -159,24 +152,15 @@ class DemosaicSidebar(BaseSidebar):
                 )
                 self.capture_hint.setToolTip(
                     wrap_tooltip(
-                        tr("The scanning setup is for negatives.")
-                        + (
-                            tr(" With Positive on, Linear RAW would undo Positive, so leave it off.")
-                            if conf.positive_source
-                            else tr(" Linear RAW has no effect on a slide.")
-                        )
-                        + (tr(" A Trichrome triplet also locks Linear RAW.") if triplet else "")
-                        + tr(" The setting is kept for negatives.")
+                        tr("With Positive on, Linear RAW would undo Positive, so leave it off.")
+                        if conf.positive_source
+                        else tr("Linear RAW has no effect on a slide.")
                     )
                 )
             elif triplet:
                 self.capture_hint.setText(tr("Linear RAW is locked for a Trichrome triplet."))
                 self.capture_hint.setToolTip(
-                    wrap_tooltip(
-                        tr(
-                            "Each Trichrome exposure holds one color only, so camera white balance has nothing to correct. The setting is kept for other frames."
-                        )
-                    )
+                    wrap_tooltip(tr("Each Trichrome exposure holds one color only, so camera white balance has nothing to correct."))
                 )
 
             self.preview_combo.setCurrentText(str(DemosaicMode(conf.demosaic_preview)))

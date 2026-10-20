@@ -16,14 +16,8 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import QApplication, QSizePolicy, QVBoxLayout, QWidget
 
 from negpy.desktop.view.styles.color_vision import palette_for
-from negpy.desktop.view.styles.templates import wrap_tooltip
+from negpy.desktop.view.styles.templates import with_alpha, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
-
-
-def _alpha(color: str, alpha: int) -> QColor:
-    c = QColor(color)
-    c.setAlpha(alpha)
-    return c
 
 
 _CLIP_THRESH = 0.005  # fraction of pixels considered "clipping"
@@ -32,22 +26,22 @@ _CLIP_THRESH = 0.005  # fraction of pixels considered "clipping"
 def _draw_plated_text(painter: QPainter, rect: QRect, flags: Qt.AlignmentFlag, text: str) -> None:
     """A chart label on a dark plate, so it reads over a bright trace."""
     box = painter.boundingRect(rect, flags, text).adjusted(-2, 0, 2, 0)
-    painter.fillRect(box, _alpha(THEME.canvas_bg_black, 190))
-    painter.setPen(_alpha(THEME.text_hint, 230))
+    painter.fillRect(box, with_alpha(THEME.canvas_bg_black, 190))
+    painter.setPen(with_alpha(THEME.text_hint, 230))
     painter.drawText(rect, flags, text)
 
 
 def _guide_pen() -> QPen:
     """Every chart's grid and guide lines."""
-    return QPen(_alpha(THEME.border_hover, 150), 1)
+    return QPen(with_alpha(THEME.border_hover, 150), 1)
 
 
 def _draw_hover_ring(painter: QPainter, at: QPointF) -> None:
     """The hovered pixel's mark on a scope: the curve's tracking ring over a dark halo, so it holds over a bright trace."""
     painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.setPen(QPen(_alpha(THEME.canvas_bg_black, 200), 3.5))
+    painter.setPen(QPen(with_alpha(THEME.canvas_bg_black, 200), 3.5))
     painter.drawEllipse(at, 4.0, 4.0)
-    painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1.5))
+    painter.setPen(QPen(with_alpha(THEME.text_on_accent, 220), 1.5))
     painter.drawEllipse(at, 4.0, 4.0)
 
 
@@ -442,8 +436,8 @@ class PhotometricCurveWidget(QWidget):
             fill_path.closeSubpath()
 
             gradient = QLinearGradient(0.0, 0.0, float(w), 0.0)
-            gradient.setColorAt(0.0, _alpha(THEME.canvas_bg_black, 55))
-            gradient.setColorAt(1.0, _alpha(THEME.text_on_accent, 55))
+            gradient.setColorAt(0.0, with_alpha(THEME.canvas_bg_black, 55))
+            gradient.setColorAt(1.0, with_alpha(THEME.text_on_accent, 55))
             painter.setBrush(QBrush(gradient))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawPath(fill_path)
@@ -459,10 +453,10 @@ class PhotometricCurveWidget(QWidget):
                 for px, py in self._ghost_pts[1:]:
                     ghost_path.lineTo(self._wx(px, w), self._wy(py, h))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(_alpha(THEME.text_secondary, 90), 1, Qt.PenStyle.DashLine))
+                painter.setPen(QPen(with_alpha(THEME.text_secondary, 90), 1, Qt.PenStyle.DashLine))
                 painter.drawPath(ghost_path)
                 if self._ghost_pivot:
-                    painter.setBrush(QBrush(_alpha(THEME.text_secondary, 90)))
+                    painter.setBrush(QBrush(with_alpha(THEME.text_secondary, 90)))
                     painter.setPen(Qt.PenStyle.NoPen)
                     painter.drawEllipse(QPointF(self._wx(self._ghost_pivot[0], w), self._wy(self._ghost_pivot[1], h)), 2.5, 2.5)
 
@@ -487,7 +481,7 @@ class PhotometricCurveWidget(QWidget):
 
                 # Grade and Density act about the pivot, so brighten its crosshair while dragged.
                 cross_alpha = 110 if self._active_param in ("grade", "density") else 45
-                painter.setPen(QPen(_alpha(THEME.text_secondary, cross_alpha), 1, Qt.PenStyle.DotLine))
+                painter.setPen(QPen(with_alpha(THEME.text_secondary, cross_alpha), 1, Qt.PenStyle.DotLine))
                 painter.drawLine(int(wpx), 0, int(wpx), h)
                 painter.drawLine(0, int(wpy), w, int(wpy))
 
@@ -502,13 +496,13 @@ class PhotometricCurveWidget(QWidget):
                 idx = max(0, min(len(self._curve_pts) - 1, idx))
                 tx, ty = self._curve_pts[idx]
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1.5))
+                painter.setPen(QPen(with_alpha(THEME.text_on_accent, 220), 1.5))
                 painter.drawEllipse(QPointF(self._wx(tx, w), self._wy(ty, h)), 4.0, 4.0)
 
             # Hovered-pixel marker lines, on the print histogram's tone scale
             if self._marker is not None:
                 for value, color_hex in zip(self._marker, (THEME.channel_red, THEME.channel_green, THEME.channel_blue)):
-                    painter.setPen(QPen(_alpha(color_hex, 220), 1, Qt.PenStyle.DashLine))
+                    painter.setPen(QPen(with_alpha(color_hex, 220), 1, Qt.PenStyle.DashLine))
                     mx = int(self._wx(value / 255, w))
                     painter.drawLine(mx, 0, mx, h)
 
@@ -529,7 +523,7 @@ class PhotometricCurveWidget(QWidget):
         band.closeSubpath()
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(_alpha(THEME.chart_mask, 38)))
+        painter.setBrush(QBrush(with_alpha(THEME.chart_mask, 38)))
         painter.drawPath(band)
 
         edge = QPainterPath()
@@ -537,7 +531,7 @@ class PhotometricCurveWidget(QWidget):
         for px, py in self._mask_pts[1:]:
             edge.lineTo(self._wx(px, w), self._wy(py, h))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(_alpha(THEME.chart_mask, 165), 1, Qt.PenStyle.DashLine))
+        painter.setPen(QPen(with_alpha(THEME.chart_mask, 165), 1, Qt.PenStyle.DashLine))
         painter.drawPath(edge)
 
     def _draw_output_histogram(self, painter: QPainter, w: int, h: int) -> None:
@@ -569,7 +563,7 @@ class PhotometricCurveWidget(QWidget):
                 path.lineTo(xs[-1], bot)
                 path.closeSubpath()
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QBrush(_alpha(color_hex, alpha_fill)))
+                painter.setBrush(QBrush(with_alpha(color_hex, alpha_fill)))
                 painter.drawPath(path)
 
             # Open polyline for the outline so the closing edges don't stroke.
@@ -578,7 +572,7 @@ class PhotometricCurveWidget(QWidget):
             for x, v in zip(xs, values):
                 path_line.lineTo(x, bot - v * scale)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(_alpha(color_hex, alpha_line), 1.0))
+            painter.setPen(QPen(with_alpha(color_hex, alpha_line), 1.0))
             painter.drawPath(path_line)
 
     def _draw_zone_ticks(self, painter: QPainter, h: int) -> None:
@@ -985,14 +979,14 @@ class WaveformWidget(QWidget):
             if self._scan_marks is not None and counts is not None:
                 hexes = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
                 for rect, ends, hex_ in zip(channel_rects, self._shown_marks(self._scan_marks), hexes):
-                    painter.setPen(QPen(_alpha(THEME.text_primary if self._split() else hex_, 170), 1))
+                    painter.setPen(QPen(with_alpha(THEME.text_primary if self._split() else hex_, 170), 1))
                     for tone in ends:
                         y = int(min(max(h - tone * h, 1.0), h - 2.0))
                         painter.drawLine(rect.x(), y, rect.x() + rect.width() - 1, y)
             if self._scan_base is not None and counts is not None:
                 hexes = (THEME.channel_red_text, THEME.channel_green_text, THEME.channel_blue_text)
                 for rect, tone, hex_ in zip(channel_rects, self._shown_marks(self._scan_base), hexes):
-                    painter.setPen(QPen(_alpha(THEME.text_primary if self._split() else hex_, 220), 1, Qt.PenStyle.DotLine))
+                    painter.setPen(QPen(with_alpha(THEME.text_primary if self._split() else hex_, 220), 1, Qt.PenStyle.DotLine))
                     y = int(min(max(h - tone * h, 1.0), h - 2.0))
                     painter.drawLine(rect.x(), y, rect.x() + rect.width() - 1, y)
 
@@ -1003,13 +997,13 @@ class WaveformWidget(QWidget):
             if len(tones) == 3 and self._split() and self._aligned():
                 # Green's level across all three panels: a neutral rings on it in each.
                 gy = min(max(h - tones[1] * h, 0.0), h - 1.0)
-                painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
+                painter.setPen(QPen(with_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
                 painter.drawLine(QPointF(0, gy), QPointF(w, gy))
             for rect, tone in zip(channel_rects if len(tones) == 3 else rects, tones):
                 # Kept a ring's width inside the panel, so an edge column's mark is not cut in half.
                 mx = min(max(rect.x() + x * rect.width(), rect.x() + 5.0), rect.x() + rect.width() - 5.0)
                 my = min(max(h - tone * h, 5.0), h - 5.0)
-                painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
+                painter.setPen(QPen(with_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
                 painter.drawLine(QPointF(mx, 0), QPointF(mx, h))
                 _draw_hover_ring(painter, QPointF(mx, my))
 
@@ -1151,7 +1145,7 @@ class VectorscopeWidget(QWidget):
             r = min(float(scope_radius(float(np.hypot(a, b)), self._log_scale)), 1.0) * rim
             angle = float(np.arctan2(b, a))
             spot = QPointF(center.x() + np.cos(angle) * r, center.y() - np.sin(angle) * r)
-            painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
+            painter.setPen(QPen(with_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
             painter.drawLine(center, spot)
             _draw_hover_ring(painter, spot)
 
@@ -1283,17 +1277,17 @@ class ZoneStripWidget(QWidget):
                 alpha = int(min(1.0, np.sqrt(frac)) * 235)
                 painter.fillRect(x0, 0, x1 - x0, h, QColor(tone, tone, tone, alpha))
                 if shadow_warn and i <= 1:
-                    painter.fillRect(x0, 0, x1 - x0, h, _alpha(self._clip_colors[0], 90))
+                    painter.fillRect(x0, 0, x1 - x0, h, with_alpha(self._clip_colors[0], 90))
                 elif highlight_warn and i >= n - 2:
-                    painter.fillRect(x0, 0, x1 - x0, h, _alpha(self._clip_colors[1], 90))
+                    painter.fillRect(x0, 0, x1 - x0, h, with_alpha(self._clip_colors[1], 90))
                 armed = i == self._armed
                 if armed:
                     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
                     painter.setPen(QPen(QColor(THEME.border_checked_hover), 1))
-                    painter.setBrush(_alpha(THEME.bg_checked_hover, 200))
+                    painter.setBrush(with_alpha(THEME.bg_checked_hover, 200))
                     painter.drawRoundedRect(QRectF(x0 + 1.5, 2.5, x1 - x0 - 3, h - 5), THEME.radius_sm, THEME.radius_sm)
                     painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-                painter.setPen(QPen(QColor(THEME.text_primary) if armed else _alpha(THEME.text_hint, 160)))
+                painter.setPen(QPen(QColor(THEME.text_primary) if armed else with_alpha(THEME.text_hint, 160)))
                 painter.drawText(QRect(x0, 0, x1 - x0, h), Qt.AlignmentFlag.AlignCenter, self._LABELS[i])
 
 
@@ -1369,9 +1363,9 @@ class StepWedgeWidget(QWidget):
             # The hover ring's pens, so a mark holds on black and white steps alike.
             for edge in span:
                 x = (bounds[edge][0] + bounds[edge][1]) // 2
-                painter.setPen(QPen(_alpha(THEME.canvas_bg_black, 200), 3))
+                painter.setPen(QPen(with_alpha(THEME.canvas_bg_black, 200), 3))
                 painter.drawLine(x, 0, x, h)
-                painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1))
+                painter.setPen(QPen(with_alpha(THEME.text_on_accent, 220), 1))
                 painter.drawLine(x, 0, x, h)
 
         labelled = range(0, len(self._enc), self._LABEL_EVERY)
@@ -1398,7 +1392,9 @@ class StepWedgeWidget(QWidget):
                 else:
                     flags |= Qt.AlignmentFlag.AlignHCenter
                 # Flip against the patch: a light label vanishes on paper white, a dark one on black.
-                painter.setPen(_alpha(THEME.canvas_bg_black, 220) if float(self._enc[i]) > 0.5 else _alpha(THEME.text_on_accent, 235))
+                painter.setPen(
+                    with_alpha(THEME.canvas_bg_black, 220) if float(self._enc[i]) > 0.5 else with_alpha(THEME.text_on_accent, 235)
+                )
                 painter.drawText(box, flags, text)
 
 
@@ -1517,10 +1513,10 @@ class MiniHistogramWidget(QWidget):
         if not self._clip_strips:
             return
         if self._clip_low:
-            painter.setBrush(QBrush(_alpha(self._clip_colors[0], 180)))
+            painter.setBrush(QBrush(with_alpha(self._clip_colors[0], 180)))
             painter.drawRect(0, 0, 3, h)
         if self._clip_high:
-            painter.setBrush(QBrush(_alpha(self._clip_colors[1], 180)))
+            painter.setBrush(QBrush(with_alpha(self._clip_colors[1], 180)))
             painter.drawRect(w - 3, 0, 3, h)
 
 
@@ -1608,7 +1604,7 @@ class MiniCurveWidget(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         w, h = self.width(), self.height()
         for color, pts in zip((THEME.channel_red, THEME.channel_green, THEME.channel_blue), self._channels):
-            painter.setPen(QPen(_alpha(color, 140), 1.5))
+            painter.setPen(QPen(with_alpha(color, 140), 1.5))
             painter.drawPath(self._path(pts, w, h))
-        painter.setPen(QPen(_alpha(THEME.text_muted, 160), 1.5))
+        painter.setPen(QPen(with_alpha(THEME.text_muted, 160), 1.5))
         painter.drawPath(self._path(self._base, w, h))

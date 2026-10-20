@@ -6,7 +6,7 @@ from negpy.desktop.view.sidebar.base import BaseSidebar
 from negpy.desktop.view.styles.templates import hint_label, wrap_tooltip
 from negpy.desktop.view.widgets.sliders import SliderGroup
 
-_NO_ROLL_HINT = tr("Half Frame is a roll-wide setting, and this isn't one roll. Open the roll itself to split its scans.")
+_NO_ROLL_HINT = tr("Half Frame is a roll-wide setting, and these frames are not one roll. Open the roll itself to split its scans.")
 
 
 class HalfFrameSidebar(BaseSidebar):
@@ -28,17 +28,17 @@ class HalfFrameSidebar(BaseSidebar):
 
         self.adjust_btn = self._labeled_action(
             "mdi.tune-variant",
-            tr(" Adjust…"),
+            tr("Adjust…"),
             wrap_tooltip(tr("Set this scan's crop and where it splits.")),
         )
         self.auto_btn = self._labeled_action(
             "fa5s.layer-group",
-            tr(" Detect All"),
+            tr("Detect All"),
             wrap_tooltip(tr("Find the crop and the split again on every loaded scan.")),
         )
         self.unsplit_btn = self._labeled_action(
             "fa5s.object-ungroup",
-            tr(" Unsplit"),
+            tr("Unsplit"),
             wrap_tooltip(tr("Turn this diptych back into one plain scan, deleting both halves' edits")),
         )
         btn_row = QHBoxLayout()

@@ -19,7 +19,7 @@ from negpy.services.assets.sensor import SensorProfiles
 _UNMIX_CHOICES = (
     (
         SensorUnmix.LINEAR,
-        tr("Removes the leak exactly. Colors the film barely passes can print speckled."),
+        tr("Removes the leak exactly, but colors that the film barely passes can print speckled."),
     ),
     (
         SensorUnmix.TWO_SCALE,
@@ -27,7 +27,7 @@ _UNMIX_CHOICES = (
     ),
     (
         SensorUnmix.DENSITY,
-        tr("Works on film density. No speckle, but strong colors are slightly less vivid."),
+        tr("Works on film density, with no speckle, but strong colors are slightly less vivid."),
     ),
 )
 
@@ -48,7 +48,7 @@ class SensorSidebar(BaseSidebar):
         self.sensor_combo.addItems(SensorProfiles.list_profiles())
         self.sensor_combo.setToolTip(
             tr(
-                "Sensor profile: removes the color leak between channels in single-shot narrowband scans. Run Roll Analysis again after a change."
+                "Sensor profile: removes the color leak between channels in single-shot narrowband scans; run Roll Analysis again after a change."
             )
         )
         self.calibrate_sensor_btn = self._icon_action(
@@ -62,7 +62,7 @@ class SensorSidebar(BaseSidebar):
         # Plain strings: Qt's findData cannot match a StrEnum member.
         self.unmix_btn = StepCombo.of(
             [mode.label for mode, _tip in _UNMIX_CHOICES],
-            tr("How the calibration is applied. Run Roll Analysis again after a change."),
+            tr("How the calibration is applied; run Roll Analysis again after a change."),
             [mode.value for mode, _tip in _UNMIX_CHOICES],
         )
         for i, (_mode, tip) in enumerate(_UNMIX_CHOICES):
@@ -90,13 +90,9 @@ class SensorSidebar(BaseSidebar):
         self.crosstalk_label = field_label(tr("Matrix"))
         self.crosstalk_combo = StepCombo()
         self._fill_crosstalk_combo()
-        self.crosstalk_combo.setCurrentText(conf.crosstalk_profile)
-        # Wrap the long tooltip in a fixed-width table, so Qt word-wraps it to the panel width
-        # instead of rendering one line that runs off the screen. Qt auto-wraps rich text only.
+        self._select_crosstalk(conf.crosstalk_profile)
         self.crosstalk_combo.setToolTip(
-            tr(
-                "Crosstalk matrix: separates colors that the film's dyes, your light and your sensor mix together. Run Roll Analysis after a change."
-            )
+            tr("Crosstalk matrix: separates colors that the film's dyes, your light and your sensor mix together.")
         )
         self.manage_crosstalk_btn = self._icon_action("fa5s.sliders-h", tr("Open the crosstalk matrix editor."))
         self.measure_chart_btn = self._icon_action(
@@ -109,7 +105,7 @@ class SensorSidebar(BaseSidebar):
         # state for any process NegPy ships nothing for.
         self.crosstalk_hint = hint_label(tr("No matrices for this film type yet. Make one in the editor."))
         self.crosstalk_hint.setToolTip(
-            wrap_tooltip(tr("A matrix shows only for the film type it was saved for. Open the editor to make one."))
+            wrap_tooltip(tr("A matrix shows only for the film type that it was saved for, so open the editor to make one."))
         )
         self.crosstalk_strength_slider = CompactSlider(tr("Strength"), 0.0, 1.0, conf.crosstalk_strength, has_neutral=True)
         self.crosstalk_strength_rail = SliderGroup(self.crosstalk_strength_slider)
@@ -127,7 +123,7 @@ class SensorSidebar(BaseSidebar):
 
         self.hue_trim_slider = CompactSlider(tr("Hue Trim"), -30.0, 30.0, conf.hue_trim, step=0.5, precision=10, has_neutral=True, unit="°")
         self.hue_trim_slider.setToolTip(
-            tr("Rotates all hues, for a light that turns yellows orange or greens olive. Keep 0 for white light.")
+            tr("Rotates all hues, for a light that turns yellows orange or greens olive; keep 0 for white light.")
         )
         light_header, self.light_fold = group_fold("sensor_light", tr("Light Source"), self.hue_trim_slider)
         self.layout.addLayout(light_header)
@@ -135,33 +131,28 @@ class SensorSidebar(BaseSidebar):
 
         self._apply_gate(conf)
 
-    @staticmethod
-    def _heading_row(heading: str) -> str:
-        return f"— {heading} —"
-
     def _expected_crosstalk_rows(self, process_mode=None) -> list:
         """The rows _fill_crosstalk_combo would produce, for change detection."""
         rows: list = []
         for heading, names in CrosstalkProfiles.grouped_profiles(process_mode):
-            rows.append(self._heading_row(heading))
+            rows.append(tr(heading))
             rows.extend(names)
         return rows
 
     def _fill_crosstalk_combo(self, process_mode=None) -> None:
-        """Rebuild the matrix dropdown with a non-selectable heading per provenance group.
-
-        Qt has no group concept, so headings are combo rows disabled through the model.
-        Bracketing them keeps a heading from colliding with a profile name, which would let
-        setCurrentText land on one.
-        """
+        """Rebuild the matrix dropdown with a caption row per provenance group. A profile carries
+        its name as item data and a caption none, so selection by data never lands on a caption
+        that shares a profile's name."""
         self.crosstalk_combo.clear()
         for heading, names in CrosstalkProfiles.grouped_profiles(process_mode):
-            self.crosstalk_combo.addItem(self._heading_row(heading))
-            item = self.crosstalk_combo.model().item(self.crosstalk_combo.count() - 1)
-            if item is not None:
-                item.setEnabled(False)
+            self.crosstalk_combo.add_header(tr(heading))
             for name in names:
-                self.crosstalk_combo.addItem(name)
+                self.crosstalk_combo.addItem(name, name)
+
+    def _select_crosstalk(self, name: str) -> None:
+        idx = self.crosstalk_combo.findData(name)
+        if idx >= 0:
+            self.crosstalk_combo.setCurrentIndex(idx)
 
     def _crosstalk_names(self) -> list:
         """Selectable profile names currently in the combo, headings excluded."""
@@ -177,15 +168,15 @@ class SensorSidebar(BaseSidebar):
     _SENSOR_BLOCKED = {
         "linear_raw": (
             tr("Requires Linear RAW."),
-            tr("Sensor profiles need Linear RAW, so the profile is skipped while it is off. Your choice is kept."),
+            tr("Sensor profiles need Linear RAW, so the profile is skipped while it is off and your choice is kept."),
         ),
         "triplet": (
             tr("Not used for a Trichrome triplet."),
-            tr("A Trichrome triplet has no sensor leak to remove, so the profile is skipped. Your choice is kept."),
+            tr("A Trichrome triplet has no sensor leak to remove, so the profile is skipped and your choice is kept."),
         ),
         "transparency": (
             tr("Not applied to a transparency."),
-            tr("Slides are not scanned with narrowband light, so the profile is skipped. Your choice is kept for negatives."),
+            tr("Slides are not scanned with narrowband light, so the profile is skipped and your choice is kept for negatives."),
         ),
     }
 
@@ -372,7 +363,7 @@ class SensorSidebar(BaseSidebar):
                 self.crosstalk_combo.itemText(i) for i in range(self.crosstalk_combo.count())
             ]:
                 self._fill_crosstalk_combo(conf.process_mode)
-            self.crosstalk_combo.setCurrentText(conf.crosstalk_profile)
+            self._select_crosstalk(conf.crosstalk_profile)
             self.crosstalk_strength_slider.setValue(conf.crosstalk_strength)
             # Nothing to unmix on one B&W emulsion. Every other process keeps the section even with
             # no matrices of its own, because the editor is the only way to make one and hiding it

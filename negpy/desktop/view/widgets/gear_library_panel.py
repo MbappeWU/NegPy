@@ -63,6 +63,7 @@ from negpy.desktop.view.widgets.granular_settings_dialog import GranularSettings
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.domain.models import WorkspaceConfig
 from negpy.features.metadata.gear_logic import (
+    CATEGORY_SEARCH_PLACEHOLDER,
     CATEGORY_SINGULAR,
     OTHER_ID,
     blank_gear_item,
@@ -91,10 +92,10 @@ from negpy.services.assets.presets import MetadataPresets, is_valid_preset_name,
 
 _CATEGORIES = [
     ("cameras", tr("Cameras")),
-    ("lenses", "Lenses"),
+    ("lenses", tr("Lenses")),
     ("film_stocks", tr("Film Stocks")),
-    ("processes", "Process"),
-    ("scan_setups", "Scanning"),
+    ("processes", tr("Processes")),
+    ("scan_setups", tr("Scan Setups")),
 ]
 
 _CATEGORY_ICONS: dict[str, str] = {
@@ -113,21 +114,11 @@ _CATEGORY_FIELDS: dict[str, frozenset[str]] = {
     "scan_setups": frozenset({"display_name", "scanning", "notes"}),
 }
 
-_CATEGORY_SEARCH_PLACEHOLDER = {
-    "cameras": "Search cameras…",
-    "lenses": "Search lenses…",
-    "film_stocks": "Search film stocks…",
-    "processes": "Search processes…",
-    "scan_setups": "Search scan setups…",
-}
-
-_CATEGORY_SINGULAR = CATEGORY_SINGULAR
-
 _CATEGORY_PLURAL_NOUN = {
-    "cameras": "cameras",
-    "lenses": "lenses",
+    "cameras": tr("cameras"),
+    "lenses": tr("lenses"),
     "film_stocks": tr("film stocks"),
-    "processes": "processes",
+    "processes": tr("processes"),
     "scan_setups": tr("scan setups"),
 }
 
@@ -146,7 +137,7 @@ _DELETE_TOOLTIPS = {
     "processes": tr("Remove this process from your gear"),
     "scan_setups": tr("Remove this scan setup from your gear"),
 }
-_DELETE_BUNDLED_TOOLTIP = tr("Built-in gear cannot be removed. Duplicate it to make your own copy.")
+_DELETE_BUNDLED_TOOLTIP = tr("Built-in gear cannot be removed, only duplicated")
 
 
 _PRESET_ROW_WIDGETS: dict[str, tuple[str, ...]] = {
@@ -172,7 +163,7 @@ _APPLY_TOOLTIP = tr("Write the selected preset's fields onto this frame")
 
 
 class _PresetDelegate(QStyledItemDelegate):
-    """A preset: its name over the fields it stores, the selected one with a red bar, ⋮ on hover."""
+    """A preset: its name over the fields it stores, the selected one on the warm chip, ⋮ on hover."""
 
     def sizeHint(self, option, index) -> QSize:  # noqa: N802
         return QSize(option.rect.width(), _PRESET_ROW)
@@ -345,31 +336,33 @@ class GearItemsPanel(QWidget):
         self.form_layout.setContentsMargins(0, 0, 0, 0)
         self.form_layout.setSpacing(THEME.space_md)
         self._form_rows: dict[str, tuple[QLabel, QWidget]] = {}
-        self._register_form_row("display_name", tr("Display name"), self.display_name_edit)
-        self._register_form_row("make", tr("Make"), self.make_edit)
-        self._register_form_row("model", tr("Model"), self.model_edit)
-        self._register_form_row("lens_model", tr("Lens model"), self.lens_model_edit)
-        self._register_form_row("focal", tr("Focal length"), self.focal_spin)
-        self._register_form_row("aperture", tr("Max aperture"), self.aperture_spin)
-        self._register_form_row("manufacturer", tr("Manufacturer"), self.manufacturer_edit)
-        self._register_form_row("stock_name", tr("Stock name"), self.stock_name_edit)
-        self._register_form_row("iso", tr("ISO"), self.iso_spin)
-        self._register_form_row("format", tr("Film format"), self.format_combo)
-        self._register_form_row("color_type", tr("Color type"), self.color_combo)
-        self._register_form_row("developer", tr("Developer"), self.developer_edit)
-        self._register_form_row("dilution", tr("Dilution"), self.dilution_edit)
-        self._register_form_row("push_pull", tr("Push / Pull"), self.push_pull_combo)
-        self._register_form_row("dev_time", tr("Time"), self.dev_time_edit)
-        self._register_form_row("dev_temp", tr("Temperature (°C)"), self.dev_temp_edit)
-        self._register_form_row("scanning", tr("Scanning"), self.scanning_edit)
-        self._register_form_row("notes", tr("Notes"), self.notes_edit)
+        row = self._register_form_row
+        row("display_name", tr("Display name"), self.display_name_edit, tooltip=tr("The name this item shows in every gear list"))
+        row("make", tr("Make"), self.make_edit, tooltip=tr("The maker of the camera or lens, written to the photo's metadata"))
+        row("model", tr("Model"), self.model_edit, tooltip=tr("The camera model, written to the photo's metadata"))
+        row("lens_model", tr("Lens model"), self.lens_model_edit, tooltip=tr("The lens model, written to the photo's metadata"))
+        row("focal", tr("Focal length"), self.focal_spin, tooltip=tr("The focal length of the lens"))
+        row("aperture", tr("Max aperture"), self.aperture_spin, tooltip=tr("The widest aperture of the lens"))
+        row("manufacturer", tr("Manufacturer"), self.manufacturer_edit, tooltip=tr("The company that makes the film"))
+        row("stock_name", tr("Stock name"), self.stock_name_edit, tooltip=tr("The name of the film, for example Portra 400"))
+        row("iso", tr("ISO"), self.iso_spin, tooltip=tr("The box speed of the film"))
+        row("format", tr("Film format"), self.format_combo, tooltip=tr("The film size this stock comes in"))
+        row("color_type", tr("Color type"), self.color_combo, tooltip=tr("Color or black and white, negative or slide"))
+        row("developer", tr("Developer"), self.developer_edit, tooltip=tr("The developer this process uses"))
+        row("dilution", tr("Dilution"), self.dilution_edit, tooltip=tr("Working strength, for example 1+1, 1+50 or stock"))
+        row("push_pull", tr("Push / Pull"), self.push_pull_combo, tooltip=tr("How many stops this process pushes or pulls the film"))
+        row("dev_time", tr("Time"), self.dev_time_edit, tooltip=tr("Development time, as mm:ss or plain minutes"))
+        row("dev_temp", tr("Temperature (°C)"), self.dev_temp_edit, tooltip=tr("Developer temperature in degrees Celsius"))
+        row("scanning", tr("Scanning"), self.scanning_edit, tooltip=tr("How the film is digitized, for example a DSLR on a copy stand"))
+        row("notes", tr("Notes"), self.notes_edit, tooltip=tr("Your own notes on this item"))
 
         root.addWidget(self.form_panel)
         root.addStretch()
 
         self.category_list.currentIndexChanged.connect(self._on_category_changed)
 
-    def _register_form_row(self, key: str, label_text: str, widget: QWidget) -> None:
+    def _register_form_row(self, key: str, label_text: str, widget: QWidget, *, tooltip: str) -> None:
+        widget.setToolTip(wrap_tooltip(tooltip))
         label = field_label(label_text)
         self.form_layout.addWidget(label)
         self.form_layout.addWidget(widget)
@@ -407,7 +400,7 @@ class GearItemsPanel(QWidget):
         self.show_catalog_btn.blockSignals(False)
         self.item_search.blockSignals(True)
         self.item_search.clear()
-        self.item_search.setPlaceholderText(_CATEGORY_SEARCH_PLACEHOLDER.get(self._category, tr("Search…")))
+        self.item_search.setPlaceholderText(tr(CATEGORY_SEARCH_PLACEHOLDER[self._category]))
         self.item_search.blockSignals(False)
         self._rebuild_item_list()
         self._show_form_for_category(self._category)
@@ -457,7 +450,7 @@ class GearItemsPanel(QWidget):
         no_personal_gear = not candidates and not query
         self.empty_hint.setVisible(no_personal_gear)
         if no_personal_gear:
-            self.empty_hint.setText(tr("You haven't added any {value} yet.", value=_CATEGORY_PLURAL_NOUN.get(self._category, "items")))
+            self.empty_hint.setText(tr("You have not added any {value} yet.", value=_CATEGORY_PLURAL_NOUN[self._category]))
         self.item_list.setVisible(not no_personal_gear)
 
         if not visible and not query:
@@ -632,10 +625,10 @@ class GearItemsPanel(QWidget):
             return
         dlg = GearCatalogDialog(
             self,
-            _CATEGORY_SINGULAR[self._category],
+            tr(CATEGORY_SINGULAR[self._category]),
             catalog,
             lambda item: item.resolved_display_name,
-            _CATEGORY_SEARCH_PLACEHOLDER[self._category],
+            tr(CATEGORY_SEARCH_PLACEHOLDER[self._category]),
             repo=self._repo,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -682,10 +675,7 @@ class GearItemsPanel(QWidget):
         item = items[self._selected_idx]
         if item.is_bundled:
             return
-        kind = {"film_stocks": tr("Film Stock"), "scan_setups": tr("Scan Setup")}.get(
-            self._category, dict(_CATEGORIES)[self._category].rstrip("s")
-        )
-        if not confirm_delete_named(self, kind, item.resolved_display_name):
+        if not confirm_delete_named(self, tr(CATEGORY_SINGULAR[self._category]), item.resolved_display_name):
             return
         items = list(self._current_items())
         del items[self._selected_idx]
@@ -749,7 +739,7 @@ class GearPresetsPanel(QWidget):
         root.addLayout(search_row)
 
         self.item_list = RowList(_PresetDelegate, _PRESET_ROW)
-        self.item_list.setToolTip(tr("Click a preset to see what it stores; ⋮ or right-click for more."))
+        self.item_list.setToolTip(tr("Click a preset to see what it stores, or right-click it for more"))
         self.item_list.currentRowChanged.connect(self._on_item_changed)
         self.item_list.menu_requested.connect(self._on_preset_menu)
         root.addWidget(self.item_list)
@@ -826,23 +816,34 @@ class GearPresetsPanel(QWidget):
         self.preset_exposure_edit = QLineEdit()
         self.preset_exposure_edit.setPlaceholderText(tr("e.g. 1/125s f/2.8 ISO 400"))
 
-        for key, label, widget in (
-            ("camera", tr("Camera"), self.preset_camera_combo),
-            ("lens", tr("Lens"), self.preset_lens_combo),
-            ("film_stock", tr("Film stock"), self.preset_film_combo),
-            ("format", tr("Film format"), self.preset_format_combo),
-            ("format_other", tr("Other format"), self.preset_format_other_edit),
-            ("process", tr("Saved process"), self.preset_process_combo),
-            ("developer", tr("Developer"), self.preset_developer_edit),
-            ("dilution", tr("Dilution"), self.preset_dilution_edit),
-            ("push_pull", tr("Push / Pull"), self.preset_push_combo),
-            ("dev_time", tr("Time"), self.preset_time_edit),
-            ("dev_temp", tr("Temperature (°C)"), self.preset_temp_edit),
-            ("scan_setup", tr("Saved setup"), self.preset_scan_combo),
-            ("scanning", tr("Scanning"), self.preset_scanning_edit),
-            ("roll", tr("Roll"), self.preset_roll_edit),
-            ("exposure", tr("Exposure"), self.preset_exposure_edit),
+        for key, label, widget, tip in (
+            ("camera", tr("Camera"), self.preset_camera_combo, tr("The camera this preset writes onto a frame")),
+            ("lens", tr("Lens"), self.preset_lens_combo, tr("The lens this preset writes onto a frame")),
+            ("film_stock", tr("Film stock"), self.preset_film_combo, tr("The film stock this preset writes onto a frame")),
+            ("format", tr("Film format"), self.preset_format_combo, tr("Film format written to the frame's metadata")),
+            ("format_other", tr("Other format"), self.preset_format_other_edit, tr("The film format, when the list does not have it")),
+            (
+                "process",
+                tr("Saved process"),
+                self.preset_process_combo,
+                tr("A saved development recipe that fills Developer and Push / Pull"),
+            ),
+            ("developer", tr("Developer"), self.preset_developer_edit, tr("The developer the film was processed in")),
+            ("dilution", tr("Dilution"), self.preset_dilution_edit, tr("Working strength, for example 1+1, 1+50 or stock")),
+            ("push_pull", tr("Push / Pull"), self.preset_push_combo, tr("How many stops the film was pushed or pulled in development")),
+            ("dev_time", tr("Time"), self.preset_time_edit, tr("Development time, as mm:ss or plain minutes")),
+            ("dev_temp", tr("Temperature (°C)"), self.preset_temp_edit, tr("Developer temperature in degrees Celsius")),
+            ("scan_setup", tr("Saved setup"), self.preset_scan_combo, tr("A saved digitizing setup that fills Scanning")),
+            ("scanning", tr("Scanning"), self.preset_scanning_edit, tr("How the film was digitized, for example a DSLR on a copy stand")),
+            ("roll", tr("Roll"), self.preset_roll_edit, tr("Roll name, used in export file name templates as {{ roll }}")),
+            (
+                "exposure",
+                tr("Exposure"),
+                self.preset_exposure_edit,
+                tr("The exposure written to the frame, for example 1/125s f/2.8 ISO 400"),
+            ),
         ):
+            widget.setToolTip(wrap_tooltip(tip))
             row_label = field_label(label)
             self.preset_form_layout.addWidget(row_label)
             self.preset_form_layout.addWidget(widget)
@@ -971,7 +972,7 @@ class GearPresetsPanel(QWidget):
         no_presets = not all_items and not query
         self.empty_hint.setVisible(no_presets)
         if no_presets:
-            self.empty_hint.setText(tr("You haven't added any presets yet."))
+            self.empty_hint.setText(tr("You have not added any presets yet."))
         self.item_list.setVisible(not no_presets)
 
         if not visible and not query:
@@ -1232,7 +1233,7 @@ class GearPresetsPanel(QWidget):
         )
 
     def _add_item(self) -> None:
-        """A preset is the current frame's metadata, minus the fields left unticked."""
+        """A preset is the current frame's metadata, minus the fields turned off."""
         current_config = self._current_config_fn()
         if current_config is None:
             return
@@ -1264,7 +1265,7 @@ class GearPresetsPanel(QWidget):
         # ones included, rather than making the user reveal them to add one.
         dlg.show_unchanged_settings()
         # What the preset stores, not what differs from default: a row deliberately holding
-        # a default value would otherwise arrive unticked and be dropped on save.
+        # a default value would otherwise arrive off and be dropped on save.
         dlg.set_checked_rows(r.id for r in rows_for_keys(data, "metadata"))
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -1306,7 +1307,7 @@ class GearPresetsPanel(QWidget):
 
 class GearLibraryPanel(QWidget):
     """My Gear and Presets over one gear library, each a card the Metadata tab gives a tab of
-    its own. My Gear holds physical gear (Cameras, Lenses, Film Stocks, Process, Scanning),
+    its own. My Gear holds physical gear (Cameras, Lenses, Film Stocks, Processes, Scan Setups),
     with a bundled/personal Catalog toggle; Presets holds saved metadata field sets, which
     have no bundled counterpart."""
 

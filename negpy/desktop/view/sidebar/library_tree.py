@@ -76,8 +76,8 @@ def _short_date(timestamp: float) -> str:
 
 
 class _RollDelegate(QStyledItemDelegate):
-    """A roll row: its name over a line that says what it is, the open roll marked Open with a
-    red bar, ⋮ on hover. A folder row is one line: the folder and how many rolls it holds."""
+    """A roll row: its name over a line that says what it is, the open roll marked with an Open
+    pill, ⋮ on hover. A folder row is one line: the folder and how many rolls it holds."""
 
     def __init__(self, tree: QTreeWidget, active_roll):
         super().__init__(tree)
@@ -199,7 +199,7 @@ class LibraryTree(QWidget):
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(THEME.space_sm)
 
         # Like the canvas bar's Roll mode: the filter takes the free width, then Sort, Import and ⋮.
         self.filter_input = QLineEdit()
@@ -211,7 +211,7 @@ class LibraryTree(QWidget):
         self.filter_input.setMinimumWidth(40)
         self.filter_input.textChanged.connect(lambda _text: self._apply_filter())
 
-        self.sort_btn = SortButton((("name", "Name"), ("date", "Date")), tr("Sort the roll list"))
+        self.sort_btn = SortButton((("name", tr("Name")), ("date", tr("Date"))), tr("Sort the roll list"))
         self.sort_btn.order_selected.connect(lambda order: self.set_sort(order, self._sort_descending, save=True))
         self.sort_btn.direction_selected.connect(lambda descending: self.set_sort(self._sort_order, descending, save=True))
 
@@ -306,8 +306,6 @@ class LibraryTree(QWidget):
         layout.addWidget(self.empty_label)
         layout.addStretch(0)
 
-    # --- importing -----------------------------------------------------------
-
     def prompt_import_folder(self) -> bool:
         """Import Folder as a Roll: recognize one folder and open it.
 
@@ -372,8 +370,6 @@ class LibraryTree(QWidget):
             self.refresh()
         return ok
 
-    # --- rolls -----------------------------------------------------------------
-
     def _saved_sort(self) -> tuple[str, bool]:
         """The roll list's own sort. Before it had one it followed the Film Strip, so an
         unset one starts from the Film Strip's (Scene reads as Name: rolls have no scenes)."""
@@ -418,9 +414,12 @@ class LibraryTree(QWidget):
         found, dropped = self.controller.rediscover_rolls()
         self.reload()
         if found or dropped:
-            parts = [f"Found {count_of(found, tr('new roll'))}"] if found else []
-            parts += [f"removed {count_of(dropped, tr('filtered roll'))}"] if dropped else []
-            self.controller.set_status(" · ".join(parts).capitalize(), 3000)
+            new, gone = count_of(found, "new roll"), count_of(dropped, "filtered roll")
+            if found and dropped:
+                message = tr("Found {value}, removed {value1}", value=new, value1=gone)
+            else:
+                message = tr("Found {value}", value=new) if found else tr("Removed {value}", value=gone)
+            self.controller.set_status(message, 3000)
             self.rolls_changed.emit()
 
     def reload(self) -> None:
@@ -501,7 +500,7 @@ class LibraryTree(QWidget):
         item.setIcon(0, qta.icon("mdi6.folder-outline" if is_folder else "mdi6.text-search", color=THEME.text_secondary))
         if missing:
             item.setToolTip(0, tr("Folder not found on disk: {path}", path=folder_path))
-            item.setToolTip(1, tr("Folder not found on disk. Move it back, or delete the roll."))
+            item.setToolTip(1, tr("The folder is not on disk, so move it back or delete the roll."))
         else:
             item.setToolTip(0, folder_path if is_folder else tr("Built from a search or a hand-picked set of frames"))
         return item
@@ -582,8 +581,6 @@ class LibraryTree(QWidget):
                 self.tree.setCurrentItem(item)
                 return
 
-    # --- opening -----------------------------------------------------------
-
     def _on_double_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         roll_id = item.data(0, _ROLL_ID_ROLE)
         if roll_id is not None:
@@ -649,7 +646,7 @@ class LibraryTree(QWidget):
         if not name or (name == current_name and not rename_folder):
             return
         if not is_valid_preset_name(name):
-            warn_invalid_roll_name(self, "Rename Roll")
+            warn_invalid_roll_name(self, tr("Rename Roll"))
             return
 
         if rename_folder:
@@ -666,20 +663,20 @@ class LibraryTree(QWidget):
         self.rolls_changed.emit()
 
     def _delete_roll(self, roll_id: str, name: str) -> None:
-        if confirm_delete_named(self, "Roll", name, informative=tr("This only forgets the roll. Nothing on disk changes.")):
+        if confirm_delete_named(self, tr("Roll"), name, informative=tr("This only forgets the roll. Nothing on disk changes.")):
             rolls.delete_roll(self.repo, roll_id)
             self.reload()
             self.rolls_changed.emit()
 
     def _delete_folder(self, folder_path: str, name: str) -> None:
-        if confirm_delete_named(self, "Folder", name, informative=tr("This forgets every roll in it. Nothing on disk changes.")):
+        if confirm_delete_named(self, tr("Folder"), name, informative=tr("This forgets every roll in it. Nothing on disk changes.")):
             rolls.delete_folder_rolls(self.repo, folder_path)
             self.reload()
             self.rolls_changed.emit()
 
     def _delete_rolls(self, selection: list[tuple]) -> None:
         names = [name for _roll_id, name in selection]
-        if confirm_delete_several(self, "Roll", names, informative=tr("This only forgets the roll records. Nothing on disk changes.")):
+        if confirm_delete_several(self, tr("Rolls"), names, informative=tr("This only forgets the roll records. Nothing on disk changes.")):
             for roll_id, _name in selection:
                 rolls.delete_roll(self.repo, roll_id)
             self.reload()

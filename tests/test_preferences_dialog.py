@@ -33,29 +33,20 @@ class TestPreferencesDialog(unittest.TestCase):
         dlg.vram_warning_box.setChecked(False)
         self.assertIs(dlg.repo.data["show_vram_capped_warning"], False)
 
-    def test_canvas_background_pills_cover_every_colour(self):
+    def test_canvas_background_offers_every_color_darkest_first_and_keeps_saved_indexes(self):
         from negpy.desktop.view.canvas.toolbar import CANVAS_COLORS
 
         dlg = _dlg()
-        self.assertEqual(len(dlg.canvas_pills), len(CANVAS_COLORS))
-        self.assertTrue(dlg.canvas_pills[2].isChecked(), "Mid Gray is the default")
-        self.assertEqual([p.toolTip() for p in dlg.canvas_pills], [label for _, _, label in CANVAS_COLORS])
+        combo = dlg.canvas_combo
+        self.assertEqual([combo.itemText(i) for i in range(combo.count())], ["Black", "Dark Gray", "Mid Gray", "Light Gray", "White"])
+        self.assertEqual(sorted(combo.itemData(i) for i in range(combo.count())), list(range(len(CANVAS_COLORS))))
+        self.assertEqual(combo.currentData(), 2, "Mid Gray is the default")
+        self.assertEqual(combo.itemData(combo.findText("White")), 3)
 
-    def test_the_pills_run_darkest_to_lightest_and_white_keeps_its_saved_index(self):
-        from PyQt6.QtWidgets import QHBoxLayout
-
+    def test_choosing_a_background_sets_that_index(self):
         dlg = _dlg()
-        row = next(layout for layout in dlg.findChildren(QHBoxLayout) if layout.indexOf(dlg.canvas_pills[0]) >= 0)
-        shown = [row.itemAt(i).widget().toolTip() for i in range(row.count())]
-        self.assertEqual(shown, ["Black", "Dark Gray", "Mid Gray", "Light Gray", "White"])
-        self.assertEqual(dlg.canvas_pills[3].toolTip(), "White")
-
-    def test_clicking_a_pill_sets_that_background(self):
-        dlg = _dlg()
-        dlg.canvas_pills[1].click()
+        dlg.canvas_combo.setCurrentIndex(dlg.canvas_combo.findData(1))
         dlg.session.set_canvas_bg.assert_called_once_with(1)
-        self.assertTrue(dlg.canvas_pills[1].isChecked())
-        self.assertFalse(dlg.canvas_pills[2].isChecked())
 
     def test_automatic_thumbnail_updates_default_off_and_go_through_the_session(self):
         dlg = _dlg()

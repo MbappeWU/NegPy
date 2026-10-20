@@ -149,7 +149,7 @@ def test_category_editor_rows_merge_slider_pairs():
     rows = category_editor_rows(exposure_items)
     labels = [row.group.label if isinstance(row, EditorRowSlider) else row.entry.description for row in rows]
 
-    assert "Density ↑/↓" in labels
+    assert "Print Density ↑/↓" in labels
     assert "Density up" not in labels
     assert "Density down" not in labels
     assert "Magenta ↑/↓" in labels

@@ -15,7 +15,6 @@ class ThemeConfig:
     font_size_base: int = 13
     font_size_header: int = 14
     font_size_title: int = 16
-    font_size_display: int = 24
     # Chart axis and swatch captions only: the one size below the reading scale.
     font_size_micro: int = 9
 
@@ -25,7 +24,6 @@ class ThemeConfig:
     bg_input: str = "#0A0A0A"
     bg_card: str = "#121212"
     bg_header: str = "#161616"
-    bg_status_bar: str = "#0a0a0a"
     bg_selected: str = "#222222"
     bg_hover: str = "#262626"
     bg_menu_selected: str = "#2E2E2E"
@@ -62,11 +60,10 @@ class ThemeConfig:
     warn_amber: str = "#C79A3A"
     # Marks drawn over the photo: white on a dark edge or plate, which reads on any picture.
     mark_photo: str = "#FFFFFF"
+    # The dark edge or plate under a photo mark; each site sets its own alpha (templates.with_alpha).
+    mark_shadow: str = "#000000"
     # Errors and invalid input.
     error: str = "#D32F2F"
-
-    slider_height_compact: int = 18
-    header_padding: int = 10
 
     # Spacing scale (px)
     space_xs: int = 2
@@ -84,9 +81,12 @@ class ThemeConfig:
     # Surface overlay tokens (rgba). Integer alpha where a widget sheet reads it.
     surface_scrim: str = "rgba(5, 5, 5, 115)"
     surface_pill: str = "rgba(0, 0, 0, 140)"
+    surface_reveal_flash: str = "rgba(94, 42, 42, 0.35)"  # border_checked_hover, faint
     surface_hover_faint: str = "#0CFFFFFF"  # #AARRGGBB: QColor reads it, not rgba()
     surface_overlay: str = "rgba(13,13,13,0.88)"
-    surface_overlay_strong: str = "rgba(26,26,26,0.82)"
+    # A card header over its chart: light enough for the chart to read through.
+    header_veil: str = "rgba(26,26,26,0.55)"
+    header_veil_hover: str = "rgba(34,34,34,0.62)"
     surface_overlay_hover: str = "rgba(34,34,34,0.88)"
     # Canvas toast / loading chip plate. Integer alpha: QSS float alpha is not reliably parsed.
     surface_toast: str = "rgba(10, 10, 10, 225)"
@@ -149,7 +149,7 @@ class ThemeConfig:
 
 
 THEME = ThemeConfig()
-# Scene marks cycle through existing tokens; red is left out because it means selected/armed.
+# Scene marks cycle through existing tokens; red is left out because it reads as an error or the selection mat.
 SCENE_COLORS = (THEME.channel_blue, THEME.status_success, THEME.warn_amber, THEME.filter_magenta, THEME.filter_cyan, THEME.mode_c41)
 
 

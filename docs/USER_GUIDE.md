@@ -26,11 +26,11 @@ For the math behind each step, read [PIPELINE.md](PIPELINE.md).
 
 *   **Canvas** (center): the picture. Scroll or pinch to zoom, drag to pan, and double-click to switch between fit and 100%. Right-click for view options, copy and paste of settings, resets and **Unload**.
 *   **Film Strip** (under the canvas): the open frames in one row. Drag its top edge to resize it; `Ctrl+[` folds it away.
-*   **Toolbar** (bottom): **Photo** holds navigation, zoom, rotate, **Tools** (crop, pickers, masks, retouching), undo, the **Print** menu (Before / After and the peeks) and **Overlays**. **Roll** holds the Film Strip's import, sort, filter and marking tools. The **⋯** menu holds every action, **Preferences…** included.
+*   **Toolbar** (bottom): **Photo** holds navigation, zoom, rotate, **Tools** (crop, pickers, masks, retouching), undo, the **Print** menu (Before / After and the peeks) and **Overlays**. **Roll** holds the Film Strip's import, filter, sort and roll actions. The **⋯** menu holds every action, **Preferences…** included.
 *   **Controls** (right): the tabs **Library**, **Roll**, **Frame**, **Metadata**, **Export** and **Scan**. Only Roll and Frame change the picture. Drag the panel by its top edge to float it.
 *   **Frame Info** (`I`): the file name, film and size in the corners of the canvas.
 
-**Shift+H** hides the panels, and **Reset Panel Layout** (⋯ menu) restores them. With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
+**Shift+H** hides the panels, and **Reset Panel Layout** (Preferences → Interface, or `Ctrl+Shift+L`) restores them. With nothing open, the canvas offers **Load Scans…** and **Take the Tour**.
 
 ### The workflow
 
@@ -57,7 +57,7 @@ For the math behind each step, read [PIPELINE.md](PIPELINE.md).
 
 On a slider, click the value to type a number, drag the name to adjust (**Shift** for fine steps), and double-click to reset. A chevron hides fine-tune controls; a dot on a closed fold, a card or a tab marks a changed value. On a dropdown, **‹** and **›** step through the choices. Each card has a reset arrow and an **ⓘ** that opens its part of this guide.
 
-A tab with several cards has a bar such as **3 of 5 cards edited**, with reset, **Reset to Roll**, a roll picker and collapse for the whole tab.
+A tab with several cards has a bar such as **3 of 5 cards edited**, with reset, **Reset to Roll**, **Apply** (to the selection or the roll) and collapse for the whole tab.
 
 ### Frame or roll
 
@@ -132,11 +132,11 @@ The toolbar's **Roll** row holds:
 *   **Sheet filter**: all frames, keepers only, hide rejected, or unmarked only. The button is highlighted while a filter hides frames.
 *   **Roll Settings** (the tag): gear and film details for this frame, the selection or the whole roll.
 *   **Apply**: copies chosen settings of this frame to the selection or the roll.
-*   **⋮**: **Add Files…**, **Save as Roll…**, **Update Thumbnails**, **Hot Folder** (loads new files as a scanner saves them), **Unload…**, **New Roll…**, **Close Roll…** and **Reset Roll to Defaults…**.
+*   **⋮**: **Add Files…**, **Add Folder…**, **Save as Roll…**, **Update Thumbnails**, **Hot Folder** (loads new files as a scanner saves them), **Unload…**, **New Roll…**, **Close Roll…**, **Reset Roll to Defaults…** and **Film Strip Guide…**.
 
 Right-click a frame to **Keep** it (a check) or **Reject** it (a cross; batch exports skip it).
 
-The grid button opens the **Light Table** (`Shift+G`): the whole roll in rows, for sorting. A click selects a frame, and a double-click or `Enter` opens it. The toolbar acts on the selected frames: **Keep**, **Reject**, rotate and flip, **Auto Crop** and **Export**, and ⋯ holds the rest of the right-click menu. Its frame-size slider, `+` and `-`, or `Ctrl` with the wheel change the frame size. `Esc` goes back.
+The grid button opens the **Light Table** (`Shift+G`): the whole roll in rows, for sorting. A click selects a frame, and a double-click or `Enter` opens it. The toolbar acts on the selected frames: **Keep**, **Reject**, rotate and flip, **Auto Crop** and **Export**, and ⋯ holds the rest of the right-click menu. Its **Frames per Row** slider, `+` and `-`, or `Ctrl` with the wheel change the frame size. `Esc` goes back.
 
 #### Filtering
 
@@ -165,7 +165,7 @@ The right-click menu also copies, pastes and resets settings, applies them to ot
 ### Stitch and HDR
 
 *   **Stitch**: select overlapping shots of one large negative, then right-click → **Stitch Selected Frames**. **Unstitch** separates them again.
-*   **HDR** (slides): select a bracket of exposures one stop apart, then right-click → **Merge Exposures (HDR)**. Right-click the merged frame → **Render exposure** to pick the exposure it shows, or use the **Render Exposure** slider on the Metering card. **Unmerge Exposures** separates them. Bracket both ways around your metered shot.
+*   **HDR** (slides): select a bracket of exposures one stop apart, then right-click → **Merge Exposures (HDR)**. Right-click the merged frame → **Render Exposure** to pick the exposure it shows, or use the **Render Exposure** slider on the Metering card. **Unmerge Exposures** separates them. Bracket both ways around your metered shot.
 *   **Merge Frame to TIFF Negative…** saves a stitch as one file ([§10.2](#102-frame-assembly)).
 
 ### Scenes
@@ -183,27 +183,28 @@ The readout above the Roll and Frame tabs describes the current frame while you 
 
 The buttons above the chart pick one view:
 
-*   **Curve**: the paper's curve, from the negative (left to right) to the print (bottom to top). Steeper means more contrast. The gray histogram is the negative, the colored one the print; tones separate where the gray one meets the steep middle.
-*   **Waveform**: print brightness across the frame. **Parade** shows red, green and blue side by side; a gray subject sits at one height in all three.
-*   **Vectorscope**: the print's colors around a center point. A cluster away from the center is a color cast.
+*   **Curve**: the paper's curve, from the negative (left to right) to the print (bottom to top). Steeper means more contrast. The gray histogram is the negative, the colored one the print.
+*   **Waveform**: print brightness across the frame.
+*   **Parade**: red, green and blue side by side; a gray subject sits at one height in all three. **Parade Overlay** puts the three on one plot.
+*   **Vectorscope**: the print's colors around a center point. A cluster off center is a color cast.
 
 **Log** shows small areas, such as clipped ends.
 
 #### Clipping
 
-Triangles in the top corners warn when shadows go pure black (left) or highlights pure white (right). **Clipping Overlay** (the half-circle button) marks those parts on the picture.
+Triangles in the top corners warn when shadows go pure black (left) or highlights pure white (right). **Clipping Overlay** (the half-circle button) marks those parts on the picture. **Zone Highlight** (the marker button) shows the zone under the cursor alone on the frame.
 
 #### Zones and zone placement
 
 The **step wedge** prints 21 gray steps; steps that merge into black or white are lost tones. The **zone strip** shows how much of the frame falls in each zone, from 0 (black) through V (middle gray) to X (white). Double-click it (or press `Shift+Z`) for the **Zone Overlay**, which colors the picture by zone.
 
-Click a zone on the strip, then a spot on the picture, and NegPy sets the print so that spot prints in that zone. One pin sets Print Density; a second also sets ISO-R Grade. **Place zones** (or Enter) applies the result; `Esc` cancels.
+Click a zone on the strip, then a spot on the picture, and NegPy sets the print so that spot prints in that zone. One pin sets Print Density; a second also sets ISO-R Grade. **Place Zones** (or Enter) applies the result; `Esc` cancels.
 
 #### Readouts
 
 The **Readouts** fold holds numbers about the scan. An amber value is a warning; hover a row for details.
 
-*   **Negative**: the negative's density range (Δ). The hover names it flat, normal or contrasty and gives its densities.
+*   **Negative**: the negative's density range (Δ). Hover for flat, normal or contrasty.
 *   **Exposure**: bright (positive) or dark (negative) frame, in stops.
 *   **Clipping**: share of the print that is pure black, then pure white.
 *   **Scan clip**: share of each channel, red, green and blue, at the scanner's maximum. No edit fixes it; expose the scan lower.
@@ -332,8 +333,8 @@ The adjustments a lab scanner makes after the print.
 *   **Chroma Denoise**: removes colored speckles. Film grain stays.
 *   **Sharpening**: sharpens detail without colored edges. Its fold holds **Method** (Unsharp Mask makes edges crisper; Deconvolution undoes the scanner's blur), **Radius** (the size of the detail, in pixels; judge it at 100% zoom) and **Masking** (sharpen only edges, so sky and skin stay smooth).
 *   **CLAHE**: local contrast, to bring out detail. Strong values can look unnatural.
-*   **Glow**: a soft glow around bright areas, like an old lens.
-*   **Halation**: a red glow around bright areas, as some films give.
+*   **Glow** (Effects fold): a soft glow around bright areas, like an old lens.
+*   **Halation** (Effects fold): a red glow around bright areas, as some films give.
 
 <!-- panel:altproc -->
 ### 6.2 Alternative Processes
@@ -492,7 +493,7 @@ For a camera with narrowband light that takes three shots of each frame: red, gr
 
 **Half Frame Mode** splits each scan into two frames, for half-frame cameras. Each half has its own edit.
 
-*   **Adjust…**: drag the green box to crop and the orange line to set the split. **Split direction** and **Cut thickness** set the gap, **Auto-detect** finds them again, and **Apply** saves to this frame, the selection or all frames.
+*   **Adjust…**: drag the white box to crop and the orange line to set the split. **Split direction** and **Cut Thickness** set the gap, **Auto-detect** finds them again, and **Apply** saves to this frame, the selection or all frames.
 *   **Detect All**: finds the splits on every scan again.
 *   **Unsplit** (on a split frame): makes it one frame again and deletes both halves' edits.
 
@@ -513,7 +514,7 @@ Corrects color errors that come from your light, camera and film.
 
 *   **Matrix**: the matrices for this film type. Those marked *(approx)* come from film data sheets and are a starting point. Your own `.toml` files go in `<Documents>/NegPy/crosstalk/` (see CROSSTALK.md). The slider button opens the editor; **+** makes a new matrix. No slide matrix comes with NegPy.
 *   **Strength**: how much of the matrix to apply.
-*   **Measure from Chart…** (color negatives): measures a matrix from a ColorChecker 24 or SpyderCheckr 24 shot on the film. Drag the four dots onto the corner patches.
+*   The swatch button opens **Measure from Chart** (color negatives): it measures a matrix from a ColorChecker 24 or SpyderCheckr 24 shot on the film. Drag the four dots onto the corner patches.
 
 **Hue Trim** (camera with narrowband light): turns all colors around the color wheel, for a light that makes yellows orange or greens olive. Keep 0 for white light. It also works on slides, where the sensor profile does not.
 
@@ -588,7 +589,7 @@ Details about how you took and developed the picture: camera, lens, film and pro
 
 *   **Camera / Lens / Film stock**: pick from your own gear (the **My Gear** tab). **Other…** opens the full built-in catalog.
 *   **Clear**: empties all three.
-*   **Infer from folder name**: fills empty fields (camera, film, ISO, date) from the folder name.
+*   **Infer from Folder Name**: fills empty fields (camera, film, ISO, date) from the folder name.
 
 <!-- panel:metadata_capture -->
 ### Capture
@@ -632,7 +633,7 @@ Camera, lens and film go into the standard EXIF fields, and your scanner into Ne
 <!-- panel:gear_items -->
 ### My Gear
 
-Your gear list, used by every gear picker. **Category** picks **Cameras**, **Lenses**, **Film Stocks**, **Process** (development recipes) or **Scanning** (scanning setups). It is saved in `~/NegPy/gear/`.
+Your gear list, used by every gear picker. **Category** picks **Cameras**, **Lenses**, **Film Stocks**, **Processes** (development recipes) or **Scan Setups**. It is saved in `~/NegPy/gear/`.
 
 *   **+**: copy an item from the built-in catalog, or **Add Custom** to type one in.
 *   **Catalog**: also show the built-in models.
@@ -664,9 +665,9 @@ The **Export** button is at the bottom of the tab. Above it, **File** holds the 
 
 ### File settings
 
-*   **Format**: JPEG, TIFF, PNG, JPEG XL or WebP, with quality options. **Bit Depth**: 8 or 16 bits (TIFF, PNG, JPEG XL). TIFF and PNG compression is always lossless.
+*   **Format**: JPEG, TIFF, PNG, JPEG XL or WebP, with quality options. **Bit depth**: 8 or 16 bits (TIFF, PNG, JPEG XL). TIFF and PNG compression is always lossless.
 *   **Export profile**: the color space of the file, such as sRGB for the web or Adobe RGB, or a printer or paper profile. **Import ICC** adds a profile. **Input ICC** sets the color space of a scan that has none.
-*   **Paper Aspect Ratio**: the shape of the final print, or **Original**.
+*   **Paper ratio**: the shape of the final print, or **Original**.
 *   **Resolution**: **Original** (full size), **Print** (size in cm and DPI) or **Pixels** (the long edge in pixels).
 *   **Sharpening**: sharpens the export after it is resized. It adds to the Lab Sharpening.
 *   **Destination**: the **Filename Pattern** (see [TEMPLATING.md](TEMPLATING.md)), **Overwrite Existing Files**, and the folder: an `export` subfolder beside the source (default), the source folder, or a path you pick.
@@ -752,7 +753,7 @@ NegPy keeps macOS and Windows awake while it scans. On Linux, turn off automatic
 *   **Resolution** and **Bit depth**: the scan's dpi and bits per channel.
 *   **Scan mode** (Plustek): **Multi-Pass** averages several scans for less noise; **Adaptive Multi-Exposure** combines a short and a long exposure for more range.
 *   **Samples** (Coolscan): reads each line several times, for less noise in the shadows. Slower.
-*   **IR**: an infrared scan, for dust removal on the Retouch card. **ICE** (Coolscan) removes the dust in the scanner instead. Not for B&W or Kodachrome.
+*   **Infrared**: **IR** scans an infrared channel, for dust removal on the Retouch card. **ICE** (Coolscan) removes the dust in the scanner instead. A scanner without ICE shows one **IR** toggle. Not for B&W or Kodachrome.
 *   **Superfine** (Coolscan): scans one line per pass. Slower.
 *   **Autofocus**, **Auto-exposure** and **Exposure**: focus and exposure on the scanner, before the scan.
 
@@ -760,7 +761,7 @@ NegPy keeps macOS and Windows awake while it scans. On Linux, turn off automatic
 ### Framing
 
 *   **Frames**: `1-6`, `1,2,5`, or empty for all. The strip preview fills it in.
-*   **Preview strip…** (strip feeder): previews every frame, to place the frames and pick them. **Preview…** (manual holder): sets one crop window. **Clear** resets it. **Detect frames** finds the frames again after the film moves.
+*   **Preview Strip…** (strip feeder): previews every frame, to place the frames and pick them. **Preview…** (manual holder): sets one crop window. **Clear** resets it. **Detect Frames** finds the frames again after the film moves.
 *   **Meter Frame…** (Coolscan): measures the exposure on one frame and uses it for every later scan, so all frames of a roll match. **Unlock** ends it. Meter again for each roll.
 *   **Prescan…** (Plustek): a quick full preview. Drag a crop, and the next scan reads only that area.
 
@@ -806,7 +807,7 @@ Shared by both scanners.
 <!-- panel:scan_strip -->
 ### Strip preview
 
-Shows the whole strip, to place and pick the frames before the scan. **Apply** keeps the framing and **Scan** scans. **Stop Preview** ends a preview early.
+Shows the whole strip, to place and pick the frames before the scan. **Apply Framing** keeps the framing and **Scan** scans. **Stop Preview** ends a preview early.
 
 *   **Crop**: drag on a frame. **Clear Crops** removes all crops.
 *   **Offset**: moves every frame along the film to line it up with the pictures. The white box shows the frame NegPy found.
@@ -840,6 +841,7 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 *   **Update Thumbnails Automatically**: after a change to many frames, renders their thumbnails again in the background. Off (the default), the frames get an amber dot until you use **Update Thumbnails**.
 *   **Preview size**: the canvas resolution. Higher is sharper and uses more memory.
 *   **Preview cache**, **HQ buffers**, **Rendered frames** and **GPU texture cap**: how much memory NegPy uses. Lower them on a computer with little memory, or if exports run out of GPU memory.
+*   **Reduce Export Memory Use**: exports in smaller pieces, for a computer where exports run out of GPU memory.
 *   **Show GPU Memory Warning**: tells you when an HQ preview is reduced to fit.
 
 ### Session & Storage

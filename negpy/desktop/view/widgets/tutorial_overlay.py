@@ -10,7 +10,7 @@ from PyQt6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer, pyqtSigna
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QRegion, QTextOption
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QTextBrowser, QVBoxLayout, QWidget
 
-from negpy.desktop.view.styles.templates import hint_label, labeled_action, set_hint_kind
+from negpy.desktop.view.styles.templates import hint_label, icon_text, labeled_action, set_hint_kind, with_alpha
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
@@ -125,7 +125,7 @@ class TutorialOverlay(QWidget):
             QFrame {{
                 background-color: {THEME.bg_header};
                 border: 1px solid {THEME.border_primary};
-                border-radius: 6px;
+                border-radius: {THEME.radius_lg}px;
             }}
             QLabel {{ border: none; background: transparent; }}
         """)
@@ -168,10 +168,10 @@ class TutorialOverlay(QWidget):
         layout.addWidget(self._task_row)
 
         extras = QHBoxLayout()
-        extras.setSpacing(6)
+        extras.setSpacing(THEME.space_md)
         self._offer_btn = labeled_action("fa5s.play-circle", "", "")
         self._offer_btn.clicked.connect(self._run_offer)
-        self._more_btn = labeled_action("fa5s.book-open", tr(" Read More…"), tr("Open the full guide for this panel"))
+        self._more_btn = labeled_action("fa5s.book-open", tr("Read More…"), tr("Open the full guide for this panel"))
         self._more_btn.clicked.connect(self._read_more)
         extras.addWidget(self._offer_btn)
         extras.addWidget(self._more_btn)
@@ -179,12 +179,12 @@ class TutorialOverlay(QWidget):
         layout.addLayout(extras)
 
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(6)
+        btn_row.setSpacing(THEME.space_md)
         self._prev_btn = labeled_action("fa5s.arrow-left", "", tr("Back (←)"))
         self._prev_btn.clicked.connect(self._prev)
         self._skip_btn = labeled_action("", tr("Skip Chapter"), tr("Go to the next chapter of the tour, or to its last step"))
         self._skip_btn.clicked.connect(self._skip_chapter)
-        self._next_btn = labeled_action("", tr("Next"), tr("Next (→ or Enter). Esc ends the tour"), primary=True)
+        self._next_btn = labeled_action("", tr("Next"), tr("Next step (→ or Enter), or press Esc to end the tour"), primary=True)
         self._next_btn.clicked.connect(self._next)
         btn_row.addWidget(self._prev_btn)
         btn_row.addWidget(self._skip_btn)
@@ -344,7 +344,7 @@ class TutorialOverlay(QWidget):
         offer = self._steps[self._idx].offer
         show = offer is not None and offer.visible(self._win)
         if offer is not None:
-            self._offer_btn.setText(" " + offer.label)
+            self._offer_btn.setText(icon_text(offer.label))
         if show != self._offer_btn.isVisible():
             self._offer_btn.setVisible(show)
             self._layout()
@@ -491,7 +491,7 @@ class TutorialOverlay(QWidget):
     def paintEvent(self, a0) -> None:  # type: ignore[override]
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        scrim = QColor(0, 0, 0, 170)
+        scrim = with_alpha(THEME.mark_shadow, 170)
 
         full = QPainterPath()
         full.addRect(QRectF(self.rect()))

@@ -1,6 +1,6 @@
 from negpy.kernel.system.i18n import tr
 from PyQt6.QtWidgets import QHBoxLayout
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.desktop.view.widgets.sliders import CompactSlider, SliderGroup
 from negpy.desktop.view.sidebar.base import BaseSidebar
@@ -16,8 +16,8 @@ _IR_METHOD_KEYS = (IR_METHOD_NEGPY, IR_METHOD_OPENICE)
 # Order matches _OVERLAY_MODES.
 _OVERLAY_LABELS = (tr("Off"), tr("Marked"), tr("IR"))
 _OVERLAY_MODES = ("off", "marked", "ir")
-_IR_METHOD_TIP = wrap_tooltip(tr("How the film under a defect is rebuilt. OpenICE keeps more fine detail but is less tested."))
-_OPTICAL_TIP = tr("Optical Removal: find and remove dust without an infrared channel. Right-drag on the picture to protect an area.")
+_IR_METHOD_TIP = wrap_tooltip(tr("How the film under a defect is rebuilt: OpenICE keeps more fine detail but is less tested."))
+_OPTICAL_TIP = tr("Optical Removal: find and remove dust without an infrared channel, and right-drag on the picture to protect an area.")
 _RIGHT_CLICK_TIP = tr("When on, a right-click on the picture brings back the mark under it, without a menu.")
 
 
@@ -79,12 +79,12 @@ class RetouchSidebar(BaseSidebar):
         self.pick_dust_btn = self._tool_toggle(
             "fa5s.eye-dropper",
             tr("Heal"),
-            tr("Heal: click or paint over dust to remove it. Clean film under the brush stays as it is."),
+            tr("Heal: click or paint over dust to remove it, and clean film under the brush stays as it is."),
         )
         self.pick_scratch_btn = self._tool_toggle(
             "fa5s.pen-nib",
             tr("Scratch"),
-            tr("Scratch: click points along a scratch or hair, then press Enter. Esc cancels."),
+            tr("Scratch: click points along a scratch or hair, then press Enter, or Esc to cancel."),
         )
         self.pick_line_btn = self._tool_toggle(
             "fa5s.grip-lines",
@@ -92,7 +92,7 @@ class RetouchSidebar(BaseSidebar):
             tr("Line: click once on a long straight scratch, and the whole line is found and repaired."),
         )
         self.undo_btn = self._icon_action("fa5s.undo", tr("Undo Last: remove the most recent manual heal"))
-        self.clear_btn = self._icon_action("fa5s.trash-alt", tr("Clear All: remove all manual heals. Automatic dust removal stays."))
+        self.clear_btn = self._icon_action("fa5s.trash-alt", tr("Clear All: remove all manual heals and keep the automatic dust removal."))
         self.layout.addLayout(header_row(self.heals_subheader, self.undo_btn, self.clear_btn))
         tools_row = QHBoxLayout()
         for btn in (self.pick_dust_btn, self.pick_scratch_btn, self.pick_line_btn):
@@ -102,16 +102,16 @@ class RetouchSidebar(BaseSidebar):
         self.manual_size_slider = CompactSlider(
             tr("Brush Size"), HEAL_SIZE_MIN, HEAL_SIZE_MAX, float(conf.manual_dust_size), step=1.0, precision=1, unit=" px"
         )
-        self.manual_size_slider.setToolTip(tr("Brush size. Alt+scroll on the picture also changes it."))
+        self.manual_size_slider.setToolTip(tr("Brush size, which Alt+scroll on the picture also changes."))
         self.line_threshold_slider = CompactSlider(tr("Line Sensitivity"), 0.05, 0.95, float(conf.scratch_threshold))
-        self.line_threshold_slider.setToolTip(tr("Lower finds fainter lines. Raise it if the repair spreads onto good film."))
+        self.line_threshold_slider.setToolTip(tr("Lower finds fainter lines; raise it if the repair spreads onto good film."))
         self.layout.addWidget(SliderGroup(self.manual_size_slider, self.line_threshold_slider))
 
         self.clone_subheader = section_subheader(tr("CLONE · 0"))
         self.clone_btn = self._tool_toggle(
             "fa5s.clone",
             tr("Clone"),
-            tr("Clone: copy film from another area over a defect. Alt-click to pick the area to copy from."),
+            tr("Clone: Alt-click to pick an area, then copy its film over a defect."),
         )
         self.clone_match_btn = self._small_toggle(
             "fa5s.adjust",
@@ -135,7 +135,7 @@ class RetouchSidebar(BaseSidebar):
         self.layout.addWidget(self.clone_hint)
         self.clone_strength_slider = CompactSlider(tr("Strength"), 0.0, 100.0, conf.clone_strength * 100.0, step=1.0, precision=0, unit="%")
         self.clone_strength_slider.setToolTip(
-            wrap_tooltip(tr("How much of the source covers the destination. Lower lets the original show through"))
+            wrap_tooltip(tr("How much of the source covers the destination, where lower lets the original show through"))
         )
         self.clone_feather_slider = CompactSlider(tr("Feather"), 0.0, 100.0, conf.clone_feather * 100.0, step=1.0, precision=0, unit="%")
         self.clone_feather_slider.setToolTip(wrap_tooltip(tr("Softness of the brush edge. 0 is a hard edge.")))

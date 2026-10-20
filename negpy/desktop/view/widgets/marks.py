@@ -3,11 +3,12 @@
 from PyQt6.QtCore import QRect, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter, QPen
 
+from negpy.desktop.view.styles.templates import with_alpha
 from negpy.desktop.view.styles.theme import THEME
 
 # Every badge on a frame sits on this chip. It is neutral, as red there would read as the selection or a failure.
-CHIP_FILL = QColor(20, 20, 20, 190)
-CHIP_RING = QColor(255, 255, 255, 90)
+CHIP_FILL = with_alpha(THEME.mark_shadow, 190)
+CHIP_RING = with_alpha(THEME.mark_photo, 90)
 
 
 def draw_mark_badge(painter: QPainter, img_rect: QRect | QRectF, check: bool) -> None:

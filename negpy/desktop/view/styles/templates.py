@@ -161,6 +161,17 @@ def _button_icon(icon_name: str, checkable: bool, on_accent: bool = False):
     return qta.icon(icon_name, color=color, color_disabled=THEME.text_muted)
 
 
+def with_alpha(color: str, alpha: int) -> QColor:
+    c = QColor(color)
+    c.setAlpha(alpha)
+    return c
+
+
+def icon_text(label: str) -> str:
+    """A label that sits beside an icon. QPushButton draws the two with no gap between them."""
+    return " " + label.lstrip() if label else label
+
+
 class _LabeledButton(QPushButton):
     """Icon + label button that shows only its icon while its row is too narrow for the label.
     The text stays set, so the size hint keeps asking for the full label."""
@@ -192,7 +203,7 @@ def tool_toggle(icon_name: str, label: str, tooltip: str, align_left: bool = Fal
     """Checkable tool button; empty label keeps it icon-only, empty icon_name keeps it text-only.
     align_left lines the label up with toggles stacked above or below it; centered by default.
     Carries an edited_dot like labeled_toggle, for a tool whose effect outlives its checked state."""
-    btn = _LabeledButton((" " + label) if (label and icon_name) else label)
+    btn = _LabeledButton(icon_text(label) if icon_name else label)
     btn.setCheckable(True)
     if icon_name:
         btn.setIcon(_button_icon(icon_name, checkable=True))
@@ -235,7 +246,7 @@ def clearable_tool_toggle(icon_name: str, label: str, tooltip: str, clear_toolti
 
 def labeled_toggle(icon_name: str, label: str, checked: bool, tooltip: str) -> QPushButton:
     """Labeled checkable button (icon + text), the Pick WB / Linear RAW look."""
-    btn = _LabeledButton(label)
+    btn = _LabeledButton(icon_text(label) if icon_name else label)
     btn.setCheckable(True)
     btn.setChecked(checked)
     if icon_name:
@@ -263,7 +274,7 @@ def box_toggle(label: str, checked: bool = False, tooltip: str = "") -> QCheckBo
 def labeled_action(icon_name: str, label: str, tooltip: str, primary: bool = False) -> QPushButton:
     """One-shot action with an optional icon and a label; the non-checkable twin of labeled_toggle.
     primary=True gives it the one filled look (the panel's call to action)."""
-    btn = _LabeledButton(label)
+    btn = _LabeledButton(icon_text(label) if icon_name else label)
     if icon_name:
         btn.setIcon(_button_icon(icon_name, checkable=False, on_accent=primary))
     if primary:

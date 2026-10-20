@@ -1,7 +1,6 @@
 from negpy.kernel.system.i18n import tr
 import uuid
 
-import qtawesome as qta
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -17,7 +16,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from negpy.desktop.view.styles.templates import dialog_pane_qss, hint_label, labeled_toggle, pin_dialog_default, pane_header_qss
+from negpy.desktop.view.confirm import confirm_delete_named
+from negpy.desktop.view.styles.templates import (
+    dialog_pane_qss,
+    hint_label,
+    icon_button,
+    labeled_toggle,
+    pin_dialog_default,
+    pane_header_qss,
+)
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.export_settings_form import ExportSettingsForm
@@ -61,8 +68,8 @@ class ExportPresetsDialog(QDialog):
         left.setFixedWidth(220)
         left.setStyleSheet(dialog_pane_qss())
         left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(8, 8, 8, 8)
-        left_layout.setSpacing(6)
+        left_layout.setContentsMargins(THEME.space_lg, THEME.space_lg, THEME.space_lg, THEME.space_lg)
+        left_layout.setSpacing(THEME.space_md)
 
         list_label = QLabel(tr("PRESETS"))
         list_label.setStyleSheet(pane_header_qss())
@@ -74,34 +81,15 @@ class ExportPresetsDialog(QDialog):
         left_layout.addWidget(self.preset_list)
 
         btn_row = QHBoxLayout()
-        self.add_btn = QPushButton()
-        self.add_btn.setIcon(qta.icon("fa5s.plus", color=THEME.text_primary))
-        self.add_btn.setToolTip(tr("Add print or flat master preset"))
-        self.add_btn.setFixedWidth(36)
+        self.add_btn = icon_button("fa5s.plus", tr("Add print or flat master preset"))
         self.add_btn.clicked.connect(self._show_add_menu)
-
-        self.dup_btn = QPushButton()
-        self.dup_btn.setIcon(qta.icon("fa5s.copy", color=THEME.text_primary))
-        self.dup_btn.setToolTip(tr("Duplicate preset"))
-        self.dup_btn.setFixedWidth(36)
+        self.dup_btn = icon_button("fa5s.copy", tr("Duplicate preset"))
         self.dup_btn.clicked.connect(self._duplicate_preset)
-
-        self.del_btn = QPushButton()
-        self.del_btn.setIcon(qta.icon("fa5s.trash-alt", color=THEME.text_primary))
-        self.del_btn.setToolTip(tr("Delete preset"))
-        self.del_btn.setFixedWidth(36)
+        self.del_btn = icon_button("fa5s.trash-alt", tr("Delete preset"))
         self.del_btn.clicked.connect(self._delete_preset)
-
-        self.up_btn = QPushButton()
-        self.up_btn.setIcon(qta.icon("fa5s.arrow-up", color=THEME.text_primary))
-        self.up_btn.setToolTip(tr("Move up"))
-        self.up_btn.setFixedWidth(36)
+        self.up_btn = icon_button("fa5s.arrow-up", tr("Move up"))
         self.up_btn.clicked.connect(self._move_up)
-
-        self.down_btn = QPushButton()
-        self.down_btn.setIcon(qta.icon("fa5s.arrow-down", color=THEME.text_primary))
-        self.down_btn.setToolTip(tr("Move down"))
-        self.down_btn.setFixedWidth(36)
+        self.down_btn = icon_button("fa5s.arrow-down", tr("Move down"))
         self.down_btn.clicked.connect(self._move_down)
 
         for btn in (self.add_btn, self.dup_btn, self.del_btn, self.up_btn, self.down_btn):
@@ -288,7 +276,7 @@ class ExportPresetsDialog(QDialog):
         if self._selected_idx < 0:
             return
         src = self._presets[self._selected_idx]
-        dup = ExportPreset.from_dict({**src.to_dict(), "id": str(uuid.uuid4()), "name": f"{src.name} Copy"})
+        dup = ExportPreset.from_dict({**src.to_dict(), "id": str(uuid.uuid4()), "name": tr("{name} Copy", name=src.name)})
         self._presets.insert(self._selected_idx + 1, dup)
         self._rebuild_list()
         self._select_row(self._selected_idx + 1)
@@ -296,6 +284,8 @@ class ExportPresetsDialog(QDialog):
 
     def _delete_preset(self) -> None:
         if self._selected_idx < 0 or not self._presets:
+            return
+        if not confirm_delete_named(self, tr("Preset"), preset_display_name(self._presets[self._selected_idx])):
             return
         self._presets.pop(self._selected_idx)
         new_idx = min(self._selected_idx, len(self._presets) - 1)

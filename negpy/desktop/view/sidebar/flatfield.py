@@ -16,8 +16,8 @@ from negpy.desktop.view.widgets.file_dialogs import last_open_folder, pick_start
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.infrastructure.loaders.helpers import get_supported_raw_wildcards
 
-_NONE_LABEL = tr("— None —")
-_FILE_FILTER = f"Reference images ({get_supported_raw_wildcards()});;All files (*)"
+_NONE_LABEL = tr("None")
+_FILE_FILTER = tr("Reference images ({wildcards});;All files (*)", wildcards=get_supported_raw_wildcards())
 
 
 class FlatFieldSidebar(BaseSidebar):
@@ -47,7 +47,7 @@ class FlatFieldSidebar(BaseSidebar):
             "fa5s.eye",
             "",
             False,
-            tr("Check Flat Field: show how well the profile evens out its own reference. Even gray is good."),
+            tr("Check Flat Field: show how well the profile evens out its own reference, where even gray is good."),
         )
         self.check_btn.setFixedWidth(ICON_BUTTON_WIDTH)
         row.addWidget(self.check_btn)

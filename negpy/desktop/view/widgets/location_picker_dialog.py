@@ -90,6 +90,7 @@ class LocationPickerDialog(QDialog):
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText(tr("e.g. Tokyo, Japan"))
+        self.search_edit.setToolTip(tr("Type a place name, then choose a match to put the pin there."))
         self.search_edit.addAction(
             qta.icon("fa5s.search", color=THEME.text_secondary),
             QLineEdit.ActionPosition.LeadingPosition,
@@ -126,16 +127,20 @@ class LocationPickerDialog(QDialog):
 
         self.coords_edit = QLineEdit()
         self.coords_edit.setPlaceholderText("35.67620, 139.65030")
+        self.coords_edit.setToolTip(tr("Latitude and longitude, or a pasted OpenStreetMap or Google Maps link."))
         self.coords_edit.editingFinished.connect(self._on_coords_edited)
         self.city_edit = QLineEdit(city)
+        self.city_edit.setToolTip(tr("The city where the frame was shot."))
         self.state_edit = QLineEdit(state)
+        self.state_edit.setToolTip(tr("The state or region where the frame was shot."))
         self.country_edit = QLineEdit(country)
+        self.country_edit.setToolTip(tr("The country where the frame was shot."))
 
         for column, (label, widget) in enumerate(
             (
                 (tr("Coordinates"), self.coords_edit),
-                ("City", self.city_edit),
-                ("State", self.state_edit),
+                (tr("City"), self.city_edit),
+                (tr("State"), self.state_edit),
                 (tr("Country"), self.country_edit),
             )
         ):

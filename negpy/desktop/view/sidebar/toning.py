@@ -16,7 +16,7 @@ class ToningSidebar(BaseSidebar):
         conf = self.state.config.toning
 
         self.chemical_header = section_subheader(tr("CHEMICAL TONING"))
-        self.chemical_header.setToolTip(tr("Toners act in the order shown. A later toner does not change what an earlier one toned."))
+        self.chemical_header.setToolTip(tr("Toners act in the order shown, and a later toner does not change what an earlier one toned."))
         self.layout.addWidget(self.chemical_header)
         # Disabled sliders get no hover, so the reason an alternative process grays them hangs here.
         self.alt_process_hint = hint_label("")
@@ -26,13 +26,13 @@ class ToningSidebar(BaseSidebar):
         self.selenium_slider = CompactSlider(tr("Selenium"), 0.0, 2.0, conf.selenium_strength)
         self.sepia_slider = CompactSlider(tr("Sepia"), 0.0, 2.0, conf.sepia_strength)
         self.gold_slider = CompactSlider(tr("Gold"), 0.0, 2.0, conf.gold_strength)
-        self.gold_slider.setToolTip(tr("Gold toner: blue-black tones; over sepia, orange-red highlights. B&W negatives only."))
+        self.gold_slider.setToolTip(tr("Gold toner, B&W negatives only: blue-black tones, or orange-red highlights over sepia."))
         self.blue_slider = CompactSlider(tr("Iron Blue"), 0.0, 2.0, conf.blue_strength)
-        self.blue_slider.setToolTip(tr("Iron blue toner: blue shadows and navy blacks. B&W negatives only."))
+        self.blue_slider.setToolTip(tr("Iron blue toner, B&W negatives only: blue shadows and navy blacks."))
         self.copper_slider = CompactSlider(tr("Copper"), 0.0, 2.0, conf.copper_strength)
-        self.copper_slider.setToolTip(tr("Copper toner: pink to brick-red tones; blacks get weaker. B&W negatives only."))
+        self.copper_slider.setToolTip(tr("Copper toner, B&W negatives only: pink to brick-red tones, with weaker blacks."))
         self.vanadium_slider = CompactSlider(tr("Vanadium"), 0.0, 2.0, conf.vanadium_strength)
-        self.vanadium_slider.setToolTip(tr("Vanadium toner: green midtones and highlights; blacks stay black. B&W negatives only."))
+        self.vanadium_slider.setToolTip(tr("Vanadium toner, B&W negatives only: green midtones and highlights while blacks stay black."))
         for slider in (
             self.selenium_slider,
             self.sepia_slider,

@@ -31,12 +31,12 @@ _TAG_ROLE = Qt.ItemDataRole.UserRole + 3
 
 _ROW_HEIGHT = 30
 
-_WORK_PRINT_TOOLTIP = tr("Named versions of this frame. Click one to use it; right-click to export, rename or delete it.")
+_WORK_PRINT_TOOLTIP = tr("Named versions of this frame: click one to use it, or right-click to export, rename or delete it.")
 
 
 class _RowDelegate(QStyledItemDelegate):
     """A flat row: a step number or an icon, the name and a muted detail, a pill, and ⋮ on hover.
-    The current step takes the selected fill and a red bar; an undone one is struck through."""
+    The current step takes the selected fill and a Now pill; an undone one is struck through."""
 
     def sizeHint(self, option, index) -> QSize:  # noqa: N802
         return QSize(option.rect.width(), _ROW_HEIGHT)

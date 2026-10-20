@@ -27,7 +27,7 @@ from negpy.desktop.view.canvas.zone_legend import ZoneLegend
 from negpy.desktop.view.keyboard_shortcuts import _context_undo
 from negpy.desktop.view.widgets.granular_settings_dialog import open_paste_dialog, open_sync_bounds_dialog
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
-from negpy.desktop.view.widgets.choice_button import MenuButton, SegmentedChoice, ToggleMenuButton
+from negpy.desktop.view.widgets.segmented_choice import MenuButton, SegmentedChoice, ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import hidden_by_gating, roll_revert_icon
 from negpy.desktop.view.styles.templates import (
     BAR_BUTTON_HEIGHT,
@@ -37,6 +37,7 @@ from negpy.desktop.view.styles.templates import (
     field_label,
     hint_label,
     icon_button,
+    icon_text,
     labeled_action,
     section_subheader,
     tool_toggle,
@@ -84,7 +85,7 @@ TOOLBAR_ITEMS: tuple[ToolbarItem, ...] = (
     ToolbarItem("reference", tr("View"), tr("Reference View")),
     ToolbarItem("copy", tr("Settings"), tr("Copy Settings")),
     ToolbarItem("copy_bounds", tr("Settings"), tr("Copy Settings + Bounds")),
-    ToolbarItem("paste", tr("Settings"), tr("Paste Settings")),
+    ToolbarItem("paste", tr("Settings"), tr("Paste Settings…")),
     ToolbarItem("sync_bounds", tr("Settings"), tr("Sync Bounds…")),
     ToolbarItem("reset", tr("Settings"), tr("Reset Settings")),
     ToolbarItem("reset_to_roll", tr("Settings"), tr("Reset to Roll Settings")),
@@ -160,7 +161,7 @@ _MODE_SETTING_KEY = "toolbar_mode"
 # (state flag, icon, label, shortcut id, tooltip); index 0 is the edit itself.
 _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
     ("", "fa5s.image", tr("Print"), "", tr("The edit, as it prints")),
-    ("compare_mode", "fa5s.adjust", tr("Before / After"), "toggle_compare", tr("Split against the auto baseline; drag the divider")),
+    ("compare_mode", "fa5s.adjust", tr("Before / After"), "toggle_compare", tr("Split against the default conversion; drag the divider")),
     (
         "negative_peek",
         "fa5s.film",
@@ -187,7 +188,7 @@ _VIEW_SOURCES: tuple[tuple[str, str, str, str, str], ...] = (
         "fa5s.lightbulb",
         tr("Flat Field"),
         "toggle_flatfield_peek",
-        tr("Flat Field check: how evenly the Flat Field profile corrects the light. Pick a profile in Optics first."),
+        tr("Flat Field check: how evenly the Flat Field profile from Optics corrects the light"),
     ),
 )
 
@@ -234,7 +235,7 @@ _CANVAS_TOOLS: tuple[tuple[ToolMode, str, str] | str, ...] = (
     tr("Metering"),
     (ToolMode.ANALYSIS_DRAW, "analysis_draw", "controls_panel.process_sidebar.analysis_region_btn"),
     (ToolMode.FILM_BASE, "film_base", "controls_panel.process_sidebar.film_base_btn"),
-    "Filtration",
+    tr("Filtration"),
     (ToolMode.WB_PICK, "pick_wb", "controls_panel.color_sidebar.pick_wb_btn"),
     tr("Dodge & Burn"),
     (ToolMode.LOCAL_DRAW, "local_draw", "controls_panel.local_sidebar.draw_btn"),
@@ -249,8 +250,11 @@ _CANVAS_TOOLS: tuple[tuple[ToolMode, str, str] | str, ...] = (
 _TOOL_BUTTON_PATHS = {spec[0]: spec[2] for spec in _CANVAS_TOOLS if not isinstance(spec, str)}
 
 
-def _checkable_menu_icon(name: str):
-    """The icon takes the checkmark's place in the menu; the checked item's chip marks it on."""
+def _icon(name: str, checkable: bool = False) -> QIcon:
+    """A bar or menu icon, gray while disabled; a checkable one is dim while off. In a menu the
+    icon takes the checkmark's place, and the checked item's chip marks it on."""
+    if checkable:
+        return qta.icon(name, color=THEME.text_hint, color_on=THEME.text_primary, color_disabled=THEME.text_muted)
     return qta.icon(name, color=THEME.text_primary, color_disabled=THEME.text_muted)
 
 
@@ -323,7 +327,7 @@ class ActionToolbar(QWidget):
         main_layout = QHBoxLayout(self)
         main_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
         main_layout.setContentsMargins(THEME.space_lg, THEME.space_lg, THEME.space_lg, THEME.space_lg)
-        main_layout.setSpacing(6)
+        main_layout.setSpacing(THEME.space_md)
 
         self._rows = QWidget()
         v_layout = QVBoxLayout(self._rows)
@@ -336,10 +340,9 @@ class ActionToolbar(QWidget):
         self._view_row = QWidget()
         row_layout = QHBoxLayout(self._view_row)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(6)
+        row_layout.setSpacing(THEME.space_md)
         v_layout.addWidget(self._view_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        icon_color = THEME.text_primary
         icon_size = QSize(BAR_ICON_SIZE, BAR_ICON_SIZE)
         btn_height = BAR_BUTTON_HEIGHT
         self._shortcut_tips: list = []
@@ -354,56 +357,55 @@ class ActionToolbar(QWidget):
         self.mode_switch.setFixedHeight(btn_height)
         self.mode_switch.currentChanged.connect(lambda _i: self.set_mode(self.mode_switch.currentData()))
 
-        # 0. Panel toggles (live at the bar's right end)
         # Not checkable: an open panel is the resting state, and the checked look means armed.
         self.btn_toggle_strip = QToolButton()
         self._tip(self.btn_toggle_strip, tr("Collapse or expand the Film Strip"), "toggle_film_strip")
         self.set_strip_expanded(True)
         self.btn_toggle_right = QToolButton()
-        self.btn_toggle_right.setIcon(qta.icon("fa5s.sliders-h", color=icon_color))
+        self.btn_toggle_right.setIcon(_icon("fa5s.sliders-h"))
         self._tip(self.btn_toggle_right, tr("Toggle Controls Panel"), "toggle_right_panel")
 
-        # 1. Navigation
         self.btn_prev = QToolButton()
-        self.btn_prev.setIcon(qta.icon("fa5s.chevron-left", color=icon_color))
+        self.btn_prev.setIcon(_icon("fa5s.chevron-left"))
         self._tip(self.btn_prev, tr("Previous"), "prev_file")
         self.btn_next = QToolButton()
-        self.btn_next.setIcon(qta.icon("fa5s.chevron-right", color=icon_color))
+        self.btn_next.setIcon(_icon("fa5s.chevron-right"))
         self._tip(self.btn_next, tr("Next"), "next_file")
 
         # Undo and Redo live in the main toolbar (mdi arrows, distinct from the rotate icons'
         # file-with-arrow glyphs below).
         self.btn_undo = QToolButton()
-        self.btn_undo.setIcon(qta.icon("mdi.undo", color=icon_color))
+        self.btn_undo.setIcon(_icon("mdi.undo"))
         self._tip(self.btn_undo, tr("Undo"), "undo")
         self.btn_redo = QToolButton()
-        self.btn_redo.setIcon(qta.icon("mdi.redo", color=icon_color))
+        self.btn_redo.setIcon(_icon("mdi.redo"))
         self._tip(self.btn_redo, tr("Redo"), "redo")
 
-        # 2. Geometry
         self.btn_rot_l = QToolButton()
-        self.btn_rot_l.setIcon(qta.icon("mdi6.file-rotate-left", color=icon_color))
+        self.btn_rot_l.setIcon(_icon("mdi6.file-rotate-left"))
         self._tip(self.btn_rot_l, tr("Rotate CCW"), "rotate_ccw")
         self.btn_rot_r = QToolButton()
-        self.btn_rot_r.setIcon(qta.icon("mdi6.file-rotate-right", color=icon_color))
+        self.btn_rot_r.setIcon(_icon("mdi6.file-rotate-right"))
         self._tip(self.btn_rot_r, tr("Rotate CW"), "rotate_cw")
         self.btn_flip_h = QToolButton()
         self.btn_flip_h.setCheckable(True)
-        self.btn_flip_h.setIcon(qta.icon("fa5s.arrows-alt-h", color=icon_color))
+        self.btn_flip_h.setIcon(_icon("fa5s.arrows-alt-h", checkable=True))
         self._tip(self.btn_flip_h, tr("Flip Horizontal"), "flip_h")
         self.btn_flip_v = QToolButton()
         self.btn_flip_v.setCheckable(True)
-        self.btn_flip_v.setIcon(qta.icon("fa5s.arrows-alt-v", color=icon_color))
+        self.btn_flip_v.setIcon(_icon("fa5s.arrows-alt-v", checkable=True))
         self._tip(self.btn_flip_v, tr("Flip Vertical"), "flip_v")
 
         self.position_label = QLabel()
         self.position_label.setFixedHeight(btn_height)
         self.position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.position_label.setStyleSheet(f"color: {THEME.text_secondary}; font-size: {THEME.font_size_header}px; padding: 0 2px;")
+        self.position_label.setStyleSheet(
+            f"color: {THEME.text_secondary}; font-size: {THEME.font_size_header}px; padding: 0 {THEME.space_xs}px;"
+        )
         self.position_label.setToolTip(tr("This frame's place in the Film Strip's order and filter"))
 
-        # 3. Zoom: the readout opens the presets, since users zoom directly on the canvas.
-        self.btn_zoom = MenuButton(tr("Zoom. 100% shows one scan pixel per screen pixel."))
+        # The zoom readout opens the presets, since users zoom directly on the canvas.
+        self.btn_zoom = MenuButton(tr("Zoom: at 100%, one scan pixel fills one screen pixel"))
         zoom_menu = self.btn_zoom.choice_menu
         self._zoom_fit_action = zoom_menu.addAction(tr("Fit to Window"))
         self._zoom_fit_action.triggered.connect(self._on_fit_clicked)
@@ -432,18 +434,16 @@ class ActionToolbar(QWidget):
             tr("What the canvas shows: the print, a before/after split, or a peek."),
         )
         for i, (_flag, icon, _label, _key, _tip) in enumerate(_VIEW_SOURCES):
-            self.source_choice.setItemIcon(i, qta.icon(icon, color=icon_color, color_disabled=THEME.text_muted))
+            self.source_choice.setItemIcon(i, _icon(icon))
         self._sync_source_tips()
 
-        self.overlays_menu = ToggleMenuButton(
-            "fa5s.layer-group", "", tr("Overlays: marks drawn over the frame. None of them changes the edit.")
-        )
+        self.overlays_menu = ToggleMenuButton("fa5s.layer-group", "", tr("Overlays: marks drawn over the frame that never change the edit"))
         self._overlay_actions = {}
         for flag, icon, label, key, tip, toggle in (
             (
                 "zones_overlay",
                 "mdi6.numeric-5-box-outline",
-                "Zone Overlay",
+                tr("Zone Overlay"),
                 "toggle_zones",
                 tr("Show which Adams zone each part of the print falls in"),
                 self.controller.toggle_zones_overlay,
@@ -451,38 +451,38 @@ class ActionToolbar(QWidget):
             (
                 "clipping_overlay",
                 "fa5s.adjust",
-                "Clipping Overlay",
+                tr("Clipping Overlay"),
                 "toggle_clipping_overlay",
-                "Mark paper black and paper white on the frame",
+                tr("Mark paper black and paper white on the frame"),
                 self.controller.toggle_clipping_overlay,
             ),
             (
                 "printing_notes",
                 "mdi.playlist-edit",
-                "Printing Notes",
+                tr("Printing Notes"),
                 "toggle_printing_notes",
-                "The dodge and burn map and the print recipe",
+                tr("The dodge and burn map and the print recipe"),
                 self.controller.toggle_printing_notes,
             ),
             (
                 "grain_focuser",
                 "fa5s.search-plus",
-                "Grain Focuser",
+                tr("Grain Focuser"),
                 "toggle_grain_focuser",
-                tr("Grain loupe: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
+                tr("Grain focuser: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
                 self.controller.toggle_grain_focuser,
             ),
             (
                 "cursor_probe",
                 "fa5s.crosshairs",
-                "Probe at Cursor",
+                tr("Probe at Cursor"),
                 "toggle_cursor_probe",
-                tr("Shows the zone and density under the pointer."),
+                tr("Zone, print density and ΔD of the pixel under the pointer"),
                 self.controller.toggle_cursor_probe,
             ),
         ):
             action = self.overlays_menu.add_toggle(label, tip)
-            action.setIcon(_checkable_menu_icon(icon))
+            action.setIcon(_icon(icon))
             self._label(action, label, key)
             action.triggered.connect(lambda checked, toggle=toggle: toggle(force=checked))
             self._overlay_actions[flag] = action
@@ -502,134 +502,130 @@ class ActionToolbar(QWidget):
         self._info_actions[1].setToolTip(tr("File name, scan size and film mode"))
         self._info_actions[2].setToolTip(tr("Adds the frame's place in the strip, film, camera and lens, the proof and the export size"))
 
-        self.btn_tools = MenuButton(tr("Tools: crop, straighten, the pickers, masks and retouching. Each opens its own row here."))
-        self.btn_tools.setIcon(qta.icon("fa5s.tools", color=icon_color, color_disabled=THEME.text_muted))
+        self.btn_tools = MenuButton(tr("Tools: crop, straighten, the pickers, masks and retouching, each with its own row here"))
+        self.btn_tools.setIcon(_icon("fa5s.tools"))
         self._show_tools_name(True)
         self._fill_tools_menu(self.btn_tools.choice_menu)
 
         # One-shot actions that otherwise live only in the ⋯ menu.
         self.btn_reference = self._action_button(
-            qta.icon("fa5s.thumbtack", color=icon_color),
+            _icon("fa5s.thumbtack"),
             tr("Reference view: pin this frame beside the canvas, to match others to it"),
             "toggle_reference",
             self._toggle_reference,
         )
         self.btn_light_table = self._action_button(
-            qta.icon("fa5s.th", color=icon_color),
-            tr("Light Table: the roll as film in place of the canvas"),
+            _icon("fa5s.th", checkable=True),
+            tr("Light Table: the whole roll in rows, in place of the canvas"),
             "toggle_light_table",
             self._toggle_light_table,
         )
         self.btn_light_table.setCheckable(True)
         self.btn_copy = self._action_button(
-            qta.icon("fa5s.copy", color=icon_color), tr("Copy this image's settings to the clipboard"), "copy", self.session.copy_settings
+            _icon("fa5s.copy"), tr("Copy this frame's settings to the clipboard"), "copy", self.session.copy_settings
         )
         self.btn_copy_bounds = self._action_button(
-            qta.icon("fa5s.clone", color=icon_color),
+            _icon("fa5s.clone"),
             tr("Copy settings plus the metering/normalization bounds"),
             "copy_with_bounds",
             self.session.copy_settings_with_bounds,
         )
         self.btn_paste = self._action_button(
-            qta.icon("fa5s.paste", color=icon_color),
+            _icon("fa5s.paste"),
             tr("Paste the copied settings onto this frame, or every selected frame"),
             "paste",
             lambda: open_paste_dialog(self, self.controller),
         )
         self.btn_sync_bounds = self._action_button(
-            qta.icon("fa5s.crosshairs", color=icon_color),
+            _icon("fa5s.crosshairs"),
             tr("Sync Bounds: give other frames this frame's measured black and white points, and nothing else"),
             "sync_bounds",
             lambda: open_sync_bounds_dialog(self, self.session),
         )
         self.btn_reset = self._action_button(
-            qta.icon("fa5s.history", color=icon_color),
-            tr("Reset Settings: discard all edits and return this picture to its default look"),
+            _icon("fa5s.history"),
+            tr("Reset Settings: discard all edits and return this frame to its default look"),
             None,
             self.session.reset_settings,
         )
         self.btn_reset_to_roll = self._action_button(
-            roll_revert_icon(icon_color),
+            roll_revert_icon(THEME.text_primary),
             tr("Reset to Roll Settings: put the roll's settings back on every card that differs."),
             "reset_to_roll",
             self.controller.revert_frame_to_roll,
         )
         self.btn_unload = self._action_button(
-            qta.icon("fa5s.times-circle", color=icon_color),
-            tr("Unload: remove this picture from the session. Its saved edit stays."),
+            _icon("fa5s.times-circle"),
+            tr("Unload: remove this frame from the session and keep its saved edit"),
             None,
             self._on_overflow_unload,
         )
         self.btn_palette = self._action_button(
-            qta.icon("fa5s.search", color=icon_color),
+            _icon("fa5s.search"),
             tr("Find any slider, card or action by name, and open it"),
             "command_palette",
             self._show_palette,
         )
         self.btn_preferences = self._action_button(
-            qta.icon("fa5s.cog", color=icon_color),
+            _icon("fa5s.cog"),
             tr("Preferences: interface, performance and storage settings for the whole app"),
             "open_preferences",
             self._show_preferences,
         )
         self.btn_shortcuts = self._action_button(
-            qta.icon("fa5s.keyboard", color=icon_color),
+            _icon("fa5s.keyboard"),
             tr("Show the full keyboard shortcuts reference"),
             "show_shortcuts",
             self._show_shortcuts,
         )
 
-        # 4. Overflow menu & responsive groups
         self.btn_overflow = QToolButton()
         self.btn_overflow.setObjectName("toolbar_overflow")
-        self.btn_overflow.setIcon(qta.icon("fa5s.ellipsis-h", color=icon_color))
+        self.btn_overflow.setIcon(_icon("fa5s.ellipsis-h"))
         self.btn_overflow.setToolTip(tr("More actions"))
         self.btn_overflow.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
 
         overflow_menu = QMenu(self.btn_overflow)
         overflow_menu.setToolTipsVisible(True)  # so the GPU action can surface its backend/status
 
-        # Overflow always mirrors the full action set, whatever the toolbar row shows at the
-        # current canvas width. "More actions" is a stable, complete menu the user can always
-        # find everything in, not a residue of the row's responsive collapse. It used to lose
-        # entries whenever a side panel toggle gave the row enough width to show them directly.
-        # A checkable item carries no icon: the stylesheet puts a menu icon in the check
-        # column, which hides the checkmark that says the view is on.
-        find_action = overflow_menu.addAction(qta.icon("fa5s.search", color=icon_color), tr("Find Control or Action…"), self._show_palette)
+        # The menu holds every action, whatever the row shows at the current width.
+        find_action = overflow_menu.addAction(_icon("fa5s.search"), tr("Find Control or Action…"), self._show_palette)
         self._label(find_action, tr("Find Control or Action…"), "command_palette")
         find_action.setToolTip(tr("Find any slider, card or action by name, and open it"))
-        self._fill_tools_menu(overflow_menu.addMenu(qta.icon("fa5s.tools", color=icon_color), tr("Tools")))
+        self._fill_tools_menu(overflow_menu.addMenu(_icon("fa5s.tools"), tr("Tools")))
 
         # What the canvas shows, in the groups the row's own Zoom, Print and Overlays menus use.
-        view_menu = overflow_menu.addMenu(qta.icon("fa5s.eye", color=icon_color), tr("View"))
+        view_menu = overflow_menu.addMenu(_icon("fa5s.eye"), tr("View"))
         view_menu.setToolTipsVisible(True)
         self._menu_section(view_menu, tr("Zoom"))
         self._ov_hq_action = view_menu.addAction(tr("HQ Preview"))
         self._ov_hq_action.setCheckable(True)
         self._menu_tip(self._ov_hq_action, tr("Toggle high-quality (full-resolution) preview"), "toggle_hq")
-        self._ov_fit_action = view_menu.addAction(qta.icon("fa5s.expand", color=icon_color), tr("Fit to Window"))
+        self._ov_fit_action = view_menu.addAction(_icon("fa5s.expand"), tr("Fit to Window"))
         self._menu_tip(self._ov_fit_action, tr("Fit to Window"), "fit_view")
         self._ov_original_action = view_menu.addAction(tr("Original Size (1:1)"))
         self._ov_original_action.setCheckable(True)
         self._menu_tip(
             self._ov_original_action,
-            tr("Original size (100%): one scan pixel per screen pixel. Below HQ, fine detail is not exact."),
+            tr("Original size (100%): one scan pixel per screen pixel, with exact fine detail only in HQ"),
             "zoom_100",
         )
         self._menu_section(view_menu, tr("Compare"))
         self._ov_compare_action = view_menu.addAction(tr("Before / After"))
         self._ov_compare_action.setCheckable(True)
-        self._menu_tip(self._ov_compare_action, tr("Before / After: split against the default, drag the divider"), "toggle_compare")
+        self._menu_tip(
+            self._ov_compare_action, tr("Before / After: split against the default conversion; drag the divider"), "toggle_compare"
+        )
         reference_action = view_menu.addAction(tr("Reference View"), self._toggle_reference)
         self._menu_tip(reference_action, tr("Reference view: pin this frame beside the canvas, to match others to it"), "toggle_reference")
         light_table_action = view_menu.addAction(tr("Light Table"), self._toggle_light_table)
-        self._menu_tip(light_table_action, tr("Light Table: the roll as film in place of the canvas"), "toggle_light_table")
+        self._menu_tip(light_table_action, tr("Light Table: the whole roll in rows, in place of the canvas"), "toggle_light_table")
         self._menu_section(view_menu, tr("Peek"))
         self._ov_flat_peek_action = view_menu.addAction(tr("Peek Flat Scan"))
         self._ov_flat_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_flat_peek_action,
-            tr("Peek flat scan: show the flat master for a moment. Your edit does not change."),
+            tr("Peek flat scan: show the flat master for a moment, with no change to your edit"),
             "toggle_flat_peek",
         )
         self._ov_negative_peek_action = view_menu.addAction(tr("Peek Negative"))
@@ -647,103 +643,96 @@ class ActionToolbar(QWidget):
             "toggle_embedded_peek",
         )
         self._menu_section(view_menu, tr("Overlays"))
-        self._ov_zones_action = view_menu.addAction(tr("Zone Overlay"))
+        overlay_icon = {flag: action.icon() for flag, action in self._overlay_actions.items()}
+        self._ov_zones_action = view_menu.addAction(overlay_icon["zones_overlay"], tr("Zone Overlay"))
         self._ov_zones_action.setCheckable(True)
-        self._menu_tip(self._ov_zones_action, tr("Zone overlay: show which zone each part of the print falls in"), "toggle_zones")
-        self._ov_clipping_action = view_menu.addAction(tr("Clipping Overlay"))
+        self._menu_tip(self._ov_zones_action, tr("Show which Adams zone each part of the print falls in"), "toggle_zones")
+        self._ov_clipping_action = view_menu.addAction(overlay_icon["clipping_overlay"], tr("Clipping Overlay"))
         self._ov_clipping_action.setCheckable(True)
         self._menu_tip(self._ov_clipping_action, tr("Mark paper black and paper white on the frame"), "toggle_clipping_overlay")
-        self._ov_probe_action = view_menu.addAction(tr("Probe at Cursor"))
+        self._ov_probe_action = view_menu.addAction(overlay_icon["cursor_probe"], tr("Probe at Cursor"))
         self._ov_probe_action.setCheckable(True)
         self._menu_tip(self._ov_probe_action, tr("Zone, print density and ΔD of the pixel under the pointer"), "toggle_cursor_probe")
-        self._ov_loupe_action = view_menu.addAction(tr("Grain Focuser"))
+        self._ov_loupe_action = view_menu.addAction(overlay_icon["grain_focuser"], tr("Grain Focuser"))
         self._ov_loupe_action.setCheckable(True)
         self._menu_tip(
             self._ov_loupe_action,
             tr("Grain focuser: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
             "toggle_grain_focuser",
         )
-        self._ov_notes_action = view_menu.addAction(tr("Printing Notes"))
+        self._ov_notes_action = view_menu.addAction(overlay_icon["printing_notes"], tr("Printing Notes"))
         self._ov_notes_action.setCheckable(True)
         self._menu_tip(self._ov_notes_action, tr("The dodge and burn map and the print recipe"), "toggle_printing_notes")
         overflow_menu.addSeparator()
 
-        self._ov_undo_action = overflow_menu.addAction(qta.icon("mdi.undo", color=icon_color), tr("Undo"))
+        self._ov_undo_action = overflow_menu.addAction(_icon("mdi.undo"), tr("Undo"))
         self._menu_tip(self._ov_undo_action, tr("Undo"), "undo")
-        self._ov_redo_action = overflow_menu.addAction(qta.icon("mdi.redo", color=icon_color), tr("Redo"))
+        self._ov_redo_action = overflow_menu.addAction(_icon("mdi.redo"), tr("Redo"))
         self._menu_tip(self._ov_redo_action, tr("Redo"), "redo")
         overflow_menu.addSeparator()
 
-        self._ov_rot_l_action = overflow_menu.addAction(qta.icon("mdi6.file-rotate-left", color=icon_color), tr("Rotate CCW"))
+        self._ov_rot_l_action = overflow_menu.addAction(_icon("mdi6.file-rotate-left"), tr("Rotate CCW"))
         self._menu_tip(self._ov_rot_l_action, tr("Rotate CCW"), "rotate_ccw")
-        self._ov_rot_r_action = overflow_menu.addAction(qta.icon("mdi6.file-rotate-right", color=icon_color), tr("Rotate CW"))
+        self._ov_rot_r_action = overflow_menu.addAction(_icon("mdi6.file-rotate-right"), tr("Rotate CW"))
         self._menu_tip(self._ov_rot_r_action, tr("Rotate CW"), "rotate_cw")
         # Actions, like Rotate, so they carry the row buttons' icons; the row's buttons show the flip state.
-        self._ov_flip_h_action = overflow_menu.addAction(qta.icon("fa5s.arrows-alt-h", color=icon_color), tr("Flip Horizontal"))
+        self._ov_flip_h_action = overflow_menu.addAction(_icon("fa5s.arrows-alt-h"), tr("Flip Horizontal"))
         self._menu_tip(self._ov_flip_h_action, tr("Flip Horizontal"), "flip_h")
-        self._ov_flip_v_action = overflow_menu.addAction(qta.icon("fa5s.arrows-alt-v", color=icon_color), tr("Flip Vertical"))
+        self._ov_flip_v_action = overflow_menu.addAction(_icon("fa5s.arrows-alt-v"), tr("Flip Vertical"))
         self._menu_tip(self._ov_flip_v_action, tr("Flip Vertical"), "flip_v")
         overflow_menu.addSeparator()
 
-        self._action_copy = overflow_menu.addAction(
-            qta.icon("fa5s.copy", color=icon_color), tr("Copy Settings"), self.session.copy_settings
-        )
+        self._action_copy = overflow_menu.addAction(_icon("fa5s.copy"), tr("Copy Settings"), self.session.copy_settings)
         self._label(self._action_copy, tr("Copy Settings"), "copy")
-        self._action_copy.setToolTip(tr("Copy this image's settings to the clipboard"))
+        self._action_copy.setToolTip(tr("Copy this frame's settings to the clipboard"))
         self._action_copy_bounds = overflow_menu.addAction(
-            qta.icon("fa5s.copy", color=icon_color),
+            _icon("fa5s.copy"),
             tr("Copy Settings + Bounds"),
             self.session.copy_settings_with_bounds,
         )
         self._label(self._action_copy_bounds, tr("Copy Settings + Bounds"), "copy_with_bounds")
         self._action_copy_bounds.setToolTip(tr("Copy settings plus the metering/normalization bounds"))
         self._action_paste = overflow_menu.addAction(
-            qta.icon("fa5s.paste", color=icon_color),
-            tr("Paste Settings"),
+            _icon("fa5s.paste"),
+            tr("Paste Settings…"),
             lambda: open_paste_dialog(self, self.controller),
         )
-        self._label(self._action_paste, tr("Paste Settings"), "paste")
+        self._label(self._action_paste, tr("Paste Settings…"), "paste")
         self._action_paste.setToolTip(tr("Paste the copied settings onto this frame, or every selected frame"))
         self._action_sync_bounds = overflow_menu.addAction(
-            qta.icon("fa5s.crosshairs", color=icon_color),
+            _icon("fa5s.crosshairs"),
             tr("Sync Bounds…"),
             lambda: open_sync_bounds_dialog(self, self.session),
         )
         self._label(self._action_sync_bounds, tr("Sync Bounds…"), "sync_bounds")
-        self._action_sync_bounds.setToolTip(tr("Give other frames this image's metering bounds, and nothing else"))
+        self._action_sync_bounds.setToolTip(tr("Give other frames this frame's metering bounds, and nothing else"))
         overflow_menu.addSeparator()
-        reset_settings_action = overflow_menu.addAction(
-            qta.icon("fa5s.history", color=icon_color), tr("Reset Settings"), self.session.reset_settings
-        )
-        reset_settings_action.setToolTip(tr("Discard all edits and return this image to its default look"))
+        reset_settings_action = overflow_menu.addAction(_icon("fa5s.history"), tr("Reset Settings"), self.session.reset_settings)
+        reset_settings_action.setToolTip(tr("Discard all edits and return this frame to its default look"))
         self._action_reset_to_roll = overflow_menu.addAction(
-            roll_revert_icon(icon_color), tr("Reset to Roll Settings"), self.controller.revert_frame_to_roll
+            roll_revert_icon(THEME.text_primary), tr("Reset to Roll Settings"), self.controller.revert_frame_to_roll
         )
         self._label(self._action_reset_to_roll, tr("Reset to Roll Settings"), "reset_to_roll")
         self._action_reset_to_roll.setToolTip(tr("Return every card that differs from the roll to the roll's settings"))
         overflow_menu.aboutToShow.connect(lambda: self._action_reset_to_roll.setEnabled(self.controller.can_revert_frame_to_roll()))
-        unload_action = overflow_menu.addAction(qta.icon("fa5s.times-circle", color=icon_color), tr("Unload…"), self._on_overflow_unload)
-        unload_action.setToolTip(tr("Remove this image from the session (its saved edit is kept)"))
+        unload_action = overflow_menu.addAction(_icon("fa5s.times-circle"), tr("Unload…"), self._on_overflow_unload)
+        unload_action.setToolTip(tr("Remove this frame from the session and keep its saved edit"))
         overflow_menu.addSeparator()
 
-        prefs_action = overflow_menu.addAction(qta.icon("fa5s.sliders-h", color=icon_color), tr("Preferences…"), self._show_preferences)
+        prefs_action = overflow_menu.addAction(_icon("fa5s.sliders-h"), tr("Preferences…"), self._show_preferences)
         self._label(prefs_action, tr("Preferences…"), "open_preferences")
         prefs_action.setToolTip(tr("Interface, performance and storage settings for the whole app"))
-        self._help_menu = overflow_menu.addMenu(qta.icon("fa5s.question-circle", color=icon_color), tr("Help"))
+        self._help_menu = overflow_menu.addMenu(_icon("fa5s.question-circle"), tr("Help"))
         self._help_menu.setToolTipsVisible(True)
-        tour_action = self._help_menu.addAction(qta.icon("fa5s.map-signs", color=icon_color), tr("Take the Tour"), self._show_tour)
+        tour_action = self._help_menu.addAction(_icon("fa5s.map-signs"), tr("Take the Tour"), self._show_tour)
         self._label(tour_action, tr("Take the Tour"), "show_tour")
         tour_action.setToolTip(tr("Replay the guided feature tour"))
-        shortcuts_action = self._help_menu.addAction(
-            qta.icon("fa5s.keyboard", color=icon_color), tr("Keyboard Shortcuts…"), self._show_shortcuts
-        )
+        shortcuts_action = self._help_menu.addAction(_icon("fa5s.keyboard"), tr("Keyboard Shortcuts…"), self._show_shortcuts)
         self._label(shortcuts_action, tr("Keyboard Shortcuts…"), "show_shortcuts")
         shortcuts_action.setToolTip(tr("Show the full keyboard shortcuts reference"))
         self._help_menu.addSeparator()
-        self._update_action = self._help_menu.addAction(
-            qta.icon("fa5s.sync-alt", color=icon_color), tr("Check for Updates…"), self._check_for_updates
-        )
-        about_action = self._help_menu.addAction(qta.icon("fa5s.info-circle", color=icon_color), tr("About NegPy…"), self._show_about)
+        self._update_action = self._help_menu.addAction(_icon("fa5s.sync-alt"), tr("Check for Updates…"), self._check_for_updates)
+        about_action = self._help_menu.addAction(_icon("fa5s.info-circle"), tr("About NegPy…"), self._show_about)
         about_action.setToolTip(tr("Version and project page"))
         self.btn_overflow.setMenu(overflow_menu)
 
@@ -823,10 +812,10 @@ class ActionToolbar(QWidget):
         self._item_ids = load_toolbar_items(self.session.repo)
         self._rebuild_row()
 
-        self._build_tool_row(v_layout, icon_color, icon_size, btn_height)
+        self._build_tool_row(v_layout, icon_size, btn_height)
         self._build_paper_row(v_layout, btn_height)
         self._build_zone_row(v_layout)
-        self._build_light_table_row(v_layout, icon_color, icon_size, rotate_icon_size, btn_height)
+        self._build_light_table_row(v_layout, icon_size, rotate_icon_size, btn_height)
 
         main_layout.addWidget(self.mode_switch)
         main_layout.addWidget(self._create_separator())
@@ -837,14 +826,14 @@ class ActionToolbar(QWidget):
         self._adopt_row(self)
         self._sync_rows()
 
-    def _build_tool_row(self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, btn_height: int) -> None:
+    def _build_tool_row(self, v_layout: QVBoxLayout, icon_size: QSize, btn_height: int) -> None:
         """While a canvas tool is armed the bar shows its own row: what the tool is, how to use it,
         the slider it is sized or tuned by, undo and Done."""
         self._tool_row = QWidget()
         self._tool_row.hide()
         layout = QHBoxLayout(self._tool_row)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(THEME.space_md)
         self._tool_layout = layout
         self._shown_tool = ToolMode.NONE
         self._shown_rows = (False, False, False)  # (tool row, paper row, zone row); none means the view row
@@ -853,15 +842,16 @@ class ActionToolbar(QWidget):
 
         # Names the armed tool and switches to another one, with no Done in between.
         self.tool_name = MenuButton(tr("Switch to another canvas tool"))
+        self.tool_name.setFixedHeight(btn_height)
         self._fill_tools_menu(self.tool_name.choice_menu)
         self.tool_hint = hint_label()
         self.tool_hint.setWordWrap(False)
         self.btn_tool_undo = QToolButton()
-        self.btn_tool_undo.setIcon(qta.icon("mdi.undo", color=icon_color, color_disabled=THEME.text_muted))
+        self.btn_tool_undo.setIcon(_icon("mdi.undo"))
         self._tip(self.btn_tool_undo, tr("Undo"), "undo")
         self.btn_tool_undo.clicked.connect(lambda: _context_undo(self.controller))
         self.btn_tool_redo = QToolButton()
-        self.btn_tool_redo.setIcon(qta.icon("mdi.redo", color=icon_color, color_disabled=THEME.text_muted))
+        self.btn_tool_redo.setIcon(_icon("mdi.redo"))
         self._tip(self.btn_tool_redo, tr("Redo"), "redo")
         self.btn_tool_redo.clicked.connect(self.session.redo)
         for btn in (self.btn_tool_undo, self.btn_tool_redo):
@@ -871,7 +861,7 @@ class ActionToolbar(QWidget):
         self.btn_tool_done = labeled_action("fa5s.check", tr("Done"), "", primary=True)
         self._tip(
             self.btn_tool_done,
-            tr("Finish the line or shape in progress and leave the tool. Esc leaves without finishing it."),
+            tr("Finish the line or shape in progress and leave the tool"),
             "cancel_tool",
         )
         self.btn_tool_done.setFixedHeight(btn_height)
@@ -895,7 +885,7 @@ class ActionToolbar(QWidget):
         self._paper_row.hide()
         layout = QHBoxLayout(self._paper_row)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(THEME.space_md)
         self.paper_layout = SegmentedChoice(
             (("mdi.view-column-outline", tr("Strip")), ("mdi.view-grid-outline", tr("Grid"))),
             tr("Strip shows a band of the frame per paper; Grid shows every paper on the whole frame, small."),
@@ -915,9 +905,7 @@ class ActionToolbar(QWidget):
         self.btn_paper_back = labeled_action("fa5s.arrow-left", tr("Strip"), "")
         self._tip(self.btn_paper_back, tr("Back to every paper"), "cancel_tool")
         self.btn_paper_back.clicked.connect(lambda: self.controller.show_paper_strip(None))
-        self.btn_paper_keep = labeled_action(
-            "fa5s.check", tr("Keep"), tr("Print on this paper: make it the Print stock (Enter)"), primary=True
-        )
+        self.btn_paper_keep = labeled_action("fa5s.check", tr("Keep"), tr("Print on this paper: make it the Print stock"), primary=True)
         self.btn_paper_keep.clicked.connect(lambda: self.controller.keep_paper_strip())
         for btn in (self.btn_paper_back, self.btn_paper_keep):
             btn.setFixedHeight(btn_height)
@@ -925,6 +913,8 @@ class ActionToolbar(QWidget):
             btn.setMinimumWidth(btn.sizeHint().width())
         self.btn_paper_close = icon_button("fa5s.times", tr("Close the Paper Test Strip"))
         self.btn_paper_close.clicked.connect(lambda: self.controller.toggle_paper_strip(force=False))
+        for widget in (self.paper_layout, self.paper_strip_combo, self.btn_paper_close):
+            widget.setFixedHeight(btn_height)
         layout.addWidget(field_label(tr("Paper test strip")))
         for widget in (
             self.paper_layout,
@@ -946,7 +936,7 @@ class ActionToolbar(QWidget):
         self.paper_layout.blockSignals(True)
         self.paper_layout.setCurrentIndex(max(0, self.paper_layout.findData(state.test_strip_layout)))
         self.paper_layout.blockSignals(False)
-        self.btn_paper_back.setText(tr("Grid") if state.test_strip_layout == "grid" else tr("Strip"))
+        self.btn_paper_back.setText(icon_text(tr("Grid") if state.test_strip_layout == "grid" else tr("Strip")))
         self.btn_paper_back.setMinimumWidth(self.btn_paper_back.sizeHint().width())
         combo.blockSignals(True)
         if [combo.itemText(i) for i in range(combo.count())] != labels:
@@ -968,7 +958,7 @@ class ActionToolbar(QWidget):
         self._zone_row.hide()
         layout = QHBoxLayout(self._zone_row)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(THEME.space_md)
         self.zone_style = SegmentedChoice(
             tuple(zip(("fa5s.palette", "mdi6.gradient-horizontal", "mdi.grid"), ZONE_STYLES.values())),
             tr("Zone Overlay look: a color per zone, eleven gray steps, or zone numbers on a grid."),
@@ -979,6 +969,8 @@ class ActionToolbar(QWidget):
         self.zone_legend.zone_hovered.connect(self.controller.highlight_zone)
         self.btn_zone_close = icon_button("fa5s.times", tr("Close the Zone Overlay"))
         self.btn_zone_close.clicked.connect(lambda: self.controller.toggle_zones_overlay(force=False))
+        for widget in (self.zone_style, self.btn_zone_close):
+            widget.setFixedHeight(BAR_BUTTON_HEIGHT)
         layout.addWidget(field_label(tr("Zone overlay")))
         layout.addWidget(self.zone_style)
         layout.addWidget(self._create_separator())
@@ -986,9 +978,7 @@ class ActionToolbar(QWidget):
         layout.addWidget(self.btn_zone_close)
         v_layout.addWidget(self._zone_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
-    def _build_light_table_row(
-        self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, rotate_icon_size: QSize, btn_height: int
-    ) -> None:
+    def _build_light_table_row(self, v_layout: QVBoxLayout, icon_size: QSize, rotate_icon_size: QSize, btn_height: int) -> None:
         """While the Light Table is open, Photo mode acts on the selected frames: Keep and Reject,
         turn, Auto Crop and Export, the rest of the frame menu behind ⋯, then the frame size."""
         from negpy.desktop.view.widgets.sliders import CompactSlider
@@ -998,10 +988,10 @@ class ActionToolbar(QWidget):
         self._light_table_row.hide()
         layout = QHBoxLayout(self._light_table_row)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(THEME.space_md)
         self.selection_count = hint_label()
         self.selection_count.setWordWrap(False)
-        self.selection_count.setToolTip(tr("Click selects a frame. Double-click or Enter opens it."))
+        self.selection_count.setToolTip(tr("A click selects a frame, and a double-click or Enter opens it"))
 
         self.btn_lt_keep = tool_toggle("mdi6.check-circle-outline", tr("Keep"), "")
         self._tip(self.btn_lt_keep, tr("Keep the selected frames"), "toggle_keep")
@@ -1010,18 +1000,10 @@ class ActionToolbar(QWidget):
         self._tip(self.btn_lt_reject, tr("Reject the selected frames: batch export skips them"), "toggle_reject")
         self.btn_lt_reject.clicked.connect(lambda: self._mark_selection("excluded"))
         turn = [
-            self._action_button(
-                qta.icon("mdi6.file-rotate-left", color=icon_color), tr("Rotate CCW"), "rotate_ccw", lambda: self.rotate(1)
-            ),
-            self._action_button(
-                qta.icon("mdi6.file-rotate-right", color=icon_color), tr("Rotate CW"), "rotate_cw", lambda: self.rotate(-1)
-            ),
-            self._action_button(
-                qta.icon("fa5s.arrows-alt-h", color=icon_color), tr("Flip Horizontal"), "flip_h", lambda: self.flip("horizontal")
-            ),
-            self._action_button(
-                qta.icon("fa5s.arrows-alt-v", color=icon_color), tr("Flip Vertical"), "flip_v", lambda: self.flip("vertical")
-            ),
+            self._action_button(_icon("mdi6.file-rotate-left"), tr("Rotate CCW"), "rotate_ccw", lambda: self.rotate(1)),
+            self._action_button(_icon("mdi6.file-rotate-right"), tr("Rotate CW"), "rotate_cw", lambda: self.rotate(-1)),
+            self._action_button(_icon("fa5s.arrows-alt-h"), tr("Flip Horizontal"), "flip_h", lambda: self.flip("horizontal")),
+            self._action_button(_icon("fa5s.arrows-alt-v"), tr("Flip Vertical"), "flip_v", lambda: self.flip("vertical")),
         ]
         for btn, size in zip(turn, (rotate_icon_size, rotate_icon_size, icon_size, icon_size)):
             btn.setIconSize(size)
@@ -1032,7 +1014,7 @@ class ActionToolbar(QWidget):
         self._tip(self.btn_lt_export, tr("Export the selected frames with the Export tab's settings, skipping rejected frames"), None)
         self.btn_lt_export.clicked.connect(self.controller.request_export_selected)
         self.btn_lt_more = self._action_button(
-            qta.icon("fa5s.ellipsis-h", color=icon_color), tr("More actions for the selected frames"), None, self._show_frame_menu
+            _icon("fa5s.ellipsis-h"), tr("More actions for the selected frames"), None, self._show_frame_menu
         )
         self._lt_labeled = [
             (btn, btn.text(), btn.styleSheet()) for btn in (self.btn_lt_keep, self.btn_lt_reject, self.btn_lt_auto_crop, self.btn_lt_export)
@@ -1139,7 +1121,7 @@ class ActionToolbar(QWidget):
             name, hint, _path = spec
             button = self._find_widget(_TOOL_BUTTON_PATHS.get(mode, ""))
             self.tool_name.setIcon(button.icon() if button is not None else QIcon())
-            self.tool_name.setText(tr(" {value}", value=name) if button is not None else name)
+            self.tool_name.setText(icon_text(name) if button is not None else name)
             self.tool_name.setMinimumWidth(self.tool_name.sizeHint().width())
             self.tool_hint.setText(_CLONE_SOURCE_HINT if mode == ToolMode.CLONE and state.clone_picking else hint)
             self.tool_name.setToolTip(self.tool_hint.text())
@@ -1235,9 +1217,8 @@ class ActionToolbar(QWidget):
                     action.setIcon(button.icon())
                 # The armed tool's own item would toggle it off.
                 action.setEnabled(mode != current and usable)
-                font = action.font()
-                font.setBold(mode == current)
-                action.setFont(font)
+                action.setCheckable(True)
+                action.setChecked(mode == current)
 
         menu.aboutToShow.connect(refresh)
 
@@ -1300,7 +1281,7 @@ class ActionToolbar(QWidget):
             self.set_mode("roll")
 
     def set_strip_expanded(self, expanded: bool) -> None:
-        self.btn_toggle_strip.setIcon(qta.icon("fa5s.chevron-down" if expanded else "fa5s.chevron-up", color=THEME.text_primary))
+        self.btn_toggle_strip.setIcon(_icon("fa5s.chevron-down" if expanded else "fa5s.chevron-up"))
 
     def _sync_view_state(self, *_args) -> None:
         """Mirror the canvas source and the overlays from state, which the controller sets before it signals."""
@@ -1390,7 +1371,6 @@ class ActionToolbar(QWidget):
         controller.zones_style_changed.connect(lambda _style: self._sync_zone_row())
         self.session.color_vision_changed.connect(self._sync_zone_row)
 
-        # Overflow menu action connections
         self._ov_hq_action.triggered.connect(controller.toggle_hq_preview)
         self._ov_rot_l_action.triggered.connect(lambda: self.rotate(1))
         self._ov_rot_r_action.triggered.connect(lambda: self.rotate(-1))
@@ -1429,8 +1409,8 @@ class ActionToolbar(QWidget):
         self._refresh_zoom_readout()
 
     def _refresh_zoom_readout(self) -> None:
-        hq = " HQ" if self.session.state.hq_preview else ""
-        self.btn_zoom.setText(tr("{value}%{value1}", value=self._zoom_percent, value1=hq))
+        percent = self._zoom_percent
+        self.btn_zoom.setText(tr("{value}% HQ", value=percent) if self.session.state.hq_preview else tr("{value}%", value=percent))
         # A longer readout raises the minimum and asks for a new layout, or it clips under the chevron.
         width = max(self._zoom_min_width, self.btn_zoom.sizeHint().width())
         if width != self.btn_zoom.minimumWidth():
@@ -1617,7 +1597,7 @@ class ActionToolbar(QWidget):
                 layout.activate()
 
     def _show_tools_name(self, shown: bool) -> None:
-        self.btn_tools.setText(" " + tr("Tools") if shown else "")
+        self.btn_tools.setText(icon_text(tr("Tools")) if shown else "")
         self.btn_tools.setMinimumWidth(self.btn_tools.sizeHint().width())
 
     def _bar_width(self) -> int:

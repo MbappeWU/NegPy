@@ -251,14 +251,13 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             self.assertNotIn(gone, labels)
         self.assertTrue(any("Preferences" in label for label in labels))
 
-    def test_a_checkable_overflow_item_carries_no_icon(self):
-        """Under the app stylesheet Qt draws a menu icon in the check column, so an icon on
-        a checkable item costs the checkmark — and with it the only sign in the menu that
-        the view is already on."""
+    def test_the_view_menu_overlays_carry_the_overlays_menu_icons(self):
+        """The checked item's chip marks an overlay on, so its icon can stay."""
         tb = _make_toolbar()
-        for action in self._all_overflow_actions(tb):
-            if action.isCheckable():
-                self.assertTrue(action.icon().isNull(), f"{action.text()!r} would lose its checkmark to its icon")
+        for flag, action in tb._ov_view_actions.items():
+            if flag in tb._overlay_actions:
+                self.assertTrue(action.isCheckable())
+                self.assertEqual(action.icon().cacheKey(), tb._overlay_actions[flag].icon().cacheKey())
 
     def test_panel_toggles_are_not_checkable(self):
         """An open panel is the resting state; the accent fill means armed."""

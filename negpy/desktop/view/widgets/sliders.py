@@ -21,7 +21,7 @@ from negpy.kernel.system.i18n import tr
 from negpy.desktop.view.styles.templates import EditedDot, FieldLabel, slider_handle_qss, slider_label_qss, slider_value_qss, wrap_tooltip
 
 
-# text_secondary, not text_muted: #555 on the #161616 tooltip background is ~2.4:1.
+# text_muted is too dim to read on the tooltip background.
 _RESET_HINT = f'<div style="color:{THEME.text_secondary};">{tr("Double-click to reset")}</div>'
 
 # Quiet period after the last slider step before a render is asked for.
@@ -347,7 +347,7 @@ class CompactSlider(BaseSlider):
         self._label_color = color if color else THEME.text_secondary
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(2, 0, 2, 0)
+        layout.setContentsMargins(THEME.space_xs, 0, THEME.space_xs, 0)
         layout.setSpacing(THEME.space_md)
 
         self.label = QLabel(tr(label))
@@ -592,7 +592,7 @@ class HueSlider(CompactSlider):
         self._apply_hue(default_val)
 
     def _apply_hue(self, hue_deg: float) -> None:
-        """Update slider handle to match the current hue; label stays grey (yellow when edited)."""
+        """Tint the slider handle to the current hue."""
         if self.isEnabled():
             h = int(hue_deg) % 360
             color = QColor.fromHsv(h, 200, 210).name()

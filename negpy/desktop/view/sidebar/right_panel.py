@@ -24,7 +24,7 @@ from negpy.desktop.view.sidebar.metadata import MetadataSidebar
 from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.templates import clipping_sweep, gradient_icon, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import SegmentedChoice
+from negpy.desktop.view.widgets.segmented_choice import SegmentedChoice
 from negpy.desktop.view.widgets.charts import (
     ChartWell,
     PhotometricCurveWidget,
@@ -282,9 +282,7 @@ class RightPanel(QWidget):
         self.view_btn.set_choice_tooltip(1, tr("Waveform: the print's tones across the frame, column by column, on the zone scale"))
         self.view_btn.set_choice_tooltip(
             2,
-            tr(
-                "Parade: red, green and blue side by side. A gray subject sits at one height in all three; a drifting channel means uneven light."
-            ),
+            tr("Parade: red, green and blue side by side, where a gray subject sits at one height in all three."),
         )
         self.view_btn.set_choice_tooltip(
             3, tr("Vectorscope: the print's colors on the a*b* plane, where a cast, a toner or a split tone shows")
@@ -327,7 +325,7 @@ class RightPanel(QWidget):
         # Roll and Frame each keep their own expanded state; _switch_group restores it.
         self.analysis_section = make_section(repo, tr("Analysis"), "analysis", analysis_content, "fa5s.chart-bar", persist=False)
         self.analysis_section.expanded_changed.connect(lambda checked: repo.save_global_setting(self._analysis_expanded_setting(), checked))
-        self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", "Clipping Overlay")
+        self.clipping_btn = self.analysis_section.add_header_toggle("fa5s.adjust", tr("Clipping Overlay"))
         self._sync_chart_colors()
         self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
         self.clipping_btn.setChecked(self.controller.state.clipping_overlay)
@@ -364,7 +362,7 @@ class RightPanel(QWidget):
         self.switcher = OverflowBar(height=38, min_item=PanelTab.min_width(labels, stacked=False))
 
         self.stack = QStackedWidget()
-        self.stack.setContentsMargins(0, 8, 0, 0)
+        self.stack.setContentsMargins(0, THEME.space_lg, 0, 0)
 
         self._tab_buttons: list[PanelTab] = []
         self._tab_keys: list[str] = []
@@ -557,7 +555,7 @@ class RightPanel(QWidget):
     def show_analysis_help(self) -> None:
         from negpy.desktop.view.widgets.section_help_dialog import SectionHelpDialog
 
-        SectionHelpDialog("analysis", "Analysis", self, repo=self.controller.session.repo).exec()
+        SectionHelpDialog("analysis", tr("Analysis"), self, repo=self.controller.session.repo).exec()
 
     def _analysis_expanded_setting(self) -> str:
         return "section_expanded_analysis_roll" if self._group_keys[self._active_group] == "roll" else "section_expanded_analysis"
@@ -655,9 +653,11 @@ class RightPanel(QWidget):
         self.parade_overlay_btn.setEnabled(standard and not apart)
         tip = tr("Parade Overlay: R, G and B on one plot, white where they agree")
         if not standard:
-            tip = tr("{tip}. Off under this Color vision: its fringes tell the channels apart by hue alone", tip=tip)
+            tip = tr(
+                "Parade Overlay: R, G and B on one plot, off under this Color vision because its fringes tell the channels apart by hue alone"
+            )
         elif apart:
-            tip = tr("{tip}. On the scan, turn on Base Relative first.", tip=tip)
+            tip = tr("Parade Overlay: R, G and B on one plot, which needs Base Relative on the scan")
         self.parade_overlay_btn.setToolTip(tooltip_with_shortcut(tip, "toggle_parade_overlay"))
         self.parade_widget.set_overlay(standard and self.parade_overlay_btn.isChecked())
 

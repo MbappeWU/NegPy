@@ -429,13 +429,13 @@ def composite_summary(asset: Dict[str, Any]) -> str:
     """One tooltip line naming what a frame is built from. Empty for a plain frame."""
     kind = composite_kind(asset)
     if kind == "stitch":
-        return f"Stitched composite of {count_of(len(asset['stitch_paths']) + 1, 'frame')}"
+        return tr("Stitched composite of {value}", value=count_of(len(asset["stitch_paths"]) + 1, "frame"))
     if kind == "hdr":
-        return f"HDR merge of {count_of(len(hdr_frame_paths(asset)), 'exposure')}"
+        return tr("HDR merge of {value}", value=count_of(len(hdr_frame_paths(asset)), "exposure"))
     if kind == "rgb":
         return tr("Trichrome triplet")
     if kind == "half":
-        return f"Half-frame split ({int(asset['half'])} of 2)"
+        return tr("Half-frame split ({value} of 2)", value=int(asset["half"]))
     if kind == "diptych":
         return tr("Diptych: both halves, each with its own edit")
     return ""
@@ -685,7 +685,7 @@ class AssetListModel(QAbstractListModel):
             if summary:
                 lines.append(summary)
             if file_info.get("scene"):
-                lines.append(f"Scene: {file_info['scene'][2]}")
+                lines.append(tr("Scene: {name}", name=file_info["scene"][2]))
             if asset_thumbnail_key(file_info) in self._state.stale_thumbnails:
                 lines.append(tr("Thumbnail predates a settings change; open the frame or use Update Thumbnails to refresh it."))
             return "\n".join(lines)
@@ -1570,12 +1570,11 @@ class DesktopSessionManager(QObject):
             count += 1
 
         if count:
-            n = len(rows) + int(luma) + int(color)
-            noun = plural(n, "setting")
+            settings = count_of(len(rows) + int(luma) + int(color), "setting")
             if scope == "roll":
-                msg = f"{n} {noun} synced to whole roll ({count} frames)"
+                msg = tr("{value} synced to the whole roll ({value1})", value=settings, value1=count_of(count, "frame"))
             else:
-                msg = f"{n} {noun} synced to {count} frame{'s' if count != 1 else ''}"
+                msg = tr("{value} synced to {value1}", value=settings, value1=count_of(count, "frame"))
             self.settings_synced.emit(msg)
             self.settings_saved.emit()
             self.frames_edited_offscreen.emit(changed_hashes)
@@ -2131,7 +2130,7 @@ class DesktopSessionManager(QObject):
 
     def apply_pasted_fields(self, rows, include_bounds: bool = True) -> None:
         """Overlay the picked clipboard settings onto the active frame, or onto each selected frame.
-        The per-frame bounds come along when the clipboard holds them and their row is ticked,
+        The per-frame bounds come along when the clipboard holds them and their row is on,
         written after the rows because a pasted bounds-input field invalidates them."""
         rows = list(rows)
         clip = self.state.clipboard

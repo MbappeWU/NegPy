@@ -41,7 +41,9 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "half_frame_undiptych": ShortcutEntry("", tr("Unsplit a diptych back into one plain frame"), tr("Triage")),
     "update_thumbnails_selection": ShortcutEntry("", tr("Update selected frames' thumbnails"), tr("Triage")),
     "update_thumbnails_roll": ShortcutEntry("", tr("Update thumbnails for the whole roll"), tr("Triage")),
-    "toggle_compare": ShortcutEntry("\\", tr("Before/after split (auto baseline); hold for the whole frame as the baseline"), tr("Tools")),
+    "toggle_compare": ShortcutEntry(
+        "\\", tr("Before/after split against the default conversion; hold to see the default alone"), tr("Tools")
+    ),
     "rotate_cw": ShortcutEntry("]", tr("Rotate 90° CW"), tr("Geometry")),
     "rotate_ccw": ShortcutEntry("[", tr("Rotate 90° CCW"), tr("Geometry")),
     "flip_h": ShortcutEntry("H", tr("Flip horizontal"), tr("Geometry")),
@@ -156,7 +158,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "diffusion_inc": ShortcutEntry("", tr("Diffusion up"), tr("Exposure")),
     "preflash_dec": ShortcutEntry("", tr("Preflash down"), tr("Exposure")),
     "preflash_inc": ShortcutEntry("", tr("Preflash up"), tr("Exposure")),
-    "lock_bounds_toggle": ShortcutEntry("Alt+Q", tr("Toggle bounds lock"), tr("Process")),
+    "lock_bounds_toggle": ShortcutEntry("Alt+Q", tr("Toggle Lock Bounds"), tr("Process")),
     "reanalyze_frame": ShortcutEntry("", tr("Reanalyze this frame's bounds"), tr("Process")),
     "cast_average_toggle": ShortcutEntry("", tr("Toggle cast average"), tr("Process")),
     "metadata_preset_load": ShortcutEntry("", tr("Apply the selected metadata preset to this frame"), tr("Actions")),
@@ -253,7 +255,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "border_size_inc": ShortcutEntry("Alt+D", tr("Border width up"), tr("Finishing")),
     "show_library": ShortcutEntry("Ctrl+L", tr("Open the Library tab"), tr("Navigation")),
     "command_palette": ShortcutEntry("Ctrl+K", tr("Find a control, card or action"), tr("Navigation")),
-    "focus_search": ShortcutEntry("Ctrl+F", tr("Focus the film strip search box"), tr("Navigation")),
+    "focus_search": ShortcutEntry("Ctrl+F", tr("Focus the Film Strip search box"), tr("Navigation")),
     "search_library": ShortcutEntry("Ctrl+Shift+F", tr("Search the whole library and load the matches"), tr("Navigation")),
     "toggle_semantic_search": ShortcutEntry("", tr("Toggle search by meaning"), tr("Navigation")),
     "library_discovery_filters": ShortcutEntry("", tr("Edit the folder names library discovery skips"), tr("View")),
@@ -268,7 +270,7 @@ REGISTRY: dict[str, ShortcutEntry] = {
     "toggle_side_panels": ShortcutEntry(
         "Shift+H", tr("Hide the controls panel and collapse the Film Strip, or bring both back"), tr("View")
     ),
-    "toggle_light_table": ShortcutEntry("Shift+G", tr("Light Table: the roll as a grid in place of the canvas"), tr("View")),
+    "toggle_light_table": ShortcutEntry("Shift+G", tr("Light Table: the whole roll in rows, in place of the canvas"), tr("View")),
     "light_table_zoom_in": ShortcutEntry("+", tr("Light Table: larger frames, fewer to a row"), tr("View")),
     "light_table_zoom_out": ShortcutEntry("-", tr("Light Table: smaller frames, more to a row"), tr("View")),
     "toggle_reference": ShortcutEntry("Shift+R", tr("Reference view: pin this frame beside the canvas to match others to it"), tr("View")),

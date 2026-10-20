@@ -8,6 +8,7 @@ from negpy.desktop.view.styles.templates import toast_qss
 from negpy.desktop.view.styles.theme import THEME
 from negpy.domain.models import ExportResolutionMode
 from negpy.features.geometry.models import AspectRatio
+from negpy.features.process.models import ProcessMode
 
 _DEFAULT_TOAST_MS = 2500
 #: Toast wrapping bounds. The ratio keeps a long message clear of the corner pills, and
@@ -19,6 +20,7 @@ _TOAST_PADDING = 40
 
 INFO_OFF, INFO_BASIC, INFO_FULL = range(3)
 INFO_LEVEL_LABELS = (tr("Off"), tr("Basic"), tr("Full"))
+MODE_LABELS = {ProcessMode.C41: tr("Color Negative"), ProcessMode.BW: tr("B&W Negative"), ProcessMode.E6: tr("Transparency")}
 
 
 def _film_line(meta: Any) -> str:
@@ -40,13 +42,13 @@ def _camera_line(meta: Any) -> str:
 def _export_line(export: Any) -> str:
     mode = export.export_resolution_mode
     if mode == ExportResolutionMode.PRINT:
-        size = f"Print {export.export_print_size:g} cm @ {export.export_dpi} dpi"
+        size = tr("Print {size:g} cm @ {dpi} dpi", size=export.export_print_size, dpi=export.export_dpi)
     elif mode == ExportResolutionMode.TARGET_PX:
-        size = f"Export {export.export_target_long_edge_px} px"
+        size = tr("Export {value} px", value=export.export_target_long_edge_px)
     else:
         size = ""
     paper = export.paper_aspect_ratio
-    paper = f"{paper} paper" if paper and paper not in (AspectRatio.ORIGINAL, AspectRatio.FREE) else ""
+    paper = tr("{ratio} paper", ratio=paper) if paper and paper not in (AspectRatio.ORIGINAL, AspectRatio.FREE) else ""
     return " · ".join(p for p in (size, paper) if p)
 
 
@@ -58,13 +60,13 @@ def frame_info(level: int, config: Any, filename: str, res: str, mode: str, posi
         return " · ".join(s for s in (filename, res) if s), mode, ""
     head = " · ".join(s for s in (position, filename, res) if s)
     top_left = "\n".join(s for s in (head, _film_line(config.metadata), _camera_line(config.metadata)) if s)
-    top_right = "\n".join(s for s in (mode, f"Proof: {proof}" if proof else "") if s)
+    top_right = "\n".join(s for s in (mode, tr("Proof: {value}", value=proof) if proof else "") if s)
     return top_left, top_right, _export_line(config.export)
 
 
 _PILL_QSS = (
-    f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px; font-weight: 500; "
-    f"background-color: {THEME.surface_pill}; border-radius: {THEME.radius_md}px; padding: 2px 8px;"
+    f"color: {THEME.text_secondary}; font-size: {THEME.font_size_small}px; font-weight: {THEME.weight_medium}; "
+    f"background-color: {THEME.surface_pill}; border-radius: {THEME.radius_md}px; padding: {THEME.space_xs}px {THEME.space_lg}px;"
 )
 
 
@@ -144,8 +146,6 @@ class CanvasHud(QWidget):
 
     def showMessage(self, text: str, timeout: int = 0, kind: str = "info") -> None:
         """kind: "info" | "warning" | "error" — a failure must not read like a progress note."""
-        if text == "Image Updated":
-            return
         if not text:  # a step that posted a long-lived toast has finished
             self._toast_timer.stop()
             self.toast.hide()

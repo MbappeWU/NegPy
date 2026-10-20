@@ -23,7 +23,7 @@ from negpy.desktop.controller import AppController
 from negpy.desktop.session import ToolMode
 from negpy.infrastructure.loaders.constants import SUPPORTED_RAW_EXTENSIONS
 from negpy.desktop.converters import ImageConverter
-from negpy.desktop.view.canvas.hud import INFO_FULL, frame_info
+from negpy.desktop.view.canvas.hud import INFO_FULL, MODE_LABELS, frame_info
 from negpy.desktop.view.canvas.reference_pane import ReferencePane
 from negpy.desktop.view.canvas.toolbar import ActionToolbar, frame_position
 from negpy.desktop.view.canvas.widget import ImageCanvas
@@ -36,6 +36,7 @@ from negpy.desktop.view.sidebar.right_panel import RightPanel
 from negpy.desktop.view.sidebar.files import FileBrowser, table_color
 from negpy.desktop.view.update_notice import UpdateNotice
 from negpy.desktop.view.styles.templates import hint_label, labeled_action
+from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import fit_pane
 from negpy.desktop.view.widgets.command_palette import CommandPalette, FindField
 from negpy.desktop.view.widgets.loading_overlay import LoadingOverlay
@@ -105,7 +106,7 @@ class _EmptyStateOverlay(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(12)
+        layout.setSpacing(THEME.space_xl)
 
         self.load_btn = labeled_action(
             "fa5s.folder-open", tr("Load Scans…"), tr("Import a folder as a roll, add single files, or scan film"), primary=True
@@ -266,10 +267,8 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self) -> None:
         """Setup widgets and layout."""
-        # Main Window Padding
-        self.setContentsMargins(8, 8, 8, 8)
+        self.setContentsMargins(THEME.space_lg, THEME.space_lg, THEME.space_lg, THEME.space_lg)
 
-        # Central Area
         self.central_widget = QWidget()
         self.central_layout = QVBoxLayout(self.central_widget)
         self.central_layout.setContentsMargins(0, 0, 0, 0)
@@ -390,9 +389,9 @@ class MainWindow(QMainWindow):
 
     TOOL_LABELS: dict[ToolMode, str] = {
         ToolMode.WB_PICK: tr("WB Picker"),
-        ToolMode.CROP_MANUAL: "Crop",
-        ToolMode.DUST_PICK: tr("Heal Tool"),
-        ToolMode.CLONE: tr("Clone Tool"),
+        ToolMode.CROP_MANUAL: tr("Crop"),
+        ToolMode.DUST_PICK: tr("Heal"),
+        ToolMode.CLONE: tr("Clone"),
     }
 
     def _update_title(self) -> None:
@@ -772,15 +771,6 @@ class MainWindow(QMainWindow):
         else:
             self.controller.set_status(tr("Could not write {path}", path=path), 4000, kind="error")
 
-    def _display_buffer_for_canvas(self, buffer):
-        if isinstance(buffer, GPUTexture):
-            buffer = buffer.readback()
-
-        if isinstance(buffer, np.ndarray) and buffer.ndim == 3 and buffer.shape[2] == 4:
-            return buffer[:, :, :3]
-
-        return buffer
-
     def _on_loading_started(self) -> None:
         """Keep the previous frame visible (dimmed) under a spinner instead of blanking."""
         self.empty_state.setVisible(False)
@@ -866,7 +856,7 @@ class MainWindow(QMainWindow):
                 st.config,
                 os.path.basename(st.current_file_path),
                 f"{w} x {h} px",
-                str(st.config.process.process_mode),
+                MODE_LABELS[st.config.process.process_mode],
                 frame_position(self.controller.session.asset_model, st.selected_file_idx),
                 proof,
             )
@@ -892,9 +882,11 @@ class MainWindow(QMainWindow):
 
     def _on_export_finished(self, elapsed: float, errors: list) -> None:
         self.canvas.hud.hide_progress()
-        msg = f"Export complete in {elapsed:.2f}s"
-        if errors:
-            msg += f" — {len(errors)} failed"
+        msg = (
+            tr("Export complete in {value:.2f}s, {failed} failed", value=elapsed, failed=count_of(len(errors), "file"))
+            if errors
+            else tr("Export complete in {value:.2f}s", value=elapsed)
+        )
         self.canvas.hud.showMessage(msg, timeout=6000 if errors else 3000, kind="warning" if errors else "info")
         if errors:
             # A toast holds one line and the next one replaces it; the box keeps every file.
@@ -929,7 +921,6 @@ class MainWindow(QMainWindow):
         mode = self.state.active_tool
         self.canvas.set_tool_mode(mode)
 
-        # We access buttons through the controls panel
         self.controls_panel.color_sidebar.pick_wb_btn.setChecked(mode == ToolMode.WB_PICK)
         self.controls_panel.autocrop_sidebar.manual_crop_btn.setChecked(mode == ToolMode.CROP_MANUAL)
         self.controls_panel.retouch_sidebar.pick_dust_btn.setChecked(mode == ToolMode.DUST_PICK)

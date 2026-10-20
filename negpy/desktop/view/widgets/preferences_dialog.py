@@ -2,10 +2,8 @@ from negpy.kernel.system.i18n import LANGUAGES, tr
 import os
 from dataclasses import dataclass, fields
 
-import qtawesome as qta
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QDialog,
     QFrame,
     QGridLayout,
@@ -20,7 +18,7 @@ from PyQt6.QtWidgets import (
 
 from negpy.desktop.controller import AppController
 from negpy.desktop.view.styles.color_vision import PALETTES
-from negpy.desktop.view.styles.templates import default_button_height, field_label, hint_label, labeled_toggle, pin_dialog_default
+from negpy.desktop.view.styles.templates import field_label, hint_label, labeled_action, labeled_toggle, pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
@@ -51,6 +49,7 @@ class NumberRow:
     step: int
     suffix: str
     hint: str
+    tooltip: str
     # Stored in bytes, shown in MB. Nothing else needs a unit conversion.
     scale: int = 1
 
@@ -64,6 +63,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         128,
         " px",
         tr("Long edge of the interactive canvas. Higher is sharper at 100% zoom, and more VRAM and CPU per frame."),
+        tr("The long edge of the preview on the canvas."),
     ),
     NumberRow(
         "preview_cache_max_entries",
@@ -73,6 +73,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         1,
         tr(" photos"),
         tr("How many recently-viewed photos stay decoded in memory for instant navigation."),
+        tr("How many recent photos stay decoded in memory."),
     ),
     NumberRow(
         "preview_cache_max_bytes",
@@ -82,6 +83,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         128,
         " MB",
         tr("Memory ceiling for that cache. Lower it on a machine with little RAM."),
+        tr("The most memory the preview cache can use."),
         scale=1024 * 1024,
     ),
     NumberRow(
@@ -92,6 +94,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         1,
         tr(" photos"),
         tr("Full-size previews kept in memory. Each uses hundreds of MB; keeping the last one makes going back instant."),
+        tr("How many full-size previews stay in memory."),
     ),
     NumberRow(
         "render_memo_max_entries",
@@ -101,6 +104,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         1,
         tr(" frames"),
         tr("Rendered frames held for navigating back with no re-render."),
+        tr("How many rendered frames stay in memory for going back."),
     ),
     NumberRow(
         "max_texture_size",
@@ -110,6 +114,7 @@ NUMBER_ROWS: tuple[NumberRow, ...] = (
         1024,
         " px",
         tr("Largest image size the GPU loads at once. 0 lets the hardware decide."),
+        tr("The largest image size the GPU loads at once."),
     ),
 )
 
@@ -127,8 +132,7 @@ def default_for(key: str) -> int:
 class PreferencesDialog(QDialog):
     """Every application-wide setting in one place.
 
-    Live-apply: each row writes as it changes, the way the overflow menu entries it replaces
-    did. Rows read at startup say so, and light the restart hint instead of applying.
+    Each row writes as it changes. A row read at startup lights the restart hint instead.
     """
 
     def __init__(self, controller: AppController, parent=None, pinned_keys: set[str] | None = None):
@@ -149,7 +153,7 @@ class PreferencesDialog(QDialog):
     def _init_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 18, 18, 18)
-        root.setSpacing(12)
+        root.setSpacing(THEME.space_xl)
 
         intro = QLabel(tr("Settings for the whole application. Changes apply as you make them, except where a row says otherwise."))
         intro.setWordWrap(True)
@@ -219,7 +223,7 @@ class PreferencesDialog(QDialog):
 
         self.language_combo = StepCombo.of(
             [tr(label) for _, label in LANGUAGES],
-            tr("Interface language. Restart NegPy to apply the change."),
+            tr("The language of the interface, applied when NegPy starts again."),
             [key for key, _ in LANGUAGES],
         )
         saved_language = self.repo.get_global_setting("ui_language", "system")
@@ -241,24 +245,14 @@ class PreferencesDialog(QDialog):
         row += 1
 
         grid.addWidget(field_label(tr("Canvas background")), row, 0)
-        pills = QHBoxLayout()
-        pills.setSpacing(THEME.space_sm)
-        self.canvas_group = QButtonGroup(self)
-        self.canvas_group.setExclusive(True)
-        self.canvas_pills: list[QPushButton] = []
-        for idx, (hex_color, _, label) in enumerate(_canvas_colors()):
-            pill = QPushButton()
-            pill.setCheckable(True)
-            pill.setChecked(idx == state.canvas_bg_index)
-            pill.setFixedHeight(default_button_height())
-            pill.setToolTip(label)
-            pill.setStyleSheet(_pill_qss(hex_color))
-            pill.clicked.connect(lambda _checked=False, i=idx: self._on_canvas_bg_changed(i))
-            self.canvas_group.addButton(pill, idx)
-            self.canvas_pills.append(pill)
-        for pill, (hex_color, _, _) in sorted(zip(self.canvas_pills, _canvas_colors()), key=lambda pair: QColor(pair[1][0]).lightness()):
-            pills.addWidget(pill, 1)
-        grid.addLayout(pills, row, 1)
+        self.canvas_combo = StepCombo()
+        # Darkest to lightest; the item data is the saved index, which is not in that order.
+        for idx, (hex_color, _, label) in sorted(enumerate(_canvas_colors()), key=lambda pair: QColor(pair[1][0]).lightness()):
+            self.canvas_combo.addItem(_swatch((hex_color,) * 4), label, idx)
+        self.canvas_combo.setCurrentIndex(max(self.canvas_combo.findData(state.canvas_bg_index), 0))
+        self.canvas_combo.setToolTip(tr("The color around the photo on the canvas"))
+        self.canvas_combo.currentIndexChanged.connect(lambda i: self._on_canvas_bg_changed(self.canvas_combo.itemData(i)))
+        grid.addWidget(self.canvas_combo, row, 1)
         row += 1
 
         self.sticky_zoom_box = labeled_toggle(
@@ -277,9 +271,9 @@ class PreferencesDialog(QDialog):
 
         interface_row, _ = _button_row(
             (
-                (tr("Customize Shortcuts…"), "fa5s.keyboard", self._open_shortcut_editor),
-                (tr("Edit Toolbar…"), "fa5s.wrench", self._open_toolbar_editor),
-                (tr("Reset Panel Layout"), "fa5s.thumbtack", self._reset_panel_layout),
+                (tr("Customize Shortcuts…"), "fa5s.keyboard", tr("Change the keys for each action"), self._open_shortcut_editor),
+                (tr("Edit Toolbar…"), "fa5s.wrench", tr("Choose the buttons on the canvas bar"), self._open_toolbar_editor),
+                (tr("Reset Panel Layout"), "fa5s.thumbtack", tr("Move every panel back to its default place"), self._reset_panel_layout),
             )
         )
         grid.addLayout(interface_row, row, 0, 1, 2)
@@ -290,14 +284,7 @@ class PreferencesDialog(QDialog):
         grid.addWidget(field_label(tr("Color vision")), 0, 0)
         self.vision_combo = StepCombo()
         for palette in PALETTES:
-            swatch = QPixmap(16, 16)
-            painter = QPainter(swatch)
-            for x, y, color in zip((0, 8, 0, 8), (0, 0, 8, 8), (*palette.pair, *palette.dodge_burn)):
-                painter.fillRect(x, y, 8, 8, QColor(color))
-            painter.setPen(QColor(THEME.border_color))
-            painter.drawRect(0, 0, 15, 15)
-            painter.end()
-            self.vision_combo.addItem(QIcon(swatch), palette.label, palette.key)
+            self.vision_combo.addItem(_swatch((*palette.pair, *palette.dodge_burn)), palette.label, palette.key)
         self.vision_combo.setCurrentIndex(max(self.vision_combo.findData(self.session.state.color_vision), 0))
         self.vision_combo.setToolTip(tr("Marks told apart by color alone use colors this vision keeps"))
         self.vision_combo.currentIndexChanged.connect(lambda i: self.session.set_color_vision(self.vision_combo.itemData(i)))
@@ -334,7 +321,7 @@ class PreferencesDialog(QDialog):
             "mdi6.cpu-64-bit",
             tr("Multi-core CPU Rendering"),
             parallel_enabled(),
-            tr("Spread the CPU rendering kernels across cores. Experimental: turn it off if the app closes without warning."),
+            tr("Render on all CPU cores, an experimental mode that can close the app without warning."),
         )
         self.parallel_box.toggled.connect(self._on_parallel_changed)
         self._add_toggles(grid, row, self.gpu_box, self.parallel_box)
@@ -366,7 +353,7 @@ class PreferencesDialog(QDialog):
             "mdi6.image-sync-outline",
             tr("Update Thumbnails Automatically"),
             self.session.state.auto_thumbnail_refresh,
-            tr("Render thumbnails again in the background after a change to many frames; off marks them with a dot for Update Thumbnails"),
+            tr("Render thumbnails again in the background after a change to many frames"),
         )
         self.auto_thumbnails_box.toggled.connect(self.session.set_auto_thumbnail_refresh)
         self._add_toggles(grid, row, self.semantic_box, self.auto_thumbnails_box)
@@ -383,7 +370,7 @@ class PreferencesDialog(QDialog):
             "fa5s.memory",
             tr("Reduce Export Memory Use"),
             APP_CONFIG.low_vram_export_tiling,
-            tr("Export in smaller pieces, a little slower. Turn this on if exporting crashes on your GPU."),
+            tr("Export in smaller pieces, which is slower but stops export crashes on a GPU with little memory."),
         )
         if "low_vram_export_tiling" in self._pinned:
             self.low_vram_tiling_box.setEnabled(False)
@@ -415,6 +402,7 @@ class PreferencesDialog(QDialog):
                 spin.setEnabled(False)
                 spin.setToolTip(tr("Set in override.toml, which wins over this dialog"))
             else:
+                spin.setToolTip(spec.tooltip)
                 spin.valueChanged.connect(lambda value, s=spec: self._on_number_changed(s, value))
             self._spins[spec.key] = spin
             grid.addWidget(spin, row, 1)
@@ -439,8 +427,13 @@ class PreferencesDialog(QDialog):
 
         _row, buttons = _button_row(
             (
-                (tr("Persistent Settings…"), "fa5s.thumbtack", self._open_sticky_dialog),
-                (tr("Manage Database…"), "fa5s.database", self._open_database_dialog),
+                (
+                    tr("Persistent Settings…"),
+                    "fa5s.thumbtack",
+                    tr("Choose which edits carry onto the next file you open"),
+                    self._open_sticky_dialog,
+                ),
+                (tr("Manage Database…"), "fa5s.database", tr("See and clear the data that NegPy stores"), self._open_database_dialog),
             )
         )
         self._persistent_settings_button = buttons[0]
@@ -554,16 +547,16 @@ class PreferencesDialog(QDialog):
         DatabaseDialog(self.repo, self.controller, self).exec()
 
 
-def _pill_qss(hex_color: str) -> str:
-    """A swatch that reads as the colour it sets. Checked state is an outline in the neutral that
-    stands off the swatch, dark on a light one and white on a dark one: a tick or a text label
-    would have to sit on top of the swatch and fight it for contrast."""
-    edge = THEME.bg_dark if QColor(hex_color).lightnessF() > 0.5 else THEME.text_primary
-    return (
-        f"QPushButton {{background: {hex_color}; border: 1px solid {THEME.border_color}; "
-        f"border-radius: {THEME.radius_md}px;}}"
-        f"QPushButton:checked {{border: 2px solid {edge};}}"
-    )
+def _swatch(colors: tuple[str, ...]) -> QIcon:
+    """Four colors in the quadrants of a framed square, for a combo item."""
+    pixmap = QPixmap(16, 16)
+    painter = QPainter(pixmap)
+    for x, y, color in zip((0, 8, 0, 8), (0, 0, 8, 8), colors):
+        painter.fillRect(x, y, 8, 8, QColor(color))
+    painter.setPen(QColor(THEME.border_color))
+    painter.drawRect(0, 0, 15, 15)
+    painter.end()
+    return QIcon(pixmap)
 
 
 def _button_row(items) -> tuple[QHBoxLayout, list[QPushButton]]:
@@ -571,8 +564,8 @@ def _button_row(items) -> tuple[QHBoxLayout, list[QPushButton]]:
     layout = QHBoxLayout()
     layout.setSpacing(THEME.space_md)
     buttons = []
-    for label, icon, handler in items:
-        btn = QPushButton(qta.icon(icon, color=THEME.text_primary), f" {label}")
+    for label, icon, tooltip, handler in items:
+        btn = labeled_action(icon, label, tooltip)
         btn.clicked.connect(handler)
         layout.addWidget(btn, 1)
         buttons.append(btn)

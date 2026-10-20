@@ -9,6 +9,7 @@ from PyQt6.QtCore import QPoint, QRect, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QMouseEvent, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QLabel, QSizePolicy
 
+from negpy.desktop.view.styles.templates import with_alpha
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.scan_window_geometry import (
     Rect,
@@ -186,16 +187,17 @@ class ScanWindowLabel(QLabel):
             painter.restore()
             if self._rect is not None:
                 wr = self._rect_in_widget(self._rect, draw_rect)
-                painter.setPen(QPen(QColor(THEME.status_success), 2))
                 painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.drawRect(wr)
-                painter.setBrush(QColor(THEME.status_success))
-                painter.setPen(Qt.PenStyle.NoPen)
+                for pen in (QPen(with_alpha(THEME.mark_shadow, 160), 4), QPen(QColor(THEME.mark_photo), 2)):
+                    painter.setPen(pen)
+                    painter.drawRect(wr)
+                painter.setBrush(QColor(THEME.mark_photo))
+                painter.setPen(QPen(with_alpha(THEME.mark_shadow, 170), 1.5))
                 for corner in (wr.topLeft(), wr.topRight(), wr.bottomRight(), wr.bottomLeft()):
                     painter.drawRect(QRect(corner.x() - _HANDLE_PX, corner.y() - _HANDLE_PX, 2 * _HANDLE_PX, 2 * _HANDLE_PX))
             for frac, edge in self._offset_indicators:
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor(0, 0, 0, 110))
+                painter.setBrush(with_alpha(THEME.mark_shadow, 110))
                 pen = QPen(QColor(THEME.warn_amber), 2)
                 pen.setStyle(Qt.PenStyle.DashLine)
                 # Keep the line at least 1 px inside the frame: an edge-pinned indicator must stay visible.

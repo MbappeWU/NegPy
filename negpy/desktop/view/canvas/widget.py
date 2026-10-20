@@ -780,9 +780,9 @@ class ImageCanvas(QWidget):
             return
 
         menu = QMenu(self)
-        act_wb = menu.addAction(label_with_shortcut(tr("Pick WB"), "pick_wb"))
+        act_wb = menu.addAction(label_with_shortcut(tr("WB Picker"), "pick_wb"))
         act_wb.triggered.connect(lambda: self._controller.set_active_tool(ToolMode.WB_PICK))  # type: ignore[union-attr]
-        act_dust = menu.addAction(label_with_shortcut(tr("Pick Dust"), "pick_dust"))
+        act_dust = menu.addAction(label_with_shortcut(tr("Heal"), "pick_dust"))
         act_dust.triggered.connect(lambda: self._controller.set_active_tool(ToolMode.DUST_PICK))  # type: ignore[union-attr]
         self._add_exclude_action(menu, pos)
         menu.addSeparator()
@@ -790,7 +790,7 @@ class ImageCanvas(QWidget):
         act_copy.triggered.connect(self._controller.session.copy_settings)  # type: ignore[union-attr]
         act_copy_bounds = menu.addAction(label_with_shortcut(tr("Copy Settings + Bounds"), "copy_with_bounds"))
         act_copy_bounds.triggered.connect(self._controller.session.copy_settings_with_bounds)  # type: ignore[union-attr]
-        act_paste = menu.addAction(label_with_shortcut(tr("Paste Settings"), "paste"))
+        act_paste = menu.addAction(label_with_shortcut(tr("Paste Settings…"), "paste"))
         act_paste.triggered.connect(lambda: open_paste_dialog(self, self._controller))  # type: ignore[arg-type]
         act_paste.setEnabled(self.state.clipboard is not None)
         act_sync_bounds = menu.addAction(label_with_shortcut(tr("Sync Bounds…"), "sync_bounds"))
@@ -798,8 +798,8 @@ class ImageCanvas(QWidget):
         menu.addSeparator()
         self._add_reset_actions(menu)
         menu.addSeparator()
-        act_reset = menu.addAction(tr("Reset View"))
-        act_reset.triggered.connect(self.fit_to_window)
+        act_fit = menu.addAction(label_with_shortcut(tr("Fit to Window"), "fit_view"))
+        act_fit.triggered.connect(self.fit_to_window)
         act_sticky_zoom = menu.addAction(tr("Sticky Zoom"))
         act_sticky_zoom.setCheckable(True)
         act_sticky_zoom.setChecked(self.state.sticky_zoom)

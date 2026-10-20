@@ -208,33 +208,6 @@ QListView::item:selected {
     color: @text_primary;
 }
 
-QTabWidget::pane {
-    border: 1px solid @border_primary;
-    background-color: @bg_dark;
-    border-radius: 4px;
-}
-
-QTabBar::tab {
-    background-color: @bg_header;
-    color: @text_secondary;
-    padding: 8px 12px;
-    border: 1px solid @border_color;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-}
-
-QTabBar::tab:selected {
-    background-color: @bg_selected;
-    color: @text_on_accent;
-    font-weight: bold;
-    border-bottom: none;
-}
-
-QTabBar::tab:hover:!selected {
-    background-color: @border_color;
-    color: @text_on_accent;
-}
-
 QComboBox, QLineEdit, QDoubleSpinBox, QSpinBox, QTextEdit {
     background-color: @bg_input;
     color: @text_primary;
@@ -564,7 +537,7 @@ QFrame#shortcut_editor_row {
 }
 
 QFrame#shortcut_editor_row[highlighted="true"], QFrame#reveal_flash {
-    background-color: rgba(94, 42, 42, 0.35);
+    background-color: @surface_reveal_flash;
     border: 1px solid @border_checked_hover;
     border-radius: 4px;
 }
@@ -622,15 +595,15 @@ QPushButton#collapsible_header:checked {
 }
 
 QPushButton#collapsible_header[overlay="true"] {
-    background-color: @surface_overlay_strong;
+    background-color: @header_veil;
 }
 
 QPushButton#collapsible_header[overlay="true"]:hover {
-    background-color: @surface_overlay_hover;
+    background-color: @header_veil_hover;
 }
 
 QPushButton#collapsible_header[overlay="true"]:checked {
-    background-color: @surface_overlay_strong;
+    background-color: @header_veil;
 }
 
 /* Preset lists: Export Presets dialog and the Presets sidebar. */

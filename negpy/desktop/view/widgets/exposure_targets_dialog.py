@@ -25,19 +25,17 @@ _GROUPS = (
             (
                 "anchor_target_density",
                 tr("Print Density Target"),
-                tr("How dark the middle tones print. Raise for darker prints, lower for brighter ones."),
+                tr("Raise to print the middle tones darker, or lower to print them brighter."),
             ),
             (
                 "anchor_meter_strength",
                 tr("Metering Strength"),
-                tr(
-                    "How closely Auto Density follows the meter. At 100% every frame prints equally bright, so dark and bright scenes lose their mood."
-                ),
+                tr("How closely Auto Density follows the meter, so a higher value prints dark and bright scenes more alike."),
             ),
             (
                 "anchor_meter_band",
                 tr("Metering Band"),
-                tr("The largest brightness change Auto Density may make. Lower keeps a roll more even."),
+                tr("The largest brightness change Auto Density may make, so a lower value keeps a roll more even."),
             ),
         ),
     ),
@@ -48,14 +46,12 @@ _GROUPS = (
             (
                 "auto_grade_target",
                 tr("Contrast Target"),
-                tr("Printed contrast aimed for across all frames. Raise for punchier prints, lower for softer ones."),
+                tr("The printed contrast Auto Grade aims for on every frame, higher for punchier prints."),
             ),
             (
                 "auto_grade_strength",
                 tr("Adaptation Strength"),
-                tr(
-                    "How much Auto Grade adapts to each negative. 0% prints every frame at one grade; 100% gives every frame the same detail range."
-                ),
+                tr("How much Auto Grade adapts the grade to each negative to give every frame the same detail range."),
             ),
         ),
     ),
@@ -66,19 +62,17 @@ _GROUPS = (
             (
                 "shadow_reach_density",
                 tr("Shadow Reach"),
-                tr("How dark the darkest detail must print, so a flat negative still gets a black. Lower for softer shadows."),
+                tr("How dark the darkest detail must print, so a flat negative still gets a black."),
             ),
             (
                 "shadow_hold_strength",
                 tr("Shadow Hold"),
-                tr("Lifts the shadows of a contrasty frame when its darkest detail would go black. Raise for more open shadows."),
+                tr("Lifts the shadows of a contrasty frame when its darkest detail would go black."),
             ),
             (
                 "highlight_hold_density",
                 tr("Highlight Hold"),
-                tr(
-                    "Keeps detail in the brightest areas, such as a sunlit wall or sky, so they do not print pure white. Off allows pure white."
-                ),
+                tr("Keeps detail in the brightest areas, such as a sunlit wall or sky, so they do not print pure white."),
             ),
         ),
     ),
@@ -101,7 +95,7 @@ def _make_slider(key: str, label: str, value: float) -> CompactSlider:
         slider = CompactSlider(label, lo, hi, value)
     slider.set_default(_shown(key, DEFAULT_TARGETS[key]))
     if key in _OFF_AT_MIN:
-        slider.spin.setSpecialValueText("Off")
+        slider.spin.setSpecialValueText(tr("Off"))
     return slider
 
 

@@ -130,8 +130,8 @@ class PickBetterWindow(QDialog):
         # Bottom-right: Undo (re-show the previous pair) and OK (close = end the mode).
         button_row = QHBoxLayout()
         button_row.addStretch(1)
-        self.undo_btn = labeled_action("fa5s.undo", tr(" Undo"), tr("Revert the last pick and re-show that pair"))
-        self.ok_btn = labeled_action("fa5s.check", tr(" OK"), tr("Finish Pick Better and close the window"), primary=True)
+        self.undo_btn = labeled_action("fa5s.undo", tr("Undo"), tr("Revert the last pick and re-show that pair"))
+        self.ok_btn = labeled_action("fa5s.check", tr("OK"), tr("Finish Pick Better and close the window"), primary=True)
         button_row.addWidget(self.undo_btn)
         button_row.addWidget(self.ok_btn)
         layout.addLayout(button_row)
@@ -259,9 +259,6 @@ class PickBetterWindow(QDialog):
         if not self._user_resized and self._last_pw > 0:
             self._size_to_image(self._last_pw, self._last_ph)
         self._schedule_reposition()
-
-    def hideEvent(self, ev) -> None:
-        super().hideEvent(ev)
 
     def _size_to_image(self, pw: int, ph: int) -> None:
         """Size the window so the three photos fill their frames at the largest scale that

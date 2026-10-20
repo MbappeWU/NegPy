@@ -287,7 +287,7 @@ class SegmentedChoice(QWidget):
 
         if live and 0 <= self._hover != self._index and self._enabled[self._hover]:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(255, 255, 255, 12))
+            p.setBrush(QColor(THEME.surface_hover_faint))
             p.drawRoundedRect(segments[self._hover], THEME.radius_lg, THEME.radius_lg)
 
         chip = QRectF(segments[self._index])

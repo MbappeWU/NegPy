@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from negpy.desktop.view.styles.templates import pin_dialog_default
+from negpy.desktop.view.styles.templates import hint_label, pin_dialog_default
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.floating_panel import float_over_app
 
@@ -66,8 +66,7 @@ class ProgressDialog(QDialog):
         root.addWidget(self._bar)
 
         footer = QHBoxLayout()
-        self._count = QLabel("")
-        self._count.setStyleSheet(f"font-size: {THEME.font_size_small}px; color: {THEME.text_hint};")
+        self._count = hint_label()
         footer.addWidget(self._count)
         footer.addStretch(1)
 

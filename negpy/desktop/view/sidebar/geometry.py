@@ -76,10 +76,10 @@ class GeometrySidebar(BaseSidebar):
 
         self.converge_v_slider = CompactSlider(tr("Tilt"), -15.0, 15.0, conf.converge_v, step=0.1, unit="%")
         self.converge_v_slider.setToolTip(
-            tr("Tilt: straighten buildings that lean back because the camera pointed up. Positive stretches the top.")
+            tr("Tilt: straighten buildings that lean back because the camera pointed up, where positive stretches the top.")
         )
         self.converge_h_slider = CompactSlider(tr("Swing"), -15.0, 15.0, conf.converge_h, step=0.1, unit="%")
-        self.converge_h_slider.setToolTip(tr("Swing: straighten a wall that narrows to one side. Positive stretches the left side."))
+        self.converge_h_slider.setToolTip(tr("Swing: straighten a wall that narrows to one side, where positive stretches the left side."))
         self.layout.addWidget(rail_fold("geometry_easel", self.fine_rot_slider, self.converge_v_slider, self.converge_h_slider))
 
         self.crop_to_valid_btn = self._small_toggle(

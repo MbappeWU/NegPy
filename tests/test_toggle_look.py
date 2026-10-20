@@ -22,7 +22,7 @@ from negpy.desktop.view.styles.templates import (
     tool_toggle,
 )
 from negpy.desktop.view.styles.theme import THEME
-from negpy.desktop.view.widgets.choice_button import ToggleMenuButton
+from negpy.desktop.view.widgets.segmented_choice import ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.flat_rows import paint_fill
 from negpy.desktop.view.widgets.step_combo import StepCombo
@@ -201,7 +201,7 @@ def test_a_button_box_puts_cancel_before_ok(qapp):
 def test_a_message_box_toggle_draws_as_a_labeled_toggle(qapp):
     from negpy.desktop.view.styles.templates import box_toggle
 
-    toggle = box_toggle("Don't Show Again")
+    toggle = box_toggle("Do Not Show Again")
     toggle.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the app's buttons take Tab focus only
     _host, image = _on_card(toggle)
     assert _edge_and_fill(image, toggle) == (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
@@ -301,10 +301,3 @@ def test_no_theme_color_is_a_bright_red_but_errors_and_the_red_channel():
         if (hue < 0.05 or hue > 0.95) and color.hslSaturationF() > 0.5 and color.lightnessF() > 0.3:
             bright.append(f"{field.name} {value}")
     assert bright == []
-
-
-def test_a_chosen_canvas_swatch_takes_the_neutral_that_stands_off_it():
-    from negpy.desktop.view.widgets.preferences_dialog import _pill_qss
-
-    assert f"QPushButton:checked {{border: 2px solid {THEME.text_primary};}}" in _pill_qss("#000000")
-    assert f"QPushButton:checked {{border: 2px solid {THEME.bg_dark};}}" in _pill_qss("#E6E6E6")

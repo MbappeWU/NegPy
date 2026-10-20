@@ -99,7 +99,7 @@ class TestScopeButtons:
 
         active, other = (section.frame_btn, section.roll_btn) if scope == "frame" else (section.roll_btn, section.frame_btn)
         assert glyph(active) == {QColor(color).name()}
-        assert glyph(other) == {QColor(THEME.text_muted).name()}
+        assert glyph(other) == {QColor(THEME.text_hint).name()}
 
     def test_roll_can_be_shown_disabled_rather_than_hidden(self) -> None:
         """Frames that are not one roll have no roll to move values to. The pair still
@@ -302,3 +302,9 @@ def test_a_folded_pane_holds_its_header_height_and_opens_to_its_saved_height(qap
     fit_pane(splitter, index, True, 900, 30, 120)
     assert splitter.sizes()[1 - index] == 120, "the other pane keeps its least height"
     splitter.hide()
+
+
+def test_a_header_over_a_chart_draws_its_title_above_the_chart() -> None:
+    section = CollapsibleSection("Tone", background_widget=QWidget())
+    stack = section.toggle_button.parentWidget().layout()
+    assert stack.currentWidget() is section.toggle_button

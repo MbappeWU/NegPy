@@ -10,12 +10,13 @@ heal/masks, machine paths, derived caches) are simply not listed here.
 
 from __future__ import annotations
 
-from negpy.kernel.system.i18n import mark
+from negpy.kernel.system.i18n import mark, tr
 
 from dataclasses import fields as dataclass_fields, replace
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 from negpy.domain.models import WorkspaceConfig
+from negpy.features.exposure.papers import PAPER_PROFILES
 from negpy.features.geometry.models import with_auto_crop_field
 from negpy.features.metadata.capture import place_summary
 from negpy.features.metadata.models import GEAR_FIELDS, PROCESS_FIELDS, PUSH_PULL_LABELS, SCANNING_FIELDS
@@ -54,13 +55,13 @@ class SettingRow:
 
 def _fmt_scalar(v) -> str:
     if isinstance(v, bool):
-        return "on" if v else "off"
+        return tr("On") if v else tr("Off")
     if v is None:
         return "—"
     if isinstance(v, float):
-        return f"{v:g}"
+        return f"{round(v, 4):g}"
     if isinstance(v, (tuple, list)):
-        return "set"
+        return tr("Set")
     return str(v)
 
 
@@ -76,6 +77,11 @@ def _format(row: SettingRow, values: tuple) -> str:
 
 def _row(label, section, *fields, channels="", fmt=None, sticky=False) -> SettingRow:
     return SettingRow(label, section, tuple(fields), channels, fmt, sticky)
+
+
+def _fmt_print_stock(values: tuple) -> str:
+    profile = PAPER_PROFILES.get(values[0])
+    return profile.label if profile else str(values[0])
 
 
 def _fmt_process(values: tuple) -> str:
@@ -170,7 +176,7 @@ CATALOG: list[tuple[str, tuple[SettingRow, ...]]] = [
         _row(mark("Auto Grade"), "exposure", "auto_normalize_contrast", sticky=True),
     )),
     (mark("Paper Response"), (
-        _row(mark("Print Stock"), "exposure", "paper_profile", sticky=True),
+        _row(mark("Print Stock"), "exposure", "paper_profile", fmt=_fmt_print_stock, sticky=True),
         _row(mark("Paper Black"), "exposure", "paper_black", sticky=True),
         _row(mark("Paper White"), "exposure", "paper_dmin", sticky=True),
         _row(mark("Snap"), "exposure", "midtone_gamma"),

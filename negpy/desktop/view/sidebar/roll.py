@@ -18,9 +18,9 @@ _TICK = "✓ "
 # Roll Analysis is the action, Roll Baseline the field it fills; the Library's own
 # menu item runs the same action, so it reads these rather than restating them.
 BATCH_ANALYSIS_TOOLTIP = tr("Roll Analysis: measure every loaded frame and save the average as the roll's baseline.")
-BATCH_ANALYSIS_DISABLED_TOOLTIP = tr("Open this roll first. Roll Analysis measures the loaded files.")
+BATCH_ANALYSIS_DISABLED_TOOLTIP = tr("Open this roll first, because Roll Analysis measures the loaded files.")
 FROM_FRAME_TOOLTIP = tr("Use This Frame: make this frame's measurement the roll's baseline.")
-FROM_FRAME_DISABLED_TOOLTIP = tr("Open this roll first. The baseline goes onto the loaded files.")
+FROM_FRAME_DISABLED_TOOLTIP = tr("Open this roll first, because the baseline goes onto the loaded files.")
 STALE_ROLL_HINT = tr("Baseline from an older analysis: run Reanalyze")
 STALE_SCENE_TOOLTIP = tr("Baseline from an older analysis: run Scene Analysis")
 
@@ -163,7 +163,7 @@ class RollAnalysisSidebar(BaseSidebar):
             for btn in (analyze, select):
                 btn.setEnabled(count > 0)
                 row_layout.addWidget(btn)
-            delete = self._icon_action("fa5s.trash", tr("Delete “{value}”. Its frames keep their edits and baseline.", value=entry["name"]))
+            delete = self._icon_action("fa5s.trash", tr("Delete “{value}”: its frames keep their edits and baseline.", value=entry["name"]))
             delete.clicked.connect(lambda _=False, sid=scene_id: prompt_delete_scene(self, self.controller, sid))
             row_layout.addWidget(delete)
             self._scene_rows_layout.addWidget(row)
