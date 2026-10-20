@@ -171,21 +171,25 @@ class StepCombo(QComboBox):
 
         if hover in ("prev", "next") and self._step_target(-1 if hover == "prev" else 1) < 0:
             hover = None
+        clip = QPainterPath()
+        clip.addRoundedRect(outline, THEME.radius_md, THEME.radius_md)
+        p.save()
+        p.setClipPath(clip)
+        p.fillRect(outline, QColor(THEME.bg_input))
         if hover:
-            clip = QPainterPath()
-            clip.addRoundedRect(outline, THEME.radius_md, THEME.radius_md)
-            p.save()
-            p.setClipPath(clip)
             p.fillRect(cells[hover], QColor(THEME.border_primary))
-            p.restore()
+        p.restore()
 
-        border = THEME.accent_secondary if self.hasFocus() else (THEME.border_hover if hover else THEME.border_color)
+        border = THEME.accent_secondary if self.hasFocus() else (THEME.border_hover if hover else THEME.border_primary)
         p.setPen(QPen(QColor(border), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(outline, THEME.radius_md, THEME.radius_md)
-        p.setPen(QPen(QColor(THEME.border_hover if hover else THEME.border_color), 1))
-        for x in (cells["prev"].right(), cells["next"].left()):
-            p.drawLine(QPointF(x, 0.5), QPointF(x, self.height() - 0.5))
+        # Short dividers, as between a segmented control's choices; one beside a hovered cell goes.
+        p.setPen(QPen(QColor(THEME.border_primary), 1))
+        inset = THEME.space_md + 1
+        for cell, x in (("prev", cells["prev"].right()), ("next", cells["next"].left())):
+            if hover not in (cell, "face"):
+                p.drawLine(QPointF(x, inset), QPointF(x, self.height() - inset))
 
         self._draw_face(p, cells["face"], live)
         self._draw_arrow(p, cells["prev"], "fa5s.chevron-left", live and self._step_target(-1) >= 0)

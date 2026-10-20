@@ -129,3 +129,22 @@ def test_export_ratio_arrows_keep_stored_values_in_translated_ui(qapp, locale: s
         assert form.values()["paper_aspect_ratio"] == "Original"
     finally:
         i18n.configure(previous)
+
+
+def test_the_face_sits_on_the_track_surface_with_short_dividers(qapp):
+    """The dropdown takes a segmented control's look: bg_input inside a border_primary edge."""
+    from PyQt6.QtGui import QColor
+
+    from negpy.desktop.view.styles.theme import THEME
+
+    combo = _combo("A", "B", "C")
+    combo.setCurrentIndex(1)
+    image = combo.grab().toImage()
+    cells = combo._cells()
+    x, h = int(cells["prev"].right()), combo.height()
+    track = QColor(THEME.bg_input)
+
+    assert image.pixelColor(int(cells["prev"].center().x()), 3) == track
+    assert image.pixelColor(x, 3) == track and image.pixelColor(x - 1, 3) == track, "the divider stops short of the edge"
+    assert track not in (image.pixelColor(x, h // 2), image.pixelColor(x - 1, h // 2)), "the divider shows at mid height"
+    assert image.pixelColor(int(cells["prev"].center().x()), 0) == QColor(THEME.border_primary)
