@@ -559,11 +559,19 @@ def bounded_tiff_page_preview(
             place(band, y, 0)
         return Image.fromarray(output)
 
-    handle, decode, jpegtables = page.parent.filehandle, page.decode, page.jpegtables
+    handle = page.parent.filehandle
+    # The arguments TiffPage.segments() passes.
+    decode_args: dict[str, Any] = {"_fullsize": page.is_tiled}
+    if page.compression in {6, 7, 34892, 33007}:
+        decode_args.update(jpegtables=page.jpegtables, jpegheader=page.jpegheader)
 
-    def read(index: int) -> tuple[bytes, int]:
-        handle.seek(int(page.dataoffsets[index]))
-        return handle.read(int(page.databytecounts[index])), index
+    def read(index: int) -> tuple[Optional[bytes], int]:
+        offset, count = int(page.dataoffsets[index]), int(page.databytecounts[index])
+        # A sparse segment has no data; decode() gives None for it.
+        if not offset or not count:
+            return None, index
+        handle.seek(offset)
+        return handle.read(count), index
 
     indices = _segments_in_preview(page, height, width, out_height, out_width)
     # The file reads stay on this thread; inflating a compressed strip releases the GIL, so a few run at once.
@@ -572,7 +580,7 @@ def bounded_tiff_page_preview(
             if should_cancel is not None and should_cancel():
                 raise InterruptedError("preview cancelled")
             batch = [read(index) for index in indices[start : start + _PREVIEW_DECODE_BATCH]]
-            for decoded, position, _shape in pool.map(lambda item: decode(*item, jpegtables=jpegtables), batch):
+            for decoded, position, _shape in pool.map(lambda item: page.decode(*item, **decode_args), batch):
                 if decoded is None:
                     continue
                 tile = decoded[0] if decoded.ndim == 4 else decoded
