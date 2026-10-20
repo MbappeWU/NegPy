@@ -1,7 +1,7 @@
 from PyQt6.QtCore import QPoint, QRect
 from PyQt6.QtGui import QColor, QImage, QPainter
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QHBoxLayout, QMenu, QProgressBar, QStyle, QStyleOptionViewItem, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QMenu, QProgressBar, QStyle, QStyleOptionButton, QStyleOptionViewItem, QWidget
 
 from negpy.desktop.view.styles.templates import header_row, icon_button, labeled_action, load_stylesheet, section_subheader, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
@@ -12,19 +12,23 @@ from negpy.desktop.view.widgets.step_combo import StepCombo
 
 
 def _fill_at_rest_and_under_mouse(qapp, button) -> tuple[str, str]:
+    """Paints the button through its style with and without State_MouseOver: a real pointer
+    move is unreliable once other tests leave windows open."""
     host = QWidget()
     host.setStyleSheet(load_stylesheet())
     QHBoxLayout(host).addWidget(button)
     host.resize(240, 60)
-    host.show()
-    QTest.qWaitForWindowExposed(host)
+    button.ensurePolished()
     fills = []
-    for target, pos in ((host, host.rect().bottomRight()), (button, button.rect().center())):
-        QTest.mouseMove(target, pos)
-        QTest.qWait(20)
-        probe = button.geometry().topLeft() + QPoint(3, button.height() // 2)
-        fills.append(host.grab().toImage().pixelColor(probe).name())
-    host.close()
+    for hovered in (False, True):
+        option = QStyleOptionButton()
+        button.initStyleOption(option)
+        if hovered:
+            option.state |= QStyle.StateFlag.State_MouseOver
+        image = _paint(
+            button.width(), button.height(), lambda p: button.style().drawControl(QStyle.ControlElement.CE_PushButton, option, p, button)
+        )
+        fills.append(image.pixelColor(3, button.height() // 2).name())
     return fills[0], fills[1]
 
 
