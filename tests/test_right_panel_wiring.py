@@ -268,7 +268,7 @@ def test_update_analysis_tells_the_strip_whether_placement_is_available() -> Non
 def test_histogram_scale_choice_sets_the_chart_and_persists() -> None:
     panel = MagicMock()
 
-    RightPanel._on_histogram_scale(panel, 1)
+    RightPanel._on_histogram_scale(panel, True)
 
     panel.curve_widget.set_log_scale.assert_called_once_with(True)
     panel.controller.session.repo.save_global_setting.assert_called_once_with("histogram_log_scale", True)

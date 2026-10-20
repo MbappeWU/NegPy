@@ -13,7 +13,7 @@ from PyQt6.QtGui import (
     QPainterPath,
     QPen,
 )
-from PyQt6.QtWidgets import QApplication, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QApplication, QSizePolicy, QVBoxLayout, QWidget
 
 from negpy.desktop.view.styles.templates import wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME
@@ -385,10 +385,7 @@ class PhotometricCurveWidget(QWidget):
         w = self.width()
         h = self.height()
 
-        # Background + border
-        painter.fillRect(self.rect(), QColor(THEME.canvas_bg_black))
-        painter.setPen(QPen(QColor(THEME.border_primary), 1))
-        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
+        painter.fillRect(self.rect(), QColor(THEME.bg_input))
 
         # Grid at 0.25 intervals, including 0 and 1, so the axis padding reads as margin and a
         # curve flat at zero visibly lands on the baseline.
@@ -911,7 +908,7 @@ class WaveformWidget(QWidget):
 
         painter = QPainter(self)
         w, h = self.width(), self.height()
-        painter.fillRect(self.rect(), QColor(THEME.canvas_bg_black))
+        painter.fillRect(self.rect(), QColor(THEME.bg_input))
 
         images = self._trace_images()
         counts = self._counts
@@ -1007,10 +1004,6 @@ class WaveformWidget(QWidget):
         for x1, x2, y in ticks:
             painter.drawLine(x1, y, x2, y)
 
-        painter.setPen(QPen(QColor(THEME.border_primary), 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
-
 
 class VectorscopeWidget(QWidget):
     """The print's CIELAB a*b* plane, +a right and +b up; brightness is the pixel count at a hue
@@ -1104,7 +1097,7 @@ class VectorscopeWidget(QWidget):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor(THEME.canvas_bg_black))
+        painter.fillRect(self.rect(), QColor(THEME.bg_input))
         side = max(8.0, min(self.width(), self.height()) - float(self._LABEL_ROOM))
         rim = side / 2.0
         center = QPointF(self.width() / 2.0, self.height() / 2.0)
@@ -1147,10 +1140,6 @@ class VectorscopeWidget(QWidget):
             painter.setPen(QPen(_alpha(THEME.text_on_accent, 90), 1, Qt.PenStyle.DashLine))
             painter.drawLine(center, spot)
             _draw_hover_ring(painter, spot)
-
-        painter.setPen(QPen(QColor(THEME.border_primary), 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
 
 class ZoneStripWidget(QWidget):
@@ -1257,8 +1246,7 @@ class ZoneStripWidget(QWidget):
         painter = QPainter(self)
         w = self.width()
         h = self.height()
-        rect = self.rect().adjusted(0, 0, -1, -1)
-        painter.fillRect(rect, QColor(THEME.canvas_bg_black))
+        painter.fillRect(self.rect(), QColor(THEME.bg_input))
 
         if self._occ is not None:
             n = len(self._LABELS)
@@ -1276,19 +1264,14 @@ class ZoneStripWidget(QWidget):
                 if (shadow_warn and i <= 1) or (highlight_warn and i >= n - 2):
                     painter.fillRect(x0, 0, x1 - x0, h, _alpha(THEME.clip_warning, 90))
                 armed = i == self._armed
+                if armed:
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    painter.setPen(QPen(QColor(THEME.border_checked_hover), 1))
+                    painter.setBrush(_alpha(THEME.bg_checked_hover, 200))
+                    painter.drawRoundedRect(QRectF(x0 + 1.5, 2.5, x1 - x0 - 3, h - 5), THEME.radius_sm, THEME.radius_sm)
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
                 painter.setPen(QPen(QColor(THEME.text_primary) if armed else _alpha(THEME.text_hint, 160)))
                 painter.drawText(QRect(x0, 0, x1 - x0, h), Qt.AlignmentFlag.AlignCenter, self._LABELS[i])
-                if armed:
-                    painter.setPen(QPen(QColor(THEME.border_checked_hover), 1))
-                    painter.setBrush(Qt.BrushStyle.NoBrush)
-                    painter.drawRect(QRect(x0, 0, x1 - x0 - 1, h - 1))
-                if i:
-                    painter.setPen(QPen(QColor(THEME.border_input), 1))
-                    painter.drawLine(x0, 0, x0, h)
-
-        painter.setPen(QPen(QColor(THEME.border_primary), 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(rect)
 
 
 class StepWedgeWidget(QWidget):
@@ -1349,12 +1332,8 @@ class StepWedgeWidget(QWidget):
         from negpy.features.exposure.analysis import wedge_usable_span
 
         painter = QPainter(self)
-        rect = self.rect().adjusted(0, 0, -1, -1)
-        painter.fillRect(rect, QColor(THEME.canvas_bg_black))
+        painter.fillRect(self.rect(), QColor(THEME.bg_input))
         if self._enc is None or self.width() < len(self._enc):
-            painter.setPen(QPen(QColor(THEME.border_primary), 1))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRect(rect)
             return
 
         h = self.height()
@@ -1364,10 +1343,12 @@ class StepWedgeWidget(QWidget):
 
         span = wedge_usable_span(self._enc)
         if span is not None:
-            pen = QPen(QColor(THEME.accent_primary), 2)
-            painter.setPen(pen)
+            # The hover ring's pens, so a mark holds on black and white steps alike.
             for edge in span:
                 x = (bounds[edge][0] + bounds[edge][1]) // 2
+                painter.setPen(QPen(_alpha(THEME.canvas_bg_black, 200), 3))
+                painter.drawLine(x, 0, x, h)
+                painter.setPen(QPen(_alpha(THEME.text_on_accent, 220), 1))
                 painter.drawLine(x, 0, x, h)
 
         labelled = range(0, len(self._enc), self._LABEL_EVERY)
@@ -1397,9 +1378,52 @@ class StepWedgeWidget(QWidget):
                 painter.setPen(_alpha(THEME.canvas_bg_black, 220) if float(self._enc[i]) > 0.5 else _alpha(THEME.text_on_accent, 235))
                 painter.drawText(box, flags, text)
 
+
+class ChartWell(QWidget):
+    """Charts stacked in one track: the first stretches, a hairline parts each shown chart from the
+    one above, and an edge drawn over them rounds the square charts' corners."""
+
+    def __init__(self, *charts: QWidget, parent=None):
+        super().__init__(parent)
+        self._charts = charts
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(1)
+        for i, chart in enumerate(charts):
+            layout.addWidget(chart, 0 if i else 1)
+        self._edge = _WellEdge(self)
+
+    def shown(self) -> list[QWidget]:
+        return [chart for chart in self._charts if not chart.isHidden()]
+
+    def resizeEvent(self, event) -> None:
+        self._edge.setGeometry(self.rect())
+        super().resizeEvent(event)
+
+    def paintEvent(self, event) -> None:
+        QPainter(self).fillRect(self.rect(), QColor(THEME.bg_input))
+
+
+class _WellEdge(QWidget):
+    def __init__(self, well: ChartWell):
+        super().__init__(well)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        edge = QPainterPath()
+        edge.addRoundedRect(rect, THEME.radius_md, THEME.radius_md)
+        outside = QPainterPath()
+        outside.addRect(QRectF(self.rect()))
+        # The well sits on a section card: the corners take its color.
+        painter.fillPath(outside.subtracted(edge), QColor(THEME.bg_card))
         painter.setPen(QPen(QColor(THEME.border_primary), 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(rect)
+        for chart in self.parentWidget().shown()[1:]:
+            y = chart.y() - 0.5
+            painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
+        painter.drawPath(edge)
 
 
 class MiniHistogramWidget(QWidget):

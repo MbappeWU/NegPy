@@ -181,13 +181,13 @@ The readout above the Roll and Frame tabs describes the current frame while you 
 
 #### Chart
 
-The selector under the chart picks one view:
+The buttons above the chart pick one view:
 
 *   **Curve**: the paper's curve, from the negative (left to right) to the print (bottom to top). Steeper means more contrast. The gray histogram is the negative, the colored one the print; tones separate where the gray one meets the steep middle.
 *   **Waveform**: print brightness across the frame. **Parade** shows red, green and blue side by side; a gray subject sits at one height in all three.
 *   **Vectorscope**: the print's colors around a center point. A cluster away from the center is a color cast.
 
-**Lin / Log** sets the scale: **Log** shows small areas, **Lin** the bulk of the frame.
+**Log** shows small areas, such as clipped ends.
 
 #### Clipping
 

@@ -357,7 +357,7 @@ def _row_lit(img, y: int) -> bool:
 
     from negpy.desktop.view.styles.theme import THEME
 
-    bg = QColor(THEME.canvas_bg_black).name()
+    bg = QColor(THEME.bg_input).name()
     return any(QColor(img.pixel(x, y)).name() != bg for x in range(60, img.width() - 4))
 
 
@@ -465,20 +465,20 @@ def test_the_scan_parade_keeps_its_own_scale_log_at_first() -> None:
     scan = _scale_panel("parade", True, {"histogram_log_scale": False})
     RightPanel._sync_scale_btn(scan)
     scan.parade_widget.set_log_scale.assert_called_once_with(True)
-    scan.scale_btn.setCurrentIndex.assert_called_once_with(1)
+    scan.scale_btn.setChecked.assert_called_once_with(True)
 
     printed = _scale_panel("parade", False, {"histogram_log_scale": False, "scan_parade_log": True})
     RightPanel._sync_scale_btn(printed)
     printed.parade_widget.set_log_scale.assert_called_once_with(False)
-    printed.scale_btn.setCurrentIndex.assert_called_once_with(0)
+    printed.scale_btn.setChecked.assert_called_once_with(False)
 
 
-def test_lin_log_in_peek_negative_saves_only_the_scan_parades_scale() -> None:
+def test_log_in_peek_negative_saves_only_the_scan_parades_scale() -> None:
     from negpy.desktop.view.sidebar.right_panel import RightPanel
 
     panel = _scale_panel("parade", True, {})
 
-    RightPanel._on_histogram_scale(panel, 0)
+    RightPanel._on_histogram_scale(panel, False)
 
     panel.controller.session.repo.save_global_setting.assert_called_once_with("scan_parade_log", False)
     panel.parade_widget.set_log_scale.assert_called_once_with(False)

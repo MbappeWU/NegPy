@@ -25,7 +25,14 @@ from negpy.desktop.view.styles.color_vision import palette_for
 from negpy.desktop.view.styles.templates import CLIPPING_SWEEP, gradient_icon, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import SegmentedChoice
-from negpy.desktop.view.widgets.charts import PhotometricCurveWidget, StepWedgeWidget, VectorscopeWidget, WaveformWidget, ZoneStripWidget
+from negpy.desktop.view.widgets.charts import (
+    ChartWell,
+    PhotometricCurveWidget,
+    StepWedgeWidget,
+    VectorscopeWidget,
+    WaveformWidget,
+    ZoneStripWidget,
+)
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection, fit_pane, make_section
 from negpy.desktop.view.widgets.fold import Fold, group_fold
 from negpy.desktop.view.widgets.gear_library_panel import GearLibraryPanel
@@ -248,15 +255,12 @@ class RightPanel(QWidget):
         self._scan_base_source = ""
 
         repo = self.controller.session.repo
-        self.scale_btn = SegmentedChoice(
-            (("", tr("Lin")), ("", tr("Log"))),
-            tr("Log shows small areas, such as clipped ends; Lin shows the bulk of the frame."),
-        )
-        self.scale_btn.setCurrentIndex(1 if repo.get_global_setting("histogram_log_scale") else 0)
-        self.curve_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
-        self.waveform_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
-        self.parade_widget.set_log_scale(self.scale_btn.currentIndex() == 1)
-        self.scale_btn.currentChanged.connect(self._on_histogram_scale)
+        self.scale_btn = tool_toggle("", tr("Log"), tr("Log Scale: shows small areas, such as clipped ends, that the linear scale hides"))
+        self.scale_btn.setChecked(bool(repo.get_global_setting("histogram_log_scale")))
+        self.curve_widget.set_log_scale(self.scale_btn.isChecked())
+        self.waveform_widget.set_log_scale(self.scale_btn.isChecked())
+        self.parade_widget.set_log_scale(self.scale_btn.isChecked())
+        self.scale_btn.toggled.connect(self._on_histogram_scale)
         self._sync_chart_colors()
         self.controller.session.color_vision_changed.connect(self._sync_chart_colors)
 
@@ -266,17 +270,27 @@ class RightPanel(QWidget):
         self.chart_stack.addWidget(self.parade_widget)
         self.chart_stack.addWidget(self.vectorscope_widget)
         self.view_btn = SegmentedChoice(
-            (("", tr("Curve")), ("", tr("Waveform")), ("", tr("Parade")), ("", tr("Vectorscope"))),
+            (
+                ("mdi6.chart-bell-curve-cumulative", tr("Curve")),
+                ("mdi6.waveform", tr("Waveform")),
+                ("mdi6.view-parallel-outline", tr("Parade")),
+                ("mdi6.target", tr("Vectorscope")),
+            ),
             tr("Analysis chart"),
             data=("curve", "waveform", "parade", "vectorscope"),
+            icon_only=(0, 1, 2, 3),
         )
-        self.view_btn.set_choice_tooltip(0, tr("The paper curve over the scan's and the print's histograms"))
-        self.view_btn.set_choice_tooltip(1, tr("The print's tones across the frame, column by column, on the zone scale"))
+        self.view_btn.set_choice_tooltip(0, tr("Curve: the paper curve over the scan's and the print's histograms"))
+        self.view_btn.set_choice_tooltip(1, tr("Waveform: the print's tones across the frame, column by column, on the zone scale"))
         self.view_btn.set_choice_tooltip(
             2,
-            tr("Red, green and blue side by side. A gray subject sits at one height in all three; a drifting channel means uneven light."),
+            tr(
+                "Parade: red, green and blue side by side. A gray subject sits at one height in all three; a drifting channel means uneven light."
+            ),
         )
-        self.view_btn.set_choice_tooltip(3, tr("The print's colors on the a*b* plane: a cast, a toner, a split tone"))
+        self.view_btn.set_choice_tooltip(
+            3, tr("Vectorscope: the print's colors on the a*b* plane, where a cast, a toner or a split tone shows")
+        )
         # Restored before the handler connects: it reaches widgets built further down.
         saved_view = self.view_btn.findData(repo.get_global_setting("analysis_view", "curve"))
         self.view_btn.setCurrentIndex(max(0, saved_view))
@@ -303,10 +317,8 @@ class RightPanel(QWidget):
         chart_row.addWidget(self.parade_overlay_btn)
         chart_row.addWidget(self.scale_btn)
 
-        analysis_layout.addWidget(self.chart_stack, 1)
         analysis_layout.addLayout(chart_row)
-        analysis_layout.addWidget(self.step_wedge, 0)
-        analysis_layout.addWidget(self.zone_strip, 0)
+        analysis_layout.addWidget(ChartWell(self.chart_stack, self.step_wedge, self.zone_strip), 1)
         analysis_layout.addWidget(self.zone_placement, 0)
         readouts_header, self.readouts_fold = group_fold("analysis_readouts", tr("Readouts"), self.stats_widget)
         self.stats_widget.warning_changed.connect(self.readouts_fold.set_warning)
@@ -664,7 +676,7 @@ class RightPanel(QWidget):
         return bool(self.controller.session.repo.get_global_setting("scan_parade_log", True))
 
     def _sync_scale_btn(self) -> None:
-        """Lin/Log shows the visible chart's own scale: the histograms' one, the vectorscope's for
+        """Log shows the visible chart's own scale: the histograms' one, the vectorscope's for
         this film mode, or the scan parade's in Peek Negative."""
         scope_log = self._scope_log()
         self.vectorscope_widget.set_log_scale(scope_log)
@@ -680,14 +692,13 @@ class RightPanel(QWidget):
         else:
             log = hist_log
         self.scale_btn.blockSignals(True)
-        self.scale_btn.setCurrentIndex(1 if log else 0)
+        self.scale_btn.setChecked(log)
         self.scale_btn.blockSignals(False)
 
     def set_analysis_view(self, key: str) -> None:
         self.view_btn.setCurrentIndex(max(0, self.view_btn.findData(key)))
 
-    def _on_histogram_scale(self, index: int) -> None:
-        log = index == 1
+    def _on_histogram_scale(self, log: bool) -> None:
         if self.view_btn.currentData() == "vectorscope":
             self.vectorscope_widget.set_log_scale(log)
             self.controller.session.repo.save_global_setting(self._scope_scale_key(), log)

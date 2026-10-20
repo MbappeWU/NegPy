@@ -96,7 +96,7 @@ def test_the_analysis_guide_still_covers_every_read_out() -> None:
     part of the panel unexplained with nothing else in the UI to explain it."""
     text = guide_markdown("analysis")
 
-    for topic in ("Curve", "histogram", "Lin / Log", "Clipping", "step wedge", "zone strip", "Readouts"):
+    for topic in ("Curve", "histogram", "**Log**", "Clipping", "step wedge", "zone strip", "Readouts"):
         assert topic in text, f"the guide never mentions {topic!r}"
 
 
