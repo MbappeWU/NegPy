@@ -91,7 +91,7 @@ A new frame gets the roll's film type, and the crop, print stock and Lab setting
 
 ### The tour
 
-**Take the Tour** (⋯ menu) walks through NegPy in short chapters. With nothing open, **Load Demo Negative** opens a sample. `Esc` ends the tour; the next one offers **Resume Where You Left Off**.
+**Take the Tour** (⋯ → **Help**) walks through NegPy in short chapters. With nothing open, **Load Demo Negative** opens a sample. `Esc` ends the tour; the next one offers **Resume Where You Left Off**.
 
 ### macOS and Windows
 
@@ -872,7 +872,7 @@ The memory rows of Preferences can be set here too (`max_texture_size`, `preview
 
 ## 15. Updating NegPy
 
-NegPy checks for a new version at startup. A new release adds **Update to vX.Y.Z…** to the **⋯** menu, with a green dot. **Check for Updates…** checks by hand.
+NegPy checks for a new version at startup. A new release puts a green dot on **⋯** and adds **Update to vX.Y.Z…** to its **Help** menu. **Check for Updates…** checks by hand.
 
 **Install Update** downloads the new version, closes NegPy, installs it and opens it again. On Windows, approve the administrator prompt *before* NegPy closes. If the update fails, your install stays as it was. Your edits, presets and settings are not touched.
 

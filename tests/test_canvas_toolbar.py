@@ -195,6 +195,31 @@ class TestCanvasToolbarResponsive(unittest.TestCase):
             tb._ov_flip_v_action,
         ]
 
+    def test_the_overflow_menu_groups_the_view_and_help_in_submenus(self):
+        from PyQt6.QtWidgets import QWidgetAction
+
+        tb = _make_toolbar()
+        top = tb.btn_overflow.menu().actions()
+        submenus = {a.text(): a.menu() for a in top if a.menu() is not None}
+        self.assertEqual(list(submenus), ["Tools", "View", "Help"])
+        self.assertLessEqual(len([a for a in top if not a.isSeparator()]), 20)
+
+        view = submenus["View"].actions()
+        headers = [a.defaultWidget().text() for a in view if isinstance(a, QWidgetAction)]
+        self.assertEqual([h.upper() for h in headers], ["ZOOM", "COMPARE", "PEEK", "OVERLAYS"])
+        for action in (tb._ov_hq_action, tb._ov_compare_action, tb._ov_flat_peek_action, tb._ov_zones_action, tb._ov_notes_action):
+            self.assertIn(action, view)
+        self.assertIn(tb._update_action, submenus["Help"].actions())
+
+    def test_a_waiting_update_marks_the_help_submenu(self):
+        tb = _make_toolbar()
+        before = tb._help_menu.menuAction().icon().cacheKey()
+
+        tb.set_update_available("9.9.9")
+
+        self.assertNotEqual(tb._help_menu.menuAction().icon().cacheKey(), before)
+        self.assertEqual(tb._update_action.text(), "Update to v9.9.9…")
+
     def test_ring_around_is_not_in_the_toolbar(self):
         tb = _make_toolbar()
         labels = [a.text() for a in tb.btn_overflow.menu().actions()]

@@ -598,75 +598,81 @@ class ActionToolbar(QWidget):
         self._label(find_action, tr("Find Control or Action…"), "command_palette")
         find_action.setToolTip(tr("Find any slider, card or action by name, and open it"))
         self._fill_tools_menu(overflow_menu.addMenu(qta.icon("fa5s.tools", color=icon_color), tr("Tools")))
-        overflow_menu.addSeparator()
 
-        self._ov_hq_action = overflow_menu.addAction(tr("HQ Preview"))
+        # What the canvas shows, in the groups the row's own Zoom, Print and Overlays menus use.
+        view_menu = overflow_menu.addMenu(qta.icon("fa5s.eye", color=icon_color), tr("View"))
+        view_menu.setToolTipsVisible(True)
+        self._menu_section(view_menu, tr("Zoom"))
+        self._ov_hq_action = view_menu.addAction(tr("HQ Preview"))
         self._ov_hq_action.setCheckable(True)
         self._menu_tip(self._ov_hq_action, tr("Toggle high-quality (full-resolution) preview"), "toggle_hq")
-        overflow_menu.addSeparator()
-
-        self._ov_fit_action = overflow_menu.addAction(qta.icon("fa5s.expand", color=icon_color), tr("Fit to Window"))
+        self._ov_fit_action = view_menu.addAction(qta.icon("fa5s.expand", color=icon_color), tr("Fit to Window"))
         self._menu_tip(self._ov_fit_action, tr("Fit to Window"), "fit_view")
-        self._ov_original_action = overflow_menu.addAction(tr("Original Size (1:1)"))
+        self._ov_original_action = view_menu.addAction(tr("Original Size (1:1)"))
         self._ov_original_action.setCheckable(True)
         self._menu_tip(
             self._ov_original_action,
             tr("Original size (100%): one scan pixel per screen pixel. Below HQ, fine detail is not exact."),
             "zoom_100",
         )
-        reference_action = overflow_menu.addAction(tr("Reference View"), self._toggle_reference)
-        self._menu_tip(reference_action, tr("Reference view: pin this frame beside the canvas, to match others to it"), "toggle_reference")
-        light_table_action = overflow_menu.addAction(tr("Light Table"), self._toggle_light_table)
-        self._menu_tip(light_table_action, tr("Light Table: the roll as film in place of the canvas"), "toggle_light_table")
-        self._ov_compare_action = overflow_menu.addAction(tr("Before / After"))
+        self._menu_section(view_menu, tr("Compare"))
+        self._ov_compare_action = view_menu.addAction(tr("Before / After"))
         self._ov_compare_action.setCheckable(True)
         self._menu_tip(self._ov_compare_action, tr("Before / After: split against the default, drag the divider"), "toggle_compare")
-        self._ov_flat_peek_action = overflow_menu.addAction(tr("Peek Flat Scan"))
+        reference_action = view_menu.addAction(tr("Reference View"), self._toggle_reference)
+        self._menu_tip(reference_action, tr("Reference view: pin this frame beside the canvas, to match others to it"), "toggle_reference")
+        light_table_action = view_menu.addAction(tr("Light Table"), self._toggle_light_table)
+        self._menu_tip(light_table_action, tr("Light Table: the roll as film in place of the canvas"), "toggle_light_table")
+        self._menu_section(view_menu, tr("Peek"))
+        self._ov_flat_peek_action = view_menu.addAction(tr("Peek Flat Scan"))
         self._ov_flat_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_flat_peek_action,
             tr("Peek flat scan: show the flat master for a moment. Your edit does not change."),
             "toggle_flat_peek",
         )
-        self._ov_negative_peek_action = overflow_menu.addAction(tr("Peek Negative"))
+        self._ov_negative_peek_action = view_menu.addAction(tr("Peek Negative"))
         self._ov_negative_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_negative_peek_action,
             tr("Peek Negative: the scan as loaded, before inversion and edits."),
             "toggle_negative_peek",
         )
-        self._ov_embedded_peek_action = overflow_menu.addAction(tr("Peek Embedded Preview"))
+        self._ov_embedded_peek_action = view_menu.addAction(tr("Peek Embedded Preview"))
         self._ov_embedded_peek_action.setCheckable(True)
         self._menu_tip(
             self._ov_embedded_peek_action,
             tr("Peek Embedded Preview: the camera's own JPEG of this shot, for comparison."),
             "toggle_embedded_peek",
         )
-        self._ov_zones_action = overflow_menu.addAction(tr("Zone Overlay"))
+        self._menu_section(view_menu, tr("Overlays"))
+        self._ov_zones_action = view_menu.addAction(tr("Zone Overlay"))
         self._ov_zones_action.setCheckable(True)
         self._menu_tip(self._ov_zones_action, tr("Zone overlay: show which zone each part of the print falls in"), "toggle_zones")
-        self._ov_loupe_action = overflow_menu.addAction(tr("Grain Focuser"))
+        self._ov_clipping_action = view_menu.addAction(tr("Clipping Overlay"))
+        self._ov_clipping_action.setCheckable(True)
+        self._menu_tip(self._ov_clipping_action, tr("Mark paper black and paper white on the frame"), "toggle_clipping_overlay")
+        self._ov_probe_action = view_menu.addAction(tr("Probe at Cursor"))
+        self._ov_probe_action.setCheckable(True)
+        self._menu_tip(self._ov_probe_action, tr("Zone, print density and ΔD of the pixel under the pointer"), "toggle_cursor_probe")
+        self._ov_loupe_action = view_menu.addAction(tr("Grain Focuser"))
         self._ov_loupe_action.setCheckable(True)
         self._menu_tip(
             self._ov_loupe_action,
             tr("Grain focuser: magnifies the frame's pixels at the pointer, with a sharpness number to compare areas."),
             "toggle_grain_focuser",
         )
-        self._ov_clipping_action = overflow_menu.addAction(tr("Clipping Overlay"))
-        self._ov_clipping_action.setCheckable(True)
-        self._menu_tip(self._ov_clipping_action, tr("Mark paper black and paper white on the frame"), "toggle_clipping_overlay")
-        self._ov_notes_action = overflow_menu.addAction(tr("Printing Notes"))
+        self._ov_notes_action = view_menu.addAction(tr("Printing Notes"))
         self._ov_notes_action.setCheckable(True)
         self._menu_tip(self._ov_notes_action, tr("The dodge and burn map and the print recipe"), "toggle_printing_notes")
-        self._ov_probe_action = overflow_menu.addAction(tr("Probe at Cursor"))
-        self._ov_probe_action.setCheckable(True)
-        self._menu_tip(self._ov_probe_action, tr("Zone, print density and ΔD of the pixel under the pointer"), "toggle_cursor_probe")
+        overflow_menu.addSeparator()
+
         self._ov_undo_action = overflow_menu.addAction(qta.icon("mdi.undo", color=icon_color), tr("Undo"))
         self._menu_tip(self._ov_undo_action, tr("Undo"), "undo")
         self._ov_redo_action = overflow_menu.addAction(qta.icon("mdi.redo", color=icon_color), tr("Redo"))
         self._menu_tip(self._ov_redo_action, tr("Redo"), "redo")
-
         overflow_menu.addSeparator()
+
         self._ov_rot_l_action = overflow_menu.addAction(qta.icon("mdi6.file-rotate-left", color=icon_color), tr("Rotate CCW"))
         self._menu_tip(self._ov_rot_l_action, tr("Rotate CCW"), "rotate_ccw")
         self._ov_rot_r_action = overflow_menu.addAction(qta.icon("mdi6.file-rotate-right", color=icon_color), tr("Rotate CW"))
@@ -716,7 +722,6 @@ class ActionToolbar(QWidget):
         self._label(self._action_reset_to_roll, tr("Reset to Roll Settings"), "reset_to_roll")
         self._action_reset_to_roll.setToolTip(tr("Return every card that differs from the roll to the roll's settings"))
         overflow_menu.aboutToShow.connect(lambda: self._action_reset_to_roll.setEnabled(self.controller.can_revert_frame_to_roll()))
-        overflow_menu.addSeparator()
         unload_action = overflow_menu.addAction(qta.icon("fa5s.times-circle", color=icon_color), tr("Unload…"), self._on_overflow_unload)
         unload_action.setToolTip(tr("Remove this image from the session (its saved edit is kept)"))
         overflow_menu.addSeparator()
@@ -724,21 +729,22 @@ class ActionToolbar(QWidget):
         prefs_action = overflow_menu.addAction(qta.icon("fa5s.sliders-h", color=icon_color), tr("Preferences…"), self._show_preferences)
         self._label(prefs_action, tr("Preferences…"), "open_preferences")
         prefs_action.setToolTip(tr("Interface, performance and storage settings for the whole app"))
-        overflow_menu.addSeparator()
-
-        self._update_action = overflow_menu.addAction(
-            qta.icon("fa5s.sync-alt", color=icon_color), tr("Check for Updates…"), self._check_for_updates
-        )
-        about_action = overflow_menu.addAction(qta.icon("fa5s.info-circle", color=icon_color), tr("About NegPy…"), self._show_about)
-        about_action.setToolTip(tr("Version and project page"))
-        tour_action = overflow_menu.addAction(qta.icon("fa5s.map-signs", color=icon_color), tr("Take the Tour"), self._show_tour)
+        self._help_menu = overflow_menu.addMenu(qta.icon("fa5s.question-circle", color=icon_color), tr("Help"))
+        self._help_menu.setToolTipsVisible(True)
+        tour_action = self._help_menu.addAction(qta.icon("fa5s.map-signs", color=icon_color), tr("Take the Tour"), self._show_tour)
         self._label(tour_action, tr("Take the Tour"), "show_tour")
         tour_action.setToolTip(tr("Replay the guided feature tour"))
-        shortcuts_action = overflow_menu.addAction(
+        shortcuts_action = self._help_menu.addAction(
             qta.icon("fa5s.keyboard", color=icon_color), tr("Keyboard Shortcuts…"), self._show_shortcuts
         )
         self._label(shortcuts_action, tr("Keyboard Shortcuts…"), "show_shortcuts")
         shortcuts_action.setToolTip(tr("Show the full keyboard shortcuts reference"))
+        self._help_menu.addSeparator()
+        self._update_action = self._help_menu.addAction(
+            qta.icon("fa5s.sync-alt", color=icon_color), tr("Check for Updates…"), self._check_for_updates
+        )
+        about_action = self._help_menu.addAction(qta.icon("fa5s.info-circle", color=icon_color), tr("About NegPy…"), self._show_about)
+        about_action.setToolTip(tr("Version and project page"))
         self.btn_overflow.setMenu(overflow_menu)
 
         standard_buttons = [
@@ -1098,18 +1104,23 @@ class ActionToolbar(QWidget):
         self._tool_layout.insertWidget(self._tool_slider_index, mirror)
         self._tool_slider, self._tool_slider_source = mirror, source
 
+    @staticmethod
+    def _menu_section(menu: QMenu, text: str) -> None:
+        """A sub-header row that opens a group of a menu's items."""
+        header = section_subheader(text)
+        header.setContentsMargins(THEME.space_lg, 0, THEME.space_lg, 0)
+        section = QWidgetAction(menu)
+        section.setDefaultWidget(header)
+        section.setEnabled(False)
+        menu.addAction(section)
+
     def _fill_tools_menu(self, menu: QMenu) -> None:
         """Each item runs the tool's own shortcut action, which shows its tab and refuses a gated tool."""
         menu.setToolTipsVisible(True)
         entries = []
         for spec in _CANVAS_TOOLS:
             if isinstance(spec, str):
-                header = section_subheader(spec)
-                header.setContentsMargins(THEME.space_lg, 0, THEME.space_lg, 0)
-                section = QWidgetAction(menu)
-                section.setDefaultWidget(header)
-                section.setEnabled(False)
-                menu.addAction(section)
+                self._menu_section(menu, spec)
                 continue
             mode, action_id, path = spec
             name, hint, _slider = _TOOL_ROWS[mode]
@@ -1422,6 +1433,8 @@ class ActionToolbar(QWidget):
         if not hasattr(self, "_update_dot"):
             self._update_dot = EditedDot(self.btn_overflow, color=THEME.status_success)
         self._update_dot.set_active(True)
+        # The dot on ⋯ leads to Help, where the update waits.
+        self._help_menu.menuAction().setIcon(qta.icon("fa5s.download", color=THEME.status_success))
         self._update_action.setIcon(qta.icon("fa5s.download", color=THEME.status_success))
         self._update_action.setText(tr("Update to v{version}…", version=version))
 
