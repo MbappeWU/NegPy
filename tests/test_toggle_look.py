@@ -1,9 +1,29 @@
-from PyQt6.QtCore import QPoint, QRect
-from PyQt6.QtGui import QColor, QImage, QPainter
+from PyQt6.QtCore import QPoint, QRect, Qt
+from PyQt6.QtGui import QColor, QImage, QPainter, QPalette
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QHBoxLayout, QMenu, QProgressBar, QStyle, QStyleOptionButton, QStyleOptionViewItem, QWidget
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QProgressBar,
+    QStyle,
+    QStyleOptionButton,
+    QStyleOptionViewItem,
+    QWidget,
+)
 
-from negpy.desktop.view.styles.templates import header_row, icon_button, labeled_action, load_stylesheet, section_subheader, tool_toggle
+from negpy.desktop.view.styles.templates import (
+    header_row,
+    icon_button,
+    labeled_action,
+    load_stylesheet,
+    section_subheader,
+    themed_palette,
+    tool_toggle,
+)
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ToggleMenuButton
 from negpy.desktop.view.widgets.collapsible import CollapsibleSection
@@ -152,3 +172,51 @@ def test_a_button_sits_on_the_track_surface_in_a_subheader_too_and_a_flat_one_on
     assert (at(boxed, 0), at(boxed, 4)) == track
     assert (at(subheader, 0), at(subheader, 4)) == track
     assert at(flat, 0) == QColor(THEME.bg_card).name()
+
+
+def test_selected_text_and_links_take_no_qt_blue(qapp):
+    palette = themed_palette(QPalette())
+
+    assert palette.color(QPalette.ColorRole.Highlight).name() == QColor(THEME.bg_checked_hover).name()
+    for role in (QPalette.ColorRole.Link, QPalette.ColorRole.LinkVisited, QPalette.ColorRole.HighlightedText):
+        assert palette.color(role).name() == QColor(THEME.text_primary).name()
+
+
+def _on_card(widget: QWidget, width: int = 300) -> tuple[QWidget, QImage]:
+    host = QWidget()
+    host.setObjectName("host")
+    host.setStyleSheet(load_stylesheet() + f"#host {{ background: {THEME.bg_card}; }}")
+    QHBoxLayout(host).addWidget(widget)
+    host.resize(width, 160)
+    host.show()
+    QTest.qWait(20)
+    return host, host.grab().toImage()
+
+
+def test_a_button_box_puts_cancel_before_ok(qapp):
+    box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+    _host, _image = _on_card(box)
+
+    ok = box.button(QDialogButtonBox.StandardButton.Ok)
+    assert box.button(QDialogButtonBox.StandardButton.Cancel).x() < ok.x()
+
+
+def test_a_checkbox_paints_no_band_across_its_card(qapp):
+    box = QCheckBox("Sticky zoom")
+    _host, image = _on_card(box)
+
+    assert image.pixelColor(box.geometry().right() - 4, box.geometry().center().y()).name() == QColor(THEME.bg_card).name()
+
+
+def test_a_checkable_list_row_takes_the_checkbox_look(qapp):
+    rows = QListWidget()
+    rows.setObjectName("preset_list")
+    item = QListWidgetItem("Magenta")
+    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+    item.setCheckState(Qt.CheckState.Checked)
+    rows.addItem(item)
+    _host, image = _on_card(rows)
+
+    rect = rows.visualItemRect(item).translated(rows.viewport().mapTo(rows.parentWidget(), QPoint(0, 0)))
+    colors = {image.pixelColor(x, rect.center().y()).name() for x in range(rect.left(), rect.left() + 30)}
+    assert QColor(THEME.bg_checked).name() in colors

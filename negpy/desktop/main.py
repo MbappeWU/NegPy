@@ -343,9 +343,10 @@ def main() -> None:
             app.setWindowIcon(QIcon(icon_path))
 
         if os.path.exists(get_resource_path("negpy/desktop/view/styles/modern_dark.qss")):
-            from negpy.desktop.view.styles.templates import load_stylesheet
+            from negpy.desktop.view.styles.templates import load_stylesheet, themed_palette
 
             app.setStyleSheet(load_stylesheet())
+            app.setPalette(themed_palette(app.palette()))
 
         session_manager = DesktopSessionManager(repo)
         controller = AppController(session_manager)

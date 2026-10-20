@@ -109,6 +109,18 @@ def test_the_dialog_renders_markdown_for_every_panel(key: str) -> None:
     assert "###" not in text, "markdown syntax leaked into the rendered body"
 
 
+def test_a_guide_table_draws_its_grid_in_the_card_edge_color() -> None:
+    from PyQt6.QtGui import QColor, QTextTable
+
+    from negpy.desktop.view.styles.theme import THEME
+
+    dlg = SectionHelpDialog("frames", "Film Strip")
+    tables = [f for f in dlg.body.document().rootFrame().childFrames() if isinstance(f, QTextTable)]
+
+    assert tables
+    assert {t.format().borderBrush().color().name() for t in tables} == {QColor(THEME.border_primary).name()}
+
+
 def test_the_info_button_is_opt_in() -> None:
     """CollapsibleSection also backs the Export and Metadata sections, which have no guide."""
     assert CollapsibleSection("Plain").info_btn is None

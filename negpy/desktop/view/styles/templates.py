@@ -6,7 +6,7 @@ import math
 
 import qtawesome as qta
 from PyQt6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt
-from PyQt6.QtGui import QColor, QIcon, QIconEngine, QImage, QLinearGradient, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QIconEngine, QImage, QLinearGradient, QPainter, QPalette, QPixmap
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
@@ -80,6 +80,16 @@ BAR_BUTTON_HEIGHT = 36
 BAR_ICON_SIZE = 18
 
 _default_btn_height: int | None = None
+
+
+def themed_palette(palette: QPalette) -> QPalette:
+    """The roles QSS cannot reach: Fusion fills selected text, an item view's focus frame and
+    every rich-text link with its own blue."""
+    palette = QPalette(palette)
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(THEME.bg_checked_hover))
+    for role in (QPalette.ColorRole.HighlightedText, QPalette.ColorRole.Link, QPalette.ColorRole.LinkVisited):
+        palette.setColor(role, QColor(THEME.text_primary))
+    return palette
 
 
 def load_stylesheet() -> str:
