@@ -17,7 +17,6 @@ from negpy.desktop.view.sidebar.files import (
     THUMB_CELL_MIN,
     FileBrowser,
     _FilmDelegate,
-    _FilmStripDelegate,
     justified_rows,
     print_dmax,
     _RESHAPE_MS,
@@ -563,15 +562,6 @@ def _paint_cell(delegate: _FilmDelegate, hover: bool) -> tuple[QImage, QRect]:
     return canvas, delegate._window(option.rect)
 
 
-@pytest.mark.parametrize("hover", [False, True])
-def test_a_light_table_frame_is_never_dimmed_and_its_cell_draws_no_ring(qapp, hover):
-    delegate = _FilmDelegate()
-    canvas, window = _paint_cell(delegate, hover)
-
-    assert canvas.pixelColor(window.center()) == QColor(40, 160, 220)
-    assert canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1) != QColor(THEME.accent_primary)
-
-
 @pytest.mark.parametrize(("bg", "others"), [(2, THEME.border_indicator), (3, THEME.text_hint)])
 def test_a_selected_frame_takes_a_mat_and_the_active_frame_the_lightest(browser, qapp, bg, others):
     from PyQt6.QtCore import QItemSelectionModel
@@ -624,14 +614,14 @@ def test_the_frame_under_the_pointer_gets_no_ring(browser, qapp):
 
 
 def test_no_gray_border_edges_a_picture_on_film(qapp):
-    canvas, window = _paint_cell(_FilmDelegate(), False)
+    canvas, window = _paint_cell(_FilmDelegate(), hover=True)
 
     assert canvas.pixelColor(window.center().x(), window.top()) == QColor(40, 160, 220)
 
 
 @pytest.mark.parametrize("hover", [False, True])
-def test_the_strip_dims_an_idle_picture_but_not_its_film(qapp, hover):
-    delegate = _FilmStripDelegate()
+def test_an_idle_picture_dims_but_not_its_film_and_its_cell_draws_no_ring(qapp, hover):
+    delegate = _FilmDelegate()
     canvas, window = _paint_cell(delegate, hover)
 
     picture = canvas.pixelColor(window.center())
@@ -639,6 +629,7 @@ def test_the_strip_dims_an_idle_picture_but_not_its_film(qapp, hover):
     assert picture.lightness() <= QColor(40, 160, 220).lightness()
     film = canvas.pixelColor(window.center().x(), window.top() - 2 * delegate._SELECTION_OUTSET)
     assert max(film.red(), film.green(), film.blue()) < 40, "the rebate is not dimmed"
+    assert canvas.pixelColor(window.center().x(), window.top() - delegate._SELECTION_OUTSET + 1) != QColor(THEME.accent_primary)
 
 
 def _long_roll(browser, count: int) -> None:
@@ -755,5 +746,5 @@ def test_the_strip_and_the_light_table_measure_a_picture_once(qapp, monkeypatch)
     monkeypatch.setattr(files, "picture_in_thumbnail", lambda image: calls.append(1) or measure(image))
     pixmap = QPixmap.fromImage(_qimage(prepare_thumbnail(Image.new("RGB", (300, 200), (40, 160, 220)), 120)))
 
-    assert _FilmStripDelegate()._picture_bounds(pixmap) == _FilmDelegate()._picture_bounds(pixmap)
+    assert _FilmDelegate()._picture_bounds(pixmap) == _FilmDelegate()._picture_bounds(pixmap)
     assert len(calls) == 1

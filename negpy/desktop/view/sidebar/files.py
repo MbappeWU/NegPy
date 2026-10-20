@@ -812,7 +812,7 @@ class _FilmDelegate(_ThumbnailDelegate):
     # and the Light Table's delegates share it, as they show the same thumbnails.
     _BOUNDS_LIMIT = 1 << 16
     _bounds: dict[int, QRect] = {}
-    _IDLE_OPACITY = 1.0
+    _IDLE_OPACITY = 0.75
     _BORDER = THEME.space_sm
 
     def __init__(self, parent=None, state: Optional[AppState] = None) -> None:
@@ -913,12 +913,6 @@ class _FilmDelegate(_ThumbnailDelegate):
         m = self._MARGIN
         framed.rect = self._window(cell).adjusted(-m, -m, m, m)
         super().paint(painter, framed, index)
-
-
-class _FilmStripDelegate(_FilmDelegate):
-    """The strip dims every picture but the selected and hovered ones; the film around them stays."""
-
-    _IDLE_OPACITY = _ThumbnailDelegate._IDLE_OPACITY
 
 
 class _FilmGridView(ThumbnailGridView):
@@ -1399,7 +1393,7 @@ class FileBrowser(QWidget):
         self.roll_title.setVisible(False)
 
         self.list_view = _FilmStripView()
-        self._thumbnail_delegate = _FilmStripDelegate(self.list_view, state=self.session.state)
+        self._thumbnail_delegate = _FilmDelegate(self.list_view, state=self.session.state)
         self._make_grid(self.list_view, self._thumbnail_delegate)
         # The Light Table; MainWindow lays it out in the canvas's place.
         self.light_table_view = _FilmGridView(
