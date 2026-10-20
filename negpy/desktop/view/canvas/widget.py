@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from PyQt6.QtWidgets import QStackedLayout, QMenu, QWidget, QPinchGesture, QGestureEvent
 from PyQt6.QtGui import QCursor, QImage, QMouseEvent, QNativeGestureEvent, QPainter, QColor, QWheelEvent
-from PyQt6.QtCore import QEvent, QRectF, pyqtSignal, Qt, QPointF
+from PyQt6.QtCore import QEvent, QRectF, QSize, pyqtSignal, Qt, QPointF
 from negpy.desktop.session import ToolMode, AppState
 from negpy.desktop.view.canvas.gpu_widget import GPUCanvasWidget
 from negpy.desktop.view.canvas.hud import CanvasHud
@@ -346,8 +346,8 @@ class ImageCanvas(QWidget):
 
     def _navigator_image(self) -> Optional[QImage]:
         """The displayed frame on the CPU path; else the frame's film-strip thumbnail, cut out of
-        its square padding. A GPU frame has no host copy, and an HQ readback costs far more than
-        the map is worth."""
+        any padding by the frame's shape. A GPU frame has no host copy, and an HQ readback costs far
+        more than the map is worth."""
         if self.overlay._qimage is not None:
             return self.overlay._qimage
         st = self.state
@@ -361,10 +361,9 @@ class ImageCanvas(QWidget):
             return None
         side = APP_CONFIG.thumbnail_size
         thumb = icon.pixmap(side, side).toImage()
-        side = thumb.width()
-        aspect = dims[0] / max(1, dims[1])
-        w, h = (side, round(side / aspect)) if aspect >= 1.0 else (round(side * aspect), side)
-        return thumb.copy((side - w) // 2, (side - h) // 2, max(1, w), max(1, h))
+        size = QSize(dims[0], dims[1]).scaled(thumb.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        w, h = max(1, size.width()), max(1, size.height())
+        return thumb.copy((thumb.width() - w) // 2, (thumb.height() - h) // 2, w, h)
 
     def _sync_navigator(self) -> None:
         """Shown while part of the frame is off screen, in a view whose geometry the map shares."""

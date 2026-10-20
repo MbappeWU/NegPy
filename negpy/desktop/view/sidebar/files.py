@@ -766,7 +766,10 @@ def print_dmax(image: QImage) -> Optional[tuple[int, int, int]]:
 
 
 def picture_in_thumbnail(image: QImage) -> QRect:
-    """The picture inside a thumbnail that prepare_thumbnail padded to a square, centered on one axis."""
+    """The picture inside a thumbnail: all of it, or in a square one from an older cache, the part
+    inside the THUMBNAIL_PAD padding on one axis."""
+    if image.width() != image.height():
+        return image.rect()
     pixels = _rgb_pixels(image).astype(np.int16)
     height, width = pixels.shape[:2]
     live = np.abs(pixels - np.array(THUMBNAIL_PAD, np.int16)).max(axis=2) > 10

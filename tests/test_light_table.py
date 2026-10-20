@@ -231,13 +231,32 @@ def _qimage(img: Image.Image) -> QImage:
     return QImage(arr.data, arr.shape[1], arr.shape[0], arr.strides[0], QImage.Format.Format_RGB888).copy()
 
 
+def _padded(picture: Image.Image) -> Image.Image:
+    """A thumbnail as an older cache holds it: the picture padded to a 120 px square."""
+    from negpy.kernel.image.logic import THUMBNAIL_PAD
+
+    picture = prepare_thumbnail(picture, 120)
+    square = Image.new("RGB", (120, 120), THUMBNAIL_PAD)
+    square.paste(picture, ((120 - picture.width) // 2, (120 - picture.height) // 2))
+    return square
+
+
 @pytest.mark.parametrize("size", [(300, 200), (200, 300)])
 def test_a_padded_thumbnail_gives_back_its_picture(qapp, size):
-    thumb = prepare_thumbnail(Image.new("RGB", size, (200, 120, 40)), 120)
-
-    rect = picture_in_thumbnail(_qimage(thumb))
+    rect = picture_in_thumbnail(_qimage(_padded(Image.new("RGB", size, (200, 120, 40)))))
 
     assert (rect.width(), rect.height()) == ((120, 80) if size[0] > size[1] else (80, 120))
+
+
+def test_a_thumbnail_that_is_not_square_is_all_picture(qapp):
+    from negpy.kernel.image.logic import THUMBNAIL_PAD
+
+    night = Image.new("RGB", (300, 200), THUMBNAIL_PAD)
+    night.paste((200, 120, 40), (0, 60, 300, 140))
+
+    rect = picture_in_thumbnail(_qimage(prepare_thumbnail(night, 120)))
+
+    assert (rect.width(), rect.height()) == (120, 80)
 
 
 def _print(black: tuple[int, int, int]) -> Image.Image:
@@ -247,8 +266,9 @@ def _print(black: tuple[int, int, int]) -> Image.Image:
     return img
 
 
-def test_a_prints_dmax_is_its_darkest_tone_not_the_thumbnail_padding(qapp):
-    tone = print_dmax(_qimage(prepare_thumbnail(_print((30, 22, 12)), 120)))
+@pytest.mark.parametrize("thumbnail", [lambda img: prepare_thumbnail(img, 120), _padded], ids=["thumbnail", "padded"])
+def test_a_prints_dmax_is_its_darkest_tone_not_the_thumbnail_padding(qapp, thumbnail):
+    tone = print_dmax(_qimage(thumbnail(_print((30, 22, 12)))))
 
     assert tone == pytest.approx((30, 22, 12), abs=3)
 
