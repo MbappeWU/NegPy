@@ -149,7 +149,7 @@ class TestBatchAutoCropController:
 
         self.controller._on_batch_autocrop_progress(5, 6, "frame_03.tif")
 
-        self.controller.set_status.assert_called_once_with("Auto-crop all frames 5/6: frame_03.tif")
+        self.controller.set_status.assert_called_once_with("Auto Crop 5/6: frame_03.tif")
 
     def test_batch_autocrop_uses_a_private_preview_cache(self) -> None:
         assert self.controller.batch_autocrop_preview_service is not self.controller.preview_service

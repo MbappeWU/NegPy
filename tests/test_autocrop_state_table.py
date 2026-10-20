@@ -198,7 +198,7 @@ def test_A3_all_frames_excluded_reports_nothing_to_analyze(ctl):
     ctl.controller.request_batch_auto_crop()
 
     assert ctl.tasks == []
-    assert _status(ctl).startswith("Auto-crop all frames kept 2 frames; nothing to analyze")
+    assert _status(ctl).startswith("Auto Crop kept 2 frames; nothing to analyze")
 
 
 def test_A5_a_frame_whose_detection_settings_changed_mid_run_is_kept(ctl):
@@ -236,7 +236,7 @@ def test_A13_every_crop_edit_is_refused_while_the_run_goes(ctl):
     ):
         c.set_status.reset_mock()
         edit()
-        assert _status(ctl) == "Crop is locked while Auto-crop all frames runs"
+        assert _status(ctl) == "Crop is locked while Auto Crop runs"
 
     assert ctl.state.config == before
     assert ctl.state.active_tool != ToolMode.CROP_MANUAL
@@ -291,7 +291,7 @@ def test_A13_reset_to_roll_settings_during_the_run_resets_all_but_crop(ctl):
     assert moved == 1
     assert ctl.state.config.process.hue_trim == 4.0
     assert ctl.state.config.geometry.autocrop_ratio == "3:2"
-    assert _status(ctl) == "Reset to the roll: Calibration; Crop waits for Auto-crop all frames"
+    assert _status(ctl) == "Reset to the roll: Calibration; Crop waits for Auto Crop"
 
 
 # --- Copying settings (paste, apply dialog, presets, carried settings) ---------------------
@@ -362,7 +362,7 @@ def test_E18_crop_reset_to_roll_waits_for_the_run(ctl):
     assert ctl.controller.revert_to_roll(("autocrop",)) == 0
 
     assert _kind(ctl.state.config) == "hand-drawn"
-    assert _status(ctl) == "Crop is locked while Auto-crop all frames runs"
+    assert _status(ctl) == "Crop is locked while Auto Crop runs"
 
 
 def _session_with_roll(repo):

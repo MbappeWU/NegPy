@@ -39,11 +39,14 @@ from negpy.desktop.view.styles.templates import (
     icon_button,
     labeled_action,
     section_subheader,
+    tool_toggle,
+    tool_toggle_qss,
     wrap_tooltip,
 )
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.step_combo import StepCombo
 from negpy.features.exposure.papers import resolve_paper
+from negpy.kernel.system.text import count_of
 
 # The index is what is saved, so a new color goes at the end; Preferences shows them darkest first.
 CANVAS_COLORS = [
@@ -825,7 +828,7 @@ class ActionToolbar(QWidget):
         self._build_tool_row(v_layout, icon_color, icon_size, btn_height)
         self._build_paper_row(v_layout, btn_height)
         self._build_zone_row(v_layout)
-        self._build_light_table_row(v_layout)
+        self._build_light_table_row(v_layout, icon_color, icon_size, rotate_icon_size, btn_height)
 
         main_layout.addWidget(self.mode_switch)
         main_layout.addWidget(self._create_separator())
@@ -985,8 +988,11 @@ class ActionToolbar(QWidget):
         layout.addWidget(self.btn_zone_close)
         v_layout.addWidget(self._zone_row, 0, Qt.AlignmentFlag.AlignHCenter)
 
-    def _build_light_table_row(self, v_layout: QVBoxLayout) -> None:
-        """While the Light Table is open, Photo mode shows how to open a frame and the frame size."""
+    def _build_light_table_row(
+        self, v_layout: QVBoxLayout, icon_color: str, icon_size: QSize, rotate_icon_size: QSize, btn_height: int
+    ) -> None:
+        """While the Light Table is open, Photo mode acts on the selected frames: Keep and Reject,
+        turn, Auto Crop and Export, the rest of the frame menu behind ⋯, then the frame size."""
         from negpy.desktop.view.widgets.sliders import CompactSlider
 
         self._light_table = False
@@ -995,8 +1001,48 @@ class ActionToolbar(QWidget):
         layout = QHBoxLayout(self._light_table_row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
-        self.light_table_hint = hint_label(tr("Click selects a frame. Double-click or Enter opens it."))
-        self.light_table_hint.setWordWrap(False)
+        self.selection_count = hint_label()
+        self.selection_count.setWordWrap(False)
+        self.selection_count.setToolTip(tr("Click selects a frame. Double-click or Enter opens it."))
+
+        self.btn_lt_keep = tool_toggle("mdi6.check-circle-outline", tr("Keep"), "")
+        self._tip(self.btn_lt_keep, tr("Keep the selected frames"), "toggle_keep")
+        self.btn_lt_keep.clicked.connect(lambda: self._mark_selection("keeper"))
+        self.btn_lt_reject = tool_toggle("mdi6.close-circle-outline", tr("Reject"), "")
+        self._tip(self.btn_lt_reject, tr("Reject the selected frames: batch export skips them"), "toggle_reject")
+        self.btn_lt_reject.clicked.connect(lambda: self._mark_selection("excluded"))
+        turn = [
+            self._action_button(
+                qta.icon("mdi6.file-rotate-left", color=icon_color), tr("Rotate CCW"), "rotate_ccw", lambda: self.rotate(1)
+            ),
+            self._action_button(
+                qta.icon("mdi6.file-rotate-right", color=icon_color), tr("Rotate CW"), "rotate_cw", lambda: self.rotate(-1)
+            ),
+            self._action_button(
+                qta.icon("fa5s.arrows-alt-h", color=icon_color), tr("Flip Horizontal"), "flip_h", lambda: self.flip("horizontal")
+            ),
+            self._action_button(
+                qta.icon("fa5s.arrows-alt-v", color=icon_color), tr("Flip Vertical"), "flip_v", lambda: self.flip("vertical")
+            ),
+        ]
+        for btn, size in zip(turn, (rotate_icon_size, rotate_icon_size, icon_size, icon_size)):
+            btn.setIconSize(size)
+        self.btn_lt_auto_crop = labeled_action("fa5s.magic", tr("Auto Crop"), "")
+        self._tip(self.btn_lt_auto_crop, tr("Auto Crop the selected frames; crops you drew stay"), None)
+        self.btn_lt_auto_crop.clicked.connect(lambda: self.controller.request_batch_auto_crop(assets=self._selected_frames()))
+        self.btn_lt_export = labeled_action("fa5s.file-export", tr("Export"), "")
+        self._tip(self.btn_lt_export, tr("Export the selected frames with the Export tab's settings, skipping rejected frames"), None)
+        self.btn_lt_export.clicked.connect(self.controller.request_export_selected)
+        self.btn_lt_more = self._action_button(
+            qta.icon("fa5s.ellipsis-h", color=icon_color), tr("More actions for the selected frames"), None, self._show_frame_menu
+        )
+        self._lt_labeled = [
+            (btn, btn.text(), btn.styleSheet()) for btn in (self.btn_lt_keep, self.btn_lt_reject, self.btn_lt_auto_crop, self.btn_lt_export)
+        ]
+        for btn in (self.btn_lt_keep, self.btn_lt_reject, self.btn_lt_auto_crop, self.btn_lt_export, *turn, self.btn_lt_more):
+            btn.setFixedHeight(btn_height)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
         # Inverted, so the frames grow to the right like the + key's.
         self.frames_per_row = CompactSlider(tr("Frames per Row"), 1, 2, 1, step=1, precision=1, inverted=True)
         self._tip(
@@ -1004,15 +1050,68 @@ class ActionToolbar(QWidget):
             tr("Light Table: the frames to a row; fewer frames are larger"),
             ("light_table_zoom_in", "light_table_zoom_out"),
         )
+        # An icon in place of the name, which keeps the name's drag and double-click reset.
+        self.frames_per_row.label.setPixmap(qta.icon("mdi6.resize", color=THEME.text_secondary).pixmap(icon_size))
         self.frames_per_row.setFixedHeight(default_button_height())
         self.frames_per_row.slider.setMinimumWidth(self.frames_per_row.slider.sizeHint().width())
-        layout.addWidget(self.light_table_hint)
-        layout.addWidget(self._create_separator())
-        layout.addWidget(self.frames_per_row)
+
+        # A narrow bar folds these away in order, each with the separator that leads it: the
+        # count, then the turn buttons (their keys stay), then Auto Crop and Export (Export stays in ⋯).
+        self._lt_folds: list[list[QWidget]] = [[self.selection_count]]
+        for group in (
+            (self.btn_lt_keep, self.btn_lt_reject),
+            turn,
+            (self.btn_lt_auto_crop, self.btn_lt_export),
+            (self.btn_lt_more,),
+            (self.frames_per_row,),
+        ):
+            separator = self._create_separator()
+            if group is turn or self.btn_lt_export in group:
+                self._lt_folds.append([separator, *group])
+            elif group[0] is self.btn_lt_keep:
+                self._lt_folds[0].append(separator)
+            layout.addWidget(separator)
+            for widget in group:
+                layout.addWidget(widget)
+        layout.insertWidget(0, self.selection_count)
         v_layout.addWidget(self._light_table_row, 0, Qt.AlignmentFlag.AlignRight)
+
+    def _selected_frames(self) -> list[dict]:
+        state = self.session.state
+        files = state.uploaded_files
+        return [files[i] for i in (state.selected_indices or [state.selected_file_idx]) if 0 <= i < len(files)]
+
+    def _mark_selection(self, mark: str) -> None:
+        self.session.toggle_mark(mark)
+        self._sync_light_table_row()
+
+    def _sync_light_table_row(self) -> None:
+        """The count and the marks every selected frame shares; the toggles never set state themselves."""
+        frames = self._selected_frames()
+        self.selection_count.setText(count_of(len(frames), "frame"))
+        for btn, mark in ((self.btn_lt_keep, "keeper"), (self.btn_lt_reject, "excluded")):
+            btn.blockSignals(True)
+            btn.setChecked(bool(frames) and all(f.get(mark) for f in frames))
+            btn.blockSignals(False)
+
+    def _show_frame_menu(self) -> None:
+        from negpy.desktop.view.main_window import MainWindow
+
+        win = self.window()
+        if isinstance(win, MainWindow):
+            menu = win.file_browser.build_frame_menu()
+            menu.exec(self.btn_lt_more.mapToGlobal(QPoint(0, -menu.sizeHint().height())))
+
+    def _name_light_table_buttons(self, named: bool) -> None:
+        for btn, text, sheet in self._lt_labeled:
+            btn.setText(text if named else "")
+            btn.setStyleSheet(sheet if named else tool_toggle_qss(icon_only=True))
+            # A narrow bar lays out at minimum widths, which would cut a name down to the icon.
+            btn.setMinimumWidth(btn.sizeHint().width())
 
     def set_light_table(self, on: bool) -> None:
         self._light_table = on
+        self._sync_light_table_row()
         self._sync_rows()
 
     def set_frames_per_row(self, columns: int, fewest: int, default: int, most: int) -> None:
@@ -1286,6 +1385,7 @@ class ActionToolbar(QWidget):
 
         self.session.state_changed.connect(self._update_ui_state)
         self.session.asset_model.layoutChanged.connect(self._update_ui_state)
+        self.session.files_changed.connect(self._sync_light_table_row)
         controller.tool_sync_requested.connect(self._sync_tool_row)
         controller.zones_overlay_changed.connect(lambda _on: self._sync_tool_row())
         controller.test_strip_changed.connect(lambda _up: self._sync_tool_row())
@@ -1495,6 +1595,7 @@ class ActionToolbar(QWidget):
         self._refresh_zoom_readout()
         self._sync_view_state()
         self._sync_tool_row()
+        self._sync_light_table_row()
 
         geo = state.config.geometry
         self.btn_flip_h.setChecked(geo.flip_horizontal)
@@ -1723,14 +1824,18 @@ class ActionToolbar(QWidget):
             self._activate_layout()
             return
         if not self._light_table_row.isHidden():
-            # The hint goes first, then the slider's name; its tooltip still names it.
-            optional = (self.light_table_hint, self.frames_per_row.label)
-            for widget in optional:
-                widget.setVisible(True)
-            for widget in optional:
+            # The count goes first, then the buttons' names (their tooltips still name them), then
+            # the groups _lt_folds lists after the count.
+            def fold(widgets: list[QWidget]):
+                return lambda shown: [widget.setVisible(shown) for widget in widgets]
+
+            steps = [fold(self._lt_folds[0]), self._name_light_table_buttons, *(fold(group) for group in self._lt_folds[1:])]
+            for step in steps:
+                step(True)
+            for step in steps:
                 if self._bar_width() <= w:
                     break
-                widget.setVisible(False)
+                step(False)
             self._activate_layout()
             return
         if self._view_row.isHidden():

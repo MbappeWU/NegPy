@@ -136,7 +136,7 @@ The toolbar's **Roll** row holds:
 
 Right-click a frame to **Keep** it (a check) or **Reject** it (a cross; batch exports skip it).
 
-The grid button opens the **Light Table** (`Shift+G`): the whole roll in rows, for sorting. A click selects a frame, and a double-click or `Enter` opens it. The toolbar's **Frames per Row** slider, `+` and `-`, or `Ctrl` with the wheel change the frame size. `Esc` goes back.
+The grid button opens the **Light Table** (`Shift+G`): the whole roll in rows, for sorting. A click selects a frame, and a double-click or `Enter` opens it. The toolbar acts on the selected frames: **Keep**, **Reject**, rotate and flip, **Auto Crop** and **Export**, and ⋯ holds the rest of the right-click menu. Its frame-size slider, `+` and `-`, or `Ctrl` with the wheel change the frame size. `Esc` goes back.
 
 #### Filtering
 

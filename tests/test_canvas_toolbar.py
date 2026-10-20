@@ -808,22 +808,52 @@ class TestModes(unittest.TestCase):
         self.assertFalse(tb._view_row.isHidden())
         self.assertTrue(tb._light_table_row.isHidden())
 
-    def test_a_narrow_bar_drops_the_hint_then_the_name_and_keeps_the_slider(self):
+    def test_a_narrow_bar_folds_the_count_names_turns_and_crop_and_keeps_triage(self):
         tb = _make_toolbar()
         tb.set_light_table(True)
         tb.show()
-        tb.set_available_width(1200)
+        tb.set_available_width(2000)
         QApplication.processEvents()
-        self.assertFalse(tb.light_table_hint.isHidden())
-        self.assertFalse(tb.frames_per_row.label.isHidden())
+        self.assertFalse(tb.selection_count.isHidden())
+        self.assertFalse(tb.btn_lt_export.isHidden())
+        self.assertEqual(tb.btn_lt_keep.text().strip(), "Keep")
 
         tb.set_available_width(320)
         QApplication.processEvents()
-        self.assertTrue(tb.light_table_hint.isHidden())
-        self.assertTrue(tb.frames_per_row.label.isHidden())
-        self.assertFalse(tb.frames_per_row.isHidden())
+        self.assertTrue(tb.selection_count.isHidden())
+        self.assertTrue(tb.btn_lt_export.isHidden())
+        self.assertEqual(tb.btn_lt_keep.text(), "")
+        for widget in (tb.btn_lt_keep, tb.btn_lt_reject, tb.btn_lt_more, tb.frames_per_row):
+            self.assertFalse(widget.isHidden())
         self.assertGreaterEqual(tb.frames_per_row.slider.width(), tb.frames_per_row.slider.minimumWidth())
         tb.hide()
+
+    def test_the_light_table_row_acts_on_the_selection(self):
+        tb = _make_toolbar()
+        state = tb.session.state
+        state.uploaded_files = [{"hash": "a", "keeper": True}, {"hash": "b", "keeper": True}, {"hash": "c", "excluded": True}]
+        state.selected_indices = [0, 1]
+        state.selected_file_idx = 0
+        tb.set_light_table(True)
+
+        self.assertEqual(tb.selection_count.text(), "2 frames")
+        self.assertTrue(tb.btn_lt_keep.isChecked())
+        self.assertFalse(tb.btn_lt_reject.isChecked())
+
+        tb.btn_lt_reject.click()
+        tb.session.toggle_mark.assert_called_once_with("excluded")
+        tb.btn_lt_auto_crop.click()
+        tb.controller.request_batch_auto_crop.assert_called_once_with(assets=state.uploaded_files[:2])
+        tb.btn_lt_export.click()
+        tb.controller.request_export_selected.assert_called_once()
+
+    def test_a_mixed_selection_leaves_keep_unchecked(self):
+        tb = _make_toolbar()
+        state = tb.session.state
+        state.uploaded_files = [{"hash": "a", "keeper": True}, {"hash": "b"}]
+        state.selected_indices = [0, 1]
+        tb.set_light_table(True)
+        self.assertFalse(tb.btn_lt_keep.isChecked())
 
     def test_frames_per_row_follows_the_table_without_emitting(self):
         tb = _make_toolbar()

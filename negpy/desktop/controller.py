@@ -4245,7 +4245,7 @@ class AppController(QObject):
         control that changed before the refusal (a toggle, a shortcut)."""
         if not self.crop_edits_blocked():
             return False
-        self.set_status(tr("Crop is locked while Auto-crop all frames runs"), 3000, kind="warning")
+        self.set_status(tr("Crop is locked while Auto Crop runs"), 3000, kind="warning")
         self.config_updated.emit()
         return True
 
@@ -4300,7 +4300,7 @@ class AppController(QObject):
     def request_batch_auto_crop(self, *, assets: Optional[List[dict]] = None) -> bool:
         """Analyze the Film Strip's frames together, filtered out or not, or only *assets*, and
         persist the crops. A hand-drawn crop stays. True when the run started."""
-        if self._batch_busy(tr("Auto-crop all frames")):
+        if self._batch_busy(tr("Auto Crop")):
             return False
         if not self.state.uploaded_files:
             self.set_status(tr("No frames to auto-crop"), 3000)
@@ -4322,10 +4322,10 @@ class AppController(QObject):
             )
 
         if not frames:
-            self.set_status(tr("Auto-crop all frames kept {value}; nothing to analyze", value=count_of(preflight_skipped, "frame")), 4000)
+            self.set_status(tr("Auto Crop kept {value}; nothing to analyze", value=count_of(preflight_skipped, "frame")), 4000)
             return False
 
-        token = self._begin_batch("autocrop", tr("Auto-cropping all frames"), abortable=True)
+        token = self._begin_batch("autocrop", tr("Auto-cropping frames"), abortable=True)
         if token is None:
             return False
         self._autocrop_batch_token = token
@@ -4352,7 +4352,7 @@ class AppController(QObject):
         return geometry.crop_from_auto and geometry.autocrop_mode == AutocropMode.IMAGE and not found
 
     def _on_batch_autocrop_progress(self, current: int, total: int, name: str) -> None:
-        self.set_status(tr("Auto-crop all frames {current}/{total}: {name}", current=current, total=total, name=name))
+        self.set_status(tr("Auto Crop {current}/{total}: {name}", current=current, total=total, name=name))
         self.status_progress_requested.emit(current, total)
         self.batch_progress.emit(current, total, name)
 
@@ -4439,7 +4439,7 @@ class AppController(QObject):
         failure_suffix = f", failed {failed}" if failed else ""
         self.set_status(
             tr(
-                "Auto-crop all frames: saved {saved}, kept {preserved}, unchanged {unresolved}{failure_suffix}",
+                "Auto Crop: saved {saved}, kept {preserved}, unchanged {unresolved}{failure_suffix}",
                 saved=saved,
                 preserved=preserved,
                 unresolved=unresolved,
@@ -4463,7 +4463,7 @@ class AppController(QObject):
         self._autocrop_batch_token = None
         self._autocrop_cancel_requested = False
         self.status_progress_requested.emit(0, 0)
-        self.set_status(tr("Auto-crop all frames aborted; no crops were saved"), 4000)
+        self.set_status(tr("Auto Crop aborted; no crops were saved"), 4000)
 
     def _on_batch_autocrop_error(self, message: str) -> None:
         token = self._autocrop_batch_token
@@ -4475,7 +4475,7 @@ class AppController(QObject):
         self._autocrop_cancel_requested = False
         self.status_progress_requested.emit(0, 0)
         logger.error("Auto-crop all frames failed: %s", message)
-        self.set_status(tr("Auto-crop all frames failed: {message}", message=message), 5000, kind="error")
+        self.set_status(tr("Auto Crop failed: {message}", message=message), 5000, kind="error")
 
     @property
     def thumbnail_refresh_running(self) -> bool:
@@ -5919,7 +5919,7 @@ class AppController(QObject):
             self.apply_config(config, persist=True)
         self.config_updated.emit()
         labels = {**self._ROLL_CARD_LABELS, **self._FRAME_CARD_LABELS}
-        held = "; Crop waits for Auto-crop all frames" if crop_held else ""
+        held = "; Crop waits for Auto Crop" if crop_held else ""
         self.set_status(tr("Reset to the roll: {value}{held}", value=", ".join(dict.fromkeys(labels[k] for k in cards)), held=held), 3000)
         return len(cards)
 

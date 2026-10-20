@@ -130,7 +130,7 @@ def _action_labels(menu):
 def test_context_menu_single_selection_items(browser, session):
     session.state.selected_indices = [0]
     session.state.selected_file_idx = 0
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Export Current Frame" in labels
     assert "Export Selected Frames" not in labels
     assert "Reset Settings" in labels
@@ -143,7 +143,7 @@ def test_context_menu_single_selection_items(browser, session):
 def test_context_menu_update_thumbnail_requests_the_selection_scope(browser, session):
     session.state.selected_indices = [0]
     session.state.selected_file_idx = 0
-    menu = browser._build_context_menu()
+    menu = browser.build_frame_menu()
     action = next(a for a in menu.actions() if a.text() == "Update Thumbnail")
     action.trigger()
     browser.controller.request_thumbnail_refresh.assert_called_once_with("selection")
@@ -154,12 +154,12 @@ def test_context_menu_offers_cancel_while_a_refresh_is_running(browser, session)
     session.state.selected_file_idx = 0
     browser.controller.thumbnail_refresh_running = True
 
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
 
     assert "Cancel Thumbnail Update" in labels
     assert "Update Thumbnail" not in labels
 
-    menu = browser._build_context_menu()
+    menu = browser.build_frame_menu()
     action = next(a for a in menu.actions() if a.text() == "Cancel Thumbnail Update")
     action.trigger()
     browser.controller.cancel_thumbnail_refresh.assert_called_once_with()
@@ -168,23 +168,23 @@ def test_context_menu_offers_cancel_while_a_refresh_is_running(browser, session)
 def test_context_menu_offers_unsplit_only_for_a_diptych(browser, session):
     session.state.selected_indices = [0]
     session.state.selected_file_idx = 0
-    assert "Unsplit Diptych…" not in _action_labels(browser._build_context_menu())
+    assert "Unsplit Diptych…" not in _action_labels(browser.build_frame_menu())
 
     session.state.uploaded_files[0]["diptych"] = True
-    assert "Unsplit Diptych…" in _action_labels(browser._build_context_menu())
+    assert "Unsplit Diptych…" in _action_labels(browser.build_frame_menu())
 
 
 def test_context_menu_offers_per_frame_split_only_for_a_half(browser, session):
     session.state.selected_indices = [0]
     session.state.selected_file_idx = 0
     browser.controller.half_frame_override.return_value = None
-    assert "Adjust Split for This Frame…" not in _action_labels(browser._build_context_menu())
+    assert "Adjust Split for This Frame…" not in _action_labels(browser.build_frame_menu())
 
     session.state.uploaded_files[0]["half"] = 1
     session.state.uploaded_files[0]["hash"] = "h1#1"
-    assert "Adjust Split for This Frame…" in _action_labels(browser._build_context_menu())
+    assert "Adjust Split for This Frame…" in _action_labels(browser.build_frame_menu())
     # No override saved yet, so nothing to reset.
-    assert "Reset Split to Roll Default" not in _action_labels(browser._build_context_menu())
+    assert "Reset Split to Roll Default" not in _action_labels(browser.build_frame_menu())
 
 
 def test_context_menu_offers_reset_only_with_a_saved_override(browser, session):
@@ -193,7 +193,7 @@ def test_context_menu_offers_reset_only_with_a_saved_override(browser, session):
     session.state.uploaded_files[0]["half"] = 1
     session.state.uploaded_files[0]["hash"] = "h1#1"
     browser.controller.half_frame_override.return_value = {"split_x": 0.4}
-    assert "Reset Split to Roll Default" in _action_labels(browser._build_context_menu())
+    assert "Reset Split to Roll Default" in _action_labels(browser.build_frame_menu())
 
 
 def _set_rolls_store(session, rolls_store):
@@ -206,10 +206,10 @@ def test_context_menu_offers_fork_only_when_the_file_is_in_two_rolls(browser, se
     session.state.active_roll_id = "r1"
     rolls_store = {"r1": {"kind": "virtual", "name": "A", "member_paths": ["/tmp/IMG_0001.cr2"]}}
     _set_rolls_store(session, rolls_store)
-    assert "Edit Independently in This Roll" not in _action_labels(browser._build_context_menu())
+    assert "Edit Independently in This Roll" not in _action_labels(browser.build_frame_menu())
 
     rolls_store["r2"] = {"kind": "virtual", "name": "B", "member_paths": ["/tmp/IMG_0001.cr2"]}
-    assert "Edit Independently in This Roll" in _action_labels(browser._build_context_menu())
+    assert "Edit Independently in This Roll" in _action_labels(browser.build_frame_menu())
 
 
 def test_context_menu_needs_an_active_roll_to_offer_fork(browser, session):
@@ -221,7 +221,7 @@ def test_context_menu_needs_an_active_roll_to_offer_fork(browser, session):
         "r2": {"kind": "virtual", "name": "B", "member_paths": ["/tmp/IMG_0001.cr2"]},
     }
     _set_rolls_store(session, rolls_store)
-    assert "Edit Independently in This Roll" not in _action_labels(browser._build_context_menu())
+    assert "Edit Independently in This Roll" not in _action_labels(browser.build_frame_menu())
 
 
 def test_context_menu_offers_unfork_once_forked(browser, session):
@@ -233,7 +233,7 @@ def test_context_menu_offers_unfork_once_forked(browser, session):
         "r2": {"kind": "virtual", "name": "B", "member_paths": ["/tmp/IMG_0001.cr2"]},
     }
     _set_rolls_store(session, rolls_store)
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Use the Shared Edit Again…" in labels
     assert "Edit Independently in This Roll" not in labels
 
@@ -277,7 +277,7 @@ def test_unsplit_diptych_needs_the_confirm(browser):
 def test_context_menu_multi_selection_uses_export_selected(browser, session):
     session.state.selected_indices = [0, 1]
     session.state.selected_file_idx = 0
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Export Selected Frames" in labels
     assert "Export Current Frame" not in labels
 
@@ -285,7 +285,7 @@ def test_context_menu_multi_selection_uses_export_selected(browser, session):
 def test_context_menu_multi_selection_counts_update_thumbnails(browser, session):
     session.state.selected_indices = [0, 1]
     session.state.selected_file_idx = 0
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Update 2 thumbnails" in labels
     assert "Update Thumbnail" not in labels
 
@@ -293,7 +293,7 @@ def test_context_menu_multi_selection_counts_update_thumbnails(browser, session)
 def test_context_menu_multi_selection_adds_apply_and_remove_selected(browser, session):
     session.state.selected_indices = [0, 1]
     session.state.selected_file_idx = 0
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Apply Settings…" in labels
     assert "Unload Selected…" in labels
     assert "Unload…" not in labels
@@ -556,13 +556,13 @@ def test_maybe_suggest_gear_noop_without_an_active_file(browser, session):
 
 def test_context_menu_paste_disabled_without_clipboard(browser, session):
     session.state.clipboard = None
-    paste = next(a for a in browser._build_context_menu().actions() if a.text().startswith("Paste"))
+    paste = next(a for a in browser.build_frame_menu().actions() if a.text().startswith("Paste"))
     assert not paste.isEnabled()
 
 
 def test_context_menu_paste_enabled_with_clipboard(browser, session):
     session.state.clipboard = object()
-    paste = next(a for a in browser._build_context_menu().actions() if a.text().startswith("Paste"))
+    paste = next(a for a in browser.build_frame_menu().actions() if a.text().startswith("Paste"))
     assert paste.isEnabled()
 
 
@@ -870,7 +870,7 @@ def test_right_click_on_empty_space_opens_the_session_menu(browser):
     with no context menu at all."""
     with (
         patch.object(browser, "_build_session_menu") as session_menu,
-        patch.object(browser, "_build_context_menu") as frame_menu,
+        patch.object(browser, "build_frame_menu") as frame_menu,
     ):
         browser._show_context_menu(QPoint(5, 99999))
     session_menu.assert_called_once()
@@ -881,7 +881,7 @@ def test_right_click_on_a_frame_still_opens_the_frame_menu(browser):
     idx = browser.session.asset_model.index(0, 0)
     with (
         patch.object(browser.list_view, "indexAt", return_value=idx),
-        patch.object(browser, "_build_context_menu") as frame_menu,
+        patch.object(browser, "build_frame_menu") as frame_menu,
         patch.object(browser, "_build_session_menu") as session_menu,
     ):
         browser._show_context_menu(QPoint(5, 5))
@@ -1150,7 +1150,7 @@ def _scene_menu(menu):
 
 def test_scene_menu_is_absent_without_a_roll(browser, session):
     session.state.selected_indices = [0, 1]
-    assert "Scene" not in _action_labels(browser._build_context_menu())
+    assert "Scene" not in _action_labels(browser.build_frame_menu())
 
 
 def test_scene_menu_offers_group_and_add_for_loose_frames(browser, session):
@@ -1159,7 +1159,7 @@ def test_scene_menu_offers_group_and_add_for_loose_frames(browser, session):
     session.state.active_roll_id = "roll-1"
     session.state.selected_indices = [0, 1]
     with patch.object(rolls, "roll_scenes", return_value=[("s1", {"name": "Beach"})]):
-        labels = _action_labels(_scene_menu(browser._build_context_menu()))
+        labels = _action_labels(_scene_menu(browser.build_frame_menu()))
     assert labels == ["Group as Scene…", "Add to Beach"]
 
 
@@ -1171,7 +1171,7 @@ def test_scene_menu_for_members_of_one_scene(browser, session):
     session.state.selected_file_idx = 0
     session.state.uploaded_files[0]["scene"] = (1, "s1", "Beach")
     with patch.object(rolls, "roll_scenes", return_value=[("s1", {"name": "Beach"}), ("s2", {"name": "Night"})]):
-        menu = _scene_menu(browser._build_context_menu())
+        menu = _scene_menu(browser.build_frame_menu())
     assert _action_labels(menu) == ["Add to Night", "Remove from Scene", "Analyze Scene…", "Rename Scene…", "Delete Scene…"]
     next(a for a in menu.actions() if a.text() == "Analyze Scene…").trigger()
     browser.controller.request_scene_analysis.assert_called_once_with("s1")
@@ -1251,27 +1251,27 @@ def test_film_strip_menu_offers_close_roll(browser, session):
 def test_context_menu_offers_merge_to_tiff_only_for_an_assembled_frame(browser, session):
     session.state.selected_indices = [0]
     session.state.selected_file_idx = 0
-    assert "Merge Frame to TIFF Negative…" not in _action_labels(browser._build_context_menu())
+    assert "Merge Frame to TIFF Negative…" not in _action_labels(browser.build_frame_menu())
 
     session.state.uploaded_files[0].update(green_path="/g.ARW", blue_path="/b.ARW")
-    assert "Merge Frame to TIFF Negative…" in _action_labels(browser._build_context_menu())
+    assert "Merge Frame to TIFF Negative…" in _action_labels(browser.build_frame_menu())
 
     session.state.uploaded_files[0].update(green_path="", blue_path="", stitch_paths=("/p.ARW",))
-    assert "Merge Frame to TIFF Negative…" in _action_labels(browser._build_context_menu())
+    assert "Merge Frame to TIFF Negative…" in _action_labels(browser.build_frame_menu())
 
     # A bracket cannot merge, so it gets no item.
     session.state.uploaded_files[0].update(stitch_paths=(), hdr_paths=("/e.ARW",))
-    assert "Merge Frame to TIFF Negative…" not in _action_labels(browser._build_context_menu())
+    assert "Merge Frame to TIFF Negative…" not in _action_labels(browser.build_frame_menu())
 
 
 def test_context_menu_scopes_merge_to_tiff_by_selection(browser, session):
     session.state.uploaded_files[1].update(green_path="/g.ARW", blue_path="/b.ARW")
     session.state.selected_indices = [0, 1]
     session.state.selected_file_idx = 0
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Merge Selected to TIFF Negative…" in labels
     assert "Merge Frame to TIFF Negative…" not in labels
 
     session.state.selected_indices = [0]
-    labels = _action_labels(browser._build_context_menu())
+    labels = _action_labels(browser.build_frame_menu())
     assert "Merge Selected to TIFF Negative…" not in labels

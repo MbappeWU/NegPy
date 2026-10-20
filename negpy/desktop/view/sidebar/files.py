@@ -2015,7 +2015,7 @@ class FileBrowser(QWidget):
         elif actual != state.selected_file_idx:
             self.session.select_file(actual, selection_override=list(state.selected_indices))
 
-        menu = self._build_context_menu()
+        menu = self.build_frame_menu()
         menu.exec(view.viewport().mapToGlobal(pos))
 
     def _source_name(self) -> str:
@@ -2123,7 +2123,7 @@ class FileBrowser(QWidget):
         clear.setEnabled(bool(self.session.state.uploaded_files))
         return menu
 
-    def _build_context_menu(self) -> QMenu:
+    def build_frame_menu(self) -> QMenu:
         state = self.session.state
         multi = len(state.selected_indices) > 1
 
