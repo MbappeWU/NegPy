@@ -41,6 +41,7 @@ from negpy.services.export.contact_sheet_layout import (
     dpi_allowed,
     paper_preset,
     plan_capacity,
+    plan_rows,
     plan_sheets,
     snap_paper,
 )
@@ -49,6 +50,7 @@ from negpy.services.export.contact_sheet_roll import (
     SheetFrame,
     SheetLook,
     StraightProof,
+    print_aspect,
     scene_breaks,
     scene_of,
     scene_order,
@@ -462,19 +464,20 @@ class ContactSheetDialog(QDialog):
             tr("Print on white paper with dark labels, to save ink on a home printer"),
         )
         self.white_btn.toggled.connect(lambda _checked: self._schedule_render())
-        self.film_base_btn = labeled_toggle(
+        self.film_edges_btn = labeled_toggle(
             "fa5s.film",
-            tr(" Film Base"),
-            settings.film_base,
-            tr("Print the film base black, as a darkroom contact print does. Off saves ink on a home printer."),
+            tr(" Film Edges"),
+            settings.film_edges,
+            tr(
+                "Print the frames on film strips with their perforations and edge print; off lays them upright in rows, as on the Light Table"
+            ),
         )
-        self.film_base_btn.setEnabled(self.white_btn.isChecked())
-        self.white_btn.toggled.connect(self.film_base_btn.setEnabled)
-        self.film_base_btn.toggled.connect(lambda _checked: self._schedule_render())
+        self.edge_btn.setEnabled(settings.film_edges)
+        self.film_edges_btn.toggled.connect(self._on_film_edges_toggled)
         second = QHBoxLayout()
         second.setSpacing(THEME.space_md)
         second.addWidget(self.white_btn, 1)
-        second.addWidget(self.film_base_btn, 1)
+        second.addWidget(self.film_edges_btn, 1)
         col.addLayout(second)
 
         self.summary_label = hint_label()
@@ -588,6 +591,10 @@ class ContactSheetDialog(QDialog):
         self._look = self._look_for(self._format)
         self._schedule_render()
 
+    def _on_film_edges_toggled(self, on: bool) -> None:
+        self.edge_btn.setEnabled(on)
+        self._schedule_render()
+
     def _on_frame_clicked(self, index: int) -> None:
         self._left_out ^= {index}
         self._schedule_render()
@@ -600,11 +607,22 @@ class ContactSheetDialog(QDialog):
     def _breaks(self, indices: Sequence[int]) -> list[int]:
         return scene_breaks([self._frames[i] for i in indices]) if self._by_scene else []
 
+    def _aspects(self, indices: Sequence[int]) -> list[float]:
+        """Each frame's upright print aspect, from its preview tile once that has arrived."""
+        fallback = self._geometry().window_aspect
+        return [print_aspect(self._frames[i], self._tile_shapes[i]) or fallback for i in indices]
+
+    def _plan_for(self, indices: Sequence[int]) -> SheetPlan:
+        if self.film_edges_btn.isChecked():
+            return plan_sheets(*self._paper, self._geometry(), len(indices), self._label_on(), self._breaks(indices))
+        return plan_rows(*self._paper, self._geometry(), self._aspects(indices), self._label_on(), self._breaks(indices))
+
     def _film_changed(self) -> None:
         geometry = self._geometry()
         self._look = self._look_for(self._format)
         self._turns = [turns_for(frame, geometry, shape) if shape else 0 for frame, shape in zip(self._frames, self._tile_shapes)]
-        width, height = better_orientation(*self._paper, geometry, len(self.kept_frames()), self._label_on())
+        aspects = None if self.film_edges_btn.isChecked() else self._aspects(self.numbers())
+        width, height = better_orientation(*self._paper, geometry, len(self.kept_frames()), self._label_on(), aspects)
         self._set_paper(width, height, snap=False)
 
     def _on_dpi_changed(self, index: int) -> None:
@@ -673,12 +691,11 @@ class ContactSheetDialog(QDialog):
 
     def plan(self) -> SheetPlan:
         """The exported plan, without the left-out frames."""
-        kept = self.numbers()
-        return plan_sheets(*self._paper, self._geometry(), len(kept), self._label_on(), self._breaks(kept))
+        return self._plan_for(self.numbers())
 
     def _render(self) -> None:
         shown = self._shown()
-        plan = plan_sheets(*self._paper, self._geometry(), len(shown), self._label_on(), self._breaks(shown))
+        plan = self._plan_for(shown)
         self._plan = plan
         pages = len(plan.pages)
         self._page = max(0, min(self._page, pages - 1)) if pages else 0
@@ -697,9 +714,12 @@ class ContactSheetDialog(QDialog):
     def _frame_windows(self, plan: SheetPlan, shown: list[int]) -> list[tuple[int, QRectF]]:
         if not plan.pages:
             return []
+        page = plan.pages[self._page]
+        if page.rows:
+            return [(shown[f.slot], QRectF(f.x, f.y, f.width, f.height)) for row in page.rows for f in row.frames]
         geometry = plan.geometry
         windows = []
-        for strip in plan.pages[self._page].strips:
+        for strip in page.strips:
             for slot in range(strip.first, strip.first + strip.count):
                 left = strip.x + geometry.frame_center(slot) - strip.roll_start - geometry.frame_along / 2
                 rect = QRectF(left, strip.y + geometry.image_top, geometry.frame_along, geometry.frame_across)
@@ -722,20 +742,31 @@ class ContactSheetDialog(QDialog):
             return
         set_hint_kind(self.summary_label, "muted")
         count = len(self.kept_frames())
-        strips = sum(len(page.strips) for page in final.pages)
         frames = plural(count, "frame")
-        strip_word = plural(strips, "strip")
         sheets = plural(len(final.pages), "sheet")
-        text = tr(
-            "{count} {frames} · {strips} {strip_word} of {value} · {value1} {sheets}",
-            count=count,
-            frames=frames,
-            strips=strips,
-            strip_word=strip_word,
-            value=min(final.frames_per_strip, count),
-            value1=len(final.pages),
-            sheets=sheets,
-        )
+        if final.pages[0].rows:
+            rows = sum(len(page.rows) for page in final.pages)
+            text = tr(
+                "{count} {frames} · {rows} {row_word} · {value1} {sheets}",
+                count=count,
+                frames=frames,
+                rows=rows,
+                row_word=plural(rows, "row"),
+                value1=len(final.pages),
+                sheets=sheets,
+            )
+        else:
+            strips = sum(len(page.strips) for page in final.pages)
+            text = tr(
+                "{count} {frames} · {strips} {strip_word} of {value} · {value1} {sheets}",
+                count=count,
+                frames=frames,
+                strips=strips,
+                strip_word=plural(strips, "strip"),
+                value=min(final.frames_per_strip, count),
+                value1=len(final.pages),
+                sheets=sheets,
+            )
         if self._left_out:
             text += f" · {len(self._left_out)} left out"
         done = self._tiles_done[self._variant]
@@ -785,7 +816,7 @@ class ContactSheetDialog(QDialog):
             self.edge_btn.isChecked(),
             self.order_btn.currentIndex() == _BY_SCENE,
             self.white_btn.isChecked(),
-            self.film_base_btn.isChecked(),
+            self.film_edges_btn.isChecked(),
         )
 
     def kept_frames(self) -> tuple[SheetFrame, ...]:
@@ -795,6 +826,10 @@ class ContactSheetDialog(QDialog):
 
     def straight_proof(self) -> bool:
         return self._variant != _EDITED_TILES
+
+    def aspects(self) -> tuple[float, ...]:
+        """Each kept frame's upright print aspect, in sheet order: the export lays its rows out with these."""
+        return tuple(self._aspects(self.numbers()))
 
     def numbers(self) -> tuple[int, ...]:
         """Each kept frame's place on the roll, in sheet order."""
@@ -813,5 +848,4 @@ class ContactSheetDialog(QDialog):
             edge=edge,
             label=self._label_text if self._label_on() else "",
             white_paper=self.white_btn.isChecked(),
-            film_base=self.film_base_btn.isChecked(),
         )

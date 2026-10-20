@@ -8,15 +8,13 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from negpy.services.export.contact_sheet_layout import STRIP_GAP, SheetPlan, StripPlacement
+from negpy.services.export.contact_sheet_layout import STRIP_GAP, RowPlacement, SheetPlan, StripPlacement
 from negpy.services.export.contact_sheet_roll import SheetLook
 from negpy.services.film_edge.edge import ascii_upper
 from negpy.services.film_edge.paint import RGB, EDGE_CAP_EM, Palette, blend, clip_box, edge_font, paint_strip, px
 
 # Aspect tolerance to fill the film window; a tile further off fits whole inside it.
 COVER_TOLERANCE = 0.03
-# The ring's tone above the ink, so it marks the hole without the weight of the edge print.
-RING_ABOVE_INK = 110
 LABEL_CAP = 2.0
 LABEL_ABOVE_STRIP = 3.0
 
@@ -25,18 +23,8 @@ def grey(level: int) -> RGB:
     return (level, level, level)
 
 
-def paper_film(look: SheetLook) -> bool:
-    """White paper with the film base printed as paper: ink on the frames, the markings and the rings."""
-    return look.white_paper and not look.film_base
-
-
 def palette_for(look: SheetLook) -> Palette:
     pal = _film_palette(look)
-    if paper_film(look):
-        white = (255, 255, 255)
-        ink = grey(look.black)
-        ring = grey(min(255, look.black + RING_ABOVE_INK))
-        return Palette(white, white, ring, ink, ink, paper=True)
     if look.white_paper:
         # Pure white, so a home printer lays no ink on the paper.
         return replace(pal, no_film=(255, 255, 255), rim=None, label=grey(look.black))
@@ -107,6 +95,19 @@ def _draw_strip(
         _place_tile(canvas, tile, box)
 
 
+def _draw_row(canvas: np.ndarray, row: RowPlacement, tiles: Sequence[Optional[np.ndarray]], s: float, look: SheetLook) -> None:
+    """Upright frames on a band of the paper's black, as the Light Table draws a roll."""
+    height, width = canvas.shape[:2]
+    x0, y0, x1, y1 = clip_box(px(row.x, s), px(row.y, s), px(row.x + row.width, s), px(row.y + row.height, s), width, height)
+    if x1 > x0 and y1 > y0:
+        canvas[y0:y1, x0:x1] = grey(look.black)
+    for frame in row.frames:
+        tile = tiles[frame.slot] if frame.slot < len(tiles) else None
+        if tile is not None:
+            box = (px(frame.x, s), px(frame.y, s), px(frame.x + frame.width, s), px(frame.y + frame.height, s))
+            _place_tile(canvas, tile, box)
+
+
 def label_caps(text: str) -> str:
     return " · ".join(ascii_upper(part) for part in text.split("·") if part.strip())
 
@@ -162,7 +163,8 @@ class ContactSheetService:
         draft: bool = False,
         numbers: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
-        """uint8 sRGB sheet. `tiles` and `turns` are indexed by frame slot; a None tile prints unexposed."""
+        """uint8 sRGB sheet. `tiles` and `turns` are indexed by frame slot; a None tile prints unexposed.
+        A row plan (Film Edges off) prints its tiles upright and ignores `turns`."""
         s = float(px_per_mm)
         pal = palette_for(look)
         canvas = np.empty((max(1, px(plan.paper_height, s)), max(1, px(plan.paper_width, s)), 3), np.uint8)
@@ -171,6 +173,8 @@ class ContactSheetService:
             return canvas
         for strip in plan.pages[page].strips:
             _draw_strip(canvas, strip, plan, tiles, turns, s, look, pal, draft, numbers)
+        for row in plan.pages[page].rows:
+            _draw_row(canvas, row, tiles, s, look)
         if plan.label and look.label:
             _draw_label(canvas, plan, page, s, look, pal)
         return canvas

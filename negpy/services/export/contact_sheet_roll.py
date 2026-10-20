@@ -221,6 +221,17 @@ def upright_aspect(frame: SheetFrame, tile_shape: Optional[tuple[int, int]] = No
     return None
 
 
+def print_aspect(frame: SheetFrame, tile_shape: Optional[tuple[int, int]] = None) -> Optional[float]:
+    """Width over height of the frame as it prints upright: the rendered tile's, else the scan's after the crop."""
+    if tile_shape and tile_shape[0] > 0 and tile_shape[1] > 0:
+        return tile_shape[1] / tile_shape[0]
+    whole = upright_aspect(frame)
+    if whole is None:
+        return None
+    fx, fy = _crop_fractions(frame.config)
+    return whole * fx / fy
+
+
 def cropped_aspect(frame: SheetFrame) -> Optional[float]:
     whole = upright_aspect(frame)
     if whole is None:
@@ -345,7 +356,6 @@ class SheetLook:
     edge: EdgeStyle = EdgeStyle()
     label: str = ""
     white_paper: bool = False
-    film_base: bool = True
 
 
 def sheet_black(paper_black: bool) -> int:

@@ -25,8 +25,6 @@ RGB = tuple[int, int, int]
 # Pillow's bundled Aileron, the same on every platform; capitals are 0.70 em tall.
 EDGE_CAP_EM = 0.70
 PERF_RIM = 0.08
-# On a paper film base the perforation ring and the strip outline are this wide; PERF_RIM would be sub-pixel.
-PERF_RING = 0.3
 # A DX clock track runs past the rebate, up between the holes.
 DX_BAND = DX_CLOCK_TRACK[1] + 0.1
 
@@ -38,7 +36,6 @@ class Palette:
     rim: Optional[RGB]
     ink: RGB
     label: RGB
-    paper: bool = False  # the film base printed as paper: the strip outlined, the perforation rim a ring
 
 
 @lru_cache(maxsize=64)
@@ -51,8 +48,8 @@ def px(mm: float, s: float) -> int:
 
 
 @lru_cache(maxsize=8)
-def _perforation_sprites(s_key: int, rim_mm: float, min_px: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
-    """(hole, rim) coverage of one perforation, the rim `rim_mm` wide, at least `min_px`, inside the hole's edge."""
+def _perforation_sprites(s_key: int, rim_mm: float) -> tuple[np.ndarray, np.ndarray]:
+    """(hole, rim) coverage of one perforation, the rim `rim_mm` wide, inside the hole's edge."""
     s = s_key / 100.0
     ss = 4
     w_px, h_px = PERF_ALONG * s, PERF_ACROSS * s
@@ -71,7 +68,7 @@ def _perforation_sprites(s_key: int, rim_mm: float, min_px: float = 0.0) -> tupl
         return np.asarray(small, dtype=np.float32) / 255.0
 
     hole = rounded(0.0)
-    rim = np.clip(hole - rounded(max(rim_mm * s, min_px)), 0.0, 1.0)
+    rim = np.clip(hole - rounded(rim_mm * s), 0.0, 1.0)
     return hole, rim
 
 
@@ -84,23 +81,6 @@ def blend(region: np.ndarray, alpha: np.ndarray, color: RGB) -> None:
 
 def clip_box(x0: int, y0: int, x1: int, y1: int, width: int, height: int) -> tuple[int, int, int, int]:
     return max(0, x0), max(0, y0), min(width, x1), min(height, y1)
-
-
-def _outline(canvas: np.ndarray, box: tuple[int, int, int, int], line: int, color: RGB) -> None:
-    """Lines `line` px wide inside the edges of a box, on the edges that lie on the canvas."""
-    x0, y0, x1, y1 = box
-    height, width = canvas.shape[:2]
-    cx0, cy0, cx1, cy1 = clip_box(x0, y0, x1, y1, width, height)
-    if cx1 <= cx0 or cy1 <= cy0:
-        return
-    if y0 >= 0:
-        canvas[cy0 : min(cy1, cy0 + line), cx0:cx1] = color
-    if y1 <= height:
-        canvas[max(cy0, cy1 - line) : cy1, cx0:cx1] = color
-    if x0 >= 0:
-        canvas[cy0:cy1, cx0 : min(cx1, cx0 + line)] = color
-    if x1 <= width:
-        canvas[cy0:cy1, max(cx0, cx1 - line) : cx1] = color
 
 
 class _Band:
@@ -253,9 +233,6 @@ def paint_strip(
     if cx1 <= cx0 or cy1 <= cy0:
         return
     canvas[cy0:cy1, cx0:cx1] = palette.rebate
-    if palette.paper and palette.rim is not None:
-        # The strip's edge is a line, so an unperforated strip, a gap and an empty slot keep their outline.
-        _outline(canvas, (x0, y0, x1, y1), max(1, px(PERF_RING, s)), palette.rim)
 
     def roll_topx(roll_x: float) -> float:
         return (roll_x - roll_start) * s
@@ -285,8 +262,7 @@ def paint_strip(
 
     if geometry.perforated:
         s_key = int(round(s * 100))
-        # A paper ring is at least a pixel wide, so a draft preview shows it.
-        hole, rim = _perforation_sprites(s_key, PERF_RING, 1.0) if palette.paper else _perforation_sprites(s_key, PERF_RIM)
+        hole, rim = _perforation_sprites(s_key, PERF_RIM)
         sh, sw = hole.shape
         centers_y = (PERF_FROM_EDGE + PERF_ACROSS / 2, geometry.width - PERF_FROM_EDGE - PERF_ACROSS / 2)
         for roll_x in perforation_centers(roll_start, roll_start + length):

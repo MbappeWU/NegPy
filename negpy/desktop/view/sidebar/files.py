@@ -658,7 +658,7 @@ def roll_film(
     frames = [SheetFrame(asset, config)]
     fmt, frame_size = infer_format(frames, half_frame)
     palette = palette_for(sheet_look(frames, fmt, library=library))
-    if rebate is None or palette.paper:
+    if rebate is None:
         rebate = palette.rebate
     return film_geometry(fmt, frame_size), rebate
 

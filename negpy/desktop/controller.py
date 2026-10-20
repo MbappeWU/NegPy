@@ -8359,6 +8359,7 @@ class AppController(QObject):
             jpeg_progressive=bool(export_conf.jpeg_progressive),
             numbers=dialog.numbers(),
             breaks=dialog.breaks(),
+            aspects=dialog.aspects(),
         )
         self._export_start_time = time.time()
         self._export_errors = []

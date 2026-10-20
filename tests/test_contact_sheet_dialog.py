@@ -367,11 +367,28 @@ def test_a_drag_measures_from_where_the_sheet_was_when_it_began(dialog):
     assert d.settings().paper_height == pytest.approx(DEFAULT_PAPER.height + 10, abs=1.0)
 
 
-def test_film_base_follows_white_paper_and_reaches_the_look_and_the_settings(dialog):
-    d = dialog()
-    assert not d.film_base_btn.isEnabled()  # nothing to print white until the paper is
-    d.white_btn.setChecked(True)
-    assert d.film_base_btn.isEnabled() and d.look().film_base
-    d.film_base_btn.setChecked(False)
-    assert not d.look().film_base
-    assert d.settings().film_base is False
+def test_film_edges_off_lays_upright_rows_and_grays_out_edge_print(dialog):
+    d = dialog(n=10)
+    assert d.film_edges_btn.isEnabled() and d.edge_btn.isEnabled()
+    assert d.plan().pages[0].strips
+
+    d.film_edges_btn.setChecked(False)
+    d._render()
+    page = d.plan().pages[0]
+    assert page.rows and not page.strips
+    assert not d.edge_btn.isEnabled()
+    assert d.settings().film_edges is False
+    assert "row" in d.summary_label.text()
+
+
+def test_film_edges_off_takes_each_frames_aspect_from_its_tile(dialog):
+    tiles = FakeTiles()
+    d = dialog(n=3, tiles=tiles, settings=ContactSheetSettings(film_edges=False))
+    assert d.aspects() == pytest.approx((1.5, 1.5, 1.5))  # from the scan size until a tile arrives
+    tiles.tile_ready.emit(1, 1, np.full((300, 200, 3), 90, np.uint8))
+    assert d.aspects()[1] == pytest.approx(200 / 300)
+
+    d.pick_btn.setChecked(True)
+    d._render()
+    windows = dict(d.canvas._frames)
+    assert windows[1].width() / windows[1].height() == pytest.approx(200 / 300)
