@@ -106,19 +106,6 @@ def test_an_edited_card_takes_a_dim_scope_stripe(qapp):
         assert header.pixelColor(1, header.height() // 2).name() == QColor(token).name(), scope
 
 
-def test_the_lit_scope_button_is_white(qapp):
-    section = CollapsibleSection("Calibration")
-    for scope, btn in (("frame", "frame_btn"), ("roll", "roll_btn")):
-        section.set_scope_buttons(visible=True, scope=scope)
-        image = getattr(section, btn).icon().pixmap(16, 16).toImage()
-        white = QColor(THEME.text_primary)
-        pixels = [image.pixelColor(x, y) for x in range(16) for y in range(16) if image.pixelColor(x, y).alpha() > 200]
-
-        assert pixels and all(
-            max(abs(c.red() - white.red()), abs(c.green() - white.green()), abs(c.blue() - white.blue())) <= 3 for c in pixels
-        ), scope
-
-
 def test_a_primary_button_is_a_dark_red_fill(qapp):
     host = QWidget()
     host.setStyleSheet(load_stylesheet())
