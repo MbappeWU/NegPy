@@ -16,7 +16,6 @@ from negpy.features.lab.models import LabConfig
 from negpy.features.altprocess.models import AltProcessConfig
 from negpy.features.toning.models import ToningConfig
 from negpy.features.geometry.logic import has_manual_crop
-from negpy.features.geometry.models import with_auto_crop
 from negpy.features.process.models import auto_meter_for_mode, cast_removal_for_mode
 from negpy.features.finish.models import FinishConfig
 from negpy.features.flatfield.models import FlatFieldConfig
@@ -1148,15 +1147,7 @@ class ControlsPanel(QWidget):
         self.controller.apply_config(replace(cfg, geometry=new_geo), persist=True)
 
     def _reset_crop_card(self) -> None:
-        """Crop's own fields, and the crop itself through with_auto_crop."""
-        from dataclasses import replace
-
-        if self.controller.refuse_crop_edit():
-            return
-        cfg = self.controller.state.config
-        settings = {f: getattr(_DEFAULT_GEOMETRY, f) for f in CROP_FIELDS if f.startswith("autocrop_")}
-        new = replace(cfg, geometry=replace(cfg.geometry, **settings))
-        self.controller.apply_config(with_auto_crop(new, _DEFAULT_GEOMETRY.crop_from_auto), persist=True)
+        self.controller.reset_crop(**{f: getattr(_DEFAULT_GEOMETRY, f) for f in CROP_FIELDS if f.startswith("autocrop_")})
 
     def _reset_card_fields(self, card_key: str) -> None:
         """Reset one roll card through set_roll_default, so the reset follows the roll

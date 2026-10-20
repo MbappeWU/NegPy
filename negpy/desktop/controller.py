@@ -4249,16 +4249,17 @@ class AppController(QObject):
         self.config_updated.emit()
         return True
 
-    def reset_crop(self) -> None:
+    def reset_crop(self, **settings: Any) -> None:
+        """Auto Crop off and the crop cleared, with *settings* (Crop card fields) in the same step."""
         if self.refuse_crop_edit():
             return
         self._crop_bounds_dirty = False
         if has_manual_crop(self.state.config.geometry):
             # Clearing one frame's hand-drawn crop is no choice about auto-crop for later scans.
             with self.session.carried_crop_kept():
-                self._set_auto_crop(False)
+                self._set_auto_crop(False, **settings)
         else:
-            self._set_auto_crop(False)
+            self._set_auto_crop(False, **settings)
 
     def _render_crop_change(self) -> None:
         """Render a crop edit under the load spinner: the base stage and the bounds re-run.
@@ -4281,11 +4282,12 @@ class AppController(QObject):
         self._crop_bounds_dirty = False
         self._set_auto_crop(True)
 
-    def _set_auto_crop(self, on: bool) -> None:
+    def _set_auto_crop(self, on: bool, **settings: Any) -> None:
         """Persisted with no frame loaded too: the carried settings are what a fresh frame,
         such as the next scan, starts from."""
         before = self.state.config
-        self.session.update_config(with_auto_crop(self.state.config, on), persist=True)
+        config = replace(before, geometry=replace(before.geometry, **settings)) if settings else before
+        self.session.update_config(with_auto_crop(config, on), persist=True)
         self._carry_peek(before)
         self._render_crop_change()
 

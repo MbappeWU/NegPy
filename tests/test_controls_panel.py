@@ -394,20 +394,14 @@ def test_reset_film_fields_routes_through_the_controls_own_setters():
     panel.controller.set_process_mode.assert_called_once_with(ProcessConfig().process_mode)
 
 
-def test_the_crop_card_reset_clears_the_crop_and_its_settings():
+def test_the_crop_card_reset_clears_the_crop_through_the_controller_with_its_settings():
     panel = MagicMock()
-    panel.controller.refuse_crop_edit.return_value = False
-    panel.controller.state = AppState()
-    cfg = panel.controller.state.config
-    for crop in ({"crop_from_auto": True, "crop_rect": (0.1, 0.1, 0.9, 0.9)}, {"crop_rect": (0.1, 0.1, 0.9, 0.9)}):
-        geometry = replace(cfg.geometry, autocrop_ratio="4:3", autocrop_offset=12, rotation=1, **crop)
-        panel.controller.state.config = replace(cfg, geometry=geometry)
 
-        ControlsPanel._reset_crop_card(panel)
+    ControlsPanel._reset_crop_card(panel)
 
-        geo = panel.controller.apply_config.call_args.args[0].geometry
-        assert (geo.crop_rect, geo.crop_from_auto, geo.autocrop_ratio, geo.autocrop_offset) == (None, False, "Free", 0)
-        assert geo.rotation == 1
+    settings = panel.controller.reset_crop.call_args.kwargs
+    assert (settings["autocrop_ratio"], settings["autocrop_offset"]) == ("Free", 0)
+    assert set(settings) == {"autocrop_mode", "autocrop_offset", "autocrop_rebate_trim", "autocrop_ratio", "autocrop_square"}
 
 
 def test_the_geometry_reset_keeps_the_crop():

@@ -415,13 +415,14 @@ def test_D35_a_roll_card_edit_on_a_search_result_holds_in_its_own_roll(ctl):
     assert _reopen_in_home_roll(ctl, "h1").process.hue_trim == -6.0
 
 
+@pytest.mark.parametrize("settings", [{}, {"autocrop_ratio": "Free"}], ids=["Auto Crop button", "Crop card reset"])
 @pytest.mark.parametrize("crop, carried", [("hand-drawn", True), ("auto", False)])
-def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(repo, tmp_path, crop, carried):
+def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(repo, tmp_path, crop, carried, settings):
     session = DesktopSessionManager(repo)
     session.state.uploaded_files = [{"name": "a.tif", "path": str(tmp_path / "a.tif"), "hash": "ha"}]
     session.select_file(0)
     session.update_config(replace(session.state.config, geometry=replace(session.state.config.geometry, crop_from_auto=True)), persist=True)
-    session.update_config(replace(session.state.config, geometry=_cfg(crop).geometry), persist=True)
+    session.update_config(replace(session.state.config, geometry=_cfg(crop, autocrop_ratio="4:3").geometry), persist=True)
     controller = AppController.__new__(AppController)
     controller.session = session
     controller.state = session.state
@@ -431,10 +432,12 @@ def test_E2_reset_crop_keeps_the_carried_auto_crop_only_for_a_hand_drawn_crop(re
     controller.tool_sync_requested = MagicMock()
     controller._peek_sections = None
 
-    AppController.reset_crop(controller)
+    AppController.reset_crop(controller, **settings)
 
     assert _kind(session.state.config) == "none"
+    assert session.state.config.geometry.autocrop_ratio == settings.get("autocrop_ratio", "4:3")
     assert repo.get_global_setting("sticky_config")["crop_from_auto"] is carried
+    controller.request_render.assert_called_once()
 
 
 def test_the_roll_run_saves_the_keystone_with_its_own_rotation(ctl):
