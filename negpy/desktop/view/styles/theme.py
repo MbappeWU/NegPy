@@ -35,7 +35,7 @@ class ThemeConfig:
     bg_checked_hover: str = "#351F1F"
     border_checked: str = "#4A2424"
     border_checked_hover: str = "#5E2A2A"
-    # The primary action: the strongest button on a panel, short of the bright accent.
+    # The primary action: the strongest button on a panel.
     bg_primary: str = "#4A1C1C"
     bg_primary_hover: str = "#5A2121"
     # An edited card's frame-scope stripe and lit Frame icon; a roll-scope card takes border_checked_hover.
@@ -64,10 +64,9 @@ class ThemeConfig:
     text_muted: str = "#6B6B6B"
     text_unit: str = "#7C7C7C"
     warn_amber: str = "#C79A3A"
-    accent_primary: str = "#B71C1C"
-    accent_secondary: str = "#C62828"
-    accent_pressed: str = "#8E1414"
-    # Errors and invalid input. Not the brand accent: red already means "selected" and "armed".
+    # Marks drawn over the photo: white on a dark edge or plate, which reads on any picture.
+    mark_photo: str = "#FFFFFF"
+    # Errors and invalid input.
     error: str = "#D32F2F"
 
     slider_height_compact: int = 18

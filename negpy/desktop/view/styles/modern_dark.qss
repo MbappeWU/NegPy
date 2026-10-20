@@ -85,14 +85,14 @@ QPushButton[checkable="true"]:flat:hover:!checked {
 QPushButton#scan_btn {
     background-color: @bg_primary;
     color: @text_on_accent;
-    border: 1px solid @accent_pressed;
+    border: 1px solid @border_checked_hover;
     border-radius: 4px;
     font-weight: 600;
 }
 
 QPushButton#scan_btn:hover {
     background-color: @bg_primary_hover;
-    border: 1px solid @accent_pressed;
+    border: 1px solid @border_checked_hover;
 }
 
 QPushButton#scan_btn:pressed {
@@ -564,28 +564,28 @@ QFrame#shortcut_editor_row {
 }
 
 QFrame#shortcut_editor_row[highlighted="true"], QFrame#reveal_flash {
-    background-color: rgba(183, 28, 28, 0.10);
+    background-color: rgba(94, 42, 42, 0.35);
     border: 1px solid @border_checked_hover;
     border-radius: 4px;
 }
 
-/* Primary action (Export in the Export panel): a dark red fill with a red edge, so it reads
+/* Primary action (Export in the Export panel): a dark red fill with a dim edge, so it reads
    as the one call-to-action, not a disabled outline. */
 QPushButton[primary="true"], QToolButton[primary="true"] {
     background-color: @bg_primary;
-    border: 1px solid @accent_pressed;
+    border: 1px solid @border_checked_hover;
     color: @text_on_accent;
     font-weight: 600;
 }
 
 QPushButton[primary="true"]:hover, QToolButton[primary="true"]:hover {
     background-color: @bg_primary_hover;
-    border: 1px solid @accent_pressed;
+    border: 1px solid @border_checked_hover;
 }
 
 QPushButton[primary="true"]:pressed, QToolButton[primary="true"]:pressed {
     background-color: @bg_checked_hover;
-    border: 1px solid @accent_pressed;
+    border: 1px solid @border_checked_hover;
 }
 
 QPushButton[primary="true"]:disabled, QToolButton[primary="true"]:disabled {
@@ -726,9 +726,9 @@ QAbstractItemView#shortcut_editor_search_popup::item:hover {
     border: none;
 }
 
-/* Darker red divider between the two halves of a primary split button. */
+/* A dim divider between the two halves of a primary split button. */
 QToolButton#split_menu_btn[primary="true"] {
-    border-left: 1px solid @accent_pressed;
+    border-left: 1px solid @border_checked_hover;
 }
 
 /* Fused split button (main action + menu arrow), see widgets/split_button.py. */
@@ -759,8 +759,8 @@ QToolButton#split_menu_btn::menu-arrow {
 }
 
 /* Checkboxes — Fusion's default indicator is almost invisible on this dark
-   background. Give the unchecked box a clear border + subtle fill, and a filled
-   accent when checked, so its state reads at a glance. */
+   background. Give the unchecked box a clear border + subtle fill, and the warm
+   chip when checked, so its state reads at a glance. */
 QCheckBox {
     spacing: 6px;
     background: transparent;

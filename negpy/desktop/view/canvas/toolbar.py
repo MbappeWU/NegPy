@@ -355,7 +355,7 @@ class ActionToolbar(QWidget):
         self.mode_switch.currentChanged.connect(lambda _i: self.set_mode(self.mode_switch.currentData()))
 
         # 0. Panel toggles (live at the bar's right end)
-        # Not checkable: an open panel is the resting state, and the accent means armed.
+        # Not checkable: an open panel is the resting state, and the checked look means armed.
         self.btn_toggle_strip = QToolButton()
         self._tip(self.btn_toggle_strip, tr("Collapse or expand the Film Strip"), "toggle_film_strip")
         self.set_strip_expanded(True)

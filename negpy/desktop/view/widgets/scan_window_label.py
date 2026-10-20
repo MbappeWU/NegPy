@@ -208,7 +208,7 @@ class ScanWindowLabel(QLabel):
                 painter.setPen(pen)
                 painter.drawLine(x, draw_rect.top(), x, draw_rect.bottom())
             # Drawn last, so the offset band and a crop cannot hide the frame boundary.
-            painter.setPen(QPen(QColor(THEME.accent_primary), 1))
+            painter.setPen(QPen(QColor(THEME.mark_photo), 1))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(draw_rect.adjusted(0, 0, -1, -1))
         else:

@@ -9,7 +9,7 @@ from negpy.desktop.view.styles.theme import THEME
 def make_split_button(text: str, icon_name: str, menu: QMenu, *, primary: bool = False) -> tuple[QWidget, QPushButton, QToolButton]:
     """Fused main-action button + menu-arrow pair, styled via the shared
     split_main_btn / split_menu_btn QSS rules. ``primary`` marks both halves
-    with the accent [primary="true"] style."""
+    with the [primary="true"] style."""
     container = QWidget()
     row = QHBoxLayout(container)
     row.setContentsMargins(0, 0, 0, 0)

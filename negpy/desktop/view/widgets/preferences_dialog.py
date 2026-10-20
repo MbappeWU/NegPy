@@ -568,12 +568,14 @@ class PreferencesDialog(QDialog):
 
 
 def _pill_qss(hex_color: str) -> str:
-    """A swatch that reads as the colour it sets. Checked state is an accent outline: a tick
-    or a text label would have to sit on top of the swatch and fight it for contrast."""
+    """A swatch that reads as the colour it sets. Checked state is an outline in the neutral that
+    stands off the swatch, dark on a light one and white on a dark one: a tick or a text label
+    would have to sit on top of the swatch and fight it for contrast."""
+    edge = THEME.bg_dark if QColor(hex_color).lightnessF() > 0.5 else THEME.text_primary
     return (
         f"QPushButton {{background: {hex_color}; border: 1px solid {THEME.border_color}; "
         f"border-radius: {THEME.radius_md}px;}}"
-        f"QPushButton:checked {{border: 2px solid {THEME.accent_secondary};}}"
+        f"QPushButton:checked {{border: 2px solid {edge};}}"
     )
 
 

@@ -27,4 +27,4 @@ def test_decode_failure_takes_top_left_over_the_stale_dot(qapp):
 
 def test_palette_cycles_and_never_uses_the_selection_red():
     assert scene_color(1) == scene_color(7)
-    assert THEME.accent_primary not in {scene_color(i) for i in range(1, 7)}
+    assert not {THEME.border_checked, THEME.border_checked_hover} & {scene_color(i) for i in range(1, 7)}

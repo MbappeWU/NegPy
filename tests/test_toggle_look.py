@@ -79,7 +79,7 @@ def test_the_current_row_takes_the_chip_and_no_bar(qapp):
     names = {image.pixelColor(x, 20).name() for x in range(6)}
 
     assert image.pixelColor(100, 20).name() == QColor(THEME.bg_checked).name()
-    assert QColor(THEME.border_checked).name() in names and QColor(THEME.accent_secondary).name() not in names
+    assert QColor(THEME.border_checked).name() in names
 
 
 def test_a_checked_menu_item_takes_the_chip(qapp):
@@ -278,3 +278,28 @@ def test_keyboard_focus_is_a_neutral_gray_edge(qapp):
             image.pixelColor(widget.geometry().left(), y).name() for y in range(widget.geometry().top() + 4, widget.geometry().bottom() - 4)
         }
         assert QColor(THEME.border_focus).name() in edge, type(widget).__name__
+
+
+def test_no_theme_color_is_a_bright_red_but_errors_and_the_red_channel():
+    """Selection, focus, hover and marks on the photo are muted or neutral; only an error and
+    the red channel of RGB data stay bright red."""
+    import dataclasses
+
+    allowed = {"error", "channel_red", "channel_red_text"}
+    bright = []
+    for field in dataclasses.fields(THEME):
+        value = getattr(THEME, field.name)
+        if not (isinstance(value, str) and value.startswith("#")) or field.name in allowed:
+            continue
+        color = QColor(value)
+        hue = color.hslHueF()
+        if (hue < 0.05 or hue > 0.95) and color.hslSaturationF() > 0.5 and color.lightnessF() > 0.3:
+            bright.append(f"{field.name} {value}")
+    assert bright == []
+
+
+def test_a_chosen_canvas_swatch_takes_the_neutral_that_stands_off_it():
+    from negpy.desktop.view.widgets.preferences_dialog import _pill_qss
+
+    assert f"QPushButton:checked {{border: 2px solid {THEME.text_primary};}}" in _pill_qss("#000000")
+    assert f"QPushButton:checked {{border: 2px solid {THEME.bg_dark};}}" in _pill_qss("#E6E6E6")

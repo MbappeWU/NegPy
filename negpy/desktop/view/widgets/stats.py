@@ -27,7 +27,7 @@ _TOOLTIPS = {
 
 # One per zone-placement pin, in pin order. The canvas overlay draws its rings in these
 # same colors, so the sidebar row and the pin on the photo match by eye.
-PIN_COLORS = (THEME.accent_primary, THEME.text_on_accent, THEME.channel_blue)
+PIN_COLORS = (THEME.mark_photo, THEME.channel_blue, THEME.status_success)
 
 
 def _lock_height(label: QLabel, sample: str) -> None:

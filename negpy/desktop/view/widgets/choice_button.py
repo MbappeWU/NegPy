@@ -133,7 +133,7 @@ class SegmentedChoice(QWidget):
         self._slide.valueChanged.connect(self._on_slide)
         self.setFixedHeight(default_button_height())
         self.setMouseTracking(True)
-        # Tab focus only: a click must not leave the accent focus ring on the track.
+        # Tab focus only: a click must not leave the focus ring on the track.
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self._tab_focus = False
         self.setToolTip(wrap_tooltip(tooltip))

@@ -60,7 +60,6 @@ def test_the_pick_better_hover_ring_is_gray():
     ring = {shot.pixelColor(rect.left() - x, rect.center().y()).name() for x in range(3, 7)}
 
     assert QColor(THEME.text_hint).name() in ring
-    assert QColor(THEME.accent_primary).name() not in ring
 
 
 def test_to_fraction_maps_widget_px_to_full_frame():

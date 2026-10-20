@@ -219,8 +219,8 @@ class SlippyMapWidget(QWidget):
         if self._pin is None:
             return
         x, y = self._pixel_at(*self._pin)
-        painter.setPen(QColor(THEME.accent_secondary))
-        painter.setBrush(QColor(THEME.accent_primary))
+        painter.setPen(QColor(THEME.mark_photo))
+        painter.setBrush(QColor(THEME.bg_dark))
         painter.drawEllipse(int(x) - 5, int(y) - 5, 10, 10)
         painter.drawLine(int(x), int(y) - 14, int(x), int(y) - 5)
 

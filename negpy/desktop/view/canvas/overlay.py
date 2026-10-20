@@ -11,7 +11,20 @@ import cv2
 import numpy as np
 import qtawesome as qta
 from PyQt6.QtCore import QEvent, QLineF, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QImage, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QShortcut
+from PyQt6.QtGui import (
+    QColor,
+    QCursor,
+    QFont,
+    QImage,
+    QKeySequence,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QPolygonF,
+    QShortcut,
+)
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from negpy.desktop.auto_sliders import shown_values
@@ -133,6 +146,8 @@ def zone_colors(style: str, color_vision: str) -> List[Tuple[QColor, int]]:
     ]
 
 
+# A paper grid label beside the one in force, which is full white and bold.
+_LABEL_DIM = QColor(255, 255, 255, 200)
 _STRIP_LABEL_MIN_PX = 34.0  # below this patch size the two axis labels overlap
 _STRIP_LABEL_INSET_PX = 6.0
 
@@ -164,15 +179,14 @@ def view_badge_width(painter: QPainter, text: str, dot: bool = True) -> float:
 
 
 def draw_view_badge(painter: QPainter, text: str, x: float, y: float, width: Optional[float] = None, dot: bool = True) -> None:
-    """White text on a dark plate; the accent dot says a view is on. Accent text on the plate
-    is too dark to read over a photograph."""
+    """White text on a dark plate; a white dot says a view is on."""
     badge = QRectF(x, y, view_badge_width(painter, text, dot) if width is None else width, _BADGE_H)
     painter.setBrush(QColor(0, 0, 0, 170))
     painter.setPen(Qt.PenStyle.NoPen)
     painter.drawRoundedRect(badge, 4, 4)
     left = THEME.space_lg
     if dot:
-        painter.setBrush(QColor(THEME.accent_primary))
+        painter.setBrush(QColor(THEME.mark_photo))
         painter.drawEllipse(QPointF(badge.left() + left + _BADGE_DOT_PX / 2, badge.center().y()), _BADGE_DOT_PX / 2, _BADGE_DOT_PX / 2)
         left += _BADGE_DOT_PX + THEME.space_md
     painter.setPen(QColor(255, 255, 255, 245))
@@ -201,11 +215,21 @@ def resize_cursor(handle: str) -> Qt.CursorShape:
     return Qt.CursorShape.SizeHorCursor if handle in ("left", "right") else Qt.CursorShape.SizeVerCursor
 
 
+def _draw_dashed_frame(painter: QPainter, rect: QRectF) -> None:
+    """A white dash over a dark line, so the frame reads on a light and a dark photo alike."""
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    for color, style in ((QColor(0, 0, 0, 160), Qt.PenStyle.SolidLine), (QColor(THEME.mark_photo), Qt.PenStyle.DashLine)):
+        pen = QPen(color, 1, style)
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        painter.drawRect(rect)
+
+
 def draw_resize_handles(painter: QPainter, corners: Dict[str, QPointF], edges: Optional[Dict[str, QPointF]] = None) -> None:
     handle_pen = QPen(Qt.GlobalColor.white, 1.5, Qt.PenStyle.SolidLine)
     handle_pen.setCosmetic(True)
     painter.setPen(handle_pen)
-    painter.setBrush(QColor(THEME.accent_primary))
+    painter.setBrush(QColor(0, 0, 0, 170))
     for pt in corners.values():
         painter.drawRect(QRectF(pt.x() - 5, pt.y() - 5, 10, 10))
     for name, pt in (edges or {}).items():
@@ -1139,11 +1163,7 @@ class CanvasOverlay(QWidget):
             painter.drawRect(QRectF(d.x(), inner.y(), margin_w, inner.height()))
             painter.drawRect(QRectF(inner.right(), inner.y(), margin_w, inner.height()))
 
-            pen = QPen(QColor(THEME.accent_primary), 1, Qt.PenStyle.DashLine)
-            pen.setCosmetic(True)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(pen)
-            painter.drawRect(inner)
+            _draw_dashed_frame(painter, inner)
 
         if self._draws_exclusion_brush() and visible_rect.contains(self._mouse_pos):
             self._draw_brush(painter, THEME.warn_amber)
@@ -1293,11 +1313,7 @@ class CanvasOverlay(QWidget):
         painter.drawRect(QRectF(full.left(), d.top(), d.left() - full.left(), d.height()))
         painter.drawRect(QRectF(d.right(), d.top(), full.right() - d.right(), d.height()))
 
-        pen = QPen(QColor(THEME.accent_primary), 1, Qt.PenStyle.DashLine)
-        pen.setCosmetic(True)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(pen)
-        painter.drawRect(d)
+        _draw_dashed_frame(painter, d)
 
     def _draw_crop_guides(self, painter: QPainter, rect: QRectF) -> None:
         """Selected composition guide (thirds, phi, spiral, ...) inside the crop rect."""
@@ -1406,7 +1422,7 @@ class CanvasOverlay(QWidget):
         painter.setPen(pen)
         painter.drawEllipse(self._mouse_pos, radius, radius)
 
-        accent = QColor(fill or THEME.accent_primary)
+        accent = QColor(fill or THEME.mark_photo)
         accent.setAlpha(60)
         painter.setBrush(accent)
         painter.setPen(Qt.PenStyle.NoPen)
@@ -1453,7 +1469,7 @@ class CanvasOverlay(QWidget):
             return
         width = max(1.5, 2.0 * self._brush_screen_radius(self.state.config.retouch.manual_dust_size))
 
-        band = QColor(THEME.accent_primary)
+        band = QColor(THEME.mark_photo)
         band.setAlpha(60)
         pen = QPen(band, width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
@@ -1528,7 +1544,7 @@ class CanvasOverlay(QWidget):
         if len(self._heal_drag_pts) < 2:
             return
         radius = max(1.5, self._brush_screen_radius(self.state.config.retouch.manual_dust_size))
-        fill = QColor(THEME.accent_primary)
+        fill = QColor(THEME.mark_photo)
         fill.setAlpha(60)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(fill)
@@ -1592,7 +1608,7 @@ class CanvasOverlay(QWidget):
         badge = QRectF(mid.x() - 52, mid.y() - 26, 104, 22)
         painter.setBrush(QColor(0, 0, 0, 170))
         painter.drawRoundedRect(badge, 4, 4)
-        painter.setPen(QColor(THEME.accent_primary))
+        painter.setPen(QColor(THEME.mark_photo))
         painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, label)
 
     def _classify_keystone_edge(self, p1: QPointF, p2: QPointF) -> str:
@@ -1606,17 +1622,22 @@ class CanvasOverlay(QWidget):
 
     def _draw_keystone_lines_tool(self, painter: QPainter) -> None:
         labels = {"left": "Left", "right": "Right", "top": "Top", "bottom": "Bottom"}
-        accent_pen = QPen(QColor(THEME.accent_primary), 1.5, Qt.PenStyle.SolidLine)
+        # A placed line sits on a dark under-line; the one being drawn is bare.
+        shadow_pen = QPen(QColor(0, 0, 0, 160), 3.5, Qt.PenStyle.SolidLine)
+        shadow_pen.setCosmetic(True)
+        accent_pen = QPen(QColor(THEME.mark_photo), 1.5, Qt.PenStyle.SolidLine)
         accent_pen.setCosmetic(True)
-        painter.setPen(accent_pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for name, (p1, p2) in self._keystone_lines.items():
+            painter.setPen(shadow_pen)
+            painter.drawLine(p1, p2)
+            painter.setPen(accent_pen)
             painter.drawLine(p1, p2)
             mid = QPointF((p1.x() + p2.x()) / 2.0, (p1.y() + p2.y()) / 2.0)
             badge = QRectF(mid.x() - 26.0, mid.y() - 11.0, 52.0, 20.0)
             painter.setBrush(QColor(0, 0, 0, 170))
             painter.drawRoundedRect(badge, 4.0, 4.0)
-            painter.setPen(QColor(THEME.accent_primary))
+            painter.setPen(QColor(THEME.mark_photo))
             painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, labels[name])
             painter.setPen(accent_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -1932,8 +1953,6 @@ class CanvasOverlay(QWidget):
         painter.setBrush(QColor(0, 0, 0, 170))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(badge, 4, 4)
-        # White, not the accent: the accent is a dark maroon and the plate is only 170-alpha,
-        # so an accented readout is barely legible over a light frame.
         painter.setPen(QColor(255, 255, 255, 245))
         painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, label)
 
@@ -2024,15 +2043,18 @@ class CanvasOverlay(QWidget):
         return None
 
     def _draw_cell_labels(self, painter: QPainter, patches: List[Tuple[int, int, QRectF]], texts: List[str], current: int) -> None:
-        """Each paper grid cell named at its top; the print stock in force is accented."""
+        """Each paper grid cell named at its top; the print stock in force is in bold."""
         painter.save()
-        painter.setFont(_overlay_label_font(painter))
+        plain = _overlay_label_font(painter)
+        bold = QFont(plain)
+        bold.setBold(True)
         flags = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap
         for i, (text, (_row, _col, cell)) in enumerate(zip(texts, patches)):
             box = cell.adjusted(_STRIP_LABEL_INSET_PX, _STRIP_LABEL_INSET_PX, -_STRIP_LABEL_INSET_PX, -_STRIP_LABEL_INSET_PX)
+            painter.setFont(bold if i == current else plain)
             painter.setPen(QColor(0, 0, 0, 190))
             painter.drawText(box.translated(1.0, 1.0), flags, text)
-            painter.setPen(QColor(THEME.accent_primary) if i == current else QColor(255, 255, 255, 235))
+            painter.setPen(QColor(THEME.mark_photo) if i == current else _LABEL_DIM)
             painter.drawText(box, flags, text)
         painter.restore()
 
@@ -2066,9 +2088,10 @@ class CanvasOverlay(QWidget):
         """`top_texts` along the top edge, `left_texts` down the left, each axis labelled once.
         The rung matching the settings in force is accented."""
         painter.save()
-        painter.setFont(_overlay_label_font(painter))
+        plain = _overlay_label_font(painter)
+        bold = QFont(plain)
+        bold.setBold(True)
         inset = _STRIP_LABEL_INSET_PX
-        accent = QColor(THEME.accent_primary)
         for row, col, cell in patches:
             for text, flags, on_axis in (
                 (
@@ -2085,9 +2108,10 @@ class CanvasOverlay(QWidget):
                 if not text:
                     continue
                 box = cell.adjusted(inset, inset, -inset, -inset)
+                painter.setFont(bold if on_axis else plain)
                 painter.setPen(QColor(0, 0, 0, 190))
                 painter.drawText(box.translated(1.0, 1.0), flags, text)
-                painter.setPen(accent if on_axis else QColor(255, 255, 255, 235))
+                painter.setPen(QColor(THEME.mark_photo) if on_axis else _LABEL_DIM)
                 painter.drawText(box, flags, text)
         painter.restore()
 
@@ -2222,10 +2246,10 @@ class CanvasOverlay(QWidget):
         pix.fill(Qt.GlobalColor.transparent)
         p = QPainter(pix)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(THEME.accent_primary), 1.0, Qt.PenStyle.SolidLine)
+        pen = QPen(QColor(THEME.mark_photo), 1.0, Qt.PenStyle.SolidLine)
         pen.setCosmetic(True)
         # Masked area only, with no centerline and no outline.
-        fill = QColor(THEME.accent_primary)
+        fill = QColor(THEME.mark_photo)
         fill.setAlpha(40)
         for shape in shapes:
             if shape[0] in ("region", "clone"):
@@ -2255,7 +2279,7 @@ class CanvasOverlay(QWidget):
 
         # Traced scratches draw as the band they repair, not a hairline.
         for line in conf.scratch_lines:
-            self._draw_scratch_line(painter, line, uv_grid, QColor(THEME.accent_primary), 40)
+            self._draw_scratch_line(painter, line, uv_grid, QColor(THEME.mark_photo), 40)
 
     def _trace_line_hover(self) -> None:
         """Trace the scratch under the cursor so the guide shows what a click would repair."""
@@ -2293,7 +2317,7 @@ class CanvasOverlay(QWidget):
         if uv_grid is None:
             return
         painter.save()
-        self._draw_scratch_line(painter, self._line_hover, uv_grid, QColor(THEME.accent_primary), 70)
+        self._draw_scratch_line(painter, self._line_hover, uv_grid, QColor(THEME.mark_photo), 70)
         painter.restore()
 
     def _draw_dust_overlay(self, painter: QPainter) -> None:
@@ -2649,7 +2673,7 @@ class CanvasOverlay(QWidget):
         circle_pen = QPen(Qt.GlobalColor.white, 1.5, Qt.PenStyle.SolidLine)
         circle_pen.setCosmetic(True)
         painter.setPen(circle_pen)
-        painter.setBrush(QColor(THEME.accent_primary))
+        painter.setBrush(QColor(0, 0, 0, 170))
         pix = self._rotation_handle_pixmap()
         icon_r = _ROT_HANDLE_RADIUS_PX - 3.0
         for pt in handles.values():
@@ -2663,7 +2687,7 @@ class CanvasOverlay(QWidget):
             painter.setBrush(QColor(0, 0, 0, 170))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(badge, 4, 4)
-            painter.setPen(QColor(THEME.accent_primary))
+            painter.setPen(QColor(THEME.mark_photo))
             # The badge shows the display convention (positive = clockwise on screen), like the
             # Fine Rotation slider. _rotate_current uses the stored convention.
             painter.drawText(badge, Qt.AlignmentFlag.AlignCenter, f"{-self._rotate_current:+.2f}°")
@@ -2944,7 +2968,7 @@ class CanvasOverlay(QWidget):
 
         first = self._lasso_pts[0]
         near_close = len(self._lasso_pts) >= 3 and (self._mouse_pos - first).manhattanLength() < _LASSO_SNAP_PX * 2
-        accent = QColor(THEME.accent_primary) if near_close else QColor(255, 255, 255, 180)
+        accent = QColor(THEME.mark_photo) if near_close else QColor(255, 255, 255, 180)
         painter.setBrush(accent)
         painter.setPen(Qt.PenStyle.NoPen)
         r = 5.0 if near_close else 3.0
