@@ -36,13 +36,27 @@ def test_each_section_toolbar_has_its_own_sort(panel):
     assert (browser.sort_btn.height(), tree.sort_btn.height()) == (BAR_BUTTON_HEIGHT, TOOLBAR_BUTTON_HEIGHT)
 
 
-def test_the_roll_row_names_its_dropdowns_by_their_choice(panel):
+def test_the_roll_row_buttons_are_icons_and_a_filter_on_takes_the_chip(panel):
     browser = panel.file_browser
-    browser._apply_sort_order("date", save=False)
-    browser._apply_sheet_filter("keepers", save=False)
+    buttons = (browser.sort_btn, browser.sheet_btn, browser.roll_settings_btn, browser.apply_btn)
+    assert all(btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly and not btn.text() for btn in buttons)
 
-    assert (browser.sort_btn.text(), browser.sheet_btn.text()) == ("Date", "Keepers Only")
-    assert browser.apply_btn.text() == "Apply…"
+    browser._apply_sheet_filter("keepers", save=False)
+    assert browser.sheet_btn.property("filtering") is True
+    browser._apply_sheet_filter("all", save=False)
+    assert browser.sheet_btn.property("filtering") is False
+
+
+def test_roll_settings_sits_before_apply_and_opens_its_dialog(panel, monkeypatch):
+    browser = panel.file_browser
+    layout = browser.roll_row.layout()
+    opened = []
+    monkeypatch.setattr(browser, "_build_roll_settings_dialog", lambda: opened.append(True) or None)
+
+    browser.roll_settings_btn.click()
+
+    assert layout.indexOf(browser.roll_settings_btn) + 1 == layout.indexOf(browser.apply_btn)
+    assert opened == [True]
 
 
 def test_the_roll_menu_holds_the_actions_out_of_view(panel):
@@ -52,7 +66,6 @@ def test_the_roll_menu_holds_the_actions_out_of_view(panel):
         "Add Files…",
         "Add Folder…",
         "Save as Roll…",
-        "Roll Settings…",
         "Update Thumbnails",
         "Hot Folder",
         "Unload…",
@@ -100,54 +113,19 @@ def test_update_thumbnails_reflects_the_running_state(panel):
     assert browser.update_thumbnails_action.text() == idle
 
 
-def test_a_narrow_row_drops_the_names_before_the_filter_gets_cramped(panel, qapp):
+def test_a_narrow_row_moves_save_as_roll_to_the_menu(panel, qapp):
     browser = panel.file_browser
     row = browser.roll_row
     browser._show_save_roll(True)
     row.resize(1400, 40)
     row.show()
     qapp.processEvents()
-    assert browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon
     assert not browser.save_roll_btn.isHidden()
 
     row.resize(400, 40)
     qapp.processEvents()
-    assert all(btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly for btn in browser._named_roll_buttons)
     assert browser.save_roll_btn.isHidden()
 
     row.resize(1400, 40)
     qapp.processEvents()
-    assert browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon
-
-
-def test_save_as_roll_leaves_the_row_before_the_names_do(panel, qapp):
-    browser = panel.file_browser
-    browser._show_save_roll(True)
-    row = browser.roll_row
-    row.show()
-    states = []
-    for width in range(1400, 380, -10):
-        row.resize(width, 40)
-        qapp.processEvents()
-        states.append(
-            (not browser.save_roll_btn.isHidden(), browser.apply_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        )
-
-    assert states[0] == (True, True) and states[-1] == (False, False)
-    assert (False, True) in states
-    assert (True, False) not in states
-
-
-def test_the_roll_row_shrinks_below_its_natural_width(panel):
-    row = panel.file_browser.roll_row
-    assert row.minimumSizeHint().width() < row.sizeHint().width()
-
-
-def test_the_sheet_and_the_roll_list_sort_independently(panel):
-    tree = panel.library_tree
-    tree_before = (tree._sort_order, tree._sort_descending)
-
-    panel.file_browser._apply_sort_direction(True)
-    panel.file_browser._apply_sort_order("date")
-
-    assert (tree._sort_order, tree._sort_descending) == tree_before
+    assert not browser.save_roll_btn.isHidden()

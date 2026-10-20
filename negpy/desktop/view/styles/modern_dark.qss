@@ -512,7 +512,7 @@ QToolButton#toolbar_overflow::menu-indicator {
     width: 0px;
 }
 
-/* A named dropdown in the canvas bar's Roll row: a chevron after the name, as on a ChoiceButton. */
+/* A dropdown in the canvas bar's Roll row: a chevron after the icon, as on a ChoiceButton. */
 QToolButton[dropdown="true"] {
     padding-right: 22px;
 }
@@ -524,6 +524,17 @@ QToolButton[dropdown="true"]::menu-indicator {
     width: 12px;
     height: 12px;
     right: 6px;
+}
+
+/* The Roll row's sheet filter while it hides frames: the chip of a chosen item. */
+QToolButton[filtering="true"] {
+    background-color: @bg_checked;
+    border: 1px solid @border_checked;
+}
+
+QToolButton[filtering="true"]:hover {
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
 }
 
 /* Shortcut overview/Customize dialog rows. Transparent by default so the row

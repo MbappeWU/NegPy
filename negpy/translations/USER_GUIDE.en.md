@@ -129,9 +129,10 @@ The toolbar's **Roll** row holds:
 *   The roll's name and its count of frames, keepers and rejects.
 *   The **filter box**: type part of a file name, or terms such as `film:portra iso:>=400` (below). The search button, or **Enter**, searches the whole library.
 *   **Sort**: by name, date or scene.
-*   **Sheet filter**: all frames, keepers only, hide rejected, or unmarked only.
-*   **Apply…**: copies chosen settings of this frame to the selection or the roll.
-*   **⋮**: **Add Files…**, **Save as Roll…**, **Roll Settings…** (gear and film details for many frames), **Update Thumbnails**, **Hot Folder** (loads new files as a scanner saves them), **Unload…**, **New Roll…**, **Close Roll…** and **Reset Roll to Defaults…**.
+*   **Sheet filter**: all frames, keepers only, hide rejected, or unmarked only. The button is highlighted while a filter hides frames.
+*   **Roll Settings** (the tag): gear and film details for this frame, the selection or the whole roll.
+*   **Apply**: copies chosen settings of this frame to the selection or the roll.
+*   **⋮**: **Add Files…**, **Save as Roll…**, **Update Thumbnails**, **Hot Folder** (loads new files as a scanner saves them), **Unload…**, **New Roll…**, **Close Roll…** and **Reset Roll to Defaults…**.
 
 Right-click a frame to **Keep** it (a check) or **Reject** it (a cross; batch exports skip it).
 

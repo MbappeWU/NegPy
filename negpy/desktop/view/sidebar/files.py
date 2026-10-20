@@ -80,7 +80,7 @@ from negpy.features.hdr.models import hdr_frame_paths
 from negpy.desktop.view.widgets.elided_label import ElidedLabel
 from negpy.desktop.view.widgets.marks import draw_mark_badge
 from negpy.desktop.view.widgets.sort_button import SortButton
-from negpy.desktop.view.shortcut_registry import label_with_shortcut
+from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
 from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, BAR_ICON_SIZE, wrap_tooltip
 from negpy.desktop.view.styles.theme import THEME, scene_color
 from negpy.desktop.view.widgets.granular_settings_dialog import open_apply_dialog, open_paste_dialog, open_sync_bounds_dialog
@@ -1173,7 +1173,7 @@ class _FilmStripView(_FilmGridView):
 
 
 # The Roll row: the widest its roll name and tally get, and the filter box's width below which
-# the row's buttons drop their names.
+# Save as Roll moves to the ⋮ menu.
 _ROLL_TITLE_MAX_WIDTH = 280
 _FILTER_ROOM = 220
 
@@ -1230,12 +1230,12 @@ class FileBrowser(QWidget):
 
         self.apply_btn = QToolButton()
         self.apply_btn.setIcon(qta.icon("fa5s.clone", color=THEME.text_primary))
-        self.apply_btn.setText(tr("Apply…"))
         self.apply_btn.setToolTip(tr("Apply settings from the current frame to selected frames or the whole roll"))
         self.apply_btn.clicked.connect(self._open_apply_dialog)
 
         # Sheet filter dropdown
         self.sheet_btn = QToolButton()
+        self.sheet_btn.setIcon(qta.icon("fa5s.filter", color=THEME.text_primary))
         self.sheet_btn.setToolTip(tr("Sheet filter: show frames by their keep and reject marks"))
         self.sheet_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         sheet_menu = QMenu(self.sheet_btn)
@@ -1269,16 +1269,23 @@ class FileBrowser(QWidget):
         self.sort_btn.order_selected.connect(self._apply_sort_order)
         self.sort_btn.direction_selected.connect(self._apply_sort_direction)
 
-        # Named, so the row reads without hovering; a narrow row drops the names (_fit_roll_row).
-        self._named_roll_buttons = (self.sort_btn, self.sheet_btn, self.apply_btn)
+        self.roll_settings_btn = QToolButton()
+        self.roll_settings_btn.setIcon(qta.icon("mdi6.tag-outline", color=THEME.text_primary))
+        self.roll_settings_btn.setToolTip(
+            tooltip_with_shortcut(
+                tr("Roll Settings: tag gear, film and process details on this frame, the selection or the whole roll."), "roll_settings"
+            )
+        )
+        self.roll_settings_btn.clicked.connect(self._open_roll_settings_dialog)
+
         for btn in (self.sort_btn, self.sheet_btn):
             btn.setProperty("dropdown", True)
-        for btn in self._named_roll_buttons:
+        # Icons alone: the tooltips name them, and the filter box keeps the room.
+        for btn in (self.sort_btn, self.sheet_btn, self.roll_settings_btn, self.apply_btn):
             btn.setIconSize(icon_size)
             btn.setFixedHeight(btn_height)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        # 0 shows everything; 1 moves Save as Roll to the ⋮ menu; 2 also drops the names.
+        # 1 while Save as Roll waits in the ⋮ menu for room in the row.
         self._roll_fit = 0
         self._save_roll_wanted = False
 
@@ -1396,7 +1403,7 @@ class FileBrowser(QWidget):
         self.roll_menu_btn.setIconSize(icon_size)
         self.roll_menu_btn.setFixedHeight(btn_height)
         self.roll_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.roll_menu_btn.setToolTip(tr("Add frames, Roll Settings, the Hot Folder, and start, close or reset the roll"))
+        self.roll_menu_btn.setToolTip(tr("Add frames, the Hot Folder, and start, close or reset the roll"))
         self.roll_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.roll_menu_btn.setObjectName("toolbar_overflow")
         roll_menu = QMenu(self.roll_menu_btn)
@@ -1405,11 +1412,6 @@ class FileBrowser(QWidget):
         roll_menu.addAction(tr("Add Folder…")).triggered.connect(self.prompt_add_folder)
         self.save_roll_action = roll_menu.addAction(label_with_shortcut(tr("Save as Roll…"), "save_as_roll"))
         self.save_roll_action.triggered.connect(self._on_save_roll_clicked)
-        self.roll_settings_action = roll_menu.addAction(label_with_shortcut(tr("Roll Settings…"), "roll_settings"))
-        self.roll_settings_action.setToolTip(
-            tr("Roll Settings: tag gear, film and process details on this frame, the selection or the whole roll.")
-        )
-        self.roll_settings_action.triggered.connect(self._open_roll_settings_dialog)
         self.update_thumbnails_action = roll_menu.addAction("")
         self.update_thumbnails_action.triggered.connect(self._on_update_thumbnails_clicked)
         self._on_thumbnail_refresh_state_changed(False)
@@ -1440,6 +1442,7 @@ class FileBrowser(QWidget):
         roll_layout.addWidget(self.sort_btn)
         roll_layout.addWidget(self.sheet_btn)
         roll_layout.addWidget(self._create_separator())
+        roll_layout.addWidget(self.roll_settings_btn)
         roll_layout.addWidget(self.apply_btn)
         roll_layout.addWidget(self.roll_menu_btn)
 
@@ -1772,7 +1775,6 @@ class FileBrowser(QWidget):
         self.act_sort_name.setChecked(order == "name")
         self.act_sort_date.setChecked(order == "date")
         self.act_sort_scene.setChecked(order == "scene")
-        self.sort_btn.setText(self.sort_btn.order_action(order).text())
 
     def _apply_sheet_filter(self, mode: str, save: bool = True) -> None:
         model = self.session.asset_model
@@ -1782,9 +1784,10 @@ class FileBrowser(QWidget):
         self.act_sheet_keepers.setChecked(mode == "keepers")
         self.act_sheet_unrejected.setChecked(mode == "unrejected")
         self.act_sheet_unmarked.setChecked(mode == "unmarked")
-        icon_color = "white" if mode != "all" else THEME.text_primary
-        self.sheet_btn.setIcon(qta.icon("fa5s.filter", color=icon_color))
-        self.sheet_btn.setText(next(a.text() for a in self._sheet_group.actions() if a.isChecked()))
+        # A filter that hides frames takes the chosen-item chip (QSS [filtering]).
+        self.sheet_btn.setProperty("filtering", mode != "all")
+        self.sheet_btn.style().unpolish(self.sheet_btn)
+        self.sheet_btn.style().polish(self.sheet_btn)
         if save:
             self.session.repo.save_global_setting("sheet_filter", mode)
         self._prune_selection_to_visible()
@@ -1818,12 +1821,10 @@ class FileBrowser(QWidget):
         keepers = sum(1 for f in files if f.get("keeper"))
         rejected = sum(1 for f in files if f.get("excluded"))
         n = len(files)
-        # The strip shows the model, the tally counts the session, so a filter that hides
-        # every frame reads as an empty panel under a full count unless it is named here.
+        # The strip shows the model, the tally counts the session; the filter button's chip and the
+        # filter box say which filter hides the rest.
         visible = self.session.asset_model.rowCount()
         text = tr("{visible} of {n} frames", visible=visible, n=n) if visible != n else count_of(n, "frame")
-        for name in self._active_frame_filters():
-            text += f" · {name} filter"
         if keepers:
             text += f" · {count_of(keepers, 'keeper')}"
         if rejected:
@@ -1912,24 +1913,14 @@ class FileBrowser(QWidget):
         return False
 
     def _fit_roll_row(self) -> None:
-        """Save as Roll moves to the ⋮ menu, then the row's buttons drop their names, while the
-        filter box would be narrower than _FILTER_ROOM with them."""
+        """Save as Roll moves to the ⋮ menu while the filter box would be narrower than _FILTER_ROOM with it."""
         save = self.save_roll_btn.sizeHint().width() + THEME.space_sm if self._save_roll_wanted else 0
-        names = sum(btn.fontMetrics().horizontalAdvance(btn.text()) + THEME.space_sm for btn in self._named_roll_buttons)
-        freed = (0, save, save + names)
-        room = self.search_input.width() - freed[self._roll_fit]
+        room = self.search_input.width() - (save if self._roll_fit else 0)
         # A step back needs a margin: a width right at the edge must not flicker.
-        level = next(
-            (lv for lv in (0, 1) if room + freed[lv] >= _FILTER_ROOM + (THEME.space_2xl if lv < self._roll_fit else 0)),
-            2,
-        )
-        if level == self._roll_fit:
-            return
-        self._roll_fit = level
-        style = Qt.ToolButtonStyle.ToolButtonIconOnly if level == 2 else Qt.ToolButtonStyle.ToolButtonTextBesideIcon
-        for btn in self._named_roll_buttons:
-            btn.setToolButtonStyle(style)
-        self._show_save_roll(self._save_roll_wanted)
+        fit = 0 if room >= _FILTER_ROOM + (THEME.space_2xl if self._roll_fit else 0) else 1
+        if fit != self._roll_fit:
+            self._roll_fit = fit
+            self._show_save_roll(self._save_roll_wanted)
 
     def _on_adjust_half_frame_split(self, path: str, base_hash: str) -> None:
         """Open the rectangle editor for one file, defaulting Apply to just that
