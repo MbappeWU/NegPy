@@ -147,7 +147,8 @@ def _mouse(widget, kind, x, buttons=None):
     QApplication.sendEvent(widget, QMouseEvent(kind, pos, widget.mapToGlobal(pos), left, held, Qt.KeyboardModifier.NoModifier))
 
 
-def test_a_click_on_the_parents_name_toggles_and_a_drag_still_scrubs():
+def test_a_click_on_the_parents_name_leaves_the_fold_and_a_drag_still_scrubs():
+    """A click on the name is half of the reset double-click; only the chevron toggles."""
     from PyQt6.QtCore import QEvent
 
     repo, _ = _repo()
@@ -158,15 +159,15 @@ def test_a_click_on_the_parents_name_toggles_and_a_drag_still_scrubs():
     _mouse(grade.label, QEvent.Type.MouseButtonPress, 10)
     _mouse(grade.label, QEvent.Type.MouseMove, 12)
     _mouse(grade.label, QEvent.Type.MouseButtonRelease, 12)
-    assert fold.is_open() and grade.value() == before, "a click within the drag distance is a click"
+    assert not fold.is_open() and grade.value() == before, "a click within the drag distance is a click"
 
     _mouse(grade.label, QEvent.Type.MouseButtonPress, 10)
     _mouse(grade.label, QEvent.Type.MouseMove, 60)
     _mouse(grade.label, QEvent.Type.MouseButtonRelease, 60)
-    assert fold.is_open() and grade.value() != before, "a drag scrubs and leaves the fold alone"
+    assert not fold.is_open() and grade.value() != before, "a drag scrubs and leaves the fold alone"
 
 
-def test_a_click_on_a_field_rows_name_toggles():
+def test_a_click_on_a_field_rows_name_leaves_the_fold():
     from PyQt6.QtCore import QEvent
 
     repo, _ = _repo()
@@ -179,7 +180,7 @@ def test_a_click_on_a_field_rows_name_toggles():
     make_section(repo, "Crop", "autocrop", body, "fa5s.crop", default_expanded=True)
 
     _mouse(row.itemAt(1).widget(), QEvent.Type.MouseButtonRelease, 5)
-    assert fold.is_open()
+    assert not fold.is_open()
 
 
 def test_a_fold_can_start_open_until_the_user_closes_it():

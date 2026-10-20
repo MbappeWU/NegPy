@@ -326,9 +326,7 @@ class BaseSlider(QWidget):
 
 class CompactSlider(BaseSlider):
     """One row: label, track, value; click the value to type one. A drag on the label scrubs the
-    value; a click on it emits label_clicked."""
-
-    label_clicked = pyqtSignal()
+    value."""
 
     def __init__(
         self,
@@ -511,8 +509,6 @@ class CompactSlider(BaseSlider):
                 self._scrub_active = False
                 if self._scrubbing:
                     self._on_committed()
-                else:
-                    self.label_clicked.emit()
                 return True
         return super().eventFilter(obj, event)
 
