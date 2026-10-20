@@ -1004,3 +1004,27 @@ def test_each_run_of_buttons_sits_flat_in_one_track():
     assert not any(t.intersects(rect(tb.mode_switch)) for t in tracks)
     assert tb.btn_tools.isFlat() and tb.source_choice.isFlat() and not tb.btn_tool_done.isFlat()
     tb.close()
+
+
+def test_every_track_shows_its_side_edges():
+    """The bar's row containers must not paint over the tracks behind them."""
+    from PyQt6.QtGui import QColor
+
+    from negpy.desktop.view.styles.templates import load_stylesheet
+    from negpy.desktop.view.styles.theme import THEME
+
+    tb = _make_toolbar()
+    tb.setStyleSheet(load_stylesheet())
+    tb.resize(1600, tb.sizeHint().height())
+    tb.show()
+    tb.set_available_width(1600)
+    QApplication.processEvents()
+    image = tb.grab().toImage()
+    tracks = tb._track_rects()
+
+    assert tracks
+    for t in tracks:
+        y = t.center().y()
+        assert image.pixelColor(t.left() - 3, y) == QColor(THEME.border_primary), t
+        assert image.pixelColor(t.right() + 3, y) == QColor(THEME.border_primary), t
+    tb.close()

@@ -496,6 +496,11 @@ QFrame#toolbar_separator {
     background-color: @border_color;
 }
 
+/* The bar's row containers let the group tracks (ActionToolbar.paintEvent) show through. */
+QWidget#toolbar_row {
+    background: transparent;
+}
+
 /* In the canvas bar a group's track divides it from the next; the separator stays as the gap. */
 QWidget#action_bar QFrame#toolbar_separator {
     color: transparent;

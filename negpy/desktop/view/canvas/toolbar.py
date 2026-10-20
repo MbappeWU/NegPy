@@ -1616,8 +1616,9 @@ class ActionToolbar(QWidget):
         self._relayout()
 
     def _adopt_row(self, root: QWidget) -> None:
-        """Flatten the buttons under root into their group's track, and repaint the tracks when
-        any of its layouts changes. A popup menu's widgets keep their own look."""
+        """Flatten the buttons under root into their group's track, clear its row containers so
+        the tracks show through, and repaint the tracks when any of its layouts changes. A popup
+        menu's widgets keep their own look."""
         window = root.window()
         for btn in root.findChildren(QPushButton):
             if btn.window() is window and not btn.property("primary"):
@@ -1625,6 +1626,10 @@ class ActionToolbar(QWidget):
         for widget in (root, *root.findChildren(QWidget)):
             if widget.window() is window and widget.layout() is not None:
                 widget.installEventFilter(self)
+                if type(widget) is QWidget and not widget.objectName():
+                    widget.setObjectName("toolbar_row")
+                    widget.style().unpolish(widget)
+                    widget.style().polish(widget)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if event.type() == QEvent.Type.LayoutRequest:
