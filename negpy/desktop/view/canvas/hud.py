@@ -113,7 +113,7 @@ class CanvasHud(QWidget):
         self.progress.setTextVisible(False)
         self.progress.setStyleSheet(
             f"QProgressBar {{ background-color: {THEME.border_primary}; border: none; border-radius: 0; }}"
-            f"QProgressBar::chunk {{ background-color: {THEME.accent_primary}; border-radius: 0; }}"
+            f"QProgressBar::chunk {{ background-color: {THEME.border_checked_hover}; border-radius: 0; }}"
         )
         self.progress.hide()
 

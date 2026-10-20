@@ -295,16 +295,19 @@ QStatusBar {
     color: @text_on_accent;
 }
 
+/* The filled part is the chip of a checked toggle, growing. */
 QProgressBar {
     border: 1px solid @border_primary;
-    background-color: @bg_card;
+    background-color: @bg_input;
+    color: @text_primary;
     text-align: center;
     border-radius: 4px;
 }
 
 QProgressBar::chunk {
-    background-color: @accent_primary;
-    border-radius: 2px;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
+    border-radius: 3px;
 }
 
 QScrollArea {

@@ -61,7 +61,7 @@ class ProgressDialog(QDialog):
         self._bar.setTextVisible(False)
         self._bar.setStyleSheet(f"""
             QProgressBar {{ background-color: {THEME.border_primary}; border: none; border-radius: {THEME.radius_sm}px; }}
-            QProgressBar::chunk {{ background-color: {THEME.accent_primary}; border-radius: {THEME.radius_sm}px; }}
+            QProgressBar::chunk {{ background-color: {THEME.border_checked_hover}; border-radius: {THEME.radius_sm}px; }}
         """)
         root.addWidget(self._bar)
 

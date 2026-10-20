@@ -1,7 +1,7 @@
 from PyQt6.QtCore import QPoint, QRect
 from PyQt6.QtGui import QColor, QImage, QPainter
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QHBoxLayout, QMenu, QStyle, QStyleOptionViewItem, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QMenu, QProgressBar, QStyle, QStyleOptionViewItem, QWidget
 
 from negpy.desktop.view.styles.templates import labeled_action, load_stylesheet, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
@@ -125,3 +125,15 @@ def test_a_primary_button_is_a_dark_red_fill(qapp):
     probe = button.geometry().topLeft() + QPoint(4, button.height() // 2)
 
     assert image.pixelColor(probe).name() == QColor(THEME.bg_primary).name()
+
+
+def test_a_progress_bar_fills_with_the_chip(qapp):
+    bar = QProgressBar()
+    bar.setStyleSheet(load_stylesheet())
+    bar.setTextVisible(False)
+    bar.resize(200, 20)
+    bar.setValue(50)
+    image = bar.grab().toImage()
+
+    assert image.pixelColor(50, 10).name() == QColor(THEME.bg_checked_hover).name()
+    assert image.pixelColor(150, 10).name() == QColor(THEME.bg_input).name()
