@@ -78,7 +78,7 @@ from negpy.desktop.view.keyboard_shortcuts import _close_roll, _reset_roll, _res
 from negpy.features.hdr.logic import anchor_choices
 from negpy.features.hdr.models import hdr_frame_paths
 from negpy.desktop.view.widgets.elided_label import ElidedLabel
-from negpy.desktop.view.widgets.marks import draw_mark_badge
+from negpy.desktop.view.widgets.marks import CHIP_FILL, CHIP_RING, draw_mark_badge
 from negpy.desktop.view.widgets.sort_button import SortButton
 from negpy.desktop.view.shortcut_registry import label_with_shortcut, tooltip_with_shortcut
 from negpy.desktop.view.styles.templates import BAR_BUTTON_HEIGHT, BAR_ICON_SIZE, wrap_tooltip
@@ -114,10 +114,6 @@ class _ThumbnailDelegate(QStyledItemDelegate):
     change (a bulk apply reaches the file before a render reaches its thumbnail)."""
 
     _RADIUS = 4  # = button border-radius (modern_dark.qss)
-    # Neutral, not the triage red: red already means "you marked this" and "this failed".
-    # What a frame is built from is a fact about the asset, not a state the user set.
-    _COMPOSITE_CHIP = QColor(20, 20, 20, 190)
-    _COMPOSITE_RING = QColor(255, 255, 255, 90)
     _COMPOSITE_GLYPH = QColor(255, 255, 255, 235)
     _IDLE_OPACITY = 0.5
     _STALE_DOT_RADIUS = 4
@@ -245,15 +241,15 @@ class _ThumbnailDelegate(QStyledItemDelegate):
         The chip carries a faint ring because a flat dark disc vanishes on a dense frame."""
         r = 9
         cx, cy = img_rect.left() + r + 4, img_rect.bottom() - r - 4
-        painter.setPen(QPen(self._COMPOSITE_RING, 1))
-        painter.setBrush(self._COMPOSITE_CHIP)
+        painter.setPen(QPen(CHIP_RING, 1))
+        painter.setBrush(CHIP_FILL)
         painter.drawEllipse(QRect(cx - r, cy - r, 2 * r, 2 * r))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(self._COMPOSITE_GLYPH, 1.5))
         if kind == "stitch":  # two overlapping panes — a divided box reads as the half glyph
             painter.drawRect(QRect(cx - 6, cy - 5, 8, 7))
             front = QRect(cx - 2, cy - 2, 8, 7)
-            painter.fillRect(front, self._COMPOSITE_CHIP)
+            painter.fillRect(front, CHIP_FILL)
             painter.drawRect(front)
         elif kind == "hdr":  # a bracket: stacked exposures
             for dy, width in ((-3, 11), (0, 8), (3, 5)):
