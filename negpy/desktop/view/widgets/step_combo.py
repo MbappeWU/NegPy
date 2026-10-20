@@ -134,12 +134,15 @@ class StepCombo(QComboBox):
         if e.button() != Qt.MouseButton.LeftButton or zone == "face":
             super().mousePressEvent(e)
             return
-        target = self._step_target(-1 if zone == "prev" else 1)
+        self._step(-1 if zone == "prev" else 1)
+        e.accept()
+
+    def _step(self, step: int) -> None:
+        target = self._step_target(step)
         if target >= 0:
             self.setCurrentIndex(target)
             self.activated.emit(target)
             self.textActivated.emit(self.itemText(target))
-        e.accept()
 
     def _draw_arrow(self, p: QPainter, rect: QRectF, name: str, usable: bool) -> None:
         pix = qta.icon(name, color=THEME.text_secondary if usable else THEME.text_muted).pixmap(_CHEVRON, _CHEVRON)

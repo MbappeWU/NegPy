@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 from negpy.kernel.system.text import count_of, human_bytes
 from negpy.desktop.view.sidebar.scan_output import ScanOutputPanel
 from negpy.desktop.view.styles.templates import (
+    default_button_height,
     field_row,
     hint_label,
     set_hint_kind,
@@ -311,6 +312,7 @@ class ScanSidebar(QWidget):
         self.dpi_combo = QComboBox()
         self.dpi_combo.setToolTip(wrap_tooltip(tr("Scan resolution in dots per inch; type a value between the listed stops")))
         self.dpi_combo.setEditable(True)
+        self.dpi_combo.setFixedHeight(default_button_height())
         quality.addLayout(field_row(tr("Resolution"), self.dpi_combo))
 
         self.depth_btn = ChoiceButton((), tr("Bits per channel in the scanned file"))
@@ -1547,7 +1549,7 @@ class ScanSidebar(QWidget):
         self.eject_btn.setEnabled(bool(device and device.capabilities.can_eject) and not active)
         if active:
             self.scan_btn.setText(tr(" Stop"))
-            self.scan_btn.setIcon(qta.icon("fa5s.stop", color=THEME.accent_secondary))
+            self.scan_btn.setIcon(qta.icon("fa5s.stop", color=THEME.text_primary))
             self.status_strip.start_progress(tr("Scanning… %p%"))
             self.prescan_btn.setEnabled(False)
             self.exposure_meter_btn.setEnabled(False)

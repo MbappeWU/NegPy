@@ -13,7 +13,7 @@ import numpy as np
 import qtawesome as qta
 from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QCursor, QKeySequence
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton, QToolButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from negpy.desktop.view.shortcut_registry import key_for, tooltip_with_shortcut
 from negpy.desktop.view.sidebar.roi_image import RoiImageLabel
@@ -31,6 +31,7 @@ from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.charts import MiniRGBHistogramWidget
 from negpy.desktop.view.widgets.dialog_geometry import remember_dialog_geometry
 from negpy.desktop.view.widgets.floating_panel import float_over_app
+from negpy.desktop.view.widgets.step_combo import StepCombo
 
 #: Progress-bar chunk color per triplet channel. The live view freezes during a triplet,
 #: because the capture now holds the camera without gaps, so the bar carries the R to G
@@ -41,103 +42,43 @@ _FLASH_MS = 1500
 _FOCUS_AT_PEAK = 0.99
 
 
-class SettingStepper(QWidget):
-    """Compact ‹ value › stepper for a camera setting, in place of a dropdown that would
-    otherwise list every ISO/shutter/aperture step and fill the screen.
-
-    Exposes the slice of the QComboBox API the settings refresh already uses
-    (clear/addItem/count/findData/currentData/currentIndex/setCurrentIndex/setEnabled), so
-    populating it is unchanged; the arrows step one option and emit `activated(index)`.
-    """
-
-    activated = pyqtSignal(int)
+class SettingStepper(StepCombo):
+    """StepCombo for a camera setting, with no list: every ISO, shutter or aperture step would
+    fill the screen. The arrows stop at the ends, so a step never wraps from the slowest
+    shutter to the fastest."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._items: list[tuple[str, object]] = []  # (label shown, raw value sent to the camera)
-        self._index = -1
-        self._last_step = 0.0  # monotonic time of the last arrow press (see hasFocus)
+        self.setPlaceholderText(tr("—"))
+        self._last_step = 0.0  # monotonic time of the last step (see stepping)
+        self.activated.connect(self._on_stepped)
 
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(2)
-        self._prev = QToolButton()
-        self._prev.setText(tr("‹"))
-        self._next = QToolButton()
-        self._next.setText(tr("›"))
-        self._value = QLabel(tr("—"))
-        self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._value.setMinimumWidth(64)
-        self._value.setStyleSheet(f"color: {THEME.text_primary};")
-        row.addWidget(self._prev)
-        row.addWidget(self._value, 1)
-        row.addWidget(self._next)
-        self._prev.clicked.connect(lambda: self._step(-1))
-        self._next.clicked.connect(lambda: self._step(1))
-        self._sync()
+    def _on_stepped(self, _index: int) -> None:
+        self._last_step = time.monotonic()
 
-    # ── stepping ──────────────────────────────────────────────────────
-    def _step(self, delta: int) -> None:
-        if not self._items:
-            return
-        new = min(max(self._index + delta, 0), len(self._items) - 1)
-        if new != self._index:
-            self._index = new
-            self._last_step = time.monotonic()
-            self._sync()
-            self.activated.emit(new)  # one SET per click (no auto-repeat → no flooding)
+    def addItem(self, label: str, raw=None) -> None:  # noqa: N802
+        """A placeholder keeps QComboBox at no choice; the first option is the shown value."""
+        super().addItem(label, raw)
+        if self.currentIndex() < 0:
+            self.setCurrentIndex(0)
 
-    def _sync(self) -> None:
-        on = self.isEnabled()
-        self._value.setText(self._items[self._index][0] if 0 <= self._index < len(self._items) else tr("—"))
-        self._prev.setEnabled(on and self._index > 0)
-        self._next.setEnabled(on and self._index < len(self._items) - 1)
+    def _step_target(self, step: int) -> int:
+        target = self.currentIndex() + step
+        return target if 0 <= target < self.count() else -1
 
-    # ── QComboBox-ish API used by ScanlightSidebar._refresh_camera_settings ──
-    def clear(self) -> None:
-        self._items.clear()
-        self._index = -1
-        self._sync()
+    def showPopup(self) -> None:  # noqa: N802
+        pass
 
-    def addItem(self, label: str, raw) -> None:
-        self._items.append((label, raw))
-        if self._index < 0:
-            self._index = 0
-        self._sync()
+    def mouseMoveEvent(self, e) -> None:  # noqa: N802
+        super().mouseMoveEvent(e)
+        if self._hover == "face":  # the face opens nothing, so it does not light up
+            self._hover = None
 
-    def count(self) -> int:
-        return len(self._items)
-
-    def findData(self, raw) -> int:
-        return next((i for i, (_, r) in enumerate(self._items) if r == raw), -1)
-
-    def findText(self, label: str) -> int:
-        return next((i for i, (text, _) in enumerate(self._items) if text == label), -1)
-
-    def currentData(self):
-        return self._items[self._index][1] if 0 <= self._index < len(self._items) else None
-
-    def currentText(self) -> str:
-        return self._items[self._index][0] if 0 <= self._index < len(self._items) else ""
-
-    def currentIndex(self) -> int:
-        return self._index
-
-    def setCurrentIndex(self, idx: int) -> None:
-        if 0 <= idx < len(self._items):
-            self._index = idx
-            self._sync()
-
-    def setEnabled(self, on: bool) -> None:
-        super().setEnabled(on)
-        self._sync()
-
-    def hasFocus(self) -> bool:
-        # Treat a just-pressed arrow as "busy", so the settings refresh does not snap the value
-        # back while the camera's reported `cur` catches up to the user's step. The window must
-        # outlast a debounced and verified camera write, or the stepper flickers back to the old
-        # value mid-write.
-        return (time.monotonic() - self._last_step) < 2.5 or super().hasFocus()
+    def stepping(self) -> bool:
+        """True just after a step, so the settings refresh does not snap the value back while the
+        camera's reported `cur` catches up. The window must outlast a debounced and verified
+        camera write, or the stepper flickers back to the old value mid-write."""
+        return (time.monotonic() - self._last_step) < 2.5 or self.hasFocus()
 
 
 class LiveViewWindow(QDialog):

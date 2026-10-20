@@ -248,6 +248,7 @@ class LibraryTree(QWidget):
         self.more_btn.setMenu(more_menu)
 
         for btn in (self.sort_btn, self.import_btn, self.more_btn):
+            btn.setProperty("boxed", True)
             btn.setIconSize(QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE))
             btn.setFixedHeight(TOOLBAR_BUTTON_HEIGHT)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)

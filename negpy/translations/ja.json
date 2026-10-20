@@ -2929,8 +2929,6 @@
   "“{name}” was not saved: the film base is {label}.": "「{name}」は保存されませんでした。フィルム ベースは {label} です。",
   "“{new_name}” already exists. Replace it?": "「{new_name}」はすでに存在します。置き換えますか?",
   "“{value}” already exists in the export folder.": "「{value}」はエクスポート フォルダーにすでに存在します。",
-  "‹": "‹",
-  "›": "›",
   "→ lands {achieved}": "→ 到達 {achieved}",
   "● {value}": "● {value}",
   "⚠ Another program is using the camera. On macOS a background app that watches for cameras, a cloud sync client for example, holds it through the system camera daemon. Quit that app or unplug the cable. NegPy reconnects by itself.": "⚠ 別のプログラムがカメラを使用しています。 macOS では、カメラを監視するバックグラウンド アプリ (クラウド同期クライアントなど) がシステム カメラ デーモンを通じてカメラを保持します。そのアプリを終了するか、ケーブルを抜きます。 NegPy は自動的に再接続します。",

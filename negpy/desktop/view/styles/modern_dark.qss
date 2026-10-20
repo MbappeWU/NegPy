@@ -97,7 +97,7 @@ QPushButton[checkable="true"]:flat:hover:!checked {
 
 /* The Scan panel's commit button: the only control that moves the transport and
    writes files, so it is the one filled button in the app. While a scan runs it
-   reads "Stop" and goes hollow — the same accent, but not an invitation. */
+   reads "Stop" and takes the chip of a toggle that is on; a click turns it off. */
 QPushButton#scan_btn {
     background-color: @bg_primary;
     color: @text_on_accent;
@@ -123,14 +123,14 @@ QPushButton#scan_btn:disabled {
 }
 
 QPushButton#scan_btn[scanning="true"] {
-    background-color: transparent;
-    color: @accent_secondary;
-    border: 1px solid @accent_primary;
+    background-color: @bg_checked;
+    color: @text_primary;
+    border: 1px solid @border_checked;
 }
 
 QPushButton#scan_btn[scanning="true"]:hover {
-    background-color: @bg_checked;
-    color: @text_on_accent;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
 }
 
 QToolButton {
@@ -267,6 +267,34 @@ QComboBox:focus, QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QTextEdi
 QComboBox:disabled, QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QTextEdit:disabled {
     color: @text_muted;
     border: 1px solid @border_input;
+}
+
+/* An editable combo (Scan › Resolution) wears the dropdown face, its chevron inside. StepCombo
+   paints itself, so none of this reaches it. */
+QComboBox:editable {
+    border: 1px solid @border_primary;
+    padding-left: 8px;
+}
+
+QComboBox:editable:focus {
+    border: 1px solid @slider_disabled;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+
+QComboBox::down-arrow {
+    image: url("__CHEVRON_DOWN_ICON__");
+    width: 12px;
+    height: 12px;
+}
+
+QComboBox QLineEdit, QComboBox QLineEdit:focus {
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 /* Combo-box dropdown popup. Its a QListView-based view, so without this rule it
@@ -526,6 +554,18 @@ QToolButton[dropdown="true"]::menu-indicator {
     right: 6px;
 }
 
+/* A QToolButton in a panel (the Library row) sits on the track surface, as a QPushButton does.
+   The plain QToolButton stays flat for the canvas bar, which draws its own tracks. */
+QToolButton[boxed="true"] {
+    background-color: @bg_input;
+    border: 1px solid @border_primary;
+}
+
+QToolButton[boxed="true"]:hover {
+    background-color: @border_primary;
+    border: 1px solid @border_hover;
+}
+
 /* The Roll row's sheet filter while it hides frames: the chip of a chosen item. */
 QToolButton[filtering="true"] {
     background-color: @bg_checked;
@@ -656,15 +696,26 @@ QListWidget#preset_list::item:selected {
     color: @text_primary;
 }
 
-/* Searchable gear combo (widgets/searchable_gear_combo.py): inline arrow + completer popup. */
-QToolButton#gear_combo_arrow {
-    border: none;
-    color: @text_secondary;
-    background: transparent;
+/* Searchable gear combo (widgets/searchable_gear_combo.py): the text field and its chevron share
+   one dropdown face; the face takes a text field's focus edge. */
+QWidget#gear_combo {
+    background-color: @bg_input;
+    border: 1px solid @border_primary;
+    border-radius: 4px;
 }
 
-QToolButton#gear_combo_arrow:hover {
-    color: @text_primary;
+QWidget#gear_combo[focused="true"] {
+    border: 1px solid @slider_disabled;
+}
+
+QWidget#gear_combo QLineEdit, QWidget#gear_combo QLineEdit:focus {
+    background: transparent;
+    border: none;
+}
+
+QToolButton#gear_combo_arrow {
+    border: none;
+    background: transparent;
 }
 
 /* QCompleter views — the QMenu/combo rules above don't reach them; mirror them.

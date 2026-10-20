@@ -148,3 +148,24 @@ def test_the_face_sits_on_the_track_surface_with_short_dividers(qapp):
     assert image.pixelColor(x, 3) == track and image.pixelColor(x - 1, 3) == track, "the divider stops short of the edge"
     assert track not in (image.pixelColor(x, h // 2), image.pixelColor(x - 1, h // 2)), "the divider shows at mid height"
     assert image.pixelColor(int(cells["prev"].center().x()), 0) == QColor(THEME.border_primary)
+
+
+def test_a_setting_stepper_stops_at_the_ends_and_opens_no_list(qapp):
+    from negpy.desktop.view.sidebar.live_view_window import SettingStepper
+
+    stepper = SettingStepper()
+    stepper.resize(240, stepper.height())
+    stepper.addItem("1/60", "1/60")
+    stepper.addItem("1/125", "1/125")
+    _changed, activated = _record(stepper)
+
+    assert stepper.currentIndex() == 0
+    _click(stepper, "prev")
+    assert (stepper.currentIndex(), activated) == (0, [])
+    _click(stepper, "next")
+    _click(stepper, "next")
+    assert (stepper.currentIndex(), activated) == (1, [1])
+    assert stepper.stepping()
+
+    _click(stepper, "face")
+    assert not stepper.view().isVisible()

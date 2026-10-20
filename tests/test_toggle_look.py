@@ -220,3 +220,46 @@ def test_a_checkable_list_row_takes_the_checkbox_look(qapp):
     rect = rows.visualItemRect(item).translated(rows.viewport().mapTo(rows.parentWidget(), QPoint(0, 0)))
     colors = {image.pixelColor(x, rect.center().y()).name() for x in range(rect.left(), rect.left() + 30)}
     assert QColor(THEME.bg_checked).name() in colors
+
+
+def _edge_and_fill(image: QImage, widget: QWidget) -> tuple[str, str]:
+    y = widget.geometry().center().y()
+    return image.pixelColor(widget.geometry().left(), y).name(), image.pixelColor(widget.geometry().left() + 3, y).name()
+
+
+def test_a_panel_tool_button_and_the_dropdown_faces_sit_on_the_track(qapp):
+    from PyQt6.QtWidgets import QComboBox, QToolButton
+
+    from negpy.desktop.view.widgets.searchable_gear_combo import SearchableGearCombo
+
+    boxed = QToolButton()
+    boxed.setText("Import")
+    boxed.setProperty("boxed", True)
+    boxed.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the app's buttons take Tab focus only
+    gear = SearchableGearCombo(placeholder="Search cameras…")
+    editable = QComboBox()
+    editable.setEditable(True)
+    editable.addItem("4000")
+    editable.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    track = (QColor(THEME.border_primary).name(), QColor(THEME.bg_input).name())
+    for widget in (boxed, editable):
+        _host, image = _on_card(widget)
+        assert _edge_and_fill(image, widget) == track, widget
+
+    host, image = _on_card(gear)
+    assert _edge_and_fill(image, gear)[0] == QColor(THEME.slider_disabled).name(), "the face shows the field's focus"
+    gear._line.clearFocus()
+    QTest.qWait(20)
+    assert _edge_and_fill(host.grab().toImage(), gear) == track
+    assert gear._arrow.text() == "" and not gear._arrow.icon().isNull()
+
+
+def test_a_running_scan_takes_the_chip_of_a_toggle_that_is_on(qapp):
+    from PyQt6.QtWidgets import QPushButton
+
+    stop = QPushButton(" Stop")
+    stop.setObjectName("scan_btn")
+    stop.setProperty("scanning", "true")
+    _host, image = _on_card(stop)
+
+    assert image.pixelColor(stop.geometry().left() + 4, stop.geometry().center().y()).name() == QColor(THEME.bg_checked).name()

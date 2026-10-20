@@ -2929,8 +2929,6 @@
   "“{name}” was not saved: the film base is {label}.": "未保存“{name}”，片基为{label}。",
   "“{new_name}” already exists. Replace it?": "“{new_name}”已存在。是否替换？",
   "“{value}” already exists in the export folder.": "导出文件夹中已存在“{value}”。",
-  "‹": "‹",
-  "›": "›",
   "→ lands {achieved}": "→ 得到 {achieved}",
   "● {value}": "● {value}",
   "⚠ Another program is using the camera. On macOS a background app that watches for cameras, a cloud sync client for example, holds it through the system camera daemon. Quit that app or unplug the cable. NegPy reconnects by itself.": "⚠ 其他程序正在使用相机。macOS 上监视相机的后台程序可能通过系统相机守护进程占用设备，例如云同步客户端。请退出该程序或拔插连接线，NegPy 会自动重新连接。",

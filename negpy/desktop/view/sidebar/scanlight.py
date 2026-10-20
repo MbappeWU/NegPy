@@ -1668,7 +1668,7 @@ class ScanlightSidebar(QWidget):
                 stepper.blockSignals(False)
             return
         stepper.setEnabled(bool(info.get("writable", False)))
-        if stepper.hasFocus():
+        if stepper.stepping():
             return  # don't snap the value back while the user is stepping
         options = info.get("options", [])
         if not self._settings_loaded or stepper.count() != len(options):
@@ -1687,7 +1687,7 @@ class ScanlightSidebar(QWidget):
         """The IR stepper offers the body's shutter choices and holds the saved IR shutter: a
         setting of its own, never a mirror of the body. With none saved it shows the body's."""
         stepper = self.ir_shutter_stepper
-        if not info or stepper.hasFocus():
+        if not info or stepper.stepping():
             return
         stepper.setEnabled(bool(info.get("writable", False)))
         options = info.get("options", [])
@@ -2367,7 +2367,7 @@ class ScanlightSidebar(QWidget):
             self._capturing = ()
         self.scan_btn.setText(tr(" Stop") if active else tr(" Scan"))
         self.scan_btn.setIcon(
-            qta.icon("fa5s.stop" if active else "fa5s.camera", color=THEME.accent_secondary if active else THEME.text_on_accent)
+            qta.icon("fa5s.stop" if active else "fa5s.camera", color=THEME.text_primary if active else THEME.text_on_accent)
         )
         # Qt re-reads a QSS property selector only on a repolish.
         self.scan_btn.setProperty("scanning", "true" if active else "false")
