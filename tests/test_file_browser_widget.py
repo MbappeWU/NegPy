@@ -694,43 +694,20 @@ def test_the_scroll_bars_sit_on_the_edge_and_the_film_runs_off_the_other_edges(b
     assert (table_vp.top(), table_vp.bottom()) == (0, table.height() - 1)
 
 
-def test_the_strip_margin_above_and_below_the_film_follows_its_height(browser, qapp):
-    from PyQt6.QtWidgets import QWidget
-
-    view = browser.list_view
-    browser.session.set_film_edges(True)
-    # A child resizes at once; a window's size can settle late.
-    host = QWidget()
-    browser.setParent(host)
-    host.resize(1000, 600)
-    host.show()
-    margins = []
-    for height in (400, 120):
-        browser.setGeometry(0, 0, 900, height)
-        qapp.processEvents()
-        cell = view.visualRect(view.model().index(0, 0))
-        margin = view.itemDelegate().band(cell).top() - cell.top()
-        assert abs(margin - round(view.height() * view.MARGIN_SHARE)) <= 1
-        assert view.viewport().height() - view.gridSize().height() <= 2
-        margins.append(margin)
-
-    assert margins[0] > margins[1] > 0
-    host.hide()
-
-
 def test_the_wheel_moves_the_strip_a_frame_a_notch(browser, qapp):
     view = browser.list_view
-    browser.session.set_film_edges(True)
     browser.resize(300, 260)
     browser.show()
     qapp.processEvents()
     bar = view.horizontalScrollBar()
-    assert bar.maximum() > view.gridSize().width(), "fixture strip does not scroll"
+    # A notch moves the height of a frame: frames differ in width.
+    notch = view.viewport().height()
+    assert bar.maximum() > notch, "fixture strip does not scroll"
 
     view.wheelEvent(_wheel(angle_y=-120))
-    assert bar.value() == view.gridSize().width()
+    assert bar.value() == notch
     view.wheelEvent(_wheel(pixel_y=10))
-    assert bar.value() == view.gridSize().width() - 10
+    assert bar.value() == notch - 10
 
 
 def _swipe(dx: int, dy: int, phase: Qt.ScrollPhase, pixel: bool = True) -> QWheelEvent:
@@ -749,7 +726,6 @@ def _swipe(dx: int, dy: int, phase: Qt.ScrollPhase, pixel: bool = True) -> QWhee
 
 def test_a_sideways_swipe_keeps_its_axis_through_vertical_drift(browser, qapp):
     view = browser.list_view
-    browser.session.set_film_edges(True)
     browser.resize(300, 260)
     browser.show()
     qapp.processEvents()
@@ -767,7 +743,7 @@ def test_a_sideways_swipe_keeps_its_axis_through_vertical_drift(browser, qapp):
     assert bar.value() == 205, "a vertical swipe stays vertical"
 
     view.wheelEvent(_swipe(-120, 10, Qt.ScrollPhase.NoScrollPhase, pixel=False))
-    assert bar.value() == 205 + view.gridSize().width(), "a wheel notch takes its larger axis"
+    assert bar.value() == 205 + view.viewport().height(), "a wheel notch takes its larger axis"
 
 
 # --- Grid scrolling & empty-space menu -------------------------------------
@@ -790,8 +766,7 @@ def _scrollable(browser, value: int = 0):
     """Lay the Light Table out narrow and short so the grid genuinely overflows — the
     scrollbar range is recomputed from the layout, so it can't just be faked."""
     view = browser.light_table_view
-    browser.session.set_film_edges(True)
-    view.resize(240, 300)
+    view.resize(240, 160)
     view.show()
     QApplication.processEvents()
     bar = view.verticalScrollBar()

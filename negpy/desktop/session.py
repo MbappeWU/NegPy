@@ -205,8 +205,6 @@ class AppState:
 
     # Canvas background color swatch index (0=Black, 1=Dark Gray, 2=Mid Gray, 3=White, 4=Light Gray)
     canvas_bg_index: int = 2
-    # Rebate, perforations and edge print around the frames of the Film Strip and the Light Table
-    film_edges: bool = False
     # Render the thumbnails of frames a bulk edit wrote without opening them; off marks them stale
     auto_thumbnail_refresh: bool = False
     # Preferences > Accessibility, a key into styles.color_vision.PALETTES
@@ -858,7 +856,6 @@ class DesktopSessionManager(QObject):
     # A view that reads styles.color_vision repaints on this.
     color_vision_changed = pyqtSignal()
     canvas_bg_changed = pyqtSignal()
-    film_edges_changed = pyqtSignal()
     settings_synced = pyqtSignal(str)  # Bulk "Apply to selected" done — carries a status message
     frames_edited_offscreen = pyqtSignal(list)  # hashes whose saved edits changed without a render
     file_selected = pyqtSignal(str)  # Emits file path when active file changes
@@ -909,9 +906,6 @@ class DesktopSessionManager(QObject):
         saved_bg = self.repo.get_global_setting("canvas_bg_index")
         if saved_bg is not None:
             self.state.canvas_bg_index = int(saved_bg)
-        saved_edges = self.repo.get_global_setting("film_edges")
-        if saved_edges is not None:
-            self.state.film_edges = bool(saved_edges)
         self.state.auto_thumbnail_refresh = bool(self.repo.get_global_setting("auto_thumbnail_refresh", False))
         self.state.color_vision = str(self.repo.get_global_setting("color_vision", "standard") or "standard")
         self.state.zone_hover_highlight = bool(self.repo.get_global_setting("zone_hover_highlight", True))
@@ -1101,12 +1095,6 @@ class DesktopSessionManager(QObject):
             self.state.canvas_bg_index = index
             self.repo.save_global_setting("canvas_bg_index", index)
             self.canvas_bg_changed.emit()
-
-    def set_film_edges(self, on: bool) -> None:
-        if self.state.film_edges != on:
-            self.state.film_edges = on
-            self.repo.save_global_setting("film_edges", on)
-            self.film_edges_changed.emit()
 
     def set_auto_thumbnail_refresh(self, on: bool) -> None:
         if self.state.auto_thumbnail_refresh != on:

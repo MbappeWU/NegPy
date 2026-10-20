@@ -823,7 +823,6 @@ Shows the whole strip, to place and pick the frames before the scan. **Apply** k
 *   **Language**: English, Simplified Chinese, Japanese or Korean, after a restart.
 *   **UI scale**: 80% to 120%, after a restart.
 *   **Canvas background**: from black to white. Mid gray is best for judging a print.
-*   **Film edges**: shows the Film Strip and the Light Table as film, with perforations and edge print. Off (the default), each frame stands upright in a thin border, and a line in the scene's color runs over a scene's frames, with its name at the start.
 *   **Sticky zoom**: keeps the zoom when you change frames. **Reverse scroll zoom**: scroll up zooms out.
 *   **Customize Shortcuts…**, **Edit Toolbar…** and **Reset Panel Layout**.
 

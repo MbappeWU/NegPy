@@ -57,12 +57,6 @@ class TestPreferencesDialog(unittest.TestCase):
         self.assertTrue(dlg.canvas_pills[1].isChecked())
         self.assertFalse(dlg.canvas_pills[2].isChecked())
 
-    def test_film_edges_default_off_and_go_through_the_session(self):
-        dlg = _dlg()
-        self.assertFalse(dlg.film_edges_box.isChecked())
-        dlg.film_edges_box.setChecked(True)
-        dlg.session.set_film_edges.assert_called_once_with(True)
-
     def test_automatic_thumbnail_updates_default_off_and_go_through_the_session(self):
         dlg = _dlg()
         self.assertFalse(dlg.auto_thumbnails_box.isChecked())
