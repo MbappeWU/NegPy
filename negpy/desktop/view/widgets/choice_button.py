@@ -423,5 +423,5 @@ class SegmentedChoice(QWidget):
                 p.drawText(QRectF(x + icon_w + gap, r.top(), text_w + 1, r.height()), Qt.AlignmentFlag.AlignVCenter, label)
             if self._edited[i]:
                 p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(QColor(THEME.channel_red))
+                p.setBrush(QColor(THEME.mark_edited))
                 p.drawEllipse(QRectF(r.right() - self._DOT - THEME.space_sm, r.top() + THEME.space_sm, self._DOT, self._DOT))

@@ -208,7 +208,7 @@ def test_a_warning_marks_a_closed_fold_amber_and_an_edit_outranks_it():
     assert fold.button.is_marked() and fold.button._mark_color == THEME.warn_amber
 
     shadows.setValue(-15)
-    assert fold.button._mark_color == THEME.channel_red
+    assert fold.button._mark_color == THEME.mark_edited
 
     fold.set_open(True)
     assert not fold.button.is_marked()

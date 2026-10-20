@@ -107,7 +107,7 @@ class PanelTab(QAbstractButton):
         p.setPen(Qt.PenStyle.NoPen)
         if self._marked:
             anchor = text_rect if text_w else icon_rect
-            p.setBrush(QColor(THEME.channel_red))
+            p.setBrush(QColor(THEME.mark_edited))
             # Close to the name, so the dot stays inside the chip of the narrowest tab.
             p.drawEllipse(QPointF(anchor.right() + THEME.space_xs, anchor.top() + THEME.space_xs), _DOT / 2, _DOT / 2)
         if self.hasFocus():

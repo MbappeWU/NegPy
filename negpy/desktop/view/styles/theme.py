@@ -35,6 +35,13 @@ class ThemeConfig:
     bg_checked_hover: str = "#351F1F"
     border_checked: str = "#4A2424"
     border_checked_hover: str = "#5E2A2A"
+    # The primary action: the strongest button on a panel, short of the bright accent.
+    bg_primary: str = "#4A1C1C"
+    bg_primary_hover: str = "#5A2121"
+    # An edited card's frame-scope stripe; a roll-scope card takes border_checked_hover.
+    border_scope_frame: str = "#5D4B24"
+    # The dot on an edited control: red, a step below the R channel's red.
+    mark_edited: str = "#9C3B3B"
     bg_accent_muted: str = "#1A1414"
     border_input: str = "#1A1A1A"
     border_primary: str = "#262626"

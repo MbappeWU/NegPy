@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QMenu, QStyle, QStyleOptionViewItem, QW
 from negpy.desktop.view.styles.templates import labeled_action, load_stylesheet, tool_toggle
 from negpy.desktop.view.styles.theme import THEME
 from negpy.desktop.view.widgets.choice_button import ToggleMenuButton
+from negpy.desktop.view.widgets.collapsible import CollapsibleSection
 from negpy.desktop.view.widgets.flat_rows import paint_fill
 from negpy.desktop.view.widgets.step_combo import StepCombo
 
@@ -88,3 +89,39 @@ def test_the_current_dropdown_row_takes_the_chip_and_lightens_on_hover(qapp):
 
     assert fill(QStyle.StateFlag.State_None) == QColor(THEME.bg_checked).name()
     assert fill(QStyle.StateFlag.State_Selected) == QColor(THEME.bg_checked_hover).name()
+
+
+def test_an_edited_card_takes_a_dim_scope_stripe(qapp):
+    for scope, token in (("frame", THEME.border_scope_frame), ("roll", THEME.border_checked_hover)):
+        section = CollapsibleSection("Calibration")
+        section.setStyleSheet(load_stylesheet())
+        section.set_modified(1)
+        section.set_scope_buttons(visible=True, scope=scope)
+        header = section.toggle_button.grab().toImage()
+
+        assert header.pixelColor(1, header.height() // 2).name() == QColor(token).name(), scope
+
+
+def test_the_lit_scope_button_is_white(qapp):
+    section = CollapsibleSection("Calibration")
+    for scope, btn in (("frame", "frame_btn"), ("roll", "roll_btn")):
+        section.set_scope_buttons(visible=True, scope=scope)
+        image = getattr(section, btn).icon().pixmap(16, 16).toImage()
+        white = QColor(THEME.text_primary)
+        pixels = [image.pixelColor(x, y) for x in range(16) for y in range(16) if image.pixelColor(x, y).alpha() > 200]
+
+        assert pixels and all(
+            max(abs(c.red() - white.red()), abs(c.green() - white.green()), abs(c.blue() - white.blue())) <= 3 for c in pixels
+        ), scope
+
+
+def test_a_primary_button_is_a_dark_red_fill(qapp):
+    host = QWidget()
+    host.setStyleSheet(load_stylesheet())
+    button = labeled_action("fa5s.check", "Export", "", primary=True)
+    QHBoxLayout(host).addWidget(button)
+    host.resize(240, 60)
+    image = host.grab().toImage()
+    probe = button.geometry().topLeft() + QPoint(4, button.height() // 2)
+
+    assert image.pixelColor(probe).name() == QColor(THEME.bg_primary).name()

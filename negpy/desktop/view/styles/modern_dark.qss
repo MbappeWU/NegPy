@@ -59,7 +59,8 @@ QPushButton:hover {
 }
 
 QPushButton:pressed {
-    background-color: @accent_primary;
+    background-color: @bg_checked_hover;
+    border: 1px solid @border_checked_hover;
     color: @text_on_accent;
 }
 
@@ -85,20 +86,20 @@ QPushButton[checkable="true"]:hover:!checked {
    writes files, so it is the one filled button in the app. While a scan runs it
    reads "Stop" and goes hollow — the same accent, but not an invitation. */
 QPushButton#scan_btn {
-    background-color: @accent_primary;
+    background-color: @bg_primary;
     color: @text_on_accent;
-    border: 1px solid @accent_secondary;
+    border: 1px solid @accent_pressed;
     border-radius: 4px;
     font-weight: 600;
 }
 
 QPushButton#scan_btn:hover {
-    background-color: @accent_secondary;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_primary_hover;
+    border: 1px solid @accent_primary;
 }
 
 QPushButton#scan_btn:pressed {
-    background-color: @accent_pressed;
+    background-color: @bg_checked_hover;
     color: @text_on_accent;
 }
 
@@ -174,7 +175,7 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:horizontal:hover { background: @text_primary; }
-QSlider::handle:horizontal:pressed { background: @accent_primary; }
+QSlider::handle:horizontal:pressed { background: @text_primary; }
 
 /* An even track: the handle and the value say where it is. */
 QSlider::sub-page:horizontal {
@@ -410,15 +411,15 @@ QFrame#collapsible_content {
     border-top: none;
 }
 
-/* A card's scope (widgets/collapsible.py set_scope_buttons), as a stripe on the header
-   alone: the same amber and red the Frame/Roll buttons beside it carry, so the card says
-   which one is lit without the buttons being read. */
+/* A card's scope (widgets/collapsible.py set_scope_buttons), as a dim stripe on the header
+   alone: amber for a frame card, red for a roll card, so the card says its scope without the
+   Frame/Roll buttons being read. */
 QPushButton#collapsible_header[scope="frame"] {
-    border-left: 3px solid @warn_amber;
+    border-left: 3px solid @border_scope_frame;
 }
 
 QPushButton#collapsible_header[scope="roll"] {
-    border-left: 3px solid @accent_secondary;
+    border-left: 3px solid @border_checked_hover;
 }
 
 /* Section content must not repaint over the card: plain QWidget bodies would
@@ -506,8 +507,9 @@ QFrame#shortcut_editor_row {
 }
 
 QFrame#shortcut_editor_row[highlighted="true"], QFrame#reveal_flash {
-    background-color: rgba(183, 28, 28, 0.12);
-    border-left: 2px solid @accent_primary;
+    background-color: rgba(183, 28, 28, 0.10);
+    border: 1px solid @border_checked_hover;
+    border-radius: 4px;
 }
 
 QLabel#update_label {
@@ -517,22 +519,22 @@ QLabel#update_label {
     padding: 5px;
 }
 
-/* Primary action (Export in the Export panel): solid accent fill so it reads
+/* Primary action (Export in the Export panel): a dark red fill with a red edge, so it reads
    as the one call-to-action, not a disabled outline. */
 QPushButton[primary="true"], QToolButton[primary="true"] {
-    background-color: @accent_primary;
-    border: 1px solid @accent_primary;
+    background-color: @bg_primary;
+    border: 1px solid @accent_pressed;
     color: @text_on_accent;
     font-weight: 600;
 }
 
 QPushButton[primary="true"]:hover, QToolButton[primary="true"]:hover {
-    background-color: @accent_secondary;
-    border: 1px solid @accent_secondary;
+    background-color: @bg_primary_hover;
+    border: 1px solid @accent_primary;
 }
 
 QPushButton[primary="true"]:pressed, QToolButton[primary="true"]:pressed {
-    background-color: @accent_pressed;
+    background-color: @bg_checked_hover;
     border: 1px solid @accent_pressed;
 }
 

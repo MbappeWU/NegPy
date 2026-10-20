@@ -282,7 +282,7 @@ class CollapsibleSection(QWidget):
         self, visible: bool, scope: str, roll_tooltip: str = "", frame_tooltip: str = "", roll_enabled: bool = True
     ) -> None:
         """The header's Frame/Roll pair: which scope this card's values live at, and the
-        one click that moves them to the other. The active half is colored and checked,
+        one click that moves them to the other. The active half is bright and checked,
         the other is the affordance; clicking the active one does nothing. A Roll-tab card
         reads its lock here, a frame card is always Frame and uses Roll as a one-shot
         push.
@@ -294,14 +294,11 @@ class CollapsibleSection(QWidget):
             self.frame_btn = self._build_scope_button("fa5s.image", "frame")
             self.roll_btn = self._build_scope_button("fa5s.film", "roll")
         self._scope = scope
-        for btn, key, color in (
-            (self.frame_btn, "frame", THEME.warn_amber),
-            (self.roll_btn, "roll", THEME.accent_secondary),
-        ):
+        for btn, key in ((self.frame_btn, "frame"), (self.roll_btn, "roll")):
             active = key == scope
             btn.setVisible(visible)
             btn.setChecked(active)
-            btn.setIcon(qta.icon(btn.property("scope_icon"), color=color if active else THEME.text_muted))
+            btn.setIcon(qta.icon(btn.property("scope_icon"), color=THEME.text_primary if active else THEME.text_muted))
         self.roll_btn.setEnabled(roll_enabled)
         self.frame_btn.setToolTip(frame_tooltip or f"{self._title_text} is this frame's own")
         self.roll_btn.setToolTip(roll_tooltip or f"Give the roll this frame's {self._title_text}…")
@@ -309,7 +306,7 @@ class CollapsibleSection(QWidget):
         self._refresh_scope_stripe()
 
     def _refresh_scope_stripe(self) -> None:
-        """The header carries the lit button's own colour as a stripe (QSS [scope] rules),
+        """The header carries the scope as a dim stripe (QSS [scope] rules),
         and only on a card holding something other than its defaults: a stripe down every
         untouched card says nothing. The body stays plain, like every other sidebar's."""
         striped = self._scope_visible and self.modified_count > 0

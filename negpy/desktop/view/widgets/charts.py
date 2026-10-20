@@ -1276,9 +1276,10 @@ class ZoneStripWidget(QWidget):
                 if (shadow_warn and i <= 1) or (highlight_warn and i >= n - 2):
                     painter.fillRect(x0, 0, x1 - x0, h, _alpha(THEME.clip_warning, 90))
                 armed = i == self._armed
-                painter.setPen(QPen(QColor(THEME.accent_primary) if armed else _alpha(THEME.text_hint, 160)))
+                painter.setPen(QPen(QColor(THEME.text_primary) if armed else _alpha(THEME.text_hint, 160)))
                 painter.drawText(QRect(x0, 0, x1 - x0, h), Qt.AlignmentFlag.AlignCenter, self._LABELS[i])
                 if armed:
+                    painter.setPen(QPen(QColor(THEME.border_checked_hover), 1))
                     painter.setBrush(Qt.BrushStyle.NoBrush)
                     painter.drawRect(QRect(x0, 0, x1 - x0 - 1, h - 1))
                 if i:

@@ -30,14 +30,14 @@ class FoldButton(QAbstractButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self._marked = False
-        self._mark_color = THEME.channel_red
+        self._mark_color = THEME.mark_edited
         self._font = QFont(self.font())
         self._font.setPixelSize(THEME.font_size_small)
         self._font.setWeight(QFont.Weight(THEME.weight_semibold))
         if not text:
             self.setFixedWidth(self.GUTTER)
 
-    def set_marked(self, marked: bool, color: str = THEME.channel_red) -> None:
+    def set_marked(self, marked: bool, color: str = THEME.mark_edited) -> None:
         if (marked, color) != (self._marked, self._mark_color):
             self._marked = marked
             self._mark_color = color
@@ -170,7 +170,7 @@ class Fold(QWidget):
         edited = not self._open and any(not dot.isHidden() for dot in self.content.findChildren(EditedDot))
         warning = not self._open and self._warning and not edited
         for button in self.buttons:
-            button.set_marked(edited or warning, THEME.warn_amber if warning else THEME.channel_red)
+            button.set_marked(edited or warning, THEME.warn_amber if warning else THEME.mark_edited)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if obj in self._labels and event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
