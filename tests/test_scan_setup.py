@@ -192,6 +192,8 @@ class TestApplyScanSetup(unittest.TestCase):
         self.assertNotIn("last_narrowband_scan", saved)
 
     def test_updates_the_open_frame(self):
+        state = self.mock_session_manager.state
+        state.config = replace(state.config, process=replace(state.config.process, linear_raw=True))
         self.controller.apply_scan_setup("camera", "white")
         config = self.mock_session_manager.update_config.call_args.args[0]
         self.assertFalse(config.process.linear_raw)
@@ -230,9 +232,22 @@ class TestApplyScanSetup(unittest.TestCase):
         self.assertFalse(self.mock_session_manager.update_config.call_args.kwargs["render"])
 
     def test_unchanged_linear_raw_renders_without_reloading(self):
-        self.controller.apply_scan_setup("camera", "white")
+        self._open_frame_paper("white", paper="pakon")
         self.controller.load_file.assert_not_called()
         self.assertTrue(self.mock_session_manager.update_config.call_args.kwargs["render"])
+
+    def test_a_new_stock_alone_keeps_the_frames_bounds(self):
+        state = self.mock_session_manager.state
+        state.config = replace(state.config, process=replace(state.config.process, linear_raw=True, local_floors=(0.1, 0.1, 0.1)))
+        self._open_frame_paper("narrowband")
+        self.assertEqual(self.mock_session_manager.update_config.call_args.args[0].process.local_floors, (0.1, 0.1, 0.1))
+
+    def test_frames_the_setup_does_not_change_are_left_alone(self):
+        self.controller.apply_scan_setup("camera", "white")
+        self.mock_session_manager.update_config.assert_not_called()
+        self.repo.save_file_settings.assert_not_called()
+        self.mock_session_manager.push_external_history.assert_not_called()
+        self.mock_session_manager.frames_edited_offscreen.emit.assert_not_called()
 
     def test_rewrites_other_frames_that_have_saved_edits(self):
         self.controller.apply_scan_setup("scanner", "narrowband")

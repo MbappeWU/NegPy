@@ -1950,8 +1950,8 @@ class AppController(QObject):
         )
 
     def apply_scan_setup(self, capture: str, light: str) -> None:
-        """Apply the scanning-setup wizard's answer: Linear RAW and the print stock follow the
-        rig, so they land on the new-file defaults, the open frame and every already-edited frame at once."""
+        """Apply the Scanning Setup card's rig: Linear RAW and the print stock follow it, so they land on
+        the new-file defaults, the open frame and every already-edited frame they change."""
         linear_raw, paper = scan_setup_values(capture, light)
         self.session.repo.save_global_settings(
             {
@@ -1964,14 +1964,17 @@ class AppController(QObject):
             exposure = config.exposure
             if config.process.process_mode == ProcessMode.C41 and exposure.paper_profile in SCAN_SETUP_PAPERS:
                 exposure = replace(exposure, paper_profile=paper)
-            process = replace(config.process, linear_raw=linear_raw, **invalidate_local_bounds(config.process))
+            process = config.process
+            if process.linear_raw != linear_raw:
+                # The bounds were measured on the other decode.
+                process = replace(process, linear_raw=linear_raw, **invalidate_local_bounds(process))
             return replace(config, process=process, exposure=exposure)
 
         reload_needed = False
-        if self.state.current_file_hash:
+        if self.state.current_file_hash and (rigged := with_rig(self.state.config)) != self.state.config:
             reload_needed = self.state.config.process.linear_raw != linear_raw
             # render=False when reloading: bounds must not be analysed on the stale decode.
-            self.session.update_config(with_rig(self.state.config), persist=True, render=not reload_needed)
+            self.session.update_config(rigged, persist=True, render=not reload_needed)
 
         # After the open frame's persist, which rewrites the new-file snapshot from that frame.
         sticky = self.session.repo.get_global_setting(STICKY_CONFIG_KEY)
@@ -1988,9 +1991,8 @@ class AppController(QObject):
             # Frames with no saved edits inherit the sticky defaults when first hydrated,
             # so writing them here would only churn the DB.
             saved = self.session.repo.load_file_settings(file_hash)
-            if saved is None:
+            if saved is None or (updated := with_rig(saved)) == saved:
                 continue
-            updated = with_rig(saved)
             self.session.push_external_history(file_hash, saved, updated)
             self.session.repo.save_file_settings(file_hash, updated, file_path=asset["path"])
             changed_hashes.append(file_hash)
