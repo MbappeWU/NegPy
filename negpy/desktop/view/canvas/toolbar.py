@@ -971,7 +971,8 @@ class ActionToolbar(QWidget):
         self.btn_zone_close.clicked.connect(lambda: self.controller.toggle_zones_overlay(force=False))
         for widget in (self.zone_style, self.btn_zone_close):
             widget.setFixedHeight(BAR_BUTTON_HEIGHT)
-        layout.addWidget(field_label(tr("Zone overlay")))
+        self._zone_label = field_label(tr("Zone overlay"))
+        layout.addWidget(self._zone_label)
         layout.addWidget(self.zone_style)
         layout.addWidget(self._create_separator())
         layout.addWidget(self.zone_legend)
@@ -1591,7 +1592,7 @@ class ActionToolbar(QWidget):
 
     def _activate_layout(self) -> None:
         # Innermost first: an outer layout reads its rows' size hints as of their last activation.
-        for widget in (self._view_row, self._tool_row, self._light_table_row, self._rows, self):
+        for widget in (self._view_row, self._tool_row, self._paper_row, self._zone_row, self._light_table_row, self._rows, self):
             layout = widget.layout()
             if layout is not None:
                 layout.activate()
@@ -1805,6 +1806,17 @@ class ActionToolbar(QWidget):
                 if self._bar_width() <= w:
                     break
                 widget.setVisible(False)
+            self._activate_layout()
+            return
+        if not self._zone_row.isHidden():
+            # The name goes first, then the legend's readout.
+            steps = (self._zone_label.setVisible, self.zone_legend.show_readout)
+            for step in steps:
+                step(True)
+            for step in steps:
+                if self._bar_width() <= w:
+                    break
+                step(False)
             self._activate_layout()
             return
         if not self._light_table_row.isHidden():

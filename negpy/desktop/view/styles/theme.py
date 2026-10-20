@@ -10,7 +10,6 @@ class ThemeConfig:
 
     # Fonts (families are resolved at runtime in styles/fonts.py). Four roles, in px:
     # small = caption/hint, base = body (also the QSS global), header = section, title = dialog.
-    # display is the sidebar wordmark alone.
     font_size_small: int = 12
     font_size_base: int = 13
     font_size_header: int = 14

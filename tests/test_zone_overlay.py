@@ -149,10 +149,12 @@ def test_legend_rings_the_pointer_zone_and_reports_hover(qapp):
     legend = ZoneLegend()
     legend.set_colors(zone_colors("false_color", "standard"))
     legend.set_shares(np.full(11, 1 / 11))
+    assert legend.readout() == ("Zone –", "")
     legend.set_ringed(4)
+    assert legend.readout() == ("Zone IV", "9%")
     hovered = []
     legend.zone_hovered.connect(hovered.append)
-    x = legend.width() * 6.5 / 11
+    x = legend._cell(6).center().x()
     legend.mouseMoveEvent(
         QMouseEvent(
             QEvent.Type.MouseMove,
@@ -163,6 +165,7 @@ def test_legend_rings_the_pointer_zone_and_reports_hover(qapp):
             Qt.KeyboardModifier.NoModifier,
         )
     )
+    assert legend.readout() == ("Zone VI", "9%")
     legend.leaveEvent(None)
     assert legend._ringed == 4
     assert hovered == [6, None]

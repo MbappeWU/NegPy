@@ -979,6 +979,23 @@ class TestZoneRow(unittest.TestCase):
         tb.zone_style.setCurrentIndex(2)
         tb.controller.set_zones_style.assert_called_with("grid")
 
+    def test_a_narrow_canvas_drops_the_name_then_the_readout(self):
+        tb = _make_toolbar()
+        tb.session.state.zones_overlay = True
+        tb._sync_tool_row()
+        tb.show()
+        QApplication.processEvents()
+        tb.set_available_width(4000)
+        legend_w, bar_w = tb.zone_legend.width(), tb._bar_width()
+        self.assertFalse(tb._zone_label.isHidden())
+        tb.set_available_width(bar_w - 1)
+        self.assertTrue(tb._zone_label.isHidden())
+        self.assertEqual(tb.zone_legend.width(), legend_w)
+        self.assertLess(tb._bar_width(), bar_w)
+        tb.set_available_width(320)
+        self.assertLess(tb.zone_legend.width(), legend_w)
+        self.assertFalse(tb.btn_zone_close.isHidden())
+
     def test_legend_hover_highlights_whatever_the_strip_setting(self):
         tb = _make_toolbar()
         tb.zone_legend.zone_hovered.emit(6)
