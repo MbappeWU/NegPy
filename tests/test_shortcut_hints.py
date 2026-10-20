@@ -14,7 +14,8 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QPushButton
 
 from negpy.desktop.view import shortcut_registry
-from negpy.desktop.view.shortcut_hints import ShortcutHints
+from negpy.desktop.view.canvas.hud import CanvasHud
+from negpy.desktop.view.shortcut_hints import ShortcutHints, _hint_html
 from negpy.desktop.view.shortcut_registry import default_bindings, display_key, shortcut_ids_in, tooltip_with_shortcut
 from negpy.desktop.view.widgets.sliders import CompactSlider
 
@@ -80,3 +81,14 @@ def test_a_slider_hint_names_the_slider_and_both_keys(hints) -> None:
     QTest.mouseClick(slider.slider, Qt.MouseButton.LeftButton)
     assert len(shown) == 1
     assert "Temperature" in shown[0] and ">T<" in shown[0] and ">G<" in shown[0]
+
+
+def test_a_long_hint_stays_on_one_line_in_the_toast() -> None:
+    hud = CanvasHud()
+    hud.resize(1200, 800)
+    hud.show()
+    heights = []
+    for name in ("Toe", "Highlights Density"):
+        hud.showMessage(_hint_html(name, ["Alt+Shift+T", "Alt+T"]), 1000)
+        heights.append(hud.toast.heightForWidth(hud.toast.minimumWidth()))
+    assert heights[0] == heights[1]

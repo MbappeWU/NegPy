@@ -1,7 +1,9 @@
 from negpy.kernel.system.i18n import tr
+import math
 from typing import Any, Tuple
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QTextDocument
 from PyQt6.QtWidgets import QGridLayout, QLabel, QProgressBar, QWidget
 
 from negpy.desktop.view.styles.templates import toast_qss
@@ -155,14 +157,21 @@ class CanvasHud(QWidget):
         # block, so a long message folds into narrow lines rather than using the width it is
         # allowed. Short toasts keep their natural width.
         cap = max(_TOAST_MIN_WIDTH, int(self.width() * _TOAST_WIDTH_RATIO))
-        # Rich text (a shortcut hint's keycaps) sizes itself; measuring its markup would not.
-        one_line = 0 if text.startswith("<") else self.toast.fontMetrics().horizontalAdvance(text) + _TOAST_PADDING
         self.toast.setMaximumWidth(cap)
-        self.toast.setMinimumWidth(min(cap, one_line))
+        self.toast.setMinimumWidth(min(cap, self._one_line_width(text)))
         self.toast.setStyleSheet(toast_qss(kind))
         self.toast.setText(text)
         self.toast.show()
         self._toast_timer.start(timeout if timeout > 0 else _DEFAULT_TOAST_MS)
+
+    def _one_line_width(self, text: str) -> int:
+        if not text.startswith("<"):
+            return self.toast.fontMetrics().horizontalAdvance(text) + _TOAST_PADDING
+        # Rich text (a shortcut hint's keycaps) is measured laid out, not as its markup.
+        doc = QTextDocument()
+        doc.setDefaultFont(self.toast.font())
+        doc.setHtml(text)
+        return math.ceil(doc.idealWidth()) + _TOAST_PADDING
 
     def set_progress(self, current: int, total: int) -> None:
         if total <= 0:
