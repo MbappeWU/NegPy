@@ -40,7 +40,7 @@ from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE
 from negpy.infrastructure.gpu.resources import GPUTexture
 from negpy.kernel.system.config import APP_CONFIG
 from negpy.kernel.system.logging import get_logger
-from negpy.services.rendering.image_processor import ImageProcessor, preview_takes_unmix
+from negpy.services.rendering.image_processor import ImageProcessor, preview_takes_unmix, read_source_base
 
 logger = get_logger(__name__)
 
@@ -324,6 +324,8 @@ class PreviewLoadTask:
     half_slice: tuple[int, float, tuple[float, float, float, float] | None, float, str] | None = (
         None  # (half, split_x, crop_rect, gutter_thickness, split_axis)
     )
+    # A cache warm also reads the frame's clear base with this config; None skips the read.
+    base_settings: Optional[WorkspaceConfig] = None
 
 
 class RenderWorker(QObject):
@@ -1293,6 +1295,24 @@ class PreviewLoadWorker(QObject):
                     lens_corrections=task.lens_corrections,
                     lens_flatfield=task.lens_flatfield,
                 )
+            # Outside the memory gate: the read holds no decode memory, and a foreground decode
+            # of this file must not wait on it.
+            if task.base_settings is not None and self._prefetch_is_current(task):
+                cached = self._preview_service.peek_linear_preview(
+                    task.file_path,
+                    task.workspace_color_space,
+                    use_camera_wb=task.use_camera_wb,
+                    file_hash=task.file_hash,
+                    demosaic=task.demosaic,
+                    positive_source=task.positive_source,
+                    highlight_mode=task.highlight_mode,
+                    bake_camera_wb=task.bake_camera_wb,
+                    lens_corrections=task.lens_corrections,
+                    lens_flatfield=task.lens_flatfield,
+                )
+                if cached is not None:
+                    buffer, _dims, metadata = cached
+                    read_source_base(buffer, task.base_settings, task.file_hash, metadata.get("orientation", 1))
         except InterruptedError:
             pass
         except Exception as error:
