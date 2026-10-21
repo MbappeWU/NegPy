@@ -25,7 +25,6 @@ from negpy.features.exposure.normalization import (
     base_scan_density,
     effective_crosstalk_matrix,
     geometry_kwargs,
-    measure_base_log,
     normalized_roi,
 )
 from negpy.features.process.hue import apply_hue_trim
@@ -42,6 +41,7 @@ from negpy.features.lab.processor import PhotoLabProcessor
 from negpy.features.finish.processor import FinishProcessor, rebate_tone
 from negpy.kernel.system.config import APP_CONFIG, render_scale_factor
 from negpy.services.view.coordinate_mapping import CoordinateMapping
+from negpy.services.rendering.base_read import base_log_for
 
 logger = get_logger(__name__)
 
@@ -123,14 +123,13 @@ class DarkroomEngine:
 
     def _source_base_log(self, img_in: ImageBuffer, ctx: PipelineContext) -> Optional[tuple]:
         """The clear base in raw log: the roll's picked one (the Film Base tool) wins, else the
-        rebate read, measured once per source before geometry."""
+        source's rebate read, which `run_pipeline` takes before the defect repairs."""
         picked = ctx.metrics.get("film_base")
         if picked is not None:
             return tuple(picked)
-        if not self.cache.base_measured:
-            self.cache.base_log = measure_base_log(img_in)
-            self.cache.base_measured = True
-        return self.cache.base_log
+        if "source_base_log" in ctx.metrics:
+            return ctx.metrics["source_base_log"]
+        return base_log_for(self.cache.source_hash, img_in)
 
     def process(
         self,

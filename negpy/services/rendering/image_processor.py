@@ -25,6 +25,7 @@ from negpy.domain.models import (
 from negpy.features.altprocess.models import AltProcess
 from negpy.features.process.capture_color import wb_only_cam_xyz
 from negpy.features.process.models import DemosaicMode, ProcessMode, invalidate_local_bounds
+from negpy.features.process.path import RenderPath, render_path
 from negpy.features.process.logic import (
     demosaic_token,
     effective_highlight_reconstruction,
@@ -76,6 +77,7 @@ from negpy.features.hdr.logic import merge_bracket
 from negpy.features.hdr.models import hdr_active, hdr_token
 from negpy.features.stitch.models import stitch_has_triplets, stitch_token
 from negpy.domain.interfaces import PipelineContext
+from negpy.services.rendering.base_read import NOT_READ, base_log_for, cached_base_log
 from negpy.services.rendering.engine import DarkroomEngine
 from negpy.services.rendering.gpu_engine import GPUEngine
 from negpy.infrastructure.capture.raw_demosaic import _user_sat
@@ -322,6 +324,41 @@ def preview_takes_unmix(params: WorkspaceConfig) -> bool:
     from its own single-band exposure, so unmixing them would inject crosstalk that was never
     captured; that holds for a stitch with a triplet part too."""
     return not is_rgb_triplet(params.rgbscan) and not stitch_has_triplets(params.stitch)
+
+
+def precorrect_key(
+    source_hash: str, shape: tuple, settings: WorkspaceConfig, skip_flatfield: bool, gain_slices: tuple, source_orientation: int
+) -> tuple:
+    """Identity of a preview source after flat-field and sensor unmix. Shape is in it: HQ
+    re-decodes the same file larger under an unchanged source_hash."""
+    return (
+        source_hash,
+        shape,
+        skip_flatfield,
+        gain_slices,
+        source_orientation,
+        metadata_lens_corrections(settings),
+        flatfield_token(settings.flatfield),
+        sensor_token(settings.process),
+        rgbscan_token(settings.rgbscan),
+        stitch_token(settings.stitch),
+        hdr_token(settings.hdr),
+    )
+
+
+def precorrect_source(img: ImageBuffer, settings: WorkspaceConfig, gain_slices: tuple = (), source_orientation: int = 1) -> ImageBuffer:
+    """Flat-field, then the sensor unmix: the source pre-corrections, before geometry and crop."""
+    img = flatfield_source(img, settings, gain_slices, orientation=source_orientation)
+    if preview_takes_unmix(settings):
+        img = apply_sensor_correction(img, effective_sensor_matrix(settings.process), settings.process.sensor_unmix)
+    return img
+
+
+def read_source_base(img: ImageBuffer, settings: WorkspaceConfig, source_hash: str, source_orientation: int = 1) -> Optional[tuple]:
+    """The clear-base read `run_pipeline` would take for a whole-frame preview of `img`, for the prefetch."""
+    key = precorrect_key(source_hash, img.shape, settings, False, (), source_orientation)
+    found = cached_base_log(key)
+    return found if found is not NOT_READ else base_log_for(key, precorrect_source(img, settings, (), source_orientation))
 
 
 def _unmix_source(f32_buffer: np.ndarray, params: WorkspaceConfig) -> np.ndarray:
@@ -733,33 +770,21 @@ class ImageProcessor:
         # per-part flat-fielded, because correcting the composite canvas as one frame would
         # stretch the gain map across the seam. Shape is in the key: HQ re-decodes the same
         # file larger under an unchanged source_hash.
-        precorrect_key = (
-            source_hash,
-            img.shape,
-            skip_flatfield,
-            gain_slices,
-            source_orientation,
-            metadata_lens_corrections(settings),
-            flatfield_token(settings.flatfield),
-            sensor_token(settings.process),
-            rgbscan_token(settings.rgbscan),
-            stitch_token(settings.stitch),
-            hdr_token(settings.hdr),
-        )
-        if self._precorrect_key == precorrect_key and self._precorrect_value is not None:
+        pre_key = precorrect_key(source_hash, img.shape, settings, skip_flatfield, gain_slices, source_orientation)
+        if self._precorrect_key == pre_key and self._precorrect_value is not None:
             img = self._precorrect_value
         else:
             source = img
+            # skip_flatfield buffers come from _load_source_f32, which already applied both.
             if not skip_flatfield:
-                img = flatfield_source(img, settings, gain_slices, orientation=source_orientation)
-            # Sensor unmix is a source pre-correction like flat-field. skip_flatfield buffers
-            # come from _load_source_f32, which already applied it.
-            if not skip_flatfield and preview_takes_unmix(settings):
-                img = apply_sensor_correction(img, effective_sensor_matrix(settings.process), settings.process.sensor_unmix)
+                img = precorrect_source(img, settings, gain_slices, source_orientation)
             # Both no-op'd: caching would pin a second reference to the same buffer.
             if img is not source:
-                self._precorrect_key = precorrect_key
+                self._precorrect_key = pre_key
                 self._precorrect_value = img
+        source_base = NOT_READ
+        if film_base is None and render_path(settings.process) is RenderPath.PRINT:
+            source_base = base_log_for(pre_key, img) if readback_metrics else cached_base_log(pre_key)
         h_orig, w_cols = img.shape[:2]
         # Fold the buffer resolution into source_hash: toggling HQ re-decodes the same file
         # at full resolution with unchanged settings, so without this the engine cache
@@ -833,6 +858,8 @@ class ImageProcessor:
             context.metrics.update(metrics)
         if film_base is not None:
             context.metrics["film_base"] = tuple(film_base)
+        if source_base is not NOT_READ:
+            context.metrics["source_base_log"] = source_base
         # The crop this render detected, for the controller to freeze into the edit. The key
         # rides along so a freeze that lands after the user moved on is discarded.
         if resolved_crop is not None:
@@ -876,6 +903,7 @@ class ImageProcessor:
                         cam_xyz=cam_xyz,
                         camera_wb=camera_wb,
                         film_base=film_base,
+                        source_base_log=source_base,
                         memory_bounded=True,
                         render_size_ref=render_size_ref,
                     )
@@ -892,6 +920,7 @@ class ImageProcessor:
                         cam_xyz=cam_xyz,
                         camera_wb=camera_wb,
                         film_base=film_base,
+                        source_base_log=source_base,
                         full_frame=crop_preview_full,
                     )
                 context.metrics.update(gpu_metrics)
