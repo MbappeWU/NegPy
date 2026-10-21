@@ -38,7 +38,7 @@ def test_a_checked_tab_takes_the_warm_chip(qapp):
 
 def test_the_edit_dot_stays_inside_the_chip_of_a_narrow_tab(qapp):
     for tab, width in (
-        (PanelTab("mdi6.crop", "Geometry"), 105),
+        (PanelTab("mdi6.crop", "Geometry"), PanelTab.min_width(["Geometry"], stacked=False)),
         (PanelTab("mdi6.history", "History", icon_only=True), PanelTab.ICON_ONLY_WIDTH),
     ):
         tab.setChecked(True)

@@ -51,9 +51,10 @@ class PanelTab(QAbstractButton):
 
     @staticmethod
     def min_width(labels: list[str], *, stacked: bool) -> int:
-        """Widest name at the checked weight, so a tab spills into » before its name clips."""
+        """Widest name at the checked weight, so a tab spills into » before its name or edit dot clips.
+        The dot overhangs the centered name by space_xs + _DOT / 2, so each side keeps that room."""
         text = max(QFontMetrics(_font(True)).horizontalAdvance(label) for label in labels)
-        return text + 2 * THEME.space_md if stacked else text + _ICON + THEME.space_md + 2 * THEME.space_sm
+        return text + 2 * THEME.space_md if stacked else text + _ICON + THEME.space_md + 2 * (THEME.space_sm + THEME.space_xs + _DOT // 2)
 
     def set_marked(self, marked: bool) -> None:
         if marked != self._marked:
