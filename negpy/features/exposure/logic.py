@@ -139,7 +139,7 @@ def tone_key_weight_np(lum: Any, e0: float, e1: float) -> Any:
     return t * t * (np.float32(3.0) - np.float32(2.0) * t)
 
 
-@parallel_njit(cache=True, fastmath=True)
+@parallel_njit(cache=True, nogil=True, fastmath=True)
 def _apply_print_curve_kernel(
     img: np.ndarray,
     pivots: np.ndarray,

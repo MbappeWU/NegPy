@@ -33,7 +33,7 @@ MASK_SPACER_MAX = 6.0
 DIFFUSION_SPREAD = 2.0
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True)
 def _normalize_log_image_jit(img_log: np.ndarray, floors: np.ndarray, ceils: np.ndarray) -> np.ndarray:
     """
     Log -> ~0.0-1.0 (Linear stretch, unclamped: out-of-bounds densities are
