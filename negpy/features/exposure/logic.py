@@ -39,6 +39,10 @@ def _fast_sigmoid(x: float) -> float:
         return float(z / (1.0 + z))
 
 
+# Plain Python calls this twin: an inline kernel has no cache, so it would compile on every launch.
+_fast_sigmoid_cached = njit(cache=True)(_fast_sigmoid.py_func)
+
+
 @njit(inline="always")
 def _black_hold(v: float, d_max_eff: float, taper: float) -> float:
     """Hold Black's weight on a shadow lift: 1 below `taper` under paper black, smoothstep to 0 at it.
@@ -1173,7 +1177,7 @@ def highlight_hold_offset(
     if v >= v_hold:
         return 0.0
     z_hi = float(c["anchor_target_density"]) + float(c["zone_density_highlight_offset"])
-    w = 1.0 - _fast_sigmoid(float(c["zone_density_sharpness"]) * (v - z_hi))
+    w = 1.0 - _fast_sigmoid_cached(float(c["zone_density_sharpness"]) * (v - z_hi))
     return float(min((v_hold - v) / max(w, 1e-6), float(c["highlight_hold_max"])))
 
 
