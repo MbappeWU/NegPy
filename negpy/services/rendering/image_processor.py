@@ -948,6 +948,7 @@ class ImageProcessor:
         positive_source: bool = False,
         highlight_mode: int = 0,
         bake_camera_wb: bool = False,
+        load_ir: bool = True,
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Decode one RAW to sensor-native (output_color=raw), linear uint16 RGB.
 
@@ -975,7 +976,7 @@ class ImageProcessor:
 
         Returns (rgb_uint16, loader_metadata).
         """
-        ctx_mgr, metadata = loader_factory.get_loader(file_path, linear_raw=linear_raw, positive_source=positive_source)
+        ctx_mgr, metadata = loader_factory.get_loader(file_path, linear_raw=linear_raw, positive_source=positive_source, load_ir=load_ir)
         with ctx_mgr as raw:
             algo = get_best_demosaic_algorithm(raw, demosaic)
             # Read before postprocess: camera_whitebalance is sensor metadata, unaffected by it,
@@ -1051,6 +1052,7 @@ class ImageProcessor:
             demosaic_token(params.process.demosaic_export),
             fast_decode,
             unmix,
+            params.retouch.ir_dust_remove,
         )
         if cache_key == self._source_cache_key and self._source_cache_value is not None:
             return self._source_cache_value
@@ -1158,6 +1160,7 @@ class ImageProcessor:
                 positive_source=params.process.positive_source,
                 highlight_mode=highlight_mode,
                 bake_camera_wb=bake_wb,
+                load_ir=params.retouch.ir_dust_remove,
             )
         # No embedded profile (scanner-raw linear, sensor-native RAW) means the buffer is
         # already in the working space, so "Same as Source" exports without converting.
