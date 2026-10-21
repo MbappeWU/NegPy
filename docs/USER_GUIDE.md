@@ -771,7 +771,7 @@ NegPy keeps macOS and Windows awake while it scans. On Linux, turn off automatic
 Scans with a camera on a copy stand, connected over USB in **PC Remote** mode (macOS and Linux; it needs `python-gphoto2`). With a NegPy **Scanlight**, NegPy also controls the light. CAMERA_SCANNING.md explains the setup.
 
 *   **Camera** / **Light**: the connection status. The light turns amber when it runs warm. On Linux, the Scanlight needs your user in the `dialout` group.
-*   **Live View**: a live picture from the camera. Click to place the focus magnifier, and focus until the **Focus meter** reads **at peak**. Set ISO, shutter and aperture here or on the camera.
+*   **Live View**: a live picture from the camera. Click to place the focus magnifier, and focus until the **Focus meter** reads **at peak**. Set ISO, shutter and aperture here or on the camera. When it closes, the Scanlight goes back to how it was before.
 *   **Histogram** and **Zebras**: the frame's histogram, and stripes on parts that are about to clip, in the clipping colors that Color vision sets.
 *   **Meter**: sets the shutter so the brightest part that must not clip (a negative's clear film, a slide's highlights) lands just under clipping.
 *   **Scan** shoots the next frame and imports it; **Retake** (the redo arrow) shoots the last frame again. In the Live View window, `Space` or `S` scans and `R` retakes. With a Scanlight, **R**, **G**, **B** and **IR** pick which exposures Retake repeats.
@@ -787,7 +787,7 @@ Shown while a Scanlight is connected. A preset holds the light levels and the ca
     *   **Built-in Presets**: ready to use, with no calibration: **White Light**, **White Light + IR**, **Trichrome** and **Trichrome + IR**. They use the camera's exposure, which the meter sets. White Light needs a Scanlight with a white LED (v4, Big Scanlight).
     *   **Calibrate on the Film Base…**: place the rectangle on clear film and run it. NegPy finds the light levels and the shutter.
     *   **Set by Hand**: set the sliders yourself, then save them as a preset.
-*   **Red**, **Green**, **Blue**, **White**: the light levels (0 to 255). **Light Off** turns the light off.
+*   **Red**, **Green**, **Blue**, **White**: the light levels (0 to 255). **Light On** turns the light on to frame the film, or off.
 *   **Capture mode**: **Triplet** takes one exposure per color and joins them; **Single Capture** takes one exposure with all three colors on.
 *   **Create Sensor Profile** (Single Capture): also saves a sensor profile for this preset (see Calibration, §10.3).
 *   **ISO**, **Shutter**, **Aperture**: the preset's exposure. A change holds until you pick the preset again. The gauge button meters.
