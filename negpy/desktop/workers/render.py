@@ -40,6 +40,7 @@ from negpy.infrastructure.display.color_spaces import WORKING_COLOR_SPACE
 from negpy.infrastructure.gpu.resources import GPUTexture
 from negpy.kernel.system.config import APP_CONFIG
 from negpy.kernel.system.logging import get_logger
+from negpy.kernel.system import timing
 from negpy.services.rendering.image_processor import ImageProcessor, preview_takes_unmix, read_source_base
 
 logger = get_logger(__name__)
@@ -430,45 +431,52 @@ class RenderWorker(QObject):
         try:
             # The splash shares the file's source_hash but is the embedded JPEG, not the linear
             # decode, so isolate its cache identity and it cannot leak into the real render.
-            pipeline_source_hash = task.source_hash + ("\x00splash" if task.ephemeral else "")
-            if task.diptych is not None:
-                result, metrics = self._render_diptych(task, pipeline_source_hash)
-            else:
-                result, metrics = self._processor.run_pipeline(
-                    task.buffer,
-                    task.config,
-                    pipeline_source_hash,
-                    render_size_ref=task.preview_size,
-                    prefer_gpu=task.gpu_enabled,
-                    readback_metrics=task.readback_metrics,
-                    ir_buffer=task.ir_buffer,
-                    detect_buffer=task.detect_buffer,
-                    crop_preview_full=task.crop_preview_full,
-                    cam_xyz=task.cam_xyz,
-                    camera_wb=task.camera_wb,
-                    gain_slices=task.gain_slices,
-                    source_orientation=task.source_orientation,
-                    film_base=task.film_base,
+            with timing.collect() as times:
+                pipeline_source_hash = task.source_hash + ("\x00splash" if task.ephemeral else "")
+                if task.diptych is not None:
+                    result, metrics = self._render_diptych(task, pipeline_source_hash)
+                else:
+                    result, metrics = self._processor.run_pipeline(
+                        task.buffer,
+                        task.config,
+                        pipeline_source_hash,
+                        render_size_ref=task.preview_size,
+                        prefer_gpu=task.gpu_enabled,
+                        readback_metrics=task.readback_metrics,
+                        ir_buffer=task.ir_buffer,
+                        detect_buffer=task.detect_buffer,
+                        crop_preview_full=task.crop_preview_full,
+                        cam_xyz=task.cam_xyz,
+                        camera_wb=task.camera_wb,
+                        gain_slices=task.gain_slices,
+                        source_orientation=task.source_orientation,
+                        film_base=task.film_base,
+                    )
+
+                # CPU renders have no in-shader histogram; bin the float output here.
+                if task.readback_metrics and "histogram_raw" not in metrics and isinstance(result, np.ndarray):
+                    metrics["histogram_raw"] = output_histogram(result)
+                    metrics["histogram_color"] = color_histogram(result)
+                    metrics["waveform"] = waveform(result)
+                    metrics["waveform_color"] = waveform_color(result)
+                    metrics["waveform_parade"] = waveform_parade(result)
+                    metrics["vectorscope"] = vectorscope_histogram(result)
+                timing.lap("histograms")
+
+                # The soft proof is not baked in: it rides the display LUT, so a GPU texture reaches
+                # the canvas shader without a readback.
+
+                # Taken here because the engine recycles its stage textures next frame. Always
+                # assigned: the controller merges metrics into a running dict, so a stale entry
+                # would be filed under this asset's key.
+                metrics["thumbnail_source"] = (
+                    np.ascontiguousarray(result.readback()[:, :, :3]) if task.wants_thumbnail and isinstance(result, GPUTexture) else None
                 )
-
-            # CPU renders have no in-shader histogram; bin the float output here.
-            if task.readback_metrics and "histogram_raw" not in metrics and isinstance(result, np.ndarray):
-                metrics["histogram_raw"] = output_histogram(result)
-                metrics["histogram_color"] = color_histogram(result)
-                metrics["waveform"] = waveform(result)
-                metrics["waveform_color"] = waveform_color(result)
-                metrics["waveform_parade"] = waveform_parade(result)
-                metrics["vectorscope"] = vectorscope_histogram(result)
-
-            # The soft proof is not baked in: it rides the display LUT, so a GPU texture reaches
-            # the canvas shader without a readback.
-
-            # Taken here because the engine recycles its stage textures next frame. Always
-            # assigned: the controller merges metrics into a running dict, so a stale entry
-            # would be filed under this asset's key.
-            metrics["thumbnail_source"] = (
-                np.ascontiguousarray(result.readback()[:, :, :3]) if task.wants_thumbnail and isinstance(result, GPUTexture) else None
-            )
+                timing.lap("thumbnail readback")
+            h, w = task.buffer.shape[:2] if isinstance(task.buffer, np.ndarray) else (0, 0)
+            # A drag renders many frames a second, so only a settled render logs at info.
+            log = logger.info if task.readback_metrics and not task.interactive else logger.debug
+            log("render-timing %s | %dx%d %s", timing.summary(times), w, h, task.source_hash[:8])
 
             # Ensure ground truth is stored in metrics for view consumption
             metrics["base_positive"] = result
