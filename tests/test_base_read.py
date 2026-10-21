@@ -71,3 +71,46 @@ def test_a_render_without_readback_never_measures(counted):
         img, WorkspaceConfig(), "quiet", render_size_ref=90, prefer_gpu=False, readback_metrics=False
     )
     assert counted == []
+
+
+def test_a_linear_raw_or_demosaic_toggle_reads_the_base_again(counted):
+    from dataclasses import replace
+
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    img = np.random.default_rng(1).random((90, 60, 3), dtype=np.float32)
+    cfg = WorkspaceConfig()
+    proc = ImageProcessor(use_gpu=False)
+    run = lambda c: proc.run_pipeline(img, c, "frame", render_size_ref=90, prefer_gpu=False, readback_metrics=True)  # noqa: E731
+    run(cfg)
+    run(replace(cfg, process=replace(cfg.process, linear_raw=not cfg.process.linear_raw)))
+    run(replace(cfg, process=replace(cfg.process, demosaic_preview="DCB" if cfg.process.demosaic_preview != "DCB" else "AHD")))
+    assert counted == [1, 1, 1]
+
+
+def test_a_render_without_stage_caching_never_reads(counted):
+    from negpy.services.rendering.image_processor import ImageProcessor
+
+    img = np.random.default_rng(1).random((90, 60, 3), dtype=np.float32)
+    ImageProcessor(use_gpu=False).run_pipeline(
+        img, WorkspaceConfig(), "export", render_size_ref=90, prefer_gpu=False, readback_metrics=True, cache_stages=False
+    )
+    assert counted == []
+
+
+def test_a_gpu_drag_with_no_read_leaves_the_base_density_out():
+    from negpy.infrastructure.gpu.device import GPUDevice
+
+    if not GPUDevice.get().is_available:
+        pytest.skip("GPU not available")
+    from negpy.services.rendering.gpu_engine import GPUEngine
+
+    img = np.random.default_rng(1).random((90, 60, 3), dtype=np.float32)
+    engine = GPUEngine()
+    try:
+        _tex, drag = engine.process_to_texture(
+            img, WorkspaceConfig(), scale_factor=1.0, apply_layout=False, readback_metrics=False, source_hash="d", analysis_source_hash="d"
+        )
+    finally:
+        engine.destroy_all()
+    assert "film_base_density" not in drag

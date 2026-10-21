@@ -329,11 +329,14 @@ def preview_takes_unmix(params: WorkspaceConfig) -> bool:
 def precorrect_key(
     source_hash: str, shape: tuple, settings: WorkspaceConfig, skip_flatfield: bool, gain_slices: tuple, source_orientation: int
 ) -> tuple:
-    """Identity of a preview source after flat-field and sensor unmix. Shape is in it: HQ
-    re-decodes the same file larger under an unchanged source_hash."""
+    """Identity of a preview source after flat-field and sensor unmix. Shape and the decode
+    tokens are in it: HQ, Linear RAW and a demosaic change re-decode under an unchanged source_hash."""
     return (
         source_hash,
         shape,
+        linear_raw_token(settings.process),
+        demosaic_token(settings.process.demosaic_preview),
+        settings.process.positive_source,
         skip_flatfield,
         gain_slices,
         source_orientation,
@@ -784,7 +787,7 @@ class ImageProcessor:
                 self._precorrect_value = img
         source_base = NOT_READ
         if film_base is None and render_path(settings.process) is RenderPath.PRINT:
-            source_base = base_log_for(pre_key, img) if readback_metrics else cached_base_log(pre_key)
+            source_base = base_log_for(pre_key, img) if readback_metrics and cache_stages else cached_base_log(pre_key)
         h_orig, w_cols = img.shape[:2]
         # Fold the buffer resolution into source_hash: toggling HQ re-decodes the same file
         # at full resolution with unchanged settings, so without this the engine cache

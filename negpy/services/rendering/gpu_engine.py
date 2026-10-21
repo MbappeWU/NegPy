@@ -1690,6 +1690,9 @@ class GPUEngine:
             # Raw cast refs so the chart can re-solve the exact render curves.
             "neutral_axis_refs": neutral_axis_refs,
         }
+        # A drag with no read leaves the base out, so the merged metrics keep the last frame's.
+        if not transfer and film_base is None and source_base_log is NOT_READ:
+            del metrics["film_base_density"]
 
         if not tiling_mode and readback_metrics:
             raw_metrics = self._readback_metrics()
